@@ -211,7 +211,7 @@ public:
     bool advance(const WeaponOwnerFrame&,std::optional<double> randomReply,
         const WeaponOutputSupport&,WeaponPostFireStep&,std::string& error);
 private:
-    WeaponArsenal* arsenal_;std::string name_;unsigned phase_=0;
+    WeaponArsenal* arsenal_;std::string name_;unsigned phase_=0,controlKey_=0;
     bool finished_=false,hasTarget_=false,clipEmpty_=false,cancelAttachedDone_=false,dangerQueried_=false;
     float targetX_=0,targetY_=0,randomMin_=0,randomMax_=0,pendingRandom_=0;
     enum class Await { None,Cooldown,Reload } await_=Await::None;

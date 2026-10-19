@@ -341,12 +341,16 @@ bool ActionEffectWorld::cancelAttached(int32_t owner,const std::string& name,boo
  error.clear();return true;
 }
 bool ActionEffectWorld::addAngle(uint64_t h,float radians,std::string&error){if(!state(h)||!std::isfinite(radians)){error="Animation AddAngle target unavailable";return false;}if(radians==0)return true;forChain(h,[&](ActionEffectState&s,bool){s.heading=wrapAngle(s.heading+radians);});return true;}
+bool ActionEffectWorld::setRadius(uint64_t h,float value,std::string&error){
+ if(!state(h)||!std::isfinite(value)){error="Animation SetRadius target unavailable";return false;}
+ std::function<void(uint64_t)> radius=[&](uint64_t id){auto it=states_.find(id);if(it==states_.end())return;if(it->second.child)radius(it->second.child);const auto&d=it->second.definition;std::set<std::string> names;if(auto c=t(d,"CreateAnimation");!c.empty())names.insert(c);if(auto*list=d.get("CreateAnimations"))for(const auto&r:list->array())names.insert(t(r,"Name"));for(auto c:it->second.created)if(auto*cs=state(c);cs&&names.contains(cs->name))radius(c);it->second.scaleRadius=value;};
+ radius(h);error.clear();return true;}
 bool ActionEffectWorld::setup(uint64_t h,const ActionAnimationSetup&a,std::string&error){try{
  auto*root=state(h);if(!root){error="SetupAnimation target is not a live action Animation";return false;}
  // 1 Scale: ModifyScale multiplies body.mScale down the child chain.
  if(a.scale!=1)forChain(h,[&](ActionEffectState&s,bool){s.ownScale*=a.scale;});
  // 2 ScaleRadius: SetRadius 0x1802974e0 (child, matching created, then self).
- if(a.scaleRadius>0){std::function<void(uint64_t)> radius=[&](uint64_t id){auto it=states_.find(id);if(it==states_.end())return;if(it->second.child)radius(it->second.child);const auto&d=it->second.definition;std::set<std::string> names;if(auto c=t(d,"CreateAnimation");!c.empty())names.insert(c);if(auto*list=d.get("CreateAnimations"))for(const auto&r:list->array())names.insert(t(r,"Name"));for(auto c:it->second.created)if(auto*cs=state(c);cs&&names.contains(cs->name))radius(c);it->second.scaleRadius=a.scaleRadius;};radius(h);}
+ if(a.scaleRadius>0&&!setRadius(h,a.scaleRadius,error))return false;
  // 3 Duration (>0) through SetDuration.
  if(a.duration>0&&!setDuration(h,a.duration,error))return false;
  // 4 PreferUnmodifiedTime: only where definition TimeModifierFraction<0 (default -1).

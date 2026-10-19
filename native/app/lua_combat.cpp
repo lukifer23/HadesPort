@@ -95,6 +95,7 @@ bool ScriptRuntime::weaponCallback(const hades::WeaponOutput& op,std::string& er
             lua_pushboolean(L,op.controllable);lua_setfield(L,-2,"Controllable");lua_pushboolean(L,op.freshInput);lua_setfield(L,-2,"FreshInput");
         }
         if(op.name=="OnWeaponFired"){
+            hades::log(hades::Severity::Info,"HadesLua","WEAPON_FIRED_DISPATCH frame=%llu weapon=%s fresh=%d",(unsigned long long)worldFrame_,op.weaponName.c_str(),int(op.freshInput));
             std::string lookup;const bool perfect=actor->arsenal->isPerfectCharge(op.weaponName,lookup);if(!lookup.empty()){detail=lookup;return false;}
             if(perfect){lua_pushboolean(L,true);lua_setfield(L,-2,"IsPerfectCharge");}
             if(weapon->validProjectileData){lua_pushstring(L,weapon->projectileData.name.c_str());lua_setfield(L,-2,"ProjectileName");}
@@ -342,6 +343,7 @@ bool ScriptRuntime::consumeWeaponOperation(const hades::WeaponOutput& op,hades::
     error="Native weapon yielded an unsupported consumer";return false;
 }
 bool ScriptRuntime::advanceWeapons(float dt,std::string& error){
+    installProjectileGraphicProvider();
     try{
         float speed=0;if(!configurationFloat("SpeedMultiplier",speed,error))return false;
         // The Android sequential manager uses actual actor registration order.
@@ -703,8 +705,11 @@ bool ScriptRuntime::unitApplyFullShift(int32_t id,float locX,float locY,float dx
         const auto* obstacle=actorWorld_.actor(o);if(!obstacle||!obstacle->registered||obstacle->entityHandle!=olife)continue; // ObstacleManager lookup null
         const auto* alphaIn=actorWorld_.currentProperty(o,"CollisionEndedAlphaInDuration");const auto* endAnim=actorWorld_.currentProperty(o,"CollisionEndedAnimation");
         if(!alphaIn||!endAnim)throw std::runtime_error("Original ObstacleData CollisionEnded fields unavailable");
-        if(alphaIn->number()>0)throw std::runtime_error("ApplyFullShift CollisionEndedAlphaInDuration BodyComponent::Adjust2b7440 not reconstructed");
-        if(!endAnim->text().empty())throw std::runtime_error("ApplyFullShift CollisionEndedAnimation Thing::SetAnimation2decb0 not reconstructed");
+        // ApplyFullShift collision-end (pseudocode l.120-131): AlphaIn>0 ->
+        // FUN_1802b7440(body, body+0x320, {target 1, initial 0, duration}); then
+        // Thing::SetAnimation 0x2decb0(obstacle, CollisionEndedAnimation, false, true).
+        if(const float fadeIn=float(alphaIn->number());fadeIn>0){hades::BodyTransitionOptions in;in.duration=fadeIn;if(!actorWorld_.adjustColorChannel(o,3,1.f,0.f,in,error))return false;}
+        if(!endAnim->text().empty()&&endAnim->text()!="null"&&!setActorAnimation(o,endAnim->text(),error))return false;
         // ScriptManager::OnCollisionEnd28b290 (GhostScripts.lua OnCollisionEnd reads CollideeTable).
         // APPROXIMATION (labelled): argument shape assumed from OnObstacleCollision28ab40; 28b290 not decompiled.
         lua_State* L=state_;pushObjectLuaTable(L,o);const bool hasTable=!lua_isnil(L,-1);lua_pop(L,1);
@@ -827,7 +832,8 @@ bool ScriptRuntime::unitOnObstacleCollision(int32_t id,int32_t o,float sx,float 
         // the actor catalog lists it as an unresolved compiled field, so absent = that empty default.
         const auto* sound=actorWorld_.currentProperty(o,"CollisionSound");
         if(sound&&!sound->text().empty())throw std::runtime_error("OnObstacleCollision CollisionSound AudioManager::PlayCue3D4a690 not reconstructed");
-        if(!prop(o,"CollisionAnimation").text().empty())throw std::runtime_error("OnObstacleCollision CollisionAnimation Thing::SetAnimation2decb0 not reconstructed");
+        // First contact: Thing::SetAnimation 0x2decb0(obstacle, CollisionAnimation, false, true).
+        if(const auto anim=prop(o,"CollisionAnimation").text();!anim.empty()&&anim!="null"&&!setActorAnimation(o,anim,error))return false;
         // Unit::OnObstacleCollision 0x2f6ce0: CollisionAlphaOutDuration>0 ->
         // FUN_1802b7440(body, body+0x320 alpha, {target 0, initial 1, duration, no ease}).
         if(const float fade=float(prop(o,"CollisionAlphaOutDuration").number());fade>0){

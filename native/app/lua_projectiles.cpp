@@ -121,7 +121,37 @@ bool ScriptRuntime::createWeaponProjectile(const hades::WeaponOutput& op,uint64_
     return projectileWorld_.initializeShot(std::move(request),*owner->arsenal,actorWorld_,providers,handle,error);
 }
 
+int32_t ScriptRuntime::projectileFxOwner(uint64_t handle){
+    const auto it=projectileFxOwnerIds_.find(handle);if(it!=projectileFxOwnerIds_.end())return it->second;
+    const int32_t id=nextProjectileFxOwner_--;projectileFxOwnerIds_[handle]=id;projectileFxOwners_[id]=handle;return id;
+}
+bool ScriptRuntime::projectileEffectOwner(int32_t id,hades::EffectOwnerState& state,std::string& error)const{
+    // Owner Thing = Projectile: Thing::GetLocation (attachment aware), GetZLocation,
+    // body scale/angle and packed base color/HSV, as for any Thing owner.
+    const auto it=projectileFxOwners_.find(id);const auto* p=it==projectileFxOwners_.end()?nullptr:projectileWorld_.actor(it->second);
+    if(!p||p->disposed||!p->thingInitialized){error="Effect owner requires actual live projectile";return false;}
+    state=hades::EffectOwnerState{};state.lifetime=p->request.lifetimeHandle;
+    if(!projectileWorld_.projectileLocation(*p,state.x,state.y,error)||!projectileWorld_.projectileZ(*p,state.z,error))return false;
+    state.scale=p->body.scale*p->body.scaleFraction;state.angle=p->body.angle;state.baseColor=p->baseColor;state.baseHsv=std::array<float,4>{p->hsv[0],p->hsv[1],p->hsv[2],0};
+    state.hasPrimaryAnimation=p->primaryAnimation!=0;state.isUnit=false;error.clear();return true;
+}
+bool ScriptRuntime::releaseProjectileFxOwner(uint64_t handle,std::string& error){
+    // Thing::Dispose of the owning projectile: attached FX detach exactly as for
+    // other owners (ActionEffectWorld::preDisposeOwner), before the body is retired.
+    const auto it=projectileFxOwnerIds_.find(handle);if(it==projectileFxOwnerIds_.end()){error.clear();return true;}
+    const int32_t id=it->second;hades::EffectOwnerState owner;if(!projectileEffectOwner(id,owner,error)||!actionEffects_.preDisposeOwner(id,owner,error))return false;
+    projectileFxOwners_.erase(id);projectileFxOwnerIds_.erase(it);error.clear();return true;
+}
+void ScriptRuntime::installProjectileGraphicProvider(){
+    projectileWorld_.setDetonateGraphicProvider([this](uint64_t handle,const std::string& name,float x,float y,bool primary,float radius,std::string& e){
+        // AnimationManager::Create29e410(name, projectile, Vector2 location) -> SetRadius2974e0 ->
+        // PreferUnmodifiedTime29a5c0 (Projectile::Detonate6d670 VA18006d77a..6d80a).
+        uint64_t fx=0;if(!createActionEffect(name,projectileFxOwner(handle),std::array<float,3>{x,y,0},fx,e))return false;
+        if(fx&&primary&&(!actionEffects_.setRadius(fx,radius,e)||!actionEffects_.preferUnmodifiedTime(fx,e)))return false;
+        e.clear();return true;});
+}
 bool ScriptRuntime::advanceProjectiles(float dt,std::string& error){
+    installProjectileGraphicProvider();
     projectileWorld_.setOwnerMarkerProvider([this](int32_t o,const std::string& m,float& x,float& y,std::string& e){return projectileOwnerMarker(o,m,x,y,e);});
     projectileWorld_.setPrimaryCombatProvider([this](int32_t id,bool& inv,bool& noCoverage,std::string& e){bool noArmor=false;return primaryCombatFlags(id,inv,noArmor,noCoverage,e);});
     hades::ProjectileUpdateProviders providers;providers.worldTime=worldTime_;providers.worldTimeMultiplier=worldSpeedModifier_;
@@ -206,7 +236,7 @@ bool ScriptRuntime::advanceProjectiles(float dt,std::string& error){
             if(!dispatchCallbacks("OnProjectileDeath",death.name.c_str(),death.victimId>=0?death.victimId:0,extra)){detail=error_;return false;}
             detail.clear();return true;
         }
-        if(operation.kind==K::DisposeThing){p.body.entityHandle=0;detail.clear();return true;}
+        if(operation.kind==K::DisposeThing){if(!releaseProjectileFxOwner(p.request.lifetimeHandle,detail))return false;p.body.entityHandle=0;detail.clear();return true;}
         detail="Unconsumed live projectile operation";return false;
     };
     return projectileWorld_.update(dt,providers,error);

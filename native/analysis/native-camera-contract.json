@@ -27,6 +27,19 @@
       "path": ".local/reports/native-rea-camera-update-v1.json",
       "evidence_id": "ev_ad68286ec88bbd919538a34abd687cbcbca0ba71e2ba876d86c0cb7689cb8a10",
       "procedure": "0x1803025a0"
+    },
+    "focus-generators": {
+      "path": ".local/reports/camera-focus/",
+      "procedures": [
+        "0x1801e6bf0",
+        "0x1801e9200",
+        "0x1801e8bb0",
+        "0x1801e6740",
+        "0x1801e6920",
+        "0x1801eaae0",
+        "0x1801e6a40",
+        "0x180252d66"
+      ]
     }
   },
   "additional_native_reports": [
@@ -66,7 +79,10 @@
     "clamp": "Exactly two RoomOpening source clamp Things40013/40014. Rectangle304dc0 truncates min XY and max-min extent to int. ApplyClamp305fc0 truncates reference viewport/zoom then half dimensions, max followed by min even inverted bounds; positive SoftClamp blends per call. Update calls clamp before and after zoom.",
     "same_target_pan": "3018b0 returns before path generation when Retarget=false and HasSameIds. Opening ReattachCameraOnInput pans the already tethered hero, so selected path neither allocates randomized spline nor consumes spline RNG.",
     "random_arguments": "ScriptArgs.getDuration uses range only when both MinDuration and MaxDuration nonzero; getFraction uses range when either endpoint nonzero; real recovered RNG stream consumed.",
-    "weights": "SetCameraZoomWeight2614d0 stores per-active-Thing Weight(default1); positive ZoomSpeed sets mZoomSpeed. GetWeightedZoom306820 computes sum(weight*(distance>1?1000/distance:1000))/sum(influence), live distance from camera location. GetGoalZoom multiplies source base goal by this result. Original RoomOpening targets410007=(5177.9267578125,4083.625), Weight1.25 and410008=(1726.3673095703125,5012.44140625), Weight1.0."
+    "weights": "SetCameraZoomWeight2614d0 stores per-active-Thing Weight(default1); positive ZoomSpeed sets mZoomSpeed. GetWeightedZoom306820 computes sum(weight*(distance>1?1000/distance:1000))/sum(influence), live distance from camera location. GetGoalZoom multiplies source base goal by this result. Original RoomOpening targets410007=(5177.9267578125,4083.625), Weight1.25 and410008=(1726.3673095703125,5012.44140625), Weight1.0.",
+    "focus": "ScriptAction FocusCamera (Execute VA180252d66..e1c): String ZoomType default '', getFraction, Bool Relative, getDuration, then Camera::Focus 0x180303240 unconditionally (Duration 0 included). Focus: Relative multiplies by current zoom (+0x1c); start = zoom spline GetCurrent(world time) while +0x264>0 else base goal +0x20; clears spline (+0x240=+0x238, +0x250 index, +0x264); ZoomType 'Ease' -> GenerateEase 0x1801e6bf0(0.12,0.4), 'Undershoot' -> GenerateUndershootSpline 0x1801e8bb0, else GenerateOvershootSpline 0x1801e9200(duration); then start +0x258, end +0x25c, start time +0x260, duration +0x264, base goal +0x20=fraction, zoom speed +0x14=2/duration (inf for 0).",
+    "zoom_spline": "SplineHelper::GetCurrent 0x1801e6920: f=clamp((t-start)/duration) via maxss/minss; f>=1 returns last point value and clears points/index/duration; else advances the persisted segment index while f>p[i+1].time and evaluates AxisPath::Interpolate 0x1801e6740 with (f-p[i].time)/(p[i+1].time-p[i].time). Point = 0x1c bytes {value,time,type byte,inValue,inTime,outValue,outTime}. Type 2 -> CubicBezier 0x1801eaae0(p.value,p.outValue,next.type==2?next.inValue:next.value,next.value,t) with float terms summed in double; other non-1 types linear. GenerateRandom 0x1801e6a40 = float(Random::RandomDouble)*((c+s)-(c-s))+(c-s); Ease draws 4 values (v1,t1,v2,t2) and angles float((x*50+95+180)*(double)pi/180). Overshoot/Undershoot are deterministic.",
+    "zoom_update": "GetGoalZoom 0x180305070 = (spline active ? GetCurrent : base goal) * GetWeightedZoom; Camera::Update 0x18030310b steps zoom by dt*speed only while step<|goal-zoom|, else snaps."
   },
   "api": {
     "initialize": "ScriptRuntime.registerCameraActions() after previous reconstructed Lua actions",
@@ -77,27 +93,31 @@
   "adaptations": [
     "Camera target snapshot includes portable actual entity lifetime; stale/recycled ID does not silently acquire a replacement target.",
     "No mouse cursor/edge follow added on Android.",
-    "Source viewport adaptation is caller-controlled; default exact constructor resolution."
+    "Source viewport adaptation is caller-controlled; default exact constructor resolution.",
+    "Zoom spline clock = the camera's accumulated world elapsed (same clock as MoveToOverDuration), standing in for World+0x1c world time.",
+    "cosf/sinf come from the platform libm; values may differ from the MSVC CRT by an ulp. Camera arithmetic compiled with fp contract off."
   ],
   "explicit_unsupported": [
     "New-target/Retarget timed Pan source randomized splines",
-    "Timed Focus randomized zoom spline/AdjustCameraFocus",
     "LazyTether cursor zone",
     "Multi-target DynamicZoom weighted path",
     "Clamps wider than two source points/polygon/rail paths",
-    "Source shake/virtual cursor/walls reconstruction"
+    "Source shake/virtual cursor/walls reconstruction",
+    "AdjustCameraFocus action (ScriptAction 0x180260e50: GenerateAdjustSimple/GenerateAdjust) not registered",
+    "AxisPath Catmull-Rom (Interpolate type 1) segments; unused by the Focus generators"
   ],
   "validation": {
     "host": ".local/reports/native-camera-v2-smoke.json",
     "lua_bridge_host_syntax": "passed",
     "device_execution_observed": false,
-    "arm64_api26_syntax": "passed"
+    "arm64_api26_syntax": "passed",
+    "focus_host_replay": ".local/reports/native-combat-replay-v3.tsv with --contain-faults: SwordParry ChargeCameraMotion Ease 0.75->0.7875 then RestoreDefaultDuration Overshoot 0.8 s back to 0.75"
   },
   "owned_sessions_open": false,
   "files": {
-    "native/app/native_camera.hpp": "2d6a8f010cb5ae8a6fc407ecf74b81dbf54b4e60c4db37e4b02115f0202fada3",
-    "native/app/native_camera.cpp": "768e722b0f8c89d4394d254a2dc12701681b13d0c4b58d7ad2c781256b461db2",
-    "native/app/lua_camera.cpp": "80e96f196f09d935a0f69d43efa72683fe0109147d7d4172dc2d227de1db48d7",
-    "native/analysis/native_camera_smoke.cpp": "bdd2bf1bed960461246a7b7572ab6d1dce2d5fa9d3ab4227268581b17fbbe9bd"
+    "native/app/native_camera.hpp": "622fa3145b6a1919668a8fee9ed4953d115dfbe4f686ce8e5f661587033345a0",
+    "native/app/native_camera.cpp": "8ee84cc54c03b96ab353f1b4532bbd82d84768a6876e3457d5ad04ca8a090883",
+    "native/app/lua_camera.cpp": "252bd0aefbefeabe852f774592e5044d2a45e5451c79d7a6bb2cbe6eebb01007",
+    "native/analysis/native_camera_smoke.cpp": "eef547e751186e1173580d59efc822520d7438136b902ede1d0a239e656ce06d"
   }
 }

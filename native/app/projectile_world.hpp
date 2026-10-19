@@ -231,6 +231,7 @@ class ProjectileWorld {
     // (+0x138) vslot0xd8 GetMarkerLocation(name), else owner GetLocation.
     std::function<bool(int32_t owner,const std::string& marker,float& x,float& y,std::string&)> ownerMarker_;
     std::function<bool(int32_t,bool&,bool&,std::string&)> primaryCombat_;
+    std::function<bool(uint64_t,const std::string&,float,float,bool,float,std::string&)> detonateGraphic_;
     bool attachedAlive(const ProjectileActor&)const;
     // Thing::GetLocation2e0b70 / GetZLocation2e0bf0 composition.
     bool thingLocation(const ProjectileActor&,float& x,float& y,std::string&)const;
@@ -249,6 +250,13 @@ public:
     // Attached-aware Thing::GetLocation2e0b70 of a live projectile.
     bool projectileLocation(const ProjectileActor& p,float& x,float& y,std::string& e)const{return thingLocation(p,x,y,e);}
     // Actual primary-animation combat flags (OwnerInvulnerable, OwnerNoInvulnerableCoverage) by Thing id.
+    // Projectile::Detonate6d670 DetonateGraphic/DetonateGraphic2: AnimationManager::Create29e410
+    // with this projectile as owner Thing at its GetLocation. primary=true for DetonateGraphic,
+    // which the parent follows with Animation::SetRadius2974e0(DamageRadius) and
+    // PreferUnmodifiedTime29a5c0; DetonateGraphic2 is created only.
+    using DetonateGraphicProvider=std::function<bool(uint64_t projectile,const std::string& name,float x,float y,bool primary,float radius,std::string&)>;
+    void setDetonateGraphicProvider(DetonateGraphicProvider fn){detonateGraphic_=std::move(fn);}
+    bool projectileZ(const ProjectileActor& p,float& z,std::string& e)const{return thingZ(p,z,e);}
     void setPrimaryCombatProvider(std::function<bool(int32_t,bool& invulnerable,bool& noCoverage,std::string&)> fn){primaryCombat_=std::move(fn);}
     void setOwnerMarkerProvider(std::function<bool(int32_t,const std::string&,float&,float&,std::string&)> fn){ownerMarker_=std::move(fn);}
     // Unit::SetLocation2f2a40 -> Thing::OnAttachedToMoved2e5960 for each

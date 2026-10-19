@@ -25,9 +25,11 @@ std::array<TouchControls::ActionButton,TouchControls::ButtonCount> TouchControls
     return out;
 }
 std::array<float,2> TouchControls::defaultStick()const{
-    const float rest=mm(25)*scale_,offset=(leftHanded_?-1.f:1.f)*mm(layout_[2*ButtonCount]);
+    // Rest above the original HUD's bottom health/ammo band (drawn ~20% from
+    // the bottom on the Fold's aspect) so the stick never covers it.
+    const float rest=mm(25)*scale_,restY=mm(45)*scale_,offset=(leftHanded_?-1.f:1.f)*mm(layout_[2*ButtonCount]);
     const float r=stickRadius();
-    return {std::clamp((leftHanded_?width_-rest:rest)+offset,r,std::max(r,width_-r)),std::clamp(height_-rest+mm(layout_[2*ButtonCount+1]),r,std::max(r,height_-r))};
+    return {std::clamp((leftHanded_?width_-rest:rest)+offset,r,std::max(r,width_-r)),std::clamp(height_-restY+mm(layout_[2*ButtonCount+1]),r,std::max(r,height_-r))};
 }
 bool TouchControls::editPointer(UiPointer phase,int id,float x,float y){
     if(phase==UiPointer::Cancel){editOwner_=-1;return true;}

@@ -1,7 +1,12 @@
 #include "native_camera.hpp"
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
+// Source arithmetic is single-precision, unfused (x64 SSE mulss/addss).
+#if defined(__clang__)
+#pragma clang fp contract(off)
+#endif
 namespace hades {
 namespace {
 bool finite(float v){return std::isfinite(v)&&std::abs(v)<=1e7f;}
@@ -41,7 +46,78 @@ bool NativeCamera::lock(const std::vector<int32_t>&ids,float duration,float spee
 bool NativeCamera::pan(const std::vector<int32_t>&ids,bool retarget,const NativeCameraResolve&resolve,std::string&error){std::vector<NativeCameraTarget>targets;if(!resolveTargets(ids,resolve,targets,error))return false;if(!retarget&&same(targets,state_.targets)){error.clear();return true;}if(targets.empty()){error.clear();return true;}error="New-target native Pan requires original randomized CameraSplineHelper paths; existing-target Pan is supported";return false;}
 bool NativeCamera::unlock(std::string&error){state_.targets.clear();state_.offsetX=state_.offsetY=0;error.clear();return true;}
 bool NativeCamera::adjustZoom(float fraction,float lerpTime,std::string&error,const NativeCameraResolve&resolve){if(!finite(fraction)||fraction<=0||fraction>100||!finite(lerpTime)||lerpTime<0){error="Original camera zoom bounds";return false;}const float distance=std::abs(fraction-state_.zoom);if(distance>0){float weight=1;if(lerpTime<=0&&!weightedZoom(resolve,weight,error))return false;state_.goalZoom=fraction;if(lerpTime<=0)state_.zoom=fraction*weight;else state_.zoomSpeed=distance/lerpTime;}error.clear();return true;}
-bool NativeCamera::focus(float fraction,float duration,bool relative,const std::string&,std::string&error,const NativeCameraResolve&resolve){if(duration>0){error="Timed native Focus requires original randomized zoom spline";return false;}return adjustZoom(relative?fraction*state_.zoom:fraction,0,error,resolve);}
+namespace {
+// sgg::CameraSplineHelper::GenerateRandom 0x1801e6a40: lo=c-s, float(Random::RandomDouble)*((c+s)-lo)+lo.
+float splineRandom(float center,float spread,const NativeCameraRandom& random){const float lo=center-spread,hi=center+spread;return float(random())*(hi-lo)+lo;}
+// Point construction shared by the generators: dir=(cos a,-sin a);
+// in=point-dir*inLength, out=point+dir*outLength (single-precision, source order).
+NativeSplinePoint splinePoint(float value,float time,float c,float negS,float inLength,float outLength){
+ NativeSplinePoint p;p.value=value;p.time=time;p.type=2;p.inValue=value-c*inLength;p.inTime=time-negS*inLength;p.outValue=c*outLength+value;p.outTime=negS*outLength+time;return p;}
+// sgg::CameraSplineHelper::GenerateEase 0x1801e6bf0 (Camera::Focus passes 0.12,0.4).
+void generateEase(NativeCameraSpline& s,float a,float b,const NativeCameraRandom& random){
+ s.points.clear();s.index=0;
+ const float v1=splineRandom(a*.1f,a*.04f,random),t1=splineRandom(a,a*.06f,random),v2=splineRandom(1.f-b*.25f,b*.04f,random),t2=splineRandom(1.f-b,b*.06f,random);
+ const float c=std::cos(4.712389f),negS=-std::sin(4.712389f);
+ s.points.push_back(splinePoint(0,0,c,negS,0,.3f));
+ // Angles: float((double)(x*50+95+180)*(pi/180 double)) (mulsd by __real@3f91df46a2529d39).
+ const auto angle=[](float x){return float(double(x*50.f+95.f+180.f)*0.017453292519943295);};
+ if(t1>0){const float r=angle(a),c1=std::cos(r),n1=-std::sin(r);s.points.push_back(splinePoint(v1,t1,c1,n1,a*.6f,.2f));}
+ if(t2<1){const float r=angle(b),c2=std::cos(r),n2=-std::sin(r);s.points.push_back(splinePoint(v2,t2,c2,n2,.2f,b*.5f));}
+ s.points.push_back(splinePoint(1,1,c,negS,.1f,0));
+}
+// sgg::CameraSplineHelper::GenerateOvershootSpline 0x1801e9200 (deterministic).
+void generateOvershoot(NativeCameraSpline& s,float duration){
+ s.index=0;float p=duration>0?1.f/duration:std::numeric_limits<float>::infinity(); // 1/0 = +inf in source
+ if(p<=.1f)p=.1f;if(1.f<=p)p=1.f;const float h=p*.08f;
+ const float c=std::cos(4.712389f),negS=-std::sin(4.712389f),c2=std::cos(4.6251225f),n2=-std::sin(4.6251225f);
+ s.points.push_back(splinePoint(0,0,c,negS,0,.1f));
+ s.points.push_back(splinePoint(1.02f,1.f-p*.4f,c,negS,.3f,h));
+ s.points.push_back(splinePoint(1,1.f-p*.18f,c2,n2,h,h+h));
+ s.points.push_back(splinePoint(1,1,c,negS,.05f,0));
+}
+// sgg::CameraSplineHelper::GenerateUndershootSpline 0x1801e8bb0 (deterministic).
+void generateUndershoot(NativeCameraSpline& s){
+ s.points.clear();s.index=0;
+ const float c=std::cos(4.712389f),negS=-std::sin(4.712389f),c1=std::cos(4.886922f),n1=-std::sin(4.886922f);
+ s.points.push_back(splinePoint(0,0,c,negS,0,.1f));
+ s.points.push_back(splinePoint(.95f,.65f,c1,n1,.3f,.03f));
+ s.points.push_back(splinePoint(.99f,.82f,c1,n1,.03f,.03f));
+ s.points.push_back(splinePoint(1,1,c,negS,.2f,0));
+}
+// sgg::CubicBezier 0x1801eaae0: float terms accumulated in double, source order.
+float cubicBezier(float p0,float p1,float p2,float p3,float t){
+ const float u=1.f-t,t2=t*t,u2=u*u;double sum=double(p1*3.f*t*u2);sum+=double(u2*u*p0);sum+=double(p2*3.f*t2*u);sum+=double(t2*t*p3);return float(sum);}
+// sgg::AxisPath::Interpolate 0x1801e6740.
+bool interpolate(const NativeCameraSpline& s,size_t i,float t,float& out,std::string& error){
+ const auto& a=s.points[i];const auto& b=s.points[i+1];
+ if(a.type==2){out=cubicBezier(a.value,a.outValue,b.type==2?b.inValue:b.value,b.value,t);return true;}
+ if(a.type==1){error="AxisPath Catmull-Rom segment (Interpolate type 1) not reconstructed";return false;}
+ out=(b.value-a.value)*t+a.value;return true;}
+// sgg::SplineHelper::GetCurrent 0x1801e6920 (mutates: completion clears the
+// point vector, index and duration).
+bool splineCurrent(NativeCameraSpline& s,float now,float& value,std::string& error){
+ // maxss/minss operand order: a NaN fraction clamps to 0.
+ float f=(now-s.startTime)/s.duration;f=f>0.f?f:0.f;f=f<1.f?f:1.f;float x=0;
+ if(f>=1.f){if(!s.points.empty())x=s.points.back().value;s.points.clear();s.duration=0;s.index=0;}
+ else{if(s.points.size()<2){error="SplineHelper evaluated without segments";return false;}
+  size_t i=s.index;while(i+2<s.points.size()&&f>s.points[i+1].time)++i;s.index=i;
+  if(!interpolate(s,i,(f-s.points[i].time)/(s.points[i+1].time-s.points[i].time),x,error))return false;}
+ value=(s.end-s.start)*x+s.start;return true;}
+}
+bool NativeCamera::focus(float fraction,float duration,bool relative,const std::string& zoomType,const NativeCameraRandom& random,std::string&error){
+ if(!finite(fraction)||!finite(duration)||duration<0||!random){error="Original camera focus bounds";return false;}
+ auto& s=state_.zoomSpline;
+ if(relative)fraction*=state_.zoom;
+ float start=state_.goalZoom;if(s.duration>0&&!splineCurrent(s,time_,start,error))return false;
+ s.points.clear();s.duration=0;s.index=0;
+ if(zoomType=="Ease")generateEase(s,.12f,.4f,random);
+ else if(zoomType=="Undershoot")generateUndershoot(s);
+ else generateOvershoot(s,duration);
+ s.start=start;s.end=fraction;s.startTime=time_;s.duration=duration;state_.goalZoom=fraction;
+ // Camera+0x14 = 2/duration; duration 0 gives +inf (zoom snaps on the next Update).
+ state_.zoomSpeed=duration>0?2.f/duration:std::numeric_limits<float>::infinity();
+ error.clear();return true;
+}
 bool NativeCamera::setClamps(const std::vector<int32_t>&ids,float soft,const NativeCameraResolve&resolve,std::string&error){if(!finite(soft)||soft<0){error="Original camera soft clamp bounds";return false;}std::vector<NativeCameraTarget>targets;if(!resolveTargets(ids,resolve,targets,error))return false;if(!targets.empty()&&targets.size()!=2){error="Original polygon camera clamp requires polygon provider";return false;}state_.clampTargets=std::move(targets);state_.softClamp=soft;error.clear();return true;}
 bool NativeCamera::advance(float elapsed,const NativeCameraResolve&resolve,std::string&error){
  if(!finite(elapsed)||elapsed<0||elapsed>1){error="Original camera elapsed bounds";return false;}time_+=elapsed;
@@ -49,7 +125,12 @@ bool NativeCamera::advance(float elapsed,const NativeCameraResolve&resolve,std::
  if(count){x=x/count+state_.offsetX;y=y/count+state_.offsetY;if(x!=0||y!=0){if(speed_>0||acceleration_!=0){const float dx=x-state_.x,dy=y-state_.y,length=std::hypot(dx,dy),step=std::max(0.f,speed_*elapsed);if(length<=step){state_.x=x;state_.y=y;speed_=acceleration_=duration_=0;}else if(length>0){state_.x+=dx/length*step;state_.y+=dy/length*step;speed_+=acceleration_*elapsed;}}
    else if(duration_>0){const float f=(time_-startTime_)/duration_;if(f>1||(state_.x==x&&state_.y==y)){state_.x=x;state_.y=y;duration_=0;}else{const double t=std::clamp(f,0.f,1.f),t2=t*t,t3=t2*t;const auto smooth=[&](float a,float b){return float((2.0*a-2.0*b)*t3+(3.0*b-3.0*a)*t2+a);};state_.x=smooth(startX_,x);state_.y=smooth(startY_,y);}}
    else if(!state_.lazyTether){state_.x=x;state_.y=y;}state_.initialized=true;}}
- if(!applyClamp(resolve,error))return false;float weight=1;if(!weightedZoom(resolve,weight,error))return false;const float goal=state_.goalZoom*weight,difference=goal-state_.zoom,step=elapsed*state_.zoomSpeed;if(std::abs(difference)<=step)state_.zoom=goal;else state_.zoom+=std::copysign(step,difference);if(!applyClamp(resolve,error))return false;error.clear();return true;
+ if(!applyClamp(resolve,error))return false;// Camera::GetGoalZoom 0x180305070: active zoom spline (Camera+0x264>0) else
+ // base goal, times GetWeightedZoom. Camera::Update 0x18030310b: step at
+ // Camera+0x14 only while step<|goal-zoom|, else snap (NaN/inf step snaps).
+ float base=state_.goalZoom;if(state_.zoomSpline.duration>0&&!splineCurrent(state_.zoomSpline,time_,base,error))return false;
+ float weight=1;if(!weightedZoom(resolve,weight,error))return false;const float goal=base*weight;
+ if(goal!=state_.zoom){const float step=elapsed*state_.zoomSpeed;if(step<std::abs(goal-state_.zoom))state_.zoom+=goal>state_.zoom?step:-step;else state_.zoom=goal;}if(!applyClamp(resolve,error))return false;error.clear();return true;
 }
 namespace {
 // OffsetHelper::pickAngle 0x1801520c0: reverse direction, +/-45 deg jitter

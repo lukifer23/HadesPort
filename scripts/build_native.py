@@ -55,7 +55,7 @@ def main():
     parser.add_argument('--actor-properties',type=Path,default=PROJECT / '.local/native-assets/hero-properties-v6/actor-properties.bin')
     parser.add_argument('--actor-lights',type=Path,default=PROJECT / '.local/native-assets/actor-lights-opening-v1/manifest.json')
     parser.add_argument('--text-resources',type=Path,default=PROJECT / '.local/native-assets/original-text-v6/manifest.json')
-    parser.add_argument('--action-effects',type=Path,default=PROJECT / '.local/native-assets/action-effects-v9/manifest.json')
+    parser.add_argument('--action-effects',type=Path,default=PROJECT / '.local/native-assets/action-effects-v10/manifest.json')
     parser.add_argument('--screen-animations',type=Path,default=PROJECT / '.local/native-assets/screen-opening-v9/manifest.json')
     parser.add_argument('--particle-frames',type=Path,default=PROJECT / '.local/native-assets/cinder-frames-v1/cinder-frames.bin')
     parser.add_argument('--primaries',type=Path,default=PROJECT / '.local/native-assets/opening-primaries-v4/manifest.json')

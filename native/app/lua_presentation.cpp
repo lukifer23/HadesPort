@@ -108,6 +108,19 @@ bool ScriptRuntime::samplePresentation(const VisualKey& key,hades::ActorVisual& 
     if(key.kind==VisualKey::Kind::Action){
         const auto* source=actionEffects_.state(key.handle);const auto* actor=actorWorld_.actor(key.owner);if(!source)throw std::runtime_error("Actual action FX lifetime unavailable");
         hades::EffectOwnerState owner=source->ownerSnapshot;std::array<uint8_t,4> fraction{255,255,255,255};
+        if(key.owner<0){
+            // Projectile-owned FX (Detonate graphic). Owner fraction = projectile body alpha;
+            // APPROXIMATION: projectile tint/ambient fractions are not applied to owned FX.
+            const auto po=projectileFxOwners_.find(key.owner);const auto* q=(source->detached||po==projectileFxOwners_.end())?nullptr:projectileWorld_.actor(po->second);
+            if(!source->detached){if(!q||!effectOwner(key.owner,owner,error))return false;fraction[3]=uint8_t(std::clamp(q->body.alpha,0.f,1.f)*255.f);}
+            if(!actionEffects_.visual(key.handle,owner,fraction,out,error))return false;
+            const auto* groupName=source->definition.get("GroupName");std::string group=source->runtimeGroup?*source->runtimeGroup:(groupName?groupName->text():"");
+            const auto* attached=source->definition.get("UseAttachedGroup");
+            if(group.empty()&&(!attached||attached->boolean())){if(!q)throw std::runtime_error("Detached projectile-owned FX retained group unavailable");group=q->body.group;}
+            if(group.empty())group="Default";
+            out.drawGroup=presentationGroup(group);out.blend=uint32_t(presentationGroups_[out.drawGroup].blendMode);out.visible=presentationGroups_[out.drawGroup].visible;
+            out.sourceSortY=out.y;return true;
+        }
         if(!source->detached){
             if(!actor||!actor->registered||!actor->object)throw std::runtime_error("Actual attached action FX draw owner unavailable");
             if(!effectOwner(key.owner,owner,error))return false;

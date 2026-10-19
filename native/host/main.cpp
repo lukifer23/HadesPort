@@ -25,11 +25,12 @@ static void jsonString(std::ostream& out,const std::string& text) {
 }
 
 int main(int argc,char** argv) {
-    bool capture=false,activate=false,probe=false,weaponProbe=false,survey=false;int worldFrames=120;std::string inputReplay,saveProbeDirectory;
+    bool capture=false,activate=false,probe=false,weaponProbe=false,survey=false,contain=false;int worldFrames=120;std::string inputReplay,saveProbeDirectory;
     for(int i=3;i<argc;++i){const std::string arg=argv[i];
         if(arg=="--capture-active-room")capture=activate=true;
         else if(arg=="--activate-room")activate=true;
         else if(arg=="--survey-blockers")survey=true; // diagnostic: list all blockers in one run
+        else if(arg=="--contain-faults")contain=survey=true; // device durability mode: skip a failing stage, keep the frame running
         else if(arg=="--probe-load-callbacks")probe=true;
         else if(arg=="--probe-staged-weapons")weaponProbe=true;
         else if(arg.starts_with("--probe-save="))saveProbeDirectory=arg.substr(13);
@@ -50,6 +51,7 @@ int main(int argc,char** argv) {
         hades::FileAssets assets(argv[1]);
         ScriptRuntime scripts(&assets);scripts.initialize();
         if(survey){std::string e;if(!scripts.enableBlockerSurvey(e))throw std::runtime_error(e);}
+        if(contain)scripts.setFaultContainment(true);
         std::string cameraError;if(!scripts.setCameraViewport(1728,1080,cameraError))throw std::runtime_error(cameraError);
         const bool roomBooted=scripts.bootRoom();
         const bool activationComplete=activate&&roomBooted?scripts.activateRoom():false;

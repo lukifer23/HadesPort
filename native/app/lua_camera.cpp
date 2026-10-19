@@ -36,7 +36,11 @@ bool ScriptRuntime::cameraActionImpl(lua_State*L,int mode,std::string&error){try
  case 0:return camera_.lock(ids(),sourceRange(L,args,"Duration","MinDuration","MaxDuration",true),number(args,"Speed"),number(args,"Acceleration"),number(args,"OffsetX"),number(args,"OffsetY"),boolean(args,"LazyTether"),boolean(args,"DynamicZoom"),resolve,error);
  case 1:return camera_.adjustZoom(sourceRange(L,args,"Fraction","MinFraction","MaxFraction",false),number(args,"LerpTime"),error,resolve);
  case 2:return camera_.pan(ids(),boolean(args,"Retarget"),resolve,error);
- case 3:{const float fraction=sourceRange(L,args,"Fraction","MinFraction","MaxFraction",false),duration=sourceRange(L,args,"Duration","MinDuration","MaxDuration",true);return camera_.focus(fraction,duration,boolean(args,"Relative"),text(args,"ZoomType"),error,resolve);}
+ // ScriptAction FocusCamera (Execute VA180252d66..e1c): String ZoomType
+ // (default ""), getFraction, Bool Relative, getDuration, then Camera::Focus
+ // unconditionally (also for Duration 0). The Ease spline draws the engine RNG.
+ case 3:{const float fraction=sourceRange(L,args,"Fraction","MinFraction","MaxFraction",false),duration=sourceRange(L,args,"Duration","MinDuration","MaxDuration",true);
+  return camera_.focus(fraction,duration,boolean(args,"Relative"),text(args,"ZoomType"),[this]{double v=0;if(!nextRecoveredEngineRandom(state_,v))throw std::runtime_error("Actual camera engine RNG unavailable");return v;},error);}
  case 4:return camera_.unlock(error);
  case 5:return camera_.setClamps(ids(),number(args,"SoftClamp"),resolve,error);
  case 6:return camera_.setZoomWeight(ids(),number(args,"Weight",1),number(args,"ZoomSpeed"),resolve,error);

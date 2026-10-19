@@ -97,6 +97,9 @@ public:
  bool createPrimary(const std::string&,int32_t,const ActionEffectProviders&,uint64_t&,std::string&);
  bool retiredPrimary(uint64_t h)const{return retiredPrimaries_.contains(h);}
  bool setup(uint64_t,const ActionAnimationSetup&,std::string&);
+ // Animation::SetRadius 0x1802974e0: pChildAnimation first, then each created
+ // animation named by CreateAnimation/CreateAnimations, then self mScaleRadius.
+ bool setRadius(uint64_t,float,std::string&);
  // ScriptAction::SetAnimation optional Scale/Duration/Offset on the new primary.
  bool setScale(uint64_t,float,std::string&);
  bool setDuration(uint64_t,float,std::string&);

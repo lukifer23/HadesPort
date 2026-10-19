@@ -81,7 +81,7 @@ def export(a):
     for bank, names in coverage['banks'].items():
         if bank != 'action':
             for n in names: rejected[n] = 'coverage bank ' + bank
-    clip_names = {}
+    clip_names = {}; extended = {}  # name -> declared NumFrames for EndFrame-extended Books
     for name, d in definitions.items():
         if d.get('Type') == 'Random': continue
         n = d.get('NumFrames', 1); angles = d.get('NumAngles', 1)
@@ -89,6 +89,12 @@ def export(a):
             rejected[name] = f"shape Type={d.get('Type')} NumAngles={angles} NumFrames={n}"; continue
         # BookAnimation::PrepDraw 0x1802af9a6: texture = GetAngleNum x NumFrames
         # + frame (angle-major), 1-based 4-digit names when more than one image.
+        # Single-angle Books index their image list directly with frame-1
+        # (StartFrame..EndFrame); a Book that inherits a longer sequence and
+        # plays a later window (e.g. SwordSwipeBDark NumFrames 13, frames 8-20)
+        # needs images through EndFrame. APPROXIMATION (labelled): the native
+        # Book image-list size rule is not recovered; max(NumFrames, EndFrame).
+        if d['Type'] == 'Book' and angles == 1 and isinstance(d.get('EndFrame'), int) and d['EndFrame'] > n: extended[name] = n; n = d['EndFrame']
         rows = [d['FilePath'] + f'{i:04}' for i in range(1, n * angles + 1)] if n * angles > 1 else [d['FilePath']]
         if d['Type'] == 'Slide':
             slides = d.get('Slides', [])
@@ -108,6 +114,12 @@ def export(a):
                 if s['name'] not in wanted: continue
                 old = matches.get(s['name']); record = {'package': package, 'atlas': e['name'], 'sprite': {k: v for k, v in s.items() if k != 'hull'}}
                 if old is None or sum(abs(v - 1) for v in s['scale_ratio']) < sum(abs(v - 1) for v in old['sprite']['scale_ratio']): matches[s['name']] = record
+    # Extended Books keep only images that exist in the original packages
+    # (some declare an EndFrame past their last image, e.g. Backstab); never
+    # fewer than the declared NumFrames.
+    for name, base in extended.items():
+        rows = clip_names.get(name)
+        while rows and len(rows) > base and rows[-1] not in matches: rows.pop()
     for name, rows in list(clip_names.items()):
         bad = [r for r in rows if r not in matches]
         if not bad:
@@ -123,7 +135,7 @@ def export(a):
     # Packet frames are (original image, source angle) pairs: the bank binds
     # each slide angle to a frame of that angle. An original image reused
     # under another angle by a different definition gets its own record.
-    used = {(r, k // definitions[cname].get('NumFrames', 1)) for cname, rows in clip_names.items() for k, r in enumerate(rows)}
+    used = {(r, k // (len(rows) // definitions[cname].get('NumAngles', 1))) for cname, rows in clip_names.items() for k, r in enumerate(rows)}
     # Stream frames atlas by atlas: decode one original atlas at a time.
     by_atlas = defaultdict(list)
     for key in sorted(used): by_atlas[(matches[key[0]]['package'], matches[key[0]]['atlas'])].append(key)
@@ -152,9 +164,9 @@ def export(a):
             if d['Type'] == 'Slide':
                 for i, s in enumerate(d['Slides'], 1):
                     if s['DurationFrames']: slides.append((i, s['DurationFrames'], {k: v for k, v in s.items() if k != 'DurationFrames'}))
-            else: slides = [(i, 1, {}) for i in range(1, d.get('NumFrames', 1) + 1)]
+            else: slides = [(i, 1, {}) for i in range(1, len(rows) // d.get('NumAngles', 1) + 1)]
             if not slides: raise ValueError('Original Slide animation without positive duration ' + name)
-            angles = d.get('NumAngles', 1); f = d.get('NumFrames', 1)
+            angles = d.get('NumAngles', 1); f = len(rows) // angles
             for text in [name, '', '']: string(out, text)
             out.write(struct.pack('<4I4f', angles, angles, 512 if d['Type'] == 'Book' else 0, len(slides), 1., 0., 0., 1 / 60)); out.write(struct.pack('<' + 'I' * angles, *range(angles)))
             for i, ticks, events in slides: out.write(struct.pack('<II', i, ticks) + struct.pack('<' + 'I' * angles, *[ids[(rows[a * f + i - 1], a)] for a in range(angles)])); string(out, json.dumps(events, separators=(',', ':')))

@@ -70,6 +70,14 @@ class ScriptRuntime {
     bool interactionActionImpl(lua_State*,int,std::string&);
     hades::WeaponSelfEffectWorld selfEffects_;
     hades::ProjectileWorld projectileWorld_;
+    // Projectile-owned action FX (Projectile::Detonate6d670 DetonateGraphic owner Thing).
+    // Projectiles have no public Thing id; FX ownership uses a reserved negative id
+    // domain mapped to the projectile lifetime handle (portable representation only).
+    std::map<int32_t,uint64_t> projectileFxOwners_;std::map<uint64_t,int32_t> projectileFxOwnerIds_;int32_t nextProjectileFxOwner_=-0x1000000;
+    int32_t projectileFxOwner(uint64_t handle);
+    bool projectileEffectOwner(int32_t,hades::EffectOwnerState&,std::string&)const;
+    bool releaseProjectileFxOwner(uint64_t handle,std::string&);
+    void installProjectileGraphicProvider();
     std::shared_ptr<hades::ActorAnimationBank> animationBank_;
     hades::AssetPackages packages_;
     hades::EffectAnimationWorld effects_;

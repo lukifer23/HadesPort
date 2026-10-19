@@ -725,11 +725,31 @@ bool WeaponPostFire::advance(const WeaponOwnerFrame& owner,std::optional<double>
             if(!number("ArsenalCooldown",f)||!number("CooldownWeaponSlotThree",g))return false;
             if(f>0||g>0){error="Native PostFire arsenal cooldown propagation branch not reconstructed";return false;}
             ++phase_;continue;
-        case 2:
-            for(const char* key:{"AddControlOnFire","AddControlOnFire2","AddControlOnFire3","RemoveControlOnFire","RemoveControlOnFire2","RemoveControlOnFire3","RemoveControlOnFire4","RemoveAllControlSwaps"}){
-                if(!text(key,s))return false;if(!s.empty()){error=std::string("Native PostFire control-removal/addition branch not reconstructed ")+key;return false;}
+        case 2:{
+            // Weapon::PostFire VA180089500 (native-player-fire-post-fire-pseudocode.c l.213-334),
+            // WeaponData offsets = WeaponDataDef + 0x50 (native-fields-WeaponDataDef.txt):
+            // AddControlOnFire/2/3 (+0x198/+0x1b0/+0x1c8) each resolve through
+            // UnitArsenal::GetWeapon VA1802feae0 (name match over every owned weapon, null when
+            // absent or empty) and UnitArsenal::AddWeaponControl VA1802ff480; then
+            // RemoveControlOnFire/2/3/4 (+0x138/+0x150/+0x168/+0x180) through GetWeapon and
+            // UnitArsenal::RemoveWeaponControl VA1802ff510 (membership + request clear, then its
+            // CancelChargeOnControlRemoved cancel, run by the RemoveWeaponControl consumer);
+            // RemoveAllControlSwaps (+0x210) clears pGainedControlFrom (Weapon+0x88) of every owned
+            // weapon whose gained-from weapon's name equals it.
+            static constexpr const char* keys[]{"AddControlOnFire","AddControlOnFire2","AddControlOnFire3","RemoveControlOnFire","RemoveControlOnFire2","RemoveControlOnFire3","RemoveControlOnFire4"};
+            while(controlKey_<7){
+                const unsigned k=controlKey_++;if(!text(keys[k],s))return false;if(s.empty())continue;
+                bool owned=false;for(const auto& candidate:arsenal_->weapons_)if(candidate.definition.name==s){owned=true;break;}
+                if(!owned)continue; // GetWeapon null: native skips
+                if(k<3){if(!arsenal_->addWeaponControl(s,error))return false;continue;}
+                WeaponOutput op;op.kind=WeaponOutputKind::RemoveWeaponControl;op.name=s;op.ownerId=owner.ownerId;op.weaponName=name_;
+                if(!support||!support(op,error)){if(error.empty())error="PostFire RemoveWeaponControl unsupported";return false;}
+                next.operation=std::move(op);output=std::move(next);return true;
             }
-            ++phase_;continue;
+            if(!text("RemoveAllControlSwaps",s))return false;
+            if(!s.empty()){w=nullptr;for(auto& value:arsenal_->weapons_){if(value.gainedControlFrom==s)value.gainedControlFrom.clear();if(value.definition.name==name_)w=&value;}
+                if(!w){error="PostFire weapon lost during RemoveAllControlSwaps";return false;}}
+            ++phase_;continue;}
         case 3:
             if(!flag("ForceReleaseOnFire",b))return false;if(b)w->requireControlRelease=true;
             if(!text("ForceReleaseWeaponOnFire",s))return false;

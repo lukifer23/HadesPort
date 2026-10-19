@@ -8,6 +8,13 @@
 namespace hades {
 struct NativeCameraTarget {int32_t id=0;uint64_t lifetime=0;float x=0,y=0;};
 using NativeCameraResolve=std::function<bool(int32_t,NativeCameraTarget&,std::string&)>;
+// sgg::AxisPath point, 0x1c bytes: +0 value, +4 normalized time, +8 type byte
+// (1 = Catmull-Rom, 2 = cubic Bezier, other = linear), +0xc/+0x10 in-handle,
+// +0x14/+0x18 out-handle (value,time). Only the value lanes enter Interpolate.
+struct NativeSplinePoint {float value=0,time=0;uint8_t type=0;float inValue=0,inTime=0,outValue=0,outTime=0;};
+// sgg::SplineHelper at Camera+0x238 (zoom): points vector +0x00, segment
+// index +0x18, start/end value +0x20/+0x24, start world time +0x28, duration +0x2c.
+struct NativeCameraSpline {std::vector<NativeSplinePoint> points;size_t index=0;float start=0,end=0,startTime=0,duration=0;};
 struct NativeCameraState {
     bool initialized=false,lazyTether=false,dynamicZoom=false;
     float x=0,y=0,zoom=1,goalZoom=1,zoomSpeed=1;
@@ -19,6 +26,7 @@ struct NativeCameraState {
     float softClamp=0;
     uint32_t viewportWidth=1920,viewportHeight=1080;
     std::map<int32_t,std::pair<NativeCameraTarget,float>> zoomWeights;
+    NativeCameraSpline zoomSpline; // Camera+0x238..0x267 (Camera::Focus)
     // Camera shake (sgg::OffsetHelper at Camera+0x268; Camera::Shake 0x180303970).
     struct Shake {
         bool fixedDirection=false,active=false,falling=false;
@@ -45,7 +53,8 @@ public:
     bool pan(const std::vector<int32_t>&,bool retarget,const NativeCameraResolve&,std::string&);
     bool unlock(std::string&);
     bool adjustZoom(float fraction,float lerpTime,std::string&,const NativeCameraResolve& resolve={});
-    bool focus(float fraction,float duration,bool relative,const std::string& zoomType,std::string&,const NativeCameraResolve& resolve={});
+    // Camera::Focus 0x180303240 (ScriptAction FocusCamera, Execute VA180252d66..e1c).
+    bool focus(float fraction,float duration,bool relative,const std::string& zoomType,const NativeCameraRandom&,std::string&);
     bool setZoomWeight(const std::vector<int32_t>&,float weight,float zoomSpeed,const NativeCameraResolve&,std::string&);
     bool setClamps(const std::vector<int32_t>&,float soft,const NativeCameraResolve&,std::string&);
     bool advance(float elapsed,const NativeCameraResolve&,std::string&);

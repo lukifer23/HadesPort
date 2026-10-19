@@ -582,7 +582,10 @@ bool ScriptRuntime::advanceWorld(float dt,double screenDt){
     if(!advanceUnitDisposal(false,error_)){if(!containStage("unit-remove-before-update"))return false;}
     if(!advanceLocalPlayerInput(dt,error_)){if(!containStage("player-input-update"))return false;}
     if(!advanceActorMotion(dt,error_)){if(!containStage("actor-motion-update"))return false;}
-    if(!advanceWeapons(dt,error_)||!advanceUnitEffects(dt,error_)){if(!containStage("weapon-update"))return false;}
+    // Each step is contained on its own: a weapon gap must not stop unit
+    // effects (disable timers) from ticking, which would lock movement.
+    if(!advanceWeapons(dt,error_)){if(!containStage("weapon-update"))return false;}
+    if(!advanceUnitEffects(dt,error_)){if(!containStage("unit-effects-update"))return false;}
     if(!advanceProjectiles(dt,error_)){if(!containStage("projectile-update"))return false;}
     if(!collectRetiredArsenals(error_)){if(!containStage("retained-weapon-disposal-update"))return false;}
     // Actor/weapon/projectile managers are being integrated separately. Run
@@ -590,7 +593,8 @@ bool ScriptRuntime::advanceWorld(float dt,double screenDt){
     // coverage separately from successful replay of this partial schedule.
     if(!advancePhysics(dt,error_)){if(!containStage("physics-update"))return false;}
     if(!advanceLocalPlayerMovement(dt,error_)){if(!containStage("player-movement-update"))return false;}
-    if(!advanceUnitDisposal(true,error_)||!advanceObstacleDisposal(error_)){if(!containStage("manager-disposal-update"))return false;}
+    if(!advanceUnitDisposal(true,error_)){if(!containStage("unit-disposal-update"))return false;}
+    if(!advanceObstacleDisposal(error_)){if(!containStage("obstacle-disposal-update"))return false;}
     for(const auto id:actorWorld_.registrationOrder()){
         auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered)continue;
         if(!actorWorld_.advanceBody(id,dt,1,error_)){if(!containStage("body-update"))return false;}
@@ -605,8 +609,13 @@ bool ScriptRuntime::advanceWorld(float dt,double screenDt){
     if(!advanceText(dt,float(screenDt),error_)){if(!containStage("text-update"))return false;}
     if(!advanceNativeNotifies(dt,error_)){if(!containStage("native-notify-update"))return false;}
     if(!advanceCamera(dt,error_)){if(!containStage("camera-update"))return false;}
-    if(!packages_.pump(1,error_)||!advanceDelayedActions(state_,worldTime_,executeDelayed,this,error_)||!advanceScriptScheduler(state_,worldTime_,screenTime_,error_)){if(!containStage("world-update"))return false;}
-    if(!colorGrading_.advance(worldTime_,float(screenTime_),error_)||!advanceBloom(error_)){if(!containStage("color-grading-update"))return false;}
+    // A package or delayed-action gap must never skip the script scheduler
+    // (every original Lua thread), or game logic freezes while audio runs.
+    if(!packages_.pump(1,error_)){if(!containStage("package-update"))return false;}
+    if(!advanceDelayedActions(state_,worldTime_,executeDelayed,this,error_)){if(!containStage("delayed-action-update"))return false;}
+    if(!advanceScriptScheduler(state_,worldTime_,screenTime_,error_)){if(!containStage("world-update"))return false;}
+    if(!colorGrading_.advance(worldTime_,float(screenTime_),error_)){if(!containStage("color-grading-update"))return false;}
+    if(!advanceBloom(error_)){if(!containStage("bloom-update"))return false;}
     return true;
 }
 
@@ -868,6 +877,7 @@ bool ScriptRuntime::loadEffectDefinitions(){
     }catch(const std::exception& e){error_=e.what();return false;}
 }
 bool ScriptRuntime::effectOwner(int32_t id,hades::EffectOwnerState& state,std::string& error)const{
+    if(id<0)return projectileEffectOwner(id,state,error);
     const auto* actor=actorWorld_.actor(id);const auto* object=findObjectSnapshot(state_,id);
     if(!actor||!actor->registered||!object||object->queryProxy||!object->active||!object->alive||!actor->entityHandle){error="Effect owner requires actual live actor components";return false;}
     state.lifetime=actor->entityHandle;
@@ -1115,6 +1125,16 @@ bool ScriptRuntime::effectMarker(int32_t id,const std::string& name,std::array<f
         // GetMarkerLocation2b0d10; Animation/Constant/Dataless -> base
         // Animation::GetMarkerLocation299b70. pAnim null -> owner attach-to
         // location + Thing+0x200, else Thing+0x88 (= Thing::GetLocation).
+        if(id<0){
+            // Projectile owner Thing: pAnim(+0x138) null -> Thing::GetLocation (mAttachedTo
+            // location + mAttachOffset, else +0x88) with its Z; a projectile primary
+            // Animation's marker lookup is not reconstructed.
+            const auto it=projectileFxOwners_.find(id);const auto* p=it==projectileFxOwners_.end()?nullptr:projectileWorld_.actor(it->second);
+            if(!p||p->disposed)throw std::runtime_error("Native marker projectile owner unavailable");
+            if(p->primaryAnimation)throw std::runtime_error("GetMarkerLocation on projectile primary Animation not reconstructed: marker="+name);
+            float x=0,y=0,z=0;if(!projectileWorld_.projectileLocation(*p,x,y,error)||!projectileWorld_.projectileZ(*p,z,error))return false;
+            result={x,y,z};error.clear();return true;
+        }
         const auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->object)throw std::runtime_error("Native marker owner unavailable: owner="+std::to_string(id));
         if(!a->animation.active()){
             const auto primaryName=[&](){return " owner="+std::to_string(id)+" name="+a->object->name+" marker="+name;};

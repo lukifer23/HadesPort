@@ -493,9 +493,18 @@ bool ProjectileWorld::detonate(uint64_t handle,const ProjectileDetonationProvide
         p->state.blastTimeRemaining=number(d,"BlastDuration"); // +0x3dc = data+0x3d4
         p->hitByDetonation.clear();                                // hashtable reset VA6d70e-6d716
         if(!string(d,"SpawnOnDetonate").empty())throw std::runtime_error("Detonate SpawnOnDetonate weapon-interval gate/SpawnObject72c70 not reconstructed");
-        if(!boolean(d,"HideDetonateGraphic")){
-            if(!absentAnimation(string(d,"DetonateGraphic")))throw std::runtime_error("Detonate projectile-owned DetonateGraphic animation not reconstructed: "+string(d,"DetonateGraphic"));
-            if(!absentAnimation(string(d,"DetonateGraphic2")))throw std::runtime_error("Detonate projectile-owned DetonateGraphic2 animation not reconstructed: "+string(d,"DetonateGraphic2"));
+        if(!boolean(d,"HideDetonateGraphic")){ // data+0xf8
+            // VA18006d77a..6d84d: GetLocation (mAttachedTo live: its location + mAttachOffset
+            // +0x200/+0x204, else +0x88/+0x8c), AnimationManager::Create29e410(DetonateGraphic
+            // data+0x100, this, location); non-null -> Animation::SetRadius2974e0(DamageRadius
+            // data+0x30c) and PreferUnmodifiedTime29a5c0. GetLocation again, then
+            // Create29e410(DetonateGraphic2 data+0x118, this, location) with no follow-up.
+            for(const bool primary:{true,false}){const std::string name=string(currentData(*p),primary?"DetonateGraphic":"DetonateGraphic2");
+                if(absentAnimation(name))continue; // Create returns null for empty/"null"
+                float x=0,y=0;if(!thingLocation(*p,x,y,error))throw std::runtime_error(error);
+                if(!detonateGraphic_)throw std::runtime_error("Detonate DetonateGraphic requires actual AnimationManager consumer: "+name);
+                if(!detonateGraphic_(handle,name,x,y,primary,number(currentData(*p),"DamageRadius"),error))throw std::runtime_error(error.empty()?"Detonate DetonateGraphic creation failed: "+name:error);
+                p=actor(handle);if(!p)throw std::runtime_error("Detonate graphic callback lost projectile storage");}
         }
         // SoundCue(data+0x2b0) -> AudioManager::PlayCue3D4a8a0 at location.
         const auto cue=d.cues.find("DetonateSound");if(cue==d.cues.end()||!cue->second.validityKnown)throw std::runtime_error("Actual DetonateSound cue validity unavailable");
