@@ -111,9 +111,10 @@ coroutine waits/stacks and dynamic enemy arsenals.
    empty with strafe0. Next-wave covers enemy
    death, money pickup, real child-movie activation, AI/pathing and enemy attack.
    Device iteration12 (d39fefae) is installed, its full SHA/size verified, and
-   launched. Iteration10a rollback APK remains preserved locally. Screenshot
-   proves the launch/menu only; manual device combat remains pending. Never
-   infer device gameplay success from a host pass.
+   launched. Iteration10a rollback APK remains preserved locally. Launch and live
+   RoomOpening captures plus a12second passive video are retained; screenshot
+   shows84FPS/11.8ms and captured device logs have0 faults. Combat/full encounter
+   verification on device remains pending; do not infer it from a host pass.
 2. Preserve shared root repairs: same-name victim Reapply keeps original identity;
    native marker fallback separates attach/draw offsets; Action FX preserves the
    first failure; sound coverage is checked before animation allocation. Never
