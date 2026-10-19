@@ -397,6 +397,8 @@ public:
     // simply doesn't happen; nothing is substituted.
     void setFaultContainment(bool on){faultContainment_=on;}
     bool worldFaulted()const{return worldFaulted_;}
+    // Host diagnostic: first active player unit's location, body angle and goal angle.
+    std::string heroMotionTrace();
     size_t containedFaults()const{return survey_.size();}
     const std::string& lastContainedFault()const{return lastContained_;}
     bool advanceWorld(float dt,double screenDt);

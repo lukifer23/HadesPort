@@ -12,6 +12,9 @@
 #include <algorithm>
 #include <sstream>
 #include <vector>
+#include <cstdio>
+#include "object_runtime.hpp"
+#include "input_runtime.hpp"
 extern "C" {
 #include <lauxlib.h>
 #include <lua.h>
@@ -80,4 +83,14 @@ std::string ScriptRuntime::blockerSurveyReport()const{
     std::ostringstream out;out<<"SURVEY_SUMMARY distinct="<<rows.size()<<'\n';
     for(const auto& [message,e]:rows)out<<"  frame="<<e.firstFrame<<" count="<<e.count<<" "<<message<<'\n';
     return out.str();
+}
+
+std::string ScriptRuntime::heroMotionTrace(){
+    const auto players=snapshotInputPlayers(state_);if(players.empty())return "hero=none";
+    const int32_t id=players.front().activeUnitId;auto* a=actorWorld_.actor(id);if(!a||!a->object)return "hero=missing";
+    const auto m=localMovement_.find(a->entityHandle);const auto& cam=camera_.state();char line[320];
+    std::string tg;for(const auto& t:cam.targets)tg+=std::to_string(t.id)+",";
+    std::snprintf(line,sizeof(line),"hero x=%.1f y=%.1f angle=%.3f goal=%.3f speedFraction=%.2f anim=%s cam=%.1f,%.1f zoom=%.3f targets=[%s] panActive=%d",a->object->x,a->object->y,a->object->angle,
+        m!=localMovement_.end()?m->second.goalAngle:-1.f,m!=localMovement_.end()?m->second.speedFraction:-1.f,a->object->animation.c_str(),cam.x,cam.y,cam.zoom,tg.c_str(),int(cam.panX.duration>0||cam.panY.duration>0));
+    return line;
 }

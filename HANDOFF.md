@@ -61,6 +61,8 @@ cmake --build .local/native-host-build-X --target hades-debug
 # Blocker survey (host-only diagnostic): records every failure instead of stopping
 .local/native-host-build-X/hades-debug .local/native-build/assets .local/reports/SURVEY.json \
   --activate-room --world-frames=2400 --survey-blockers --input-replay=.local/reports/native-first-combat-replay-v2.tsv
+# Hero motion/camera trace: HADES_TRACE_HERO=1 hades-debug ... (host, every 10 frames);
+#   on device the engine logs HERO_TRACE every ~0.5 s (logcat -s HadesNative)
 # RE helpers
 python3 native/analysis/inspect_engine.py 'sgg::Class::Method' --output .local/reports/NEW.json
 python3 scripts/rea.py decompile .local/game/base/x64/EngineWin64s.dll 0x1800XXXXX --format json

@@ -137,7 +137,7 @@ class Engine {
     }
     bool saveExists()const{if(savesDir_.empty())return false;struct stat st{};for(const char* n:{"/Profile1.sav","/Profile1_Temp.sav"})if(::stat((savesDir_+n).c_str(),&st)==0&&S_ISREG(st.st_mode))return true;return false;}
     bool appliedVsync_=true;
-    float dpi_=0,fpsWindow_=0,fpsWorst_=0;unsigned fpsFrames_=0;std::string fpsLine_;bool fpsWarn_=false;
+    float dpi_=0,fpsWindow_=0,fpsWorst_=0;unsigned fpsFrames_=0,heroTraceFrames_=0;std::string fpsLine_;bool fpsWarn_=false;
     void readDensity(){if(app_&&app_->config){const int density=AConfiguration_getDensity(app_->config);dpi_=density>0&&density<2000?float(density):0;}}
     enum class LoadStage { Scene, Player, Scripts, Done, Failed };
     LoadStage loadStage_=LoadStage::Scene;
@@ -463,6 +463,8 @@ public:
         if(ui_.playing()||ui_.screen()==hades::UiScreen::Paused){
             fpsFrames_++;fpsWindow_+=dt;fpsWorst_=std::max(fpsWorst_,dt);
             if(fpsWindow_>=.5f){char line[96];std::snprintf(line,sizeof(line),"%.0f FPS  %.1f ms  worst %.1f",fpsFrames_/fpsWindow_,1000.f*fpsWindow_/fpsFrames_,fpsWorst_*1000);fpsLine_=line;fpsWarn_=fpsFrames_/fpsWindow_<50;fpsFrames_=0;fpsWindow_=fpsWorst_=0;}
+            // Low-rate motion trace for device diagnosis (every ~0.5 s of play).
+            if(scripts_&&(++heroTraceFrames_%60)==0)INFO("HERO_TRACE %s",scripts_->heroMotionTrace().c_str());
             const size_t gaps=scripts_?scripts_->containedFaults():0;
             if(ui_.settings.showFps)uiRenderer_.renderFrameCounter(gaps?fpsLine_+"  "+std::to_string(gaps)+" engine gaps":fpsLine_,width_,height_,fpsWarn_||gaps);
             else if(gaps)uiRenderer_.renderFrameCounter(std::to_string(gaps)+" engine gaps",width_,height_,true);

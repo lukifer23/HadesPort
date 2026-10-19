@@ -79,6 +79,7 @@ int main(int argc,char** argv) {
             for(const float value:pcm){if(!std::isfinite(value))throw std::runtime_error("Actual source mixer produced nonfinite PCM");pcmPeak=std::max(pcmPeak,std::abs(value));pcmSquared+=double(value)*value;}pcmSamples+=pcm.size();++worldFramesCompleted;
             if(i%12==0)if(const auto player=scripts.localPlayerBody()){
                 if(!firstWorldSample)worldTrace<<',';firstWorldSample=false;worldTrace<<"{\"tick\":"<<i<<",\"x\":"<<player->x<<",\"y\":"<<player->y<<",\"z\":"<<player->z<<",\"frame\":"<<player->frame<<",\"input_allowed\":"<<(scripts.inputAllowed()?"true":"false")<<",\"animation\":";jsonString(worldTrace,player->animation);worldTrace<<'}';}
+            if(std::getenv("HADES_TRACE_HERO")&&i%10==0)std::cout<<"HERO_TRACE frame="<<i<<" "<<scripts.heroMotionTrace()<<'\n';
             if(i%600==0)std::cout<<"LIVE_WORLD_REPLAY frame="<<i<<" source_pcm_samples="<<pcmSamples<<" input_allowed="<<scripts.inputAllowed()<<'\n'<<std::flush;
         }
         // Save/load diagnostic: direct SaveCheckpoint, fresh-runtime reload, state comparison.
