@@ -91,6 +91,7 @@ contained diagnostics and actual device play:
   presentation support across resource banks.
 - Full forced encounter, Athena reward and next-room transition remain unproven.
   These candidate repairs have not yet been installed on the device.
+  A full review APK11 built, but is withheld at the real INSTANT6 boundary.
 
 ## Device (Galaxy Z Fold, `$HADES_DEVICE_SERIAL`)
 
@@ -219,3 +220,8 @@ Full install verification succeeded: device user0 package registration and insta
 APK SHA-256 exactly match3e4ebc1dbc60036a8da2e42584d47541bf92fc49464bf7f815e6fd338d0957a2.
 Actual launch and user-driven RoomSimple01/enemy rendering verified; see device row. Evidence:
 `.local/reports/takeover-iteration5-installed-verification.json`.
+
+Asset publication now uses a fresh validated directory per invocation. This
+removes stale unreferenced files (including an accidental extra actor bank) and
+preserves the previous published stage if validation fails. The canonical
+assets-only run passes; the duplicate bank is absent from its output.

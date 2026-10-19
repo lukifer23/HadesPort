@@ -78,6 +78,10 @@ Read STATUS.md for the current installed APK and active owners. The user drives
 manual device play; main alone builds/installs and captures passively. Full
 non-incremental user0 installs plus installed SHA verification are mandatory.
 Do not overwrite an APK during installation. Build success is separate from play.
+Asset staging now starts in a fresh temporary directory, validates the entire
+selected closure, then publishes it. Do not copy arbitrary proof sidecars into
+the published assets: weapon effects are embedded in weapons.bin; effects.lua
+is the original world spawner catalog. Coordinate readers before publishing.
 
 Source now covers actual RoomOpening exit -> RoomSimple01, original forced enemy
 spawn, hit resources, clocks and cast projectile/ammo lifecycle. Current selected

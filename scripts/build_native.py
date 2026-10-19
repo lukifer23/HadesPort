@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import struct
 import sys
+import tempfile
 import zipfile
 
 PROJECT = Path(__file__).resolve().parents[1]
@@ -303,8 +304,11 @@ def main():
     if args.compile_only:
         print(f'Native ARM64 engine compiled: {library}')
         return
-    assets = BUILD / 'assets'
-    assets.mkdir(exist_ok=True)
+    # Stage only this invocation's validated resource closure. Reusing the
+    # previous directory packaged stale exports and even a second 756 MiB actor
+    # bank. Keep the published host assets intact until fresh staging succeeds.
+    staged_assets = tempfile.TemporaryDirectory(prefix='assets-stage-', dir=BUILD)
+    assets = Path(staged_assets.name)
     if not args.ui.is_dir():
         raise RuntimeError('Original native UI assets are required; run native/tools/export_native_ui.py')
     shutil.copytree(args.ui, assets / 'ui', dirs_exist_ok=True)
@@ -535,6 +539,18 @@ def main():
     player,camera,animation_report,ambient_report,composition_report=(room_report[k] for k in ('player','camera','animations','ambient','composition'))
     from stage_room_packs import stage_room_pack
     for room_manifest in args.room_pack:stage_room_pack(room_manifest,assets)
+    published_assets = BUILD / 'assets'
+    retired_assets = Path(tempfile.mkdtemp(prefix='assets-retired-', dir=BUILD))
+    retired_assets.rmdir()
+    if published_assets.exists():published_assets.rename(retired_assets)
+    try:
+        assets.rename(published_assets)
+    except BaseException:
+        if retired_assets.exists():retired_assets.rename(published_assets)
+        raise
+    staged_assets.cleanup()
+    assets = published_assets
+    if retired_assets.exists():shutil.rmtree(retired_assets)
     if args.assets_only:
         print(json.dumps({'assets': str(assets), 'player': player, 'camera': camera, 'animations': animation_report,'weapons':weapon_report}, indent=2))
         return
