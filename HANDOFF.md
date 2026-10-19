@@ -75,10 +75,19 @@ action-name switch (regenerate it from the DLL if missing). Android SDK pieces:
 ## Where we are
 
 See `STATUS.md` for the device run table, workstreams and known issues. Summary
-(2026-10-18): the title, settings, intro, landing, HUD, control handoff, sword attacks,
-ghost patrol, dash (exact ApplyShift), speech icons, room banner and most opening-room
-audio run. Remaining gaps in the first-combat replay: `VisualFxUseAttachedMarkerLocation`
-(sword ground crack) and `OnObstacleCollision` `CollisionSound` (dash into obstacles).
+(2026-10-18 21:00): title, settings, intro, landing, HUD, walking with exact
+`Unit::ApplyShift` push-out, sword combo, dash, speech icons, room banner, camera
+focus/pan, obstacle occlusion fade and ~700 original audio cues run on the Fold.
+Strict host survey of the first-combat replay: 0 gaps. Open items, each with an agent:
+- dash/special projectile detonation against obstacles (`UpdateDetonation` obstacle
+  ApplyImpact) — soft-locks the player after the special;
+- opening-room progression: Athena loot → USE → dialogue → boon choice → doors → LeaveRoom;
+- multi-room assets (BC7) + `LoadMap`, so the next rooms and enemies can load;
+- cast aim line / out-of-ammo, hero occlusion setting.
+
+Testing tools: `.local/tools/e2e.sh OUT [full|turn|face]` drives the device (local-only,
+not committed); host `--survey-blockers` (strict list), `--contain-faults` (device
+behaviour), `HADES_TRACE_HERO=1` (hero/camera trace).
 
 ## Next steps, in order
 

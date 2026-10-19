@@ -162,7 +162,7 @@ bool ProjectileWorld::checkForImpact(uint64_t handle,const ProjectileImpactProvi
         // mCurrentDistanceSqrd, DetonateAtTarget and Type!=ARC/BEAM range stop.
         {const float dx=p->body.x-p->spawnX,dy=p->body.y-p->spawnY;mutated=true;p->currentDistanceSquared=dx*dx+dy*dy;}
         auto canDetonate=[&](){const auto& d=currentData(*p);return number(d,"DamageRadius")>0||!string(d,"SpawnOnDetonate").empty();}; // CanDetonate75950
-        auto detonateNow=[&](){if(!canDetonate())return;ProjectileDetonationProviders dp;dp.worldTime=providers.worldTime;dp.teams=providers.teams;if(!detonate(handle,dp,error))throw std::runtime_error(error);p=actor(handle);};
+        auto detonateNow=[&](){if(!canDetonate())return;ProjectileDetonationProviders dp;dp.worldTime=providers.worldTime;dp.teams=providers.teams;dp.applyImpact=providers.detonationImpact;if(!detonate(handle,dp,error))throw std::runtime_error(error);p=actor(handle);};
         if(boolean(currentData(*p),"DetonateAtTarget")&&(p->state.targetX!=0||p->state.targetY!=0)){
             const float tx=p->spawnX-p->state.targetX,ty=p->spawnY-p->state.targetY;
             if(p->currentDistanceSquared>tx*tx+ty*ty){detonateNow();result=ProjectileImpactResult::Stop;error.clear();return true;}
@@ -374,6 +374,15 @@ bool ProjectileWorld::prepareArcImpact(uint64_t handle,int32_t victim,Projectile
         // With DamageRadius0 and zero impact sentinel GetImpactLocation returns
         // raw mLocation. Positive-radius fallback belongs to non-covered blasts.
         if(x==0&&y==0&&number(data,"DamageRadius")>0)throw std::runtime_error("Actual blast impact nearest-edge location unavailable");
+        if(!impactAngle(handle,victim,x,y,output.angle,error))throw std::runtime_error(error);
+        error.clear();return true;
+    }catch(const std::exception& e){error=e.what();return false;}
+}
+bool ProjectileWorld::impactAngle(uint64_t handle,int32_t victim,float x,float y,float& angle,std::string& error){
+    // Projectile::GetImpactAngle6e7d0 given its GetImpactLocation72a90 result (x,y).
+    try{auto* p=actor(handle);if(!p||!p->firingWorld)throw std::runtime_error("Impact angle lost actual projectile");
+        auto& world=*p->firingWorld;const auto& data=currentData(*p);const bool arc=p->descriptor.concreteClass==ProjectileClass::Arc;
+        struct {float angle=0;} out;auto& output=out;
         const auto* attacker=unit(world,p->state.ownerId);
         // Projectile::GetImpactAngle6e7d0 (.local/reports/native-projectile-hit-angle-pseudo.txt):
         // !AttachToOwner && Type!=ARC uses GetImpactLocation72a90 (mImpactLocation):
@@ -384,11 +393,36 @@ bool ProjectileWorld::prepareArcImpact(uint64_t handle,int32_t victim,Projectile
             if(boolean(data,"UseRadialImpact")){float vx=0,vy=0;if(!world.location(victim,vx,vy,error))throw std::runtime_error(error);output.angle=normalizedAngle(std::atan2(-(vy-y),vx-x));}
             else if(string(data,"SpawnOnDetonate").empty()||(p->previousX==x&&p->previousY==y))output.angle=p->body.angle;
             else output.angle=normalizedAngle(std::atan2(-(y-p->previousY),x-p->previousX));
-            error.clear();return true;
+            error.clear();angle=output.angle;return true;
         }
         if(!attacker){output.angle=p->body.angle;}
         else if(boolean(data,"UseRadialImpact")){float ownerX=0,ownerY=0,targetX=0,targetY=0;if(!world.location(attacker->id,ownerX,ownerY,error)||!world.location(victim,targetX,targetY,error))throw std::runtime_error(error);output.angle=normalizedAngle(std::atan2(-(targetY-ownerY),targetX-ownerX));}
         else output.angle=attacker->object?attacker->object->angle:0;
+        angle=output.angle;error.clear();return true;
+    }catch(const std::exception& e){error=e.what();return false;}
+}
+bool ProjectileWorld::impactGeometry(uint64_t handle,int32_t victim,ProjectileImpactGeometry& output,std::string& error){
+    // ApplyImpact76590 own geometry: GetImpactLocation72a90 (.local/reports/native-weapons-get-
+    // impact-location-pseudocode.c): mImpactLocation(+0x3f4) nonzero -> it; else mLocation(+0x88)
+    // when it differs from mSpawnLocation(+0x90) or DamageRadius(data+0x30c)<=0; else victim
+    // GetLocation v: v when spawn==v; victim without polygon (+0x1f0) -> v + 0.1*(spawn-v)/|spawn-v|;
+    // else Polygon::ClosestPointOnEdge68af0(victim mGeometry +0x1c0, spawn).
+    try{output={};auto* p=actor(handle);if(!p||!p->firingWorld)throw std::runtime_error("Impact geometry lost actual projectile");
+        auto& world=*p->firingWorld;const auto* target=world.actor(victim);if(!target||!target->object)throw std::runtime_error("Impact geometry requires retained actual victim");
+        const auto& data=currentData(*p);float x=0,y=0;
+        if(p->state.impactX!=0||p->state.impactY!=0){x=p->state.impactX;y=p->state.impactY;}
+        else if(p->body.x!=p->spawnX||p->body.y!=p->spawnY||!(number(data,"DamageRadius")>0)){x=p->body.x;y=p->body.y;}
+        else{float vx=0,vy=0;if(!world.location(victim,vx,vy,error))throw std::runtime_error(error);
+            if(p->spawnX==vx&&p->spawnY==vy){x=vx;y=vy;}
+            else if(target->geometry.empty()){const float dx=p->spawnX-vx,dy=p->spawnY-vy,len=std::sqrt(dx*dx+dy*dy);y=(1.0f/len)*dy*0.1f+vy;x=(1.0f/len)*dx*0.1f+vx;}
+            else{float best=3.4028235e+38f;x=0;y=0;const auto& g=target->geometry;const float px=p->spawnX,py=p->spawnY; // ClosestPointOnEdge68af0
+                for(size_t i=0;i<g.size();++i){float ax=g[i].x,ay=g[i].y;const auto b=g[(i+1)%g.size()];float rx=px-ax,ry=py-ay;const float ex=b.x-ax,ey=b.y-ay,t=rx*ex+ry*ey;float d2=0;
+                    if(0.f<t){const float l2=ex*ex+ey*ey;if(t<l2){const float f=t/l2;ax=ex*f+ax;ay=ey*f+ay;rx=px-ax;ry=py-ay;d2=rx*rx+ry*ry;}else{d2=(px-b.x)*(px-b.x)+(py-b.y)*(py-b.y);ax=b.x;ay=b.y;}}
+                    else d2=rx*rx+ry*ry;
+                    const float d=std::sqrt(d2);if(d<best){best=d;x=ax;y=ay;}}}
+        }
+        output.x=x;output.y=y;if(!thingZ(*p,output.z,error))throw std::runtime_error(error);output.nativeImpactAdmitted=true;
+        if(!impactAngle(handle,victim,x,y,output.angle,error))throw std::runtime_error(error);
         error.clear();return true;
     }catch(const std::exception& e){error=e.what();return false;}
 }
@@ -482,7 +516,19 @@ bool ProjectileWorld::updateDetonation(uint64_t handle,float elapsed,const Proje
             for(const auto id:obstacles){const auto* a=world.actor(id);if(!a||!a->registered)continue;bool stops=false;if(!world.obstacleStops(id,true,stops,error))throw std::runtime_error(error);if(!stops)continue;
                 if(!boolean(currentData(*p),"MultipleObstacleCollisions")&&std::find(p->hitByDetonation.begin(),p->hitByDetonation.end(),id)!=p->hitByDetonation.end())continue;
                 bool in=false;if(!isInBlast(handle,id,in,error))throw std::runtime_error(error);if(!in)continue;
-                throw std::runtime_error("Detonation obstacle LOS/ApplyImpact sequence not reconstructed: obstacle "+std::to_string(id));
+                // VA180072400..72491: DetonateLineOfSight(data+0x320) -> Thing::HasLineOfSight2dff90
+                // from mLocation(+0x88) to the obstacle GetLocation (trailing arg 0); blocked skips.
+                if(boolean(currentData(*p),"DetonateLineOfSight")){
+                    ProjectileCollisionOperation op;op.kind=ProjectileCollisionOperationKind::HasLineOfSight;op.projectile=handle;op.victimId=id;op.unit=false;
+                    // APPROXIMATION: z=0 / backoff=0 for the 2dff90 trailing argument (not decompiled).
+                    op.fromX=p->body.x;op.fromY=p->body.y;if(!world.location(id,op.toX,op.toY,error))throw std::runtime_error(error);
+                    bool clear=true;if(!hasLineOfSight(op,clear,error))throw std::runtime_error(error);if(!clear)continue;
+                }
+                // hash_set insert of Thing.mId (64dd0), then ApplyImpact76590(this, obstacle).
+                mutated=true;p->hitByDetonation.push_back(id);
+                if(!providers.applyImpact)throw std::runtime_error("Detonation ApplyImpact76590 requires actual hit consumer");
+                if(!providers.applyImpact(handle,id,error))throw std::runtime_error(error.empty()?"Detonation ApplyImpact failed":error);
+                p=actor(handle);if(!p)throw std::runtime_error("Detonation impact lost projectile storage");
             }
         }
         error.clear();return true;

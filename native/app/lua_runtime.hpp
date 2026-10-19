@@ -298,7 +298,8 @@ class ScriptRuntime {
     bool externalForceOwner(int32_t,hades::PhysicsForceOwner&,std::string&);
     bool createWeaponProjectile(const hades::WeaponOutput&,uint64_t&,std::string&);
     bool advanceProjectiles(float,std::string&);
-    bool applyProjectileImpact(uint64_t,int32_t,const hades::ProjectileImpactProviders&,std::string&);
+    bool applyProjectileImpact(uint64_t,int32_t,const hades::ProjectileImpactProviders&,std::string&,bool detonation=false);
+    void fillImpactProviders(hades::ProjectileImpactProviders&);
     bool loadProjectileDefinitions();
     std::map<std::string,hades::SourceValue> actorAnimationDefinitions_;
     hades::SourceValue nativeAnimationDefaults_;

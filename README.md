@@ -5,10 +5,12 @@ An unofficial, work-in-progress **native ARM64 Android engine** for **Hades (Sup
 purchased PC copy** — on a C++/OpenGL ES engine reconstructed from the PC engine binary.
 No emulation, Wine, CPU translation, ads, accounts or network access.
 
-> **Status: prototype, not a playable game yet.** The title screen, settings, intro, the
-> opening room, HUD, player control, sword attacks and audio run on a Galaxy Z Fold; the
-> engine still stops at the first engine behaviour that hasn't been reconstructed and
-> shows the exact reason on screen. See [`STATUS.md`](STATUS.md).
+> **Status: prototype, not a playable game yet** (2026-10-18). On a Galaxy Z Fold the
+> title screen, settings, intro, opening room, HUD, walking (with the original wall
+> push-out), sword combo, dash and audio run at ~90-120 fps. Missing engine behaviour is
+> contained (logged and counted as "engine gaps") instead of crashing. Still missing:
+> the dash/special detonation against obstacles, Athena's boon and the doors, and
+> every room after the first (so no enemies yet). See [`STATUS.md`](STATUS.md).
 
 **This repository contains no game files.** You must own Hades (e.g. on Steam or the Epic
 Games Store) and supply its files yourself. Read [`DISCLAIMER.md`](DISCLAIMER.md).

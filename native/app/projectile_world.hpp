@@ -61,6 +61,8 @@ struct ProjectileTeamProviders {
 struct ProjectileDetonationProviders {
     float worldTime=0;
     ProjectileTeamProviders teams;
+    // Projectile::ApplyImpact76590 on a detonation victim (parent supplies hit consumers).
+    std::function<bool(uint64_t projectile,int32_t victim,std::string&)> applyImpact;
 };
 // Projectile::OnDeath6f5c0 native arguments for ScriptManager::OnProjectileDeath
 // 289ed0 (proj, victim, LastProjectileDeath, FirstUnitInVolley, InvulnerableImpact).
@@ -117,6 +119,8 @@ struct ProjectileImpactProviders {
     std::function<bool(int32_t,bool&,std::string&)> primaryInvulnerable;
     std::function<bool(const ProjectileCollisionOperation&,std::string&)> preflight;
     std::function<bool(const ProjectileCollisionOperation&,ProjectileCollisionReply&,std::string&)> execute;
+    // Projectile::ApplyImpact76590 for a detonation victim (UpdateDetonation71c10).
+    std::function<bool(uint64_t,int32_t,std::string&)> detonationImpact;
 };
 struct ProjectileCalculatedDamage {float amount=0;bool critical=false;};
 struct ProjectileImpactGeometry {float x=0,y=0,z=0,angle=0;bool nativeImpactAdmitted=false;};
@@ -313,10 +317,15 @@ public:
     bool calcDamage(uint64_t,int32_t victim,bool disableDamage,
         const ProjectileImpactProviders&,ProjectileCalculatedDamage&,std::string&);
     bool prepareArcImpact(uint64_t,int32_t victim,ProjectileImpactGeometry&,std::string&);
+    // GetImpactLocation72a90 + GetImpactAngle6e7d0 + impact Z, no CalcImpactLocation.
+    bool impactGeometry(uint64_t,int32_t victim,ProjectileImpactGeometry&,std::string&);
+    bool impactAngle(uint64_t,int32_t victim,float x,float y,float& angle,std::string&);
+    bool applyImpact(uint64_t,int32_t victim,const ProjectileImpactGeometry&,const ProjectileHitProviders&,std::string&);
     // Native Impact->ApplyImpact->Life.TakeHit sequencing. Native health stays
     // in original Lua OnHit. Every unreconstructed side-effect branch yields
     // a mandatory operation; failure after an actual mutation faults storage.
     bool applyArcImpact(uint64_t,int32_t victim,const ProjectileHitProviders&,std::string&);
+    bool applyDetonationImpact(uint64_t,int32_t victim,const ProjectileHitProviders&,std::string&);
     bool setProjectileNumOpacityFlag(uint64_t,std::string&);
     bool projectileNumOpacityDirty()const{return numOpacityDirty_;}
     // Parent invokes only from this real component's BodySystem phase with its

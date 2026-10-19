@@ -129,7 +129,9 @@ bool ScriptRuntime::projectileEffectOwner(int32_t id,hades::EffectOwnerState& st
     // Owner Thing = Projectile: Thing::GetLocation (attachment aware), GetZLocation,
     // body scale/angle and packed base color/HSV, as for any Thing owner.
     const auto it=projectileFxOwners_.find(id);const auto* p=it==projectileFxOwners_.end()?nullptr:projectileWorld_.actor(it->second);
-    if(!p||p->disposed||!p->thingInitialized){error="Effect owner requires actual live projectile";return false;}
+    // The mapping is released synchronously inside the projectile's Thing.Dispose consumer
+    // (body still valid there), so a mapped projectile is the live owner.
+    if(!p||!p->thingInitialized){error="Effect owner requires actual live projectile";return false;}
     state=hades::EffectOwnerState{};state.lifetime=p->request.lifetimeHandle;
     if(!projectileWorld_.projectileLocation(*p,state.x,state.y,error)||!projectileWorld_.projectileZ(*p,state.z,error))return false;
     state.scale=p->body.scale*p->body.scaleFraction;state.angle=p->body.angle;state.baseColor=p->baseColor;state.baseHsv=std::array<float,4>{p->hsv[0],p->hsv[1],p->hsv[2],0};
@@ -175,27 +177,8 @@ void ScriptRuntime::installProjectileGraphicProvider(){
         // existing playLocationAudioCue cap gate.
         uint32_t id=0;return playLocationAudioCue(cue,std::array<float,3>{x,y,0},0,id,e);});
 }
-bool ScriptRuntime::advanceProjectiles(float dt,std::string& error){
-    installProjectileGraphicProvider();
-    projectileWorld_.setOwnerMarkerProvider([this](int32_t o,const std::string& m,float& x,float& y,std::string& e){return projectileOwnerMarker(o,m,x,y,e);});
-    projectileWorld_.setPrimaryCombatProvider([this](int32_t id,bool& inv,bool& noCoverage,std::string& e){bool noArmor=false;return primaryCombatFlags(id,inv,noArmor,noCoverage,e);});
-    hades::ProjectileUpdateProviders providers;providers.worldTime=worldTime_;providers.worldTimeMultiplier=worldSpeedModifier_;
-    providers.random=[this](double& value,std::string& detail){if(nextRecoveredEngineRandom(state_,value))return true;detail="Projectile update source RNG unavailable";return false;};
-    providers.preflight=[](const hades::ProjectileUpdateOperation& operation,const hades::ProjectileActor& p,std::string& detail){
-        using K=hades::ProjectileUpdateOperationKind;
-        if(operation.kind==K::CheckProjectileDefense||operation.kind==K::CheckForImpact)return true;
-        // Projectile::Detonate6d670 / UpdateDetonation71c10 / CreateStartFx6f1a0 /
-        // OnDeath6f5c0: real ProjectileWorld consumers; their unreconstructed
-        // graphic/sound/spawn/victim branches fail when actually reached.
-        if(operation.kind==K::Detonate||operation.kind==K::UpdateDetonation||operation.kind==K::CreateStartFx||operation.kind==K::OnDeath)return true;
-        if(operation.kind==K::DisposeThing&&!p.primaryAnimation&&!p.attachedAnimation&&p.attachedAnimations.empty()&&!p.physics&&p.thing&&p.thing->get("Light")&&p.thing->get("Light")->text().empty())return true;
-        detail=std::string("Projectile update requires live consumer: ")+hades::projectileUpdateOperationName(operation.kind);return false;
-    };
-    providers.execute=[this](const hades::ProjectileUpdateOperation& operation,hades::ProjectileActor& p,hades::ProjectileUpdateReply& reply,std::string& detail){
-        using K=hades::ProjectileUpdateOperationKind;
-        if(operation.kind==K::CheckProjectileDefense)return projectileWorld_.checkArcProjectileDefense(p.request.lifetimeHandle,projectileDefenseProviders(),detail);
-        if(operation.kind==K::CheckForImpact){
-            hades::ProjectileImpactProviders impact;impact.worldTime=worldTime_;
+void ScriptRuntime::fillImpactProviders(hades::ProjectileImpactProviders& impact){
+    impact.worldTime=worldTime_;
             const auto players=snapshotInputPlayers(state_);if(!players.empty())impact.teams.firstPlayerIdentity=players.front().playerIndex;
             impact.teams.unitPlayerIdentity=[this](int32_t id,uint64_t& token,std::string& e){token=0;const auto* actor=actorWorld_.actor(id);if(actor&&actor->registered)for(const auto& player:snapshotInputPlayers(state_))if(player.activeUnitId==id&&player.activeUnitLifetime==actor->entityHandle){token=player.playerIndex;break;}e.clear();return true;};
             impact.random=[this](double& value,std::string& e){if(nextRecoveredEngineRandom(state_,value))return true;e="Projectile collision source RNG unavailable";return false;};
@@ -223,10 +206,34 @@ bool ScriptRuntime::advanceProjectiles(float dt,std::string& error){
                 }
                 e="Unconsumed genuine collision operation";return false;
             };
+    impact.detonationImpact=[this,&impact](uint64_t handle,int32_t victim,std::string& e){return applyProjectileImpact(handle,victim,impact,e,true);};
+}
+bool ScriptRuntime::advanceProjectiles(float dt,std::string& error){
+    installProjectileGraphicProvider();
+    projectileWorld_.setOwnerMarkerProvider([this](int32_t o,const std::string& m,float& x,float& y,std::string& e){return projectileOwnerMarker(o,m,x,y,e);});
+    projectileWorld_.setPrimaryCombatProvider([this](int32_t id,bool& inv,bool& noCoverage,std::string& e){bool noArmor=false;return primaryCombatFlags(id,inv,noArmor,noCoverage,e);});
+    hades::ProjectileUpdateProviders providers;providers.worldTime=worldTime_;providers.worldTimeMultiplier=worldSpeedModifier_;
+    providers.random=[this](double& value,std::string& detail){if(nextRecoveredEngineRandom(state_,value))return true;detail="Projectile update source RNG unavailable";return false;};
+    providers.preflight=[](const hades::ProjectileUpdateOperation& operation,const hades::ProjectileActor& p,std::string& detail){
+        using K=hades::ProjectileUpdateOperationKind;
+        if(operation.kind==K::CheckProjectileDefense||operation.kind==K::CheckForImpact)return true;
+        // Projectile::Detonate6d670 / UpdateDetonation71c10 / CreateStartFx6f1a0 /
+        // OnDeath6f5c0: real ProjectileWorld consumers; their unreconstructed
+        // graphic/sound/spawn/victim branches fail when actually reached.
+        if(operation.kind==K::Detonate||operation.kind==K::UpdateDetonation||operation.kind==K::CreateStartFx||operation.kind==K::OnDeath)return true;
+        if(operation.kind==K::DisposeThing&&!p.primaryAnimation&&!p.attachedAnimation&&p.attachedAnimations.empty()&&!p.physics&&p.thing&&p.thing->get("Light")&&p.thing->get("Light")->text().empty())return true;
+        detail=std::string("Projectile update requires live consumer: ")+hades::projectileUpdateOperationName(operation.kind);return false;
+    };
+    providers.execute=[this](const hades::ProjectileUpdateOperation& operation,hades::ProjectileActor& p,hades::ProjectileUpdateReply& reply,std::string& detail){
+        using K=hades::ProjectileUpdateOperationKind;
+        if(operation.kind==K::CheckProjectileDefense)return projectileWorld_.checkArcProjectileDefense(p.request.lifetimeHandle,projectileDefenseProviders(),detail);
+        if(operation.kind==K::CheckForImpact){
+            hades::ProjectileImpactProviders impact;fillImpactProviders(impact);
             hades::ProjectileImpactResult result;if(!projectileWorld_.checkForImpact(p.request.lifetimeHandle,impact,result,detail,&reply.impactVictim))return false;reply.impactResult=result;return true;
         }
         if(operation.kind==K::Detonate||operation.kind==K::UpdateDetonation){
-            hades::ProjectileDetonationProviders blast;blast.worldTime=worldTime_;
+            hades::ProjectileImpactProviders impact;fillImpactProviders(impact);
+            hades::ProjectileDetonationProviders blast;blast.worldTime=worldTime_;blast.applyImpact=impact.detonationImpact;
             const auto players=snapshotInputPlayers(state_);if(!players.empty())blast.teams.firstPlayerIdentity=players.front().playerIndex;
             blast.teams.unitPlayerIdentity=[this](int32_t id,uint64_t& token,std::string& e){token=0;const auto* actor=actorWorld_.actor(id);if(actor&&actor->registered)for(const auto& player:snapshotInputPlayers(state_))if(player.activeUnitId==id&&player.activeUnitLifetime==actor->entityHandle){token=player.playerIndex;break;}e.clear();return true;};
             return operation.kind==K::Detonate?projectileWorld_.detonate(p.request.lifetimeHandle,blast,detail):projectileWorld_.updateDetonation(p.request.lifetimeHandle,operation.elapsed,blast,detail);
@@ -278,7 +285,7 @@ float hitNumber(const std::map<std::string,hades::WeaponScalar>& fields,const ch
 bool hitFlag(const std::map<std::string,hades::WeaponScalar>& fields,const char* key){const auto i=fields.find(key);if(i==fields.end()||!std::holds_alternative<bool>(i->second))throw std::runtime_error(std::string("Native hit source flag missing: ")+key);return std::get<bool>(i->second);}
 std::string hitText(const std::map<std::string,hades::WeaponScalar>& fields,const char* key){const auto i=fields.find(key);if(i==fields.end()||!std::holds_alternative<std::string>(i->second))throw std::runtime_error(std::string("Native hit source name missing: ")+key);return std::get<std::string>(i->second);}
 }
-bool ScriptRuntime::applyProjectileImpact(uint64_t handle,int32_t victim,const hades::ProjectileImpactProviders& collision,std::string& error){
+bool ScriptRuntime::applyProjectileImpact(uint64_t handle,int32_t victim,const hades::ProjectileImpactProviders& collision,std::string& error,bool detonation){
     try{
         hades::ProjectileHitProviders hit;hit.collision=collision;
         float outgoing=0,incoming=0;if(!configurationFloat("DamageMultiplier",outgoing,error)||!configurationFloat("DamageTakenMultiplier",incoming,error))return false;
@@ -491,6 +498,6 @@ bool ScriptRuntime::applyProjectileImpact(uint64_t handle,int32_t victim,const h
             }
             detail="Native Impact/TakeHit consumer unavailable: kind="+std::to_string(int(op.kind))+" victim="+std::to_string(op.victim);return false;
         };
-        return projectileWorld_.applyArcImpact(handle,victim,hit,error);
+        return detonation?projectileWorld_.applyDetonationImpact(handle,victim,hit,error):projectileWorld_.applyArcImpact(handle,victim,hit,error);
     }catch(const std::exception& e){error=e.what();return false;}
 }

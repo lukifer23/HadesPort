@@ -15,18 +15,42 @@ bool ProjectileWorld::applyArcImpact(uint64_t handle,int32_t victim,const Projec
     try{
         if(!providers.damageMultiplier||!providers.damageTakenMultiplier||!providers.disableDamage||!std::isfinite(*providers.damageMultiplier)||!std::isfinite(*providers.damageTakenMultiplier))throw std::runtime_error("Impact requires actual current damage configuration");
         auto* p=actor(handle);if(!p||!p->active||!p->firingWorld||!p->firingArsenal)throw std::runtime_error("Impact lost actual ARC/World/weapon");
-        auto& world=*p->firingWorld;auto* target=world.actor(victim);if(!target||!target->registered||!target->object)throw std::runtime_error("Impact lost actual victim");const uint64_t victimLifetime=target->entityHandle;
+        auto& world=*p->firingWorld;auto* target=world.actor(victim);if(!target||!target->registered||!target->object)throw std::runtime_error("Impact lost actual victim");
         ProjectileImpactGeometry geometry;mutated=true;if(!prepareArcImpact(handle,victim,geometry,error))throw std::runtime_error(error);if(!geometry.nativeImpactAdmitted){error.clear();return true;}
+        {auto* q=actor(handle);if(!q||!q->firingArsenal)throw std::runtime_error("Impact lost actual projectile");std::string detail;const auto* d=q->firingArsenal->projectileData(q->request.weaponName,q->spawnedDefinition,detail);if(!d)throw std::runtime_error(detail);
+        // Impact71880 inserts the actual Entity ID before ApplyImpact76590 and
+        // CalcDamage6dbd0 (including DamageBonusToImpactedUnit and its RNG).
+        q->hitByImpact.push_back(target->entityHandle);
+        if(number(d->fields,"DamageRadius")>0||!text(d->fields,"SpawnOnDetonate").empty())throw std::runtime_error("Impact requires genuine source detonation consumer");}
+        if(!applyImpact(handle,victim,geometry,providers,error))throw std::runtime_error(error);
+        error.clear();return true;
+    }catch(const std::exception& e){error=e.what();if(mutated){faulted_=true;fault_=error;}return false;}
+}
+bool ProjectileWorld::applyDetonationImpact(uint64_t handle,int32_t victim,const ProjectileHitProviders& providers,std::string& error){
+    // Projectile::UpdateDetonation71c10 obstacle/unit victim: ApplyImpact76590 directly (no
+    // Impact71880 prelude). Its geometry is its own vslot0x198 GetImpactAngle6e7d0 and
+    // vslot0x1c8 GetImpactLocation72a90 on the current mImpactLocation, and Z = attached ?
+    // GetZLocation(mAttachedTo)+mAttachOffsetZ : mZLocation(+0x74).
+    bool mutated=false;
+    try{ProjectileImpactGeometry geometry;if(!impactGeometry(handle,victim,geometry,error))throw std::runtime_error(error);
+        mutated=true;if(!applyImpact(handle,victim,geometry,providers,error))throw std::runtime_error(error);
+        error.clear();return true;
+    }catch(const std::exception& e){error=e.what();if(mutated){faulted_=true;fault_=error;}return false;}
+}
+bool ProjectileWorld::applyImpact(uint64_t handle,int32_t victim,const ProjectileImpactGeometry& geometry,const ProjectileHitProviders& providers,std::string& error){
+    // Projectile::ApplyImpact76590 (.local/reports/native-combat3-apply-impact-pseudocode.c).
+    bool mutated=false;
+    try{
+        if(!providers.damageMultiplier||!providers.damageTakenMultiplier||!providers.disableDamage||!std::isfinite(*providers.damageMultiplier)||!std::isfinite(*providers.damageTakenMultiplier))throw std::runtime_error("Impact requires actual current damage configuration");
+        auto* p=actor(handle);if(!p||!p->active||!p->firingWorld||!p->firingArsenal)throw std::runtime_error("Impact lost actual projectile/World/weapon");
+        auto& world=*p->firingWorld;auto* target=world.actor(victim);if(!target||!target->registered||!target->object)throw std::runtime_error("Impact lost actual victim");const uint64_t victimLifetime=target->entityHandle;
         auto weapon=[&]()->const WeaponSnapshot&{std::string detail;const auto* value=p->firingArsenal->weaponState(p->request.weaponName,detail);if(!value)throw std::runtime_error(detail);return *value;};
         auto data=[&]()->const ProjectileDefinition&{std::string detail;const auto* value=p->firingArsenal->projectileData(p->request.weaponName,p->spawnedDefinition,detail);if(!value)throw std::runtime_error(detail);return *value;};
         const auto invincibleCue=data().cues.find("InvincibleImpactSound");if(invincibleCue==data().cues.end()||!invincibleCue->second.validityKnown||invincibleCue->second.valid)throw std::runtime_error("Impact InvincibleImpactSound requires actual source cue consumer");
         ProjectileHitOperation op;op.projectile=handle;op.victim=victim;op.geometry=geometry;
         auto invoke=[&](ProjectileHitOperationKind kind,ProjectileHitReply& reply){op.kind=kind;if(!providers.execute)throw std::runtime_error("Actual native hit consumer unavailable");mutated=true;if(!providers.execute(op,reply,error))throw std::runtime_error(error.empty()?"Actual native hit consumer failed":error);};
         auto run=[&](ProjectileHitOperationKind kind){ProjectileHitReply reply;invoke(kind,reply);if(reply.tagMultiplierAddition)throw std::runtime_error("Unexpected scalar reply from native hit operation");};
-        // Impact71880 inserts the actual Entity ID before ApplyImpact76590 and
-        // CalcDamage6dbd0 (including DamageBonusToImpactedUnit and its RNG).
-        mutated=true;p->hitByImpact.push_back(target->entityHandle);
-        if(number(data().fields,"DamageRadius")>0||!text(data().fields,"SpawnOnDetonate").empty())throw std::runtime_error("Impact requires genuine source detonation consumer");
+        mutated=true;
         ProjectileCalculatedDamage calculated;if(!calcDamage(handle,victim,*providers.disableDamage,providers.collision,calculated,error))throw std::runtime_error(error);
         auto* attacker=world.actor(p->request.ownerId);if(!attacker||!attacker->registered||attacker->definition->kind!="Unit")attacker=nullptr;
         op.attacker=attacker?attacker->id:-1;
