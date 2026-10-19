@@ -149,5 +149,39 @@
    "PhysicsComponent(+0xd8) with +0x5c<=0 -> CheckTether2bd890 clamp; then vtable +0x80 SetLocation(newLoc)"
   ],
   "next_for_exact_ApplyShift": "reconstruct GridSquare::detectCollisions30ae10 obstacle branch + PolygonHelpers::PolygonCollisionOpt2cefd0 (MTV along velocity param+0x28); then replace unitApplyFullShift approximation in lua_combat.cpp (walking path in lua_player_input.cpp can share it)"
+ },
+ "combat6_exact_apply_shift": {
+  "implemented": "native/app/lua_combat.cpp unitApplyFullShift/unitApplyShift/unitOnObstacleCollision; walking (lua_player_input.cpp) calls it like Unit::UpdateMovement2f65e0 VA1802f69be (target, target-loc, StopShiftOnCollision, true) after zeroing +0x410",
+  "evidence": [
+   ".local/reports/native-shift-polygon-collision-opt-pseudocode.c",
+   ".local/reports/native-shift-polygon-collision-ce1d0-pseudocode.c",
+   ".local/reports/native-shift-0x1802ce880-pseudocode.c",
+   ".local/reports/native-shift-0x1802ce120-pseudocode.c",
+   ".local/reports/native-shift-polygon-rebuild-static.json",
+   ".local/reports/native-shift-on-obstacle-collision-pseudocode.c",
+   ".local/reports/native-shift-script-on-obstacle-collision-pseudocode.c",
+   ".local/reports/native-shift-check-tether-pseudocode.c",
+   ".local/reports/native-shift-unit-update-movement-pseudocode.c",
+   ".local/reports/native-shift-obstacle-data-def-type.txt",
+   ".local/reports/native-shift-obstacle-data-def-ctor-static.json"
+  ],
+  "layout": "Unit+0x3cc mUnappliedSpeed, +0x410 mLastCollisionTranslation, +0x4f8 mPrevColliding, +0x528 mCurrentlyColliding; UnitData+0x15c CollideWithObstacles, +0x15d CollideWithUnits, +0x238 CollisionWeaponRequiredVelocity, +0x240 InitiatedCollisionWeapon, +0x300 MaxCollisionZ; AnimationDataDef+0x35 OwnerHasNoCollision; EffectDataDef+0x2f8 NoUnitCollision; Obstacle+0x428 ObstacleDataDef (UseCollisionShift +0x449, CollisionBounce +0x44c, ... CollisionSound +0x4d8); LifeDataDef+0x16f DieOnCollision",
+  "approximations": [
+   "Thing::mRectangle = integer AABB of transformed polygon",
+   "obstacle order = Android broadphase order (per-axis accumulation is order dependent)",
+   "Thing.Tallness read from data, not live +0x78",
+   "absent CollisionSound = ctor 0x1800d43f0 empty default"
+  ],
+  "fail_loud": [
+   "unit-unit push / OnUnitCollision2f7580",
+   "AI notify for non-player units",
+   "NaN push jitter",
+   "CheckTether with tethers",
+   "InitiatedCollisionWeapon",
+   "authored CollisionSound/Animation/AlphaOut/Fx/EndedAnimation/EndedAlphaIn",
+   "CollisionBounce/VelocityRetention!=1/VelocityAbsorbtion/Damage/Knockback/DieOnCollision kill",
+   "ClearOnCollision effects"
+  ],
+  "result": "scratch Rush-only replay: start 1995.49,5302.79 -> 1845.18,5227.95 (167.9 units along 410970 edge); sanitized run clean (.local/reports/native-shift-asan-v1.log)"
  }
 }

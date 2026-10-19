@@ -19,6 +19,8 @@ meaningful milestones.
 
 | Date / time | APK sha256 (prefix) | Result |
 |---|---|---|
+| 2026-10-18 20:07 | 7597f7a0 (build 32) | + CollisionAlphaOutDuration obstacle fade (Body+0x320, OnObstacleCollision 0x2f6ce0) — the contained gap hit at frame 1658 on device |
+| 2026-10-18 20:03 | a8b01272 (build 31) | Device (user): moved further with no "unable to enter"; the "crash" was the package update killing the app mid-play (now: install only when the game isn't foreground). + VisualFxUseAttachedMarkerLocation, exact ApplyShift walking+dash, OnObstacleCollision. Strict survey: only ClearEffect (kill path) → agent |
 | 2026-10-18 20:00 | e23b93c8 (build 30) | Fix: a runtime whose world had faulted was reused after the app surface was lost → instant blank "please try again". Now torn down; empty reasons get a fallback message |
 | 2026-10-18 19:57 | e8a9d771 (build 29) | Durability: device contains unreconstructed behaviour (Lua call wrappers + `containStage` for 20 world stages), logs `CONTAINED_FAULT`, shows "N engine gaps" on the FPS line instead of ending the room. + StopAnimation (ScriptAction 0x2632e0 / AnimationManager::Cancel 0x29e520), action-effects-v9 (StatusIconSpeaking_End), screen-opening-v9 (LocationTextBGIn/Out Slide animations), marker lookup + RequiresUnblocked, exact ApplyShift for the dash. Strict survey: 2 blockers left in the first-combat replay (VisualFxUseAttachedMarkerLocation; OnObstacleCollision CollisionSound) |
 | 2026-10-18 19:45 | 672a8549 (build 28) | Device run: title → intro (95 fps, 11.5 ms p50) → room passes door cue, SetColor, RemoveFromGroup, SetAngle, ghost patrol; stops at end of intro speech: `StopAnimation` (RoomManager.lua:5516) → agent. Survey list behind it: StatusIconSpeaking_End export, RequiresUnblocked, LocationTextBGIn/Out |
@@ -63,7 +65,7 @@ meaningful milestones.
 | Combat pass 2–3: SwordWeapon3 fires and its hit completes (OnWeaponFailedToFire, IsImmuneToForce, ApplyImpact forces, charge FX hooks) | agent | done |
 | Combat pass 4: dash (BlinkWeapon fire/update, CalcValidLocationOnVector, InvulnerableEffect, SwapWeapon → SwordWeaponDash, dash-strike anim) | agent | done; replay runs 1700 frames. But dash target == start (Zagreus doesn't move) |
 | Combat pass 5: dash target==start root cause = Zagreus backed into a concave wall corner; ApplyShift order recovered (blink-weapon-contract.json) | agent | done (analysis) |
-| Exact Unit::ApplyFullShift/ApplyShift wall push-out (replaces axis-slide approximation) | agent | in progress |
+| Exact Unit::ApplyFullShift/ApplyShift wall push-out + Unit::OnObstacleCollision, shared by walking (UpdateMovement) and dash | agent | done: Rush slides 168 units along the wall (was ~4). Next (scratch, 1531): RushWeapon detonation obstacle LOS/ApplyImpact (obstacle 411000) |
 | SetAngle / SetGoalAngle / AngleTowardTarget (Body+0x80 angle transition; Unit overrides → SetCompleteAngle/SetGoalAngle) | main | done (host replay passes SetAngle) |
 | World obstacle Move (ScriptAction::Move 0x274230 → Obstacle::MoveTo 0x2c5bf0) + NotifyOnStopped — ghost patrol | agent | done (build 25) |
 | RotateWithGravity (FX rotation from Speed/UpwardVelocity) | main | done (build 26) |
@@ -107,7 +109,7 @@ meaningful milestones.
 - Device "unable to enter" screen = first unreconstructed engine behaviour; read the reason with
   `adb -s $HADES_DEVICE_SERIAL logcat -d -s HadesNative HadesLua | grep -E "FAILED|BLOCKED"`.
 - Only the opening room's assets are packed; leaving the room needs the multi-room/BC7 pipeline.
-- ApplyFullShift (dash into walls) uses the walking sweep, a labelled approximation.
+- ApplyShift approximations: mRectangle = polygon AABB, obstacle order = Android broadphase order, unit-unit push fails loudly (blink-weapon-contract.json combat6).
 - ReRandomizeOnLoop: engine default true, native loop never re-randomizes.
 - 137 audio events unsupported (exporter reasons in the v17 receipt).
 - APK ~1.2 GB (RGBA frames); BC7 pass planned.

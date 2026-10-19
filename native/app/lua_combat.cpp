@@ -706,6 +706,7 @@ bool ScriptRuntime::unitApplyFullShift(int32_t id,float locX,float locY,float dx
         if(alphaIn->number()>0)throw std::runtime_error("ApplyFullShift CollisionEndedAlphaInDuration BodyComponent::Adjust2b7440 not reconstructed");
         if(!endAnim->text().empty())throw std::runtime_error("ApplyFullShift CollisionEndedAnimation Thing::SetAnimation2decb0 not reconstructed");
         // ScriptManager::OnCollisionEnd28b290 (GhostScripts.lua OnCollisionEnd reads CollideeTable).
+        // APPROXIMATION (labelled): argument shape assumed from OnObstacleCollision28ab40; 28b290 not decompiled.
         lua_State* L=state_;pushObjectLuaTable(L,o);const bool hasTable=!lua_isnil(L,-1);lua_pop(L,1);
         if(hasTable&&!dispatchCallbacks("OnCollisionEnd",a->object->name.c_str(),id,[o](lua_State* S,std::string&){pushObjectLuaTable(S,o);lua_setfield(S,-2,"CollideeTable");return true;})){error=error_;return false;}
         a=actorWorld_.actor(id);if(!a){error="OnCollisionEnd lost actual Unit";return false;}
@@ -812,6 +813,8 @@ bool ScriptRuntime::unitApplyShift(int32_t id,float nx,float ny,float sx,float s
 // branches: collision-set insert, first-contact cues (fail loudly when authored), StopsUnits gate,
 // reaction gate, ScriptManager::OnCollisionReaction28a8b0 / OnObstacleCollision28ab40 Lua dispatch
 // (only when the obstacle has an attached Lua table), UnitStatus::ClearOnCollisionEffects2fd730.
+// APPROXIMATION (labelled): OnCollisionReaction28a8b0 arguments assumed to match OnObstacleCollision28ab40
+// (CollideeTable, Velocity); ClearOnCollisionEffects fails loudly on any ClearOnCollision effect (not decompiled).
 bool ScriptRuntime::unitOnObstacleCollision(int32_t id,int32_t o,float sx,float sy,float px,float py,float& damage,std::string& error){
     try{
     auto* a=actorWorld_.actor(id);auto* ob=actorWorld_.actor(o);if(!a||!a->object||!ob||!ob->registered){error="OnObstacleCollision requires actual Unit and Obstacle";return false;}
@@ -825,7 +828,11 @@ bool ScriptRuntime::unitOnObstacleCollision(int32_t id,int32_t o,float sx,float 
         const auto* sound=actorWorld_.currentProperty(o,"CollisionSound");
         if(sound&&!sound->text().empty())throw std::runtime_error("OnObstacleCollision CollisionSound AudioManager::PlayCue3D4a690 not reconstructed");
         if(!prop(o,"CollisionAnimation").text().empty())throw std::runtime_error("OnObstacleCollision CollisionAnimation Thing::SetAnimation2decb0 not reconstructed");
-        if(prop(o,"CollisionAlphaOutDuration").number()>0)throw std::runtime_error("OnObstacleCollision CollisionAlphaOutDuration BodyComponent::Adjust2b7440 not reconstructed");
+        // Unit::OnObstacleCollision 0x2f6ce0: CollisionAlphaOutDuration>0 ->
+        // FUN_1802b7440(body, body+0x320 alpha, {target 0, initial 1, duration, no ease}).
+        if(const float fade=float(prop(o,"CollisionAlphaOutDuration").number());fade>0){
+            hades::BodyTransitionOptions alphaOut;alphaOut.duration=fade;
+            if(!actorWorld_.adjustColorChannel(o,3,0.f,1.f,alphaOut,error))return false;}
         if(!prop(o,"CollisionFx").text().empty())throw std::runtime_error("OnObstacleCollision CollisionFx AnimationManager::Create29e410 not reconstructed");
     }
     const float speed=a->physics?std::sqrt(a->physics->velocity.x*a->physics->velocity.x+a->physics->velocity.y*a->physics->velocity.y):0.f;
