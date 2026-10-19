@@ -17,8 +17,8 @@ float num(const SourceValue&d,const char*k,float fallback=0){auto*p=d.get(k);ret
 bool flag(const SourceValue&d,const char*k){auto*p=d.get(k);return p&&p->boolean();}
 // Source keys reconstructed for reviewed GUI records (mirrors the exporter's
 // screen_gui_review.KEYS). Anything else is rejected at load.
-const std::set<std::string> guiKeys{"Name","InheritFrom","FilePath","Type","StartFrame","EndFrame","NumFrames","PlaySpeed","OffsetX","OffsetY","OriginX","OriginY","Scale","ScaleX","ScaleY","Alpha","AddColor","Material","SortMode","Loop","HoldLastFrame","ChildAnimation","AngleFromOwner","ScaleFromOwner","ColorFromOwner","DieWithOwner","Red","Green","Blue"};
-NativeAnimationType typeOf(const SourceValue&d){const auto t=text(d,"Type");return t=="Dataless"?NativeAnimationType::Dataless:(t=="ConstantNoUpdate"?NativeAnimationType::ConstantNoUpdate:(t=="Constant"?NativeAnimationType::Constant:NativeAnimationType::Book));}
+const std::set<std::string> guiKeys{"Name","InheritFrom","FilePath","Type","StartFrame","EndFrame","NumFrames","PlaySpeed","OffsetX","OffsetY","OriginX","OriginY","Scale","ScaleX","ScaleY","Alpha","AddColor","Material","SortMode","Loop","HoldLastFrame","ChildAnimation","AngleFromOwner","ScaleFromOwner","ColorFromOwner","DieWithOwner","Red","Green","Blue","Slides","Sound"};
+NativeAnimationType typeOf(const SourceValue&d){const auto t=text(d,"Type");return t=="Slide"?NativeAnimationType::Slide:t=="Dataless"?NativeAnimationType::Dataless:(t=="ConstantNoUpdate"?NativeAnimationType::ConstantNoUpdate:(t=="Constant"?NativeAnimationType::Constant:NativeAnimationType::Book));}
 // FromOwnerBehavior: 0 Maintain (constructor default), 1 Take, 2 Ignore.
 bool maintain(const SourceValue&d,const char*k){const auto v=text(d,k);if(v.empty()||v=="Maintain")return true;if(v=="Ignore")return false;throw std::runtime_error(std::string("Native screen FromOwner Take branch not reconstructed: ")+k);}
 int32_t startFrame(const SourceValue&d){return int32_t(num(d,"StartFrame",1));}
@@ -37,7 +37,12 @@ bool ScreenAnimationWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimati
   if(!legacyClip(name)){
    // Reviewed original GUI closure: only reconstructed properties/types.
    for(const auto&[key,value]:definition->object()){(void)value;if(!guiKeys.contains(key))throw std::runtime_error("Unreviewed native screen animation property "+name+"."+key);}
-   const auto t=text(*definition,"Type");if(t!="Constant"&&t!="ConstantNoUpdate"&&t!="Book"&&t!="Dataless")throw std::runtime_error("Unreviewed native screen animation type "+name);
+   const auto t=text(*definition,"Type");if(t!="Constant"&&t!="ConstantNoUpdate"&&t!="Book"&&t!="Dataless"&&t!="Slide")throw std::runtime_error("Unreviewed native screen animation type "+name);
+   // SlideAnimation (SetupSlideIndex 0x1802b5010 / NextSlide 0x1802b46d0 /
+   // SlideStart 0x1802b4080): timing is the bank's per-slide DurationFrames/60
+   // with zero-duration slides skipped (ActorAnimationPlayback). Loop/PingPong
+   // wrap and draw offsets are not reviewed for GUI slides.
+   if(t=="Slide"){const auto bankIndex=bank->find(name);if(!bankIndex||(bank->clips().at(*bankIndex).flags&(ActorBook|ActorLoop))||flag(*definition,"Loop")||num(*definition,"OffsetX")!=0||num(*definition,"OffsetY")!=0)throw std::runtime_error("Unreviewed native screen Slide record "+name);}
    if(t=="Book"&&(startFrame(*definition)<1||endFrame(*definition)<startFrame(*definition)))throw std::runtime_error("Unreviewed native Book frame range "+name);
   }
   if(!bank->find(name))throw std::runtime_error("Screen original pixels unavailable: "+name);definitions_[name]=*definition;}
@@ -65,6 +70,10 @@ bool ScreenAnimationWorld::allocateLayers(int32_t id,ScreenThing&s,const std::st
   if(a.type==NativeAnimationType::Book){
    // BookAnimation::SetupFrameUpdateMode 0x2b1040: speed=PlaySpeed, else 60.
    l.speed=num(d,"PlaySpeed",0);if(l.speed==0)l.speed=60;l.target=0;l.multiplier=1;l.frac=float(startFrame(d));l.frame=startFrame(d);
+  }else if(a.type==NativeAnimationType::Slide){
+   // SetupSlideIndex: index=StartFrame-1 then NextSlide to the first
+   // positive-duration slide (exported bank omits zero-duration slides).
+   l.playback.play(*bank_,next);l.frame=int32_t(l.playback.originalFrame());l.frac=float(l.frame);
   }else{l.frac=1;l.frame=1;}
   parent=l.handle;out.push_back(std::move(l));next=text(d,"ChildAnimation");
  }
@@ -88,10 +97,16 @@ bool ScreenAnimationWorld::setAnimation(int32_t id,const std::string&name,const 
  if(name==s->body->animation&&s->primary&&!s->layers.empty()&&!s->layers.front().legacy){if(!registry_->restart(s->primary,e))return false;}
  else{
   std::vector<ScreenLayer> layers;if(!allocateLayers(id,*s,name,layers,e))return false;
-  if(!releasePrimary(*s,sound,e))return false;s->layers=std::move(layers);s->primary=s->layers.front().handle;
+  // Animation.InitData 0x180291c70: the animation-level Sound cue plays when
+  // the world frame passes SoundAllowedAfterFrame (default 2; not in the
+  // reviewed records). Owner audio is non-spatial for screen Things.
+  std::string cue;for(const auto&l:layers){const auto c=text(definitions_.at(l.name),"Sound");if(c.empty())continue;if(!cue.empty()){e="Native screen ChildAnimation chain with several Sound cues not reconstructed: "+name;return false;}cue=c;}
+  uint32_t newSound=0;if(!cue.empty()&&sound.worldFrame>=2){if(!sound.play){e="Actual original screen audio provider unavailable";return false;}if(!sound.play(cue,newSound,e))return false;}
+  if(!releasePrimary(*s,sound,e))return false;s->layers=std::move(layers);s->primary=s->layers.front().handle;s->sound=newSound;
   s->body->animation=name;s->body->animationPath=text(d,"FilePath");s->body->numFrames=uint32_t(num(d,"NumFrames",1));
  }
  auto&primary=s->layers.front();const bool book=typeOf(d)==NativeAnimationType::Book;
+ if(typeOf(d)==NativeAnimationType::Slide&&(request.frameTarget||request.startFrameFraction||request.instant)){e="Native SetAnimation frame arguments on screen Slide not reconstructed: "+name;return false;}
  // ScriptAction::SetAnimation 0x261a10 argument order: PlaySpeed multiplier,
  // StartFrameFraction, FrameTarget(+Instant), then Color via Thing SetColor.
  if(request.playSpeed!=1){if(!book){e="Native PlaySpeed multiplier on non-Book screen animation not reconstructed";return false;}primary.multiplier=request.playSpeed;}
@@ -106,6 +121,7 @@ bool ScreenAnimationWorld::setAnimation(int32_t id,const std::string&name,const 
 bool ScreenAnimationWorld::setFrameTarget(int32_t id,const std::string&name,float f,bool instant,std::string&e){try{
  auto*s=thing(id);if(!s||s->dead)return true; // Native returns when the Thing is not active.
  for(auto&l:s->layers){if(l.name!=name)continue;const auto&d=definitions_.at(l.name);if(l.legacy){e="SetAnimationFrameTarget on legacy screen clip not reconstructed";return false;}
+  if(typeOf(d)==NativeAnimationType::Slide){e="SetAnimationFrameTarget on screen Slide not reconstructed: "+name;return false;}
   if(typeOf(d)!=NativeAnimationType::Book)continue; // No DataPlaySpeed: PlayToFraction is a no-op.
   if(instant){setFractionalFrame(d,l,frameForFraction(d,f));if(l.speed!=0)l.target=float(l.frame);}else if(l.speed!=0)l.target=frameForFraction(d,f);
  }
@@ -156,7 +172,22 @@ bool ScreenAnimationWorld::advance(float dt,const ScreenAnimationSound&sound,std
   }else{s.body->frame=s.playback.originalFrame();}s.body->graphicsDirty=true;}
  }else if(s.primary){
   bool finished=false;
-  for(size_t k=0;k<s.layers.size();++k){auto&l=s.layers[k];const auto&d=definitions_.at(l.name);if(typeOf(d)!=NativeAnimationType::Book)continue;
+  for(size_t k=0;k<s.layers.size();++k){auto&l=s.layers[k];const auto&d=definitions_.at(l.name);
+   if(typeOf(d)==NativeAnimationType::Slide){
+    if(l.playback.finished())continue;
+    // Slide PostUpdate 0x1802b4a26: one positive-duration slide per update.
+    (void)l.playback.advance(dt);l.frame=int32_t(l.playback.originalFrame());l.frac=float(l.frame);
+    if(l.playback.finished()){
+     if(flag(d,"HoldLastFrame")){
+      // NextSlide 0x1802b48a2..b0: past the last slide with HoldLastFrame,
+      // index=EndFrame (the slide-record count here). That image is only
+      // exported when it is a positive-duration slide.
+      const auto&slides=d.get("Slides")->array();if(l.playback.originalFrame()!=slides.size())throw std::runtime_error("Native screen Slide HoldLastFrame zero-duration EndFrame image not exported: "+l.name);
+     }else{if(k!=0)throw std::runtime_error("Native finished screen child Slide not reconstructed: "+l.name);finished=true;}
+    }
+    continue;
+   }
+   if(typeOf(d)!=NativeAnimationType::Book)continue;
    // PlaySpeedUpdateSystem::Execute 0x153b80: step toward a positive target
    // (snap when within one step), otherwise free-running playback.
    const float step=l.speed*l.multiplier*dt;
@@ -178,7 +209,7 @@ bool ScreenAnimationWorld::layerVisual(const ScreenThing&s,const ScreenLayer&l,A
  out={};out.id=uint32_t(s.body->id);out.lifetime=l.handle;out.screenSpace=true;out.sourceBank=bank_.get();out.flipX=s.body->flipHorizontal;
  if(l.legacy){out.frame=bank_->sample(s.playback.clipIndex(),s.playback.slideIndex(),0);out.localRect=out.frame.worldRect(*s.playback.clip());out.x=s.body->x;out.y=s.body->y;out.scale=s.body->scale*s.body->scaleFraction;for(size_t k=0;k<3;++k)out.color[k]=s.baseColor[k]*s.fractionColor[k];out.color[3]=s.baseColor[3]*s.body->alpha;return true;}
  const auto&d=definitions_.at(l.name);const auto&clip=bank_->clips().at(l.clip);const bool book=typeOf(d)==NativeAnimationType::Book;
- const size_t slide=book?size_t(l.frame-startFrame(d)):0;if(slide>=clip.slides.size()){e="Actual screen frame outside original resource: "+l.name;return false;}
+ const size_t slide=book?size_t(l.frame-startFrame(d)):(typeOf(d)==NativeAnimationType::Slide?l.playback.slideIndex():0);if(slide>=clip.slides.size()){e="Actual screen frame outside original resource: "+l.name;return false;}
  out.frame=bank_->sample(l.clip,slide,0);out.localRect=out.frame.worldRect(clip);
  // GetScale 0x298bb0: Data.Scale x own transition x (Maintain) Thing body
  // mScale x Thing ScaleTransition. GetDrawScaleVector 0x298500: Data.ScaleX/Y

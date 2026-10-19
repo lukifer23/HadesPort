@@ -21,7 +21,33 @@ hades::ActionEffectProviders ScriptRuntime::actionEffectProviders(){hades::Actio
  p.owner=[this](int32_t id,hades::EffectOwnerState&o,std::string&e){return effectOwner(id,o,e);};p.marker=[this](int32_t id,const std::string&name,std::array<float,3>&point,std::string&e){return effectMarker(id,name,point,e);};
  p.random=[this](double&v,std::string&e){if(nextRecoveredEngineRandom(state_,v))return true;e="Actual action FX uniform RNG unavailable";return false;};p.bounded=[this](uint32_t bound,uint32_t&v,std::string&e){if(nextRecoveredEngineBoundedRandom(state_,bound,v))return true;e="Actual action FX bounded PCG unavailable";return false;};p.worldFrame=worldFrame_;
  p.sound=[this](const std::string&cue,int32_t owner,const std::array<float,3>&position,uint32_t cap,uint32_t&id,std::string&e){if(cap!=16&&cap!=0){e="Actual FX source SoundManagerCap adapter unavailable";return false;}return playAudioCue(cue,owner,position,id,e);};
- p.elapsed=[this](int32_t owner,float,float dt,float&result,std::string&e){const auto* a=actorWorld_.actor(owner);if(!a||!a->registered){e="Actual action FX elapsed owner unavailable";return false;}if(a->timeMultiplier!=1||a->timeModifierFraction!=1||worldSpeedModifier_!=1){e="Non-default actual action FX ModifiedTime/TimeModifierFraction requires clock adapter";return false;}result=dt;return true;};return p;
+ p.elapsed=[this](int32_t owner,float,float dt,float&result,std::string&e){const auto* a=actorWorld_.actor(owner);if(!a||!a->registered){e="Actual action FX elapsed owner unavailable";return false;}if(a->timeMultiplier!=1||a->timeModifierFraction!=1||worldSpeedModifier_!=1){e="Non-default actual action FX ModifiedTime/TimeModifierFraction requires clock adapter";return false;}result=dt;return true;};
+ p.locationBlocked=[this](float x,float y,bool&blocked,std::string&e){return gridLocationBlocked(x,y,blocked,e);};return p;
+}
+// GridManager::IsLocationBlocked 0x180307f70 as called by CreateAndInit
+// 0x18029fd6b (stack args units=1, PathfindersPreferAvoid=0, BlockSpawns=1):
+// the clamped GridSquare holding the point; loop 1 over mObstacles(+0x18):
+// Obstacle::StopsUnits 0x2c55b0 && PointInPolygon 0x2ceaf0(Thing+0x1d8, p);
+// loop 2 over mUnits(+0x0): UnitData(pData Unit+0x3c0).mDef(+0x50)
+// mBlockSpawns(+0x2cc) && PointInPolygon(Thing+0x1d8, p). A point inside a
+// polygon lies inside its registered bounds, so the Android sparse grid
+// candidates for the point's bounds are a superset of that GridSquare's.
+bool ScriptRuntime::gridLocationBlocked(float x,float y,bool&blocked,std::string&error){
+ try{
+  blocked=false;
+  const auto inside=[x,y](const std::vector<hades::ActorPoint>&v){bool yes=false;for(size_t i=0,j=v.size()-1;i<v.size();j=i++)if((v[i].y>y)!=(v[j].y>y)&&x<(v[j].x-v[i].x)*(y-v[i].y)/(v[j].y-v[i].y)+v[i].x)yes=!yes;return yes;};
+  std::vector<int32_t> candidates;if(!actorWorld_.spatialObstacleCandidates(hades::SpatialBounds{x,y,x,y},hades::ObstacleGridCategory::StopsUnits,candidates,error))return false;
+  for(auto o:candidates){const auto* obstacle=actorWorld_.actor(o);if(!obstacle||!obstacle->registered||!obstacle->object||!obstacle->object->alive)continue;
+   bool stops=false;if(!actorWorld_.obstacleStops(o,false,stops,error))return false;if(!stops)continue;
+   if(obstacle->geometry.size()<3)throw std::runtime_error("IsLocationBlocked StopsUnits obstacle polygon unavailable");
+   if(inside(obstacle->geometry)){blocked=true;error.clear();return true;}}
+  for(auto id:actorWorld_.registrationOrder()){const auto* unit=actorWorld_.actor(id);
+   if(!unit||!unit->registered||!unit->object||!unit->object->alive||!unit->definition||unit->definition->kind!="Unit")continue;
+   const auto* flag=unit->definition->properties.get("BlockSpawns");if(!flag||!flag->boolean())continue;
+   if(unit->geometry.size()<3)throw std::runtime_error("IsLocationBlocked BlockSpawns unit polygon unavailable: "+unit->object->name);
+   if(inside(unit->geometry)){blocked=true;break;}}
+  error.clear();return true;
+ }catch(const std::exception&e){error=e.what();return false;}
 }
 bool ScriptRuntime::prepareActionEffect(const std::string&name,int32_t owner,std::string&error){return actionEffects_.prepare(name,owner,actionEffectProviders(),error);}
 bool ScriptRuntime::createActionEffect(const std::string&name,int32_t owner,std::optional<std::array<float,3>>position,uint64_t&handle,std::string&error){return actionEffects_.create(name,owner,position,actionEffectProviders(),handle,error);}

@@ -22,8 +22,14 @@ from export_actor_animations import string
 # Source keys whose runtime semantics are reconstructed by screen_animation.cpp.
 # Any other key (VisualFx, RandomPlaySpeed, CreateAnimations, ChainTo, ...)
 # rejects the export rather than shipping an unimplemented record.
-KEYS={'Name','InheritFrom','FilePath','Type','StartFrame','EndFrame','NumFrames','PlaySpeed','OffsetX','OffsetY','OriginX','OriginY','Scale','ScaleX','ScaleY','Alpha','AddColor','Material','SortMode','Loop','HoldLastFrame','ChildAnimation','AngleFromOwner','ScaleFromOwner','ColorFromOwner','DieWithOwner','Red','Green','Blue'}
-TYPES={'Constant','ConstantNoUpdate','Book'}
+# Slides: SlideAnimation per-slide DurationFrames only (SetupSlideIndex
+# 0x1802b5010 copies each 0x110-byte slide record's +0x1c duration; NextSlide
+# 0x1802b46d0 skips zero-duration slides; SlideStart 0x1802b4080 duration/60).
+# Sound: animation-level cue played by Animation.InitData 0x180291c70
+# (SoundAllowedAfterFrame gate, default 2).
+KEYS={'Name','InheritFrom','FilePath','Type','StartFrame','EndFrame','NumFrames','PlaySpeed','OffsetX','OffsetY','OriginX','OriginY','Scale','ScaleX','ScaleY','Alpha','AddColor','Material','SortMode','Loop','HoldLastFrame','ChildAnimation','AngleFromOwner','ScaleFromOwner','ColorFromOwner','DieWithOwner','Red','Green','Blue','Slides','Sound'}
+TYPES={'Constant','ConstantNoUpdate','Book','Slide'}
+SLIDE_KEYS={'DurationFrames'}
 
 class Ranged(Sjson):
  """Character ranges of each parsed record (converted to UTF-8 bytes once)."""
@@ -70,6 +76,8 @@ def resolve_all(records,origin,roots):
   unknown=set(d)-KEYS
   if unknown:raise ValueError('Unreviewed GUI animation property '+name+': '+repr(sorted(unknown)))
   if d.get('Type')not in TYPES:raise ValueError('Unreviewed GUI animation type '+name)
+  if 'Slides'in d and d.get('Type')!='Slide':raise ValueError('Unreviewed non-Slide Slides data '+name)
+  if d.get('Type')=='Slide':slide_durations(d)
   child=d.get('ChildAnimation')
   if child and child!='null':
    edges.append({'parent':name,'field':'ChildAnimation','child':child})
@@ -77,7 +85,30 @@ def resolve_all(records,origin,roots):
   if len(names)>4096:raise ValueError('Bounded GUI closure exceeded')
  return {n:resolved[n]for n in names},provenance,edges
 
+def slide_durations(d):
+ """Per-slide original DurationFrames of a Slide record (all slides kept)."""
+ slides=d.get('Slides')
+ if not isinstance(slides,list)or not slides:raise ValueError('Slide record without original Slides '+d['Name'])
+ if any(not isinstance(x,dict)or set(x)-SLIDE_KEYS or 'DurationFrames'not in x for x in slides):raise ValueError('Unreviewed per-slide property '+d['Name'])
+ out=[x['DurationFrames']for x in slides]
+ if any(not isinstance(v,int)or not 0<=v<=100000 for v in out):raise ValueError('Slide duration outside bounds '+d['Name'])
+ # SetupSlideIndex enters at StartFrame-1 then NextSlide; NextSlide's bound is
+ # the slide-record count, so playback covers slides StartFrame..len(Slides).
+ # Only StartFrame 1 and EndFrame absent/== len(Slides) are reviewed.
+ if d.get('StartFrame',1)!=1 or d.get('EndFrame',len(out))!=len(out) or d.get('NumFrames',len(out))!=len(out):raise ValueError('Unreviewed Slide frame range '+d['Name'])
+ if not any(out):raise ValueError('Slide record without positive duration '+d['Name'])
+ # NextSlide Loop (0x1802af290) / PingPong (+0x77) wrap is not reviewed for GUI.
+ if d.get('Loop'):raise ValueError('Unreviewed GUI Slide Loop '+d['Name'])
+ if d.get('OffsetX',0)or d.get('OffsetY',0):raise ValueError('Unreviewed GUI Slide draw offset '+d['Name'])
+ return out
+
 def image_names(d):
+ if d.get('Type')=='Slide':
+  # Approximation boundary: zero-duration slides are never started (NextSlide
+  # skips them), so only positive-duration slide images are exported. The
+  # HoldLastFrame end state (NextSlide sets index=EndFrame) is enforced at
+  # runtime (screen_animation.cpp fails loudly if it needs an unexported image).
+  return [(i,d['FilePath']+f'{i:04}')for i,v in enumerate(slide_durations(d),1)if v]
  n=d.get('NumFrames',1);s=d.get('StartFrame',1);e=d.get('EndFrame',n)
  if not(isinstance(n,int)and isinstance(s,int)and isinstance(e,int)and 1<=s<=e<=n<=1000):raise ValueError('Unreviewed GUI frame range '+d['Name'])
  if n==1:return [(1,d['FilePath'])]
@@ -185,10 +216,14 @@ def append_gui(a,m):
   book=d.get('Type')=='Book';flags=(1 if d.get('Loop')else 0)|(2 if d.get('HoldLastFrame')else 0)|(512 if book else 0)
   speed=d.get('PlaySpeed',60.)if book else 60.
   if not 0<speed<=1000:raise ValueError('Unreviewed GUI play speed '+name)
+  # Slide records keep original DurationFrames as ticks at 1/60 s
+  # (SlideStart 0x1802b4126 divides by 60.0); PlaySpeed is not a Slide rate.
+  ticks=dict(enumerate(slide_durations(d),1))if d.get('Type')=='Slide'else{}
+  for row in sequence:row['ticks']=ticks.get(row['original_frame'],1)
   f=BytesIO()
   for text in [name,'','']:string(f,text)
   f.write(struct.pack('<4I4f',1,1,flags,len(sequence),rx,0.,0.,1/speed));f.write(struct.pack('<I',0))
-  for row in sequence:f.write(struct.pack('<II',row['original_frame'],1));f.write(struct.pack('<I',row['frame_indices'][0]));string(f,'{}')
+  for row in sequence:f.write(struct.pack('<II',row['original_frame'],row['ticks']));f.write(struct.pack('<I',row['frame_indices'][0]));string(f,'{}')
   clip_bytes+=f.getvalue()
   clip_rows.append({'name':name,'definition':d,'source_sequence':[{k:v for k,v in r.items()if k!='image'}for r in sequence],'images':[r['image']for r in sequence],'provenance':provenance.get(name,{'graphic':graphics.get(name)}),'script':reviewed.get(name,graphics.get(name,'ChildAnimation closure')),'atlas_ratio':[rx,ry]})
  if nf+len(frame_rows)>65536 or nc+len(clip_rows)>4096:raise ValueError('Screen bank counts outside native loader bound')

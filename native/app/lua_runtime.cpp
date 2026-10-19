@@ -295,6 +295,7 @@ void ScriptRuntime::initialize() {
     if(!loadMovieDefinitions()){reportError("movie-definitions");return;}
     registerCameraActions();
     registerActorMotionActions();
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,stopAnimation,1);lua_setglobal(state_,"StopAnimation");
     registerProjectileActions();
     registerSaveActions(); // luabins module + SaveCheckpoint/ValidateCheckpoint (lua_save.cpp)
     // Wrap after every actual native action is registered, including text and
@@ -578,34 +579,34 @@ bool ScriptRuntime::advanceWorld(float dt,double screenDt){
     if(worldFaulted_)return false;
     ++worldFrame_;worldTime_+=dt;screenTime_+=screenDt;
     snapshotControlFrame();
-    if(!advanceUnitDisposal(false,error_)){worldFaulted_=true;reportError("unit-remove-before-update");return false;}
-    if(!advanceLocalPlayerInput(dt,error_)){worldFaulted_=true;reportError("player-input-update");return false;}
-    if(!advanceActorMotion(dt,error_)){worldFaulted_=true;reportError("actor-motion-update");return false;}
-    if(!advanceWeapons(dt,error_)||!advanceUnitEffects(dt,error_)){worldFaulted_=true;reportError("weapon-update");return false;}
-    if(!advanceProjectiles(dt,error_)){worldFaulted_=true;reportError("projectile-update");return false;}
-    if(!collectRetiredArsenals(error_)){worldFaulted_=true;reportError("retained-weapon-disposal-update");return false;}
+    if(!advanceUnitDisposal(false,error_)){if(!containStage("unit-remove-before-update"))return false;}
+    if(!advanceLocalPlayerInput(dt,error_)){if(!containStage("player-input-update"))return false;}
+    if(!advanceActorMotion(dt,error_)){if(!containStage("actor-motion-update"))return false;}
+    if(!advanceWeapons(dt,error_)||!advanceUnitEffects(dt,error_)){if(!containStage("weapon-update"))return false;}
+    if(!advanceProjectiles(dt,error_)){if(!containStage("projectile-update"))return false;}
+    if(!collectRetiredArsenals(error_)){if(!containStage("retained-weapon-disposal-update"))return false;}
     // Actor/weapon/projectile managers are being integrated separately. Run
     // the genuine supported component schedule; the diagnostic records phase
     // coverage separately from successful replay of this partial schedule.
-    if(!advancePhysics(dt,error_)){worldFaulted_=true;reportError("physics-update");return false;}
-    if(!advanceLocalPlayerMovement(dt,error_)){worldFaulted_=true;reportError("player-movement-update");return false;}
-    if(!advanceUnitDisposal(true,error_)||!advanceObstacleDisposal(error_)){worldFaulted_=true;reportError("manager-disposal-update");return false;}
+    if(!advancePhysics(dt,error_)){if(!containStage("physics-update"))return false;}
+    if(!advanceLocalPlayerMovement(dt,error_)){if(!containStage("player-movement-update"))return false;}
+    if(!advanceUnitDisposal(true,error_)||!advanceObstacleDisposal(error_)){if(!containStage("manager-disposal-update"))return false;}
     for(const auto id:actorWorld_.registrationOrder()){
         auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered)continue;
-        if(!actorWorld_.advanceBody(id,dt,1,error_)){worldFaulted_=true;reportError("body-update");return false;}
+        if(!actorWorld_.advanceBody(id,dt,1,error_)){if(!containStage("body-update"))return false;}
     }
-    for(const auto handle:projectileWorld_.bodyComponents())if(!projectileWorld_.advanceBody(handle,dt,worldSpeedModifier_,error_)){worldFaulted_=true;reportError("projectile-body-update");return false;}
+    for(const auto handle:projectileWorld_.bodyComponents())if(!projectileWorld_.advanceBody(handle,dt,worldSpeedModifier_,error_)){if(!containStage("projectile-body-update"))return false;}
     if(!advanceActorAnimations(dt,error_)||!advanceVfx(dt,error_)||!advanceActorLights(dt,error_)||!cameraFade_.advance(dt,error_)){reportError("native-component-update");worldFaulted_=true;return false;}
     if(!advanceLife(dt,error_)){reportError("life-update");worldFaulted_=true;return false;}
-    if(!advanceAudio(dt,error_)){worldFaulted_=true;reportError("audio-update");return false;}
-    if(!advanceSpeech(dt,error_)){worldFaulted_=true;reportError("speech-update");return false;}
-    if(!consumeSpeechText(drainSpeechPresentation(),error_)){worldFaulted_=true;reportError("speech-text-update");return false;}
-    if(!advanceScreenAnimations(float(screenDt),error_)){worldFaulted_=true;reportError("screen-animation-update");return false;}
-    if(!advanceText(dt,float(screenDt),error_)){worldFaulted_=true;reportError("text-update");return false;}
-    if(!advanceNativeNotifies(dt,error_)){worldFaulted_=true;reportError("native-notify-update");return false;}
-    if(!advanceCamera(dt,error_)){worldFaulted_=true;reportError("camera-update");return false;}
-    if(!packages_.pump(1,error_)||!advanceDelayedActions(state_,worldTime_,executeDelayed,this,error_)||!advanceScriptScheduler(state_,worldTime_,screenTime_,error_)){worldFaulted_=true;reportError("world-update");return false;}
-    if(!colorGrading_.advance(worldTime_,float(screenTime_),error_)||!advanceBloom(error_)){worldFaulted_=true;reportError("color-grading-update");return false;}
+    if(!advanceAudio(dt,error_)){if(!containStage("audio-update"))return false;}
+    if(!advanceSpeech(dt,error_)){if(!containStage("speech-update"))return false;}
+    if(!consumeSpeechText(drainSpeechPresentation(),error_)){if(!containStage("speech-text-update"))return false;}
+    if(!advanceScreenAnimations(float(screenDt),error_)){if(!containStage("screen-animation-update"))return false;}
+    if(!advanceText(dt,float(screenDt),error_)){if(!containStage("text-update"))return false;}
+    if(!advanceNativeNotifies(dt,error_)){if(!containStage("native-notify-update"))return false;}
+    if(!advanceCamera(dt,error_)){if(!containStage("camera-update"))return false;}
+    if(!packages_.pump(1,error_)||!advanceDelayedActions(state_,worldTime_,executeDelayed,this,error_)||!advanceScriptScheduler(state_,worldTime_,screenTime_,error_)){if(!containStage("world-update"))return false;}
+    if(!colorGrading_.advance(worldTime_,float(screenTime_),error_)||!advanceBloom(error_)){if(!containStage("color-grading-update"))return false;}
     return true;
 }
 
@@ -1108,7 +1109,43 @@ int ScriptRuntime::applyUpwardForce(lua_State* L){
 
 bool ScriptRuntime::effectMarker(int32_t id,const std::string& name,std::array<float,3>& result,std::string& error)const{
     try{
-        const auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->object||!a->animation.active())throw std::runtime_error("Native marker requires actual live source primary animation: owner="+std::to_string(id)+" name="+(a&&a->object?a->object->name:std::string("?"))+" marker="+name+" effectPrimary="+std::to_string(a?int(bool(a->primaryEffectAnimation)):-1)+" lifetime="+std::to_string(a?uint64_t(a->primaryAnimationLifetime):0));
+        // Animation::GetLocation296c90, UseAttachedMarkerLocation (data+0x3e8)
+        // branch: owner Thing(anim+0xb8) pAnim(+0x138) vslot0xd8 with the
+        // marker name. vtables (PDB ??_7): Book/Slide -> BookAnimation::
+        // GetMarkerLocation2b0d10; Animation/Constant/Dataless -> base
+        // Animation::GetMarkerLocation299b70. pAnim null -> owner attach-to
+        // location + Thing+0x200, else Thing+0x88 (= Thing::GetLocation).
+        const auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->object)throw std::runtime_error("Native marker owner unavailable: owner="+std::to_string(id));
+        if(!a->animation.active()){
+            const auto primaryName=[&](){return " owner="+std::to_string(id)+" name="+a->object->name+" marker="+name;};
+            if(a->primaryEffectAnimation)throw std::runtime_error("GetMarkerLocation on VFX-owned primary not reconstructed:"+primaryName());
+            std::array<float,2> xy{};
+            if(a->primaryAnimationLifetime){
+                hades::NativeAnimationType type;uint64_t child=0;const hades::SourceValue* data=nullptr;
+                if(const auto* scene=scenePrimaries_.state(a->primaryAnimationLifetime)){type=scene->type;child=scene->child;data=&scene->definition;}
+                else if(const auto* action=actionEffects_.state(a->primaryAnimationLifetime);action&&action->primary){type=action->type;child=action->child;data=&action->definition;}
+                else throw std::runtime_error("GetMarkerLocation primary class unavailable:"+primaryName());
+                if(type==hades::NativeAnimationType::Book||type==hades::NativeAnimationType::Slide)throw std::runtime_error("BookAnimation::GetMarkerLocation on non-HAA primary not reconstructed:"+primaryName());
+                // Base Animation::GetMarkerLocation299b70 ignores the name:
+                // VA299b76 child(+0xc8, AddChild293ae0) -> child vslot0xd8 with
+                // the same name; VA299b9b owner(+0xb8) -> GetLocation296c90;
+                // else own location +0x98.
+                if(child)throw std::runtime_error("Animation::GetMarkerLocation child delegation (+0xc8) not reconstructed:"+primaryName());
+                // GetLocation296c90 on the primary itself: its own marker
+                // strings (+0x3e8/+0x400) and UseAttachedTipLocation (+0x9c)
+                // precede LocationFromOwner (+0xc2, OwnerProperty enum
+                // parsed by 0x18008ee30: Maintain=0, Take=1, Ignore=2).
+                for(const char* k:{"UseAttachedMarkerLocation","UseAttachedFiredByMarkerLocation"}){const auto* v=data->get(k);if(v&&!v->text().empty())throw std::runtime_error(std::string("Primary Animation::GetLocation attached marker branch not reconstructed: ")+k+primaryName());}
+                if(const auto* v=data->get("UseAttachedTipLocation");v&&v->boolean())throw std::runtime_error("Primary Animation::GetLocation UseAttachedTipLocation branch not reconstructed:"+primaryName());
+                const auto* from=data->get("LocationFromOwner");const auto mode=from?from->text():std::string();
+                if(!mode.empty()&&mode!="Maintain")throw std::runtime_error("Primary Animation::GetLocation own-location (+0x98) branch not reconstructed: LocationFromOwner="+mode+primaryName());
+                // Maintain (VA296eb3..): owner location + anim offset
+                // (+0xa0/+0xa4), mAttachOffset, zero for a Thing primary.
+            }
+            if(!actorWorld_.location(id,xy[0],xy[1],error))return false;
+            float z=0;if(!actorWorld_.zLocation(id,z,error))return false;
+            result={xy[0],xy[1],z};error.clear();return true;
+        }
         hades::ActorMarkerTransform transform;transform.resolved=true;
         if(!actorWorld_.location(id,transform.locationX,transform.locationY,error)||!actorWorld_.zLocation(id,transform.attachedThingZ,error))return false;
         transform.drawAngle=0; // Reviewed covered oriented Binks/Ignore-angle entrance.

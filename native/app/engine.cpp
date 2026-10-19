@@ -350,9 +350,16 @@ public:
                 loadStage_=LoadStage::Scripts;
             }
             else if(loadStage_==LoadStage::Scripts){
+                // Never resume a runtime whose world already faulted (e.g. surface
+                // lost after a failure): it would fail again with an empty reason.
+                if(scripts_&&scripts_->worldFaulted()){scripts_->stopAudio();scripts_.reset();}
                 if(!scripts_){appliedVolumes_={-1,-1,-1,-1};scripts_=std::make_unique<ScriptRuntime>(&assets_);scripts_->setAnimationBank(heroBank_);
                     scripts_->setPhysicsRumble([this](int32_t,float intensity,float seconds,std::string&){rumble(intensity,seconds);return true;});
-                    scripts_->setSaveDirectory(savesDir_);scripts_->initialize();configApplied_=false;applyConfig();
+                    scripts_->setSaveDirectory(savesDir_);scripts_->initialize();
+                    // Durability: contain unreconstructed behaviour (logged once as
+                    // CONTAINED_FAULT/SURVEY_BLOCKER, counted on screen) instead of
+                    // ending the room. Load failures still use the failure screen.
+                    scripts_->setFaultContainment(true);{std::string containError;if(!scripts_->enableBlockerSurvey(containError))ERROR("FAULT_CONTAINMENT_UNAVAILABLE %s",containError.c_str());}configApplied_=false;applyConfig();
                     if(continueLoad_){continueLoad_=false;if(!scripts_->loadSave())throw std::runtime_error("Continue: "+scripts_->lastSaveError());INFO("SAVE_LOADED path=%s",scripts_->loadedSavePath().c_str());}}
                 if(!scripts_->gameLoaded()||!scripts_->bootRoom()||!scripts_->activateRoom())throw std::runtime_error(scripts_->error());
                 renderer_.setSourceSceneProvider([this](uint32_t i,std::optional<hades::SceneFrameSelection>& frame,std::string& error){return scripts_->scenePrimaryFrame(i,frame,error);},[this](uint32_t i,std::string& error){return scripts_->scenePrimarySubmitted(i,error);},[this](uint32_t i,hades::SceneSprite& sprite,std::string& error){return scripts_->sourceSceneSprite(i,sprite,error);});
@@ -412,7 +419,7 @@ public:
                 const auto move=mergedMove();
                 if(!scripts_->setLocalInput(move[0],move[1],mergedControls(),inputError))throw std::runtime_error(inputError);
                 if(!scripts_->advanceWorld(1.f/60,1./60)){
-                    loadError_=scripts_->error();scripts_->stopAudio();ui_.failureDetail=loadError_;ui_.loadFailed();loadStage_=LoadStage::Failed;releaseMovement();ERROR("NATIVE_WORLD_UPDATE_FAILED reason=%s",loadError_.c_str());break;
+                    loadError_=scripts_->error();if(loadError_.empty())loadError_="World update stopped without a reason ("+std::to_string(scripts_->containedFaults())+" contained faults; last: "+scripts_->lastContainedFault()+")";scripts_->stopAudio();ui_.failureDetail=loadError_;ui_.loadFailed();loadStage_=LoadStage::Failed;releaseMovement();ERROR("NATIVE_WORLD_UPDATE_FAILED reason=%s",loadError_.c_str());break;
                 }
                 worldAccumulator_-=1./60;
             }
@@ -456,7 +463,9 @@ public:
         if(ui_.playing()||ui_.screen()==hades::UiScreen::Paused){
             fpsFrames_++;fpsWindow_+=dt;fpsWorst_=std::max(fpsWorst_,dt);
             if(fpsWindow_>=.5f){char line[96];std::snprintf(line,sizeof(line),"%.0f FPS  %.1f ms  worst %.1f",fpsFrames_/fpsWindow_,1000.f*fpsWindow_/fpsFrames_,fpsWorst_*1000);fpsLine_=line;fpsWarn_=fpsFrames_/fpsWindow_<50;fpsFrames_=0;fpsWindow_=fpsWorst_=0;}
-            if(ui_.settings.showFps)uiRenderer_.renderFrameCounter(fpsLine_,width_,height_,fpsWarn_);
+            const size_t gaps=scripts_?scripts_->containedFaults():0;
+            if(ui_.settings.showFps)uiRenderer_.renderFrameCounter(gaps?fpsLine_+"  "+std::to_string(gaps)+" engine gaps":fpsLine_,width_,height_,fpsWarn_||gaps);
+            else if(gaps)uiRenderer_.renderFrameCounter(std::to_string(gaps)+" engine gaps",width_,height_,true);
         }
         paceFrame();
         if (!eglSwapBuffers(display_, surface_)) { ERROR("Swap failed EGL=%x", eglGetError()); failed_ = true; return; }

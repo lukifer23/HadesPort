@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include "asset_store.hpp"
 #include "object_runtime.hpp"
 #include "screen_animation.hpp"
@@ -147,6 +148,8 @@ class ScriptRuntime {
     uint64_t worldFrame_=0;
     struct SurveyEntry{uint64_t firstFrame=0;uint32_t count=0;};
     std::map<std::string,SurveyEntry> survey_;
+    bool faultContainment_=false;std::string lastContained_;
+    bool containStage(const char* stage);
     static int surveyRecord(lua_State*);
     float localMoveX_=0,localMoveY_=0;
     std::vector<std::string> localActionDown_,previousLocalActionDown_;
@@ -254,8 +257,15 @@ class ScriptRuntime {
     bool unitSetLocation(int32_t,float x,float y,std::string&);
     bool unitLocationValid(int32_t,float x,float y,bool& valid,std::string&);
     bool gridLineBlocked(float x0,float y0,float x1,float y1,bool& blocked,std::string&);
+    bool gridLocationBlocked(float x,float y,bool& blocked,std::string&);
     bool thingCalcValidLocationOnVector(int32_t,float tx,float ty,float sx,float sy,float lx,float ly,float step,float& ox,float& oy,std::string&);
-    bool unitApplyFullShift(int32_t,float dx,float dy,std::string&);
+    // Unit::ApplyFullShift2f76d0 / Unit::ApplyShift2f7c00 / Unit::OnObstacleCollision2f6ce0 (unit_shift in lua_combat.cpp).
+    bool unitApplyFullShift(int32_t,float locX,float locY,float dx,float dy,bool stopOnCollision,bool ignoreNoCollisionAnim,std::string&);
+    bool unitApplyShift(int32_t,float nx,float ny,float sx,float sy,bool ignoreNoCollisionAnim,bool& collided,std::string&);
+    bool unitOnObstacleCollision(int32_t unit,int32_t obstacle,float sx,float sy,float px,float py,float& damage,std::string&);
+    struct UnitCollisionSets {std::vector<std::pair<int32_t,uint64_t>> previous,current;float lastTranslationX=0,lastTranslationY=0;};
+    std::map<uint64_t,UnitCollisionSets> unitCollisionSets_; // Unit+0x4f8 mPrevColliding, +0x528 mCurrentlyColliding, +0x410 mLastCollisionTranslation
+    std::array<uint64_t,1999> polygonAxisCache_{}; // PolygonCollisionOpt2cefd0 DAT_181a095d0 separating-axis cache
     bool lifeSetInvulnerable(int32_t,std::string&);
     bool lifeSetVulnerable(int32_t,std::string&);
     static int lifeInvulnerableAction(lua_State*);
@@ -362,10 +372,18 @@ public:
     bool gameLoaded() const { return gameLoaded_; }
     bool bootRoom();
     bool activateRoom();
-    // Host-only diagnostic (blocker_survey.cpp): never called by the Android engine.
+    // Lua-call containment wrappers (blocker_survey.cpp): host survey, and device durability.
     bool enableBlockerSurvey(std::string& error);
     std::string blockerSurveyReport()const;
     void surveyRecordWorldFault(); // records error_, clears the fault so the replay continues
+    // Fault containment (blocker_survey.cpp). Off: a failing world stage faults
+    // the world (strict, host default). On (device): the stage's error is logged
+    // once and recorded, and the remaining stages still run. Missing behaviour
+    // simply doesn't happen; nothing is substituted.
+    void setFaultContainment(bool on){faultContainment_=on;}
+    bool worldFaulted()const{return worldFaulted_;}
+    size_t containedFaults()const{return survey_.size();}
+    const std::string& lastContainedFault()const{return lastContained_;}
     bool advanceWorld(float dt,double screenDt);
     bool advanceVfx(float dt,std::string& error);
     std::vector<int32_t> actorLightOwners()const;
@@ -412,6 +430,8 @@ public:
     void registerCameraActions();
     bool cameraShakeOption(bool& option,std::string& error);
     void registerActorMotionActions();
+    static int stopAnimation(lua_State*);
+    bool stopAnimationImpl(lua_State*,std::string&);
     void registerProjectileActions();
     bool projectileOwnerMarker(int32_t owner,const std::string& marker,float& x,float& y,std::string&)const;
     bool advanceActorMotion(float elapsed,std::string&);

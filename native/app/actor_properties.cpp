@@ -22,6 +22,7 @@ bool ownerHasNoCollision(const ActorComponents& actor){
     return false; // Actual native pAnim==null branch.
 }
 }
+bool actorOwnerHasNoCollision(const ActorComponents& actor){return ownerHasNoCollision(actor);}
 
 bool ActorWorld::obstacleStops(int32_t id,bool projectiles,bool& result,std::string& error){
     try{

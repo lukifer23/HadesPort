@@ -1,10 +1,12 @@
-// Host-only blocker survey (hades-debug --survey-blockers). DIAGNOSTIC, not a
-// reconstruction: it lets one replay list every unreconstructed engine
+// Blocker survey (hades-debug --survey-blockers) and device fault containment.
+// Not a reconstruction: it lets one replay list every unreconstructed engine
 // behaviour instead of stopping at the first. Each script-visible C function
 // is wrapped so a failure is recorded and returns nothing, and `assert` records
 // instead of raising, so the original Main.lua thread loop keeps running.
 // Results after the first entry may be cascades of earlier ones. The Android
-// engine never calls enableBlockerSurvey(); shipped builds still fail loudly.
+// engine enables it with setFaultContainment(true) so one missing behaviour
+// doesn't end the room; every contained fault is logged (CONTAINED_FAULT /
+// SURVEY_BLOCKER) and counted on screen.
 #include "lua_runtime.hpp"
 #include "platform_log.hpp"
 #include <algorithm>
@@ -18,11 +20,12 @@ namespace {
 constexpr const char* kWrap = R"lua(
 local record = ...
 local wrap = function(name, f)
-  return function(...)
-    local r = table.pack(pcall(f, ...))
-    if not r[1] then record(name .. ": " .. tostring(r[2])) return end
-    return table.unpack(r, 2, r.n)
+  -- Allocation-free: pass pcall's results straight through.
+  local finish = function(ok, ...)
+    if not ok then record(name .. ": " .. tostring((...))) return end
+    return ...
   end
+  return function(...) return finish(pcall(f, ...)) end
 end
 local skip = { pcall = true, xpcall = true, error = true, coroutine = true, select = true,
   type = true, tostring = true, tonumber = true, rawget = true, rawset = true, rawequal = true,
@@ -45,7 +48,7 @@ return #names
 }
 int ScriptRuntime::surveyRecord(lua_State* L){
     auto* self=runtime(L);const char* message=lua_tostring(L,1);
-    if(self&&message){auto& e=self->survey_[message];if(e.count++==0){e.firstFrame=self->worldFrame_;
+    if(self&&message){auto& e=self->survey_[message];if(e.count++==0){e.firstFrame=self->worldFrame_;self->lastContained_=message;
         hades::log(hades::Severity::Error,"HadesSurvey","SURVEY_BLOCKER frame=%llu detail=%s",(unsigned long long)self->worldFrame_,message);}}
     return 0;
 }
@@ -63,6 +66,13 @@ void ScriptRuntime::surveyRecordWorldFault(){
     auto& e=survey_["world: "+error_];if(e.count++==0){e.firstFrame=worldFrame_;
         hades::log(hades::Severity::Error,"HadesSurvey","SURVEY_BLOCKER frame=%llu detail=world: %s",(unsigned long long)worldFrame_,error_.c_str());}
     worldFaulted_=false;error_.clear();
+}
+bool ScriptRuntime::containStage(const char* stage){
+    if(!faultContainment_){worldFaulted_=true;reportError(stage);return false;}
+    const std::string key=std::string("world ")+stage+": "+error_;auto& e=survey_[key];
+    if(e.count++==0){e.firstFrame=worldFrame_;lastContained_=key;
+        hades::log(hades::Severity::Error,"HadesSurvey","CONTAINED_FAULT frame=%llu stage=%s detail=%s",(unsigned long long)worldFrame_,stage,error_.c_str());}
+    error_.clear();return true;
 }
 std::string ScriptRuntime::blockerSurveyReport()const{
     std::vector<std::pair<std::string,SurveyEntry>> rows(survey_.begin(),survey_.end());

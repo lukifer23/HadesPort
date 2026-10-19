@@ -24,6 +24,13 @@ the native runtime runs now, with provenance per name, instead of hand lists:
             AttachedAnim, Using ...);
             closed over Game/Animations ChildAnimation, CreateAnimation(s),
             ChainTo, VisualFx, Light, Random choices and Slides events.
+            Concatenations that build an animation name (inside an animation
+            call, or assigned to a local that an animation call then names,
+            e.g. AudioScripts.lua:856 CleanUpCurrentSpeechId
+            `animation.."_End"`) resolve to every animation whose remainder is
+            an in-scope string or an already reached animation; this is
+            iterated with the closure to a fixed point (StatusAnimations
+            values only ever reach scripts as variables).
 
 Every reached name is classified into a bank (action sprite bank, actor Bink
 bank, unsupported shape, package outside scope, missing image) and nothing is
@@ -335,6 +342,7 @@ class Coverage:
 
     def reach(self, seeds):
         refs, lits, concat, dyn, strs, obst = defaultdict(set), defaultdict(list), defaultdict(list), defaultdict(list), defaultdict(set), defaultdict(list)
+        var_concat, var_use = defaultdict(list), defaultdict(dict)
         for fname, f in self.lua.items():
             owner = f.owners(); t = f.tokens
             data = self.data_ranges[fname]
@@ -365,6 +373,16 @@ class Coverage:
                     if ((t[i + 1].kind == 'op' and t[i + 1].value == '..') or (t[i - 1].kind == 'op' and t[i - 1].value == '..')) and len(tk.value) >= 4 and (call_at[i] or len(tk.value) >= 6):
                         suffix = t[i - 1].value == '..' and t[i - 1].kind == 'op'
                         concat[o].append((tk.value, suffix, f'{fname}:{tk.line} {o} {call_at[i] or "<expr>"}'))
+                    if call_at[i] is None and ((t[i + 1].kind == 'op' and t[i + 1].value == '..') or (t[i - 1].kind == 'op' and t[i - 1].value == '..')):
+                        # `local v = x .. "lit"`: the assignment target, if an
+                        # animation call of this function names it (var_use).
+                        j = i - 1
+                        while j > 0 and (t[j].kind in ('name', 'str') or (t[j].kind == 'op' and t[j].value in ('.', '..', '[', ']'))):
+                            j -= 1
+                        if t[j].kind == 'op' and t[j].value == '=' and t[j - 1].kind == 'name':
+                            var_concat[o].append((t[j - 1].value, tk.value, t[i - 1].kind == 'op' and t[i - 1].value == '..', f'{fname}:{tk.line} {o}'))
+                if call_at[i] in ANIM_CALLS and tk.kind == 'name' and tk.value in ('Name', 'Animation') and t[i + 1].value == '=' and t[i + 2].kind == 'name' and t[i + 3].kind == 'op' and t[i + 3].value in (',', '}'):
+                    var_use[o].setdefault(t[i + 2].value, call_at[i])
                 if call_at[i] in ANIM_CALLS and tk.kind == 'name' and tk.value in ('Name', 'Animation') and t[i + 1].value == '=' and t[i + 2].kind != 'str':
                     dyn[o].append(f'{fname}:{tk.line} {o} {call_at[i]} {tk.value}=' + ''.join(str(x.value) for x in t[i + 2:i + 8]))
         seen = set(s for s in seeds if s in self.functions and s not in BOUNDARY); stack = list(seen)
@@ -373,6 +391,7 @@ class Coverage:
             for y in refs.get(x, ()):
                 if y not in seen and y not in BOUNDARY: seen.add(y); stack.append(y)
         sites, dynamic = [], []
+        self.concat_pending = []  # (text, suffix, origin) of reachable animation-name concatenations
         universe = set(self.universe)
         for fn in seen:
             universe.update(strs.get(fn, ()))
@@ -380,6 +399,9 @@ class Coverage:
             sites += lits.get(fn, [])
             # A concatenation resolves only to names whose remainder is an
             # in-scope string (data value or reachable literal).
+            for var, text, suffix, origin in var_concat.get(fn, []):
+                if var in var_use.get(fn, {}):
+                    concat[fn].append((text, suffix, f'{origin} {var_use[fn][var]} via local {var}'))
             for text, suffix, origin in concat.get(fn, []):
                 if origin.split()[-1] in OBSTACLE_CALLS or origin.split()[-1] == '<expr>':
                     # Obstacle-name concatenation (e.g. "TraitTray_Slots_"..GetTraitTraySize()):
@@ -388,8 +410,10 @@ class Coverage:
                         rest = obstacle[:-len(text)] if suffix and obstacle.endswith(text) else (obstacle[len(text):] if not suffix and obstacle.startswith(text) else None)
                         if rest and (rest in universe or rest.isdigit()):
                             obst[fn].append((obstacle, origin + ' ' + repr(text)))
-                if origin.split()[-1] not in ANIM_CALLS:
+                call = origin.split(' via local ')[0].split()[-1]
+                if call not in ANIM_CALLS:
                     continue
+                self.concat_pending.append((text, suffix, origin))
                 for name in self.anims:
                     if name != text and (name.endswith(text) and name[:-len(text)] in universe if suffix else name.startswith(text) and name[len(text):] in universe):
                         sites.append((name, origin + (' ..' if suffix else '.. ') + repr(text)))
@@ -400,7 +424,21 @@ class Coverage:
                 graphic = self.thing('Obstacles', obstacle).get('Thing', {}).get('Graphic')
                 if isinstance(graphic, str) and graphic and graphic not in self.anims and graphic != 'null':
                     self.obstacle_graphics.setdefault(graphic, []).append(f'{origin} {obstacle}.Thing.Graphic')
+        self.reach_universe = universe
         return seen, sites, dynamic
+
+    def resolve_concat(self, reached):
+        """Concatenation sites resolved against in-scope strings plus reached animations."""
+        pool = self.reach_universe | set(reached)
+        out = []
+        for text, suffix, origin in self.concat_pending:
+            for name in self.anims:
+                if name == text:
+                    continue
+                rest = name[:-len(text)] if suffix and name.endswith(text) else (name[len(text):] if not suffix and name.startswith(text) else None)
+                if rest and rest in pool:
+                    out.append((name, origin + (' ..' if suffix else '.. ') + repr(text) + ' <- ' + rest))
+        return out
 
     # ---------- closure and classification ----------
     def closure(self, roots):
@@ -477,6 +515,13 @@ def main():
     cov = Coverage(a.content)
     roots, scope = cov.run()
     names, edges = cov.closure(sorted(roots))
+    while True:  # concatenation/closure fixed point
+        extra = [(n, o) for n, o in cov.resolve_concat(names) if n not in roots]
+        if not extra:
+            break
+        for n, o in extra:
+            roots.setdefault(n, None); cov.note(n, o)
+        names, edges = cov.closure(sorted(roots))
     packages = BASE_PACKAGES + sorted({n for n in scope['weapons'] + LOOT if (a.content / 'Win/Packages' / (n + '.pkg_manifest')).exists()})
     index = cov.sprites(packages)
     all_packages = sorted(x.stem for x in (a.content / 'Win/Packages').glob('*.pkg_manifest'))

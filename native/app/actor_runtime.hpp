@@ -95,6 +95,8 @@ struct ActorComponents {
 using ActorRandom=std::function<bool(double&,std::string&)>;
 // Typed actor/component storage and manager registration. Public source IDs,
 // generated Thing IDs and lifetime handles are different domains.
+// Primary-animation OwnerHasNoCollision (AnimationDataDef+0x35) as read by obstacle/unit collision.
+bool actorOwnerHasNoCollision(const ActorComponents&);
 class ActorWorld {
     std::map<std::string,ActorDefinition> definitions_;
     std::map<int32_t,ActorMapSeed> seeds_;

@@ -10,6 +10,15 @@ enemies, bosses), the House, saves compatible with the original format, PC-equiv
 settings and controls (touch plus Bluetooth/wired controllers), and a sustained frame rate
 at a correct aspect ratio. "Done" means proven on a device. Until then it is a prototype.
 
+## Durability vs strict mode
+
+On the device the engine *contains* unreconstructed behaviour: the failing script call
+returns nothing, a failing world stage is skipped for that frame, each distinct gap is
+logged once (`CONTAINED_FAULT` / `SURVEY_BLOCKER`, tag `HadesSurvey`) and counted on the
+FPS line ("N engine gaps"). Nothing is substituted — the behaviour simply doesn't happen.
+Host replays are strict by default; `--survey-blockers` lists every gap in one run.
+Still fix every gap: containment keeps the game playable, it isn't a reconstruction.
+
 ## How progress is made
 
 The original scripts drive the game. The engine fails loudly at the first unreconstructed
@@ -65,8 +74,9 @@ action-name switch (regenerate it from the DLL if missing). Android SDK pieces:
 
 See `STATUS.md` for the device run table, workstreams and known issues. Summary
 (2026-10-18): the title, settings, intro, landing, HUD, control handoff, sword attacks,
-ghost patrol, dash firing and most opening-room audio run. Current stops: a projectile
-marker lookup during the first sword hit, and the dash wall-slide (`Unit::ApplyShift`).
+ghost patrol, dash (exact ApplyShift), speech icons, room banner and most opening-room
+audio run. Remaining gaps in the first-combat replay: `VisualFxUseAttachedMarkerLocation`
+(sword ground crack) and `OnObstacleCollision` `CollisionSound` (dash into obstacles).
 
 ## Next steps, in order
 

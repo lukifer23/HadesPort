@@ -5,6 +5,7 @@
 #include "platform_log.hpp"
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 extern "C" {
 #include <lua.h>
@@ -431,7 +432,8 @@ bool ScriptRuntime::blinkTeleport(const hades::WeaponOutput& op,bool& fireContin
         // ApplyFullShift(GetLocation+shift, shift, false, false), target=GetLocation, SetLocation(start).
         if(!unitSetLocation(op.ownerId,tx,ty,error))return false;
         const float shx=std::cos(request.angle)*distance,shy=-std::sin(request.angle)*distance;
-        if(!unitApplyFullShift(op.ownerId,shx,shy,error))return false;
+        {float lx0=0,ly0=0;if(!actorWorld_.location(op.ownerId,lx0,ly0,error))return false;
+        if(!unitApplyFullShift(op.ownerId,lx0+shx,ly0+shy,shx,shy,false,false,error))return false;}
         if(!actorWorld_.location(op.ownerId,tx,ty,error))return false;
         if(!unitSetLocation(op.ownerId,sx,sy,error))return false;
     }else{
@@ -606,22 +608,260 @@ bool ScriptRuntime::thingCalcValidLocationOnVector(int32_t id,float tx,float ty,
     for(int k=1;k<9;++k){const float f=float(k)/10.0f;if(int r=probe((sx-p1x)*f+p1x,(sy-p1y)*f+p1y))return r>0;if(int r=probe((sx-p2x)*f+p2x,(sy-p2y)*f+p2y))return r>0;}
     ox=oy=0;error.clear();return true;
 }
-// Unit::ApplyFullShift2f76d0 -> Unit::ApplyShift2f7c00 (native-combat4-unit-apply-full-shift-static.json).
-// APPROXIMATION (labelled): ApplyShift's collision resolution is not reconstructed; this uses the
-// same portable 4-unit sweep with StopShiftOnCollision/axis slide that advanceLocalPlayerMovement
-// applies for Unit.UpdateMovement (lua_player_input.cpp), and the Unit+0x500 collision-set
-// OnCollisionEnd bookkeeping is not modelled (the walking path does not model it either).
-bool ScriptRuntime::unitApplyFullShift(int32_t id,float dx,float dy,std::string& error){
+namespace {
+// PolygonHelpers::PolygonCollisionOpt2cefd0 (.local/reports/native-shift-polygon-collision-opt-pseudocode.c),
+// ProjectPolygon2ce880 (min/max of dot), Polygon::GetHashCode2ce120, Polygon::Rebuild62cd0 centre
+// (vertex average). Only edges facing the other centre are tested; the gap includes the velocity
+// projection; MTV = min |gap| axis oriented B->A. DAT_181a095d0[(hA*41+hB)%1999] keeps the last
+// separating axis index as the start of the next test (affects tie order only).
+struct ShiftPolygonResult {bool willIntersect=false,intersect=false;float x=0,y=0;};
+uint64_t shiftPolygonHash(const std::vector<hades::MovementPoint>& p){
+    uint64_t h=0;
+    for(const auto& v:p){
+        const auto toU=[](float f)->uint64_t{if(f>=9.223372e18f){return uint64_t(int64_t(f-9.223372e18f))+0x8000000000000000ull;}return uint64_t(int64_t(f));};
+        h=((toU(v.x)^(h*0x18d))*0x18d)^toU(v.y);
+    }
+    return h;
+}
+void shiftProject(float nx,float ny,const std::vector<hades::MovementPoint>& p,float& mn,float& mx){
+    mn=mx=ny*p.back().y+nx*p.back().x;
+    for(size_t i=p.size()-1;i-->0;){const float d=ny*p[i].y+nx*p[i].x;if(d<mn)mn=d;else if(mx<d)mx=d;}
+}
+void shiftCentre(const std::vector<hades::MovementPoint>& p,float& cx,float& cy){
+    cx=0;cy=0;for(const auto& v:p){cx+=v.x;cy+=v.y;}cx/=float(p.size());cy/=float(p.size());
+}
+ShiftPolygonResult shiftPolygonCollision(std::array<uint64_t,1999>& cache,const std::vector<hades::MovementPoint>& A,const std::vector<hades::MovementPoint>& B,float vx,float vy){
+    ShiftPolygonResult r;r.willIntersect=r.intersect=true;
+    const size_t na=A.size(),nb=B.size();if(!na||!nb){r.willIntersect=r.intersect=false;return r;} // PolygonCollision2ce1d0 empty guard
+    float acx,acy,bcx,bcy;shiftCentre(A,acx,acy);shiftCentre(B,bcx,bcy);
+    const float dx=acx-bcx,dy=acy-bcy;
+    const uint64_t key=(shiftPolygonHash(A)*0x29+shiftPolygonHash(B))%1999;
+    const uint64_t first=cache[key];
+    float best=std::numeric_limits<float>::infinity(),ax=0,ay=0;bool tested=false;
+    const size_t total=na+nb;
+    for(size_t k=0;k<total;++k){
+        const size_t e=(first+k)%total;
+        const bool own=e<na;const auto& P=own?A:B;const size_t i=own?e:e-na,n=own?na:nb;
+        const float ex=P[(i+1)%n].x-P[i].x,ey=P[(i+1)%n].y-P[i].y;
+        float nx=-ey,ny=ex;const float side=nx*dx+dy*ny;
+        float gap=0;
+        if(own){
+            if(!(side<0))continue;
+            const float l=std::sqrt(nx*nx+ny*ny);nx=nx*(1.f/l);ny=(1.f/l)*ny;
+            float mnB,mxB;shiftProject(nx,ny,B,mnB,mxB);
+            const float e0=nx*P[i].x+ny*P[i].y,e1=nx*P[(i+1)%n].x+ny*P[(i+1)%n].y;
+            gap=mnB-std::max(e0,e1);if(gap>0)r.intersect=false;
+            const float vel=ny*vy+nx*vx;if(vel>0)gap-=vel;
+        }else{
+            if(!(side>0))continue;
+            const float l=std::sqrt(nx*nx+ny*ny);nx=nx*(1.f/l);ny=(1.f/l)*ny;
+            float mnA,mxA;shiftProject(nx,ny,A,mnA,mxA);
+            const float e0=nx*P[i].x+ny*P[i].y,e1=nx*P[(i+1)%n].x+ny*P[(i+1)%n].y;
+            gap=mnA-std::max(e0,e1);if(gap>0)r.intersect=false;
+            const float vel=ny*vy+nx*vx;if(vel<0)gap+=vel;
+        }
+        if(gap>0)r.willIntersect=false;
+        if(!r.intersect&&!r.willIntersect){cache[key]=e;r.x=r.y=0;return r;}
+        gap=std::abs(gap);tested=true;
+        if(gap<best){best=gap;ax=nx;ay=ny;if(dx*nx+dy*ny<0){ax=-nx;ay=-ny;}}
+    }
+    if(!r.willIntersect){r.x=r.y=0;return r;}
+    // No facing axis (coincident centres) leaves the native axis uninitialised.
+    if(!tested)throw std::runtime_error("PolygonCollisionOpt2cefd0 coincident-centre uninitialised axis branch");
+    r.x=ax*best;r.y=ay*best;return r;
+}
+bool shiftHas(const std::vector<std::pair<int32_t,uint64_t>>& set,uint64_t lifetime){
+    for(const auto& e:set)if(e.second==lifetime)return true;return false;
+}
+}
+// Unit::ApplyFullShift2f76d0 (.local/reports/native-combat5-unit-apply-full-shift-pseudocode.c):
+// |shift|^2<64 -> one ApplyShift(loc); else n=1-int(-|shift|*0.125) steps of shift/n from the live
+// location, stopping early when stopOnCollision and ApplyShift reports a stopping collision. Then
+// the collision-set swap: obstacles in mPrevColliding(+0x4f8) not in mCurrentlyColliding(+0x528)
+// get CollisionEndedAlphaInDuration / CollisionEndedAnimation / ScriptManager::OnCollisionEnd28b290;
+// previous=current, current cleared. Callers: BlinkWeapon::Fire18007dd74 (false,false) and
+// Unit::UpdateMovement2f69be (UnitData+0x15e StopShiftOnCollision, true).
+bool ScriptRuntime::unitApplyFullShift(int32_t id,float locX,float locY,float dx,float dy,bool stopOnCollision,bool ignoreNoCollisionAnim,std::string& error){
     try{
     if(dx==0&&dy==0){error.clear();return true;}
     auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->object){error="ApplyFullShift requires actual Unit";return false;}
-    const auto* collideValue=actorWorld_.currentProperty(id,"CollideWithObstacles");const auto* stopValue=actorWorld_.currentProperty(id,"StopShiftOnCollision");
-    if(!collideValue||!stopValue)throw std::runtime_error("ApplyFullShift Unit collision flags unavailable");
-    const bool collide=collideValue->boolean(),stopShift=stopValue->boolean();
-    float x=0,y=0;if(!actorWorld_.location(id,x,y,error))return false;
-    const auto blocked=[&](float px,float py){if(!collide)return false;bool valid=false;if(!unitLocationValid(id,px,py,valid,error))throw std::runtime_error(error);return !valid;};
-    const unsigned steps=std::max(1u,unsigned(std::ceil(std::hypot(dx,dy)/4.f)));if(steps>10000)throw std::runtime_error("ApplyFullShift sweep bound");
-    for(unsigned i=0;i<steps;++i){const float nx=x+dx/steps,ny=y+dy/steps;if(!blocked(nx,ny)){x=nx;y=ny;}else{if(stopShift)break;if(!blocked(nx,y))x=nx;else if(!blocked(x,ny))y=ny;}}
-    return unitSetLocation(id,x,y,error);
+    const uint64_t lifetime=a->entityHandle;
+    const float len2=dx*dx+dy*dy;bool collided=false;
+    if(64.f<=len2){
+        const float len=std::sqrt(len2);const int n=1-int(len*-0.125f);const float f=(len/float(n))/len;
+        const float stx=dx*f,sty=dy*f;
+        for(int i=0;i<n;++i){
+            float x=0,y=0;if(!actorWorld_.location(id,x,y,error))return false;
+            if(!unitApplyShift(id,stx+x,sty+y,stx,sty,ignoreNoCollisionAnim,collided,error))return false;
+            if(stopOnCollision&&collided)break;
+        }
+    }else if(!unitApplyShift(id,locX,locY,dx,dy,ignoreNoCollisionAnim,collided,error))return false;
+    auto& sets=unitCollisionSets_[lifetime];
+    const auto ended=sets.previous;
+    for(const auto& [o,olife]:ended){
+        if(shiftHas(sets.current,olife))continue;
+        const auto* obstacle=actorWorld_.actor(o);if(!obstacle||!obstacle->registered||obstacle->entityHandle!=olife)continue; // ObstacleManager lookup null
+        const auto* alphaIn=actorWorld_.currentProperty(o,"CollisionEndedAlphaInDuration");const auto* endAnim=actorWorld_.currentProperty(o,"CollisionEndedAnimation");
+        if(!alphaIn||!endAnim)throw std::runtime_error("Original ObstacleData CollisionEnded fields unavailable");
+        if(alphaIn->number()>0)throw std::runtime_error("ApplyFullShift CollisionEndedAlphaInDuration BodyComponent::Adjust2b7440 not reconstructed");
+        if(!endAnim->text().empty())throw std::runtime_error("ApplyFullShift CollisionEndedAnimation Thing::SetAnimation2decb0 not reconstructed");
+        // ScriptManager::OnCollisionEnd28b290 (GhostScripts.lua OnCollisionEnd reads CollideeTable).
+        lua_State* L=state_;pushObjectLuaTable(L,o);const bool hasTable=!lua_isnil(L,-1);lua_pop(L,1);
+        if(hasTable&&!dispatchCallbacks("OnCollisionEnd",a->object->name.c_str(),id,[o](lua_State* S,std::string&){pushObjectLuaTable(S,o);lua_setfield(S,-2,"CollideeTable");return true;})){error=error_;return false;}
+        a=actorWorld_.actor(id);if(!a){error="OnCollisionEnd lost actual Unit";return false;}
+    }
+    auto& after=unitCollisionSets_[lifetime];after.previous=after.current;after.current.clear();
+    error.clear();return true;
+    }catch(const std::exception& e){error=e.what();return false;}
+}
+// Unit::ApplyShift2f7c00 (.local/reports/native-combat5-unit-apply-shift-pseudocode.c) with
+// CollisionParameters306ab0 defaults + ApplyShift overrides (+0e=+0f=1 PolygonCollisionOpt, +03 StopsUnits
+// list, +0b willIntersect) and GridSquare::detectCollisions30ae10 obstacle branch: z overlap,
+// MaxUpwardVelocityToCollide, rectangle overlap, PolygonCollision2ce1d0, per-axis accumulation
+// (same sign keeps the larger magnitude, mixed signs add) when UseCollisionShift && StopsUnits.
+// APPROXIMATIONS (labelled): Thing::mRectangle is taken as the integer AABB of the transformed
+// polygon; obstacle order is the Android broadphase candidate order, not GridSquare list order
+// (affects the order-dependent per-axis accumulation only); live Thing.Tallness read from data.
+bool ScriptRuntime::unitApplyShift(int32_t id,float nx,float ny,float sx,float sy,bool ignoreNoCollisionAnim,bool& collided,std::string& error){
+    try{
+    collided=false;
+    auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->object){error="ApplyShift requires actual Unit";return false;}
+    if(a->attachedParent)throw std::runtime_error("ApplyShift attached Unit parent-relative location not reconstructed");
+    if(!actorWorld_.refreshGeometry(id,error))return false;
+    if(a->geometry.size()<3)throw std::runtime_error("ApplyShift actual Unit polygon unavailable");
+    const auto prop=[&](int32_t o,const char* k)->const hades::SourceValue&{const auto* v=actorWorld_.currentProperty(o,k);if(!v)throw std::runtime_error(std::string("ApplyShift original field unavailable: ")+k);return *v;};
+    float cx=0,cy=0;if(!actorWorld_.location(id,cx,cy,error))return false;
+    std::vector<hades::MovementPoint> A;for(const auto& q:a->geometry)A.push_back({q.x,q.y});
+    float minX=A[0].x,maxX=A[0].x,minY=A[0].y,maxY=A[0].y;for(const auto& v:A){minX=std::min(minX,v.x);maxX=std::max(maxX,v.x);minY=std::min(minY,v.y);maxY=std::max(maxY,v.y);}
+    const int rw=int(maxX-minX),rh=int(maxY-minY);
+    const int rx=int(nx-float(rw)*0.5f),ry=int(ny-float(rh)*0.5f);
+    float z=0;if(!actorWorld_.zLocation(id,z,error))return false;
+    const bool noCollisionAnim=hades::actorOwnerHasNoCollision(*a);
+    const bool obstaclesFlag=prop(id,"CollideWithObstacles").boolean()&&!(ignoreNoCollisionAnim&&noCollisionAnim);
+    bool unitsFlag=prop(id,"CollideWithUnits").boolean()&&!noCollisionAnim;
+    if(unitsFlag&&a->status){const auto st=a->status->snapshot();for(auto h:st.active){const auto* d=selfEffects_.effectData(h,error);if(!d)return false;const auto f=d->fields.find("NoUnitCollision");if(f==d->fields.end()||!std::holds_alternative<bool>(f->second))throw std::runtime_error("Original EffectData NoUnitCollision unavailable");if(std::get<bool>(f->second)){unitsFlag=false;break;}}}
+    if(unitsFlag)unitsFlag=z<=float(prop(id,"MaxCollisionZ").number());
+    const float moveShift=a->physics?std::sqrt(a->physics->moveShift.x*a->physics->moveShift.x+a->physics->moveShift.y*a->physics->moveShift.y):0.f;
+    if(unitsFlag){
+        // GridSquare::detectCollisions30ae10 unit branch -> Unit::OnUnitCollision2f7580: fail loudly on any candidate.
+        for(const auto o:actorWorld_.registrationOrder()){if(o==id)continue;const auto* u=actorWorld_.actor(o);
+            if(!u||!u->registered||u->isDisposed||!u->object||!u->definition||u->definition->kind!="Unit"||!u->object->alive||u->geometry.size()<3)continue;
+            std::vector<hades::MovementPoint> U;for(const auto& q:u->geometry)U.push_back({q.x,q.y});
+            const auto r=shiftPolygonCollision(polygonAxisCache_,A,U,sx,sy);
+            if(r.intersect||r.willIntersect)throw std::runtime_error("ApplyShift unit-unit push (GridSquare::detectCollisions30ae10 unit branch / Unit::OnUnitCollision2f7580) not reconstructed");}
+    }
+    float px=0,py=0;std::vector<int32_t> hits;
+    if(obstaclesFlag){
+        hades::SpatialBounds bounds{float(rx),float(ry),float(rx+rw),float(ry+rh)};
+        std::vector<int32_t> candidates;if(!actorWorld_.spatialObstacleCandidates(bounds,hades::ObstacleGridCategory::StopsUnits,candidates,error))return false;
+        for(const auto o:candidates){auto* ob=actorWorld_.actor(o);if(!ob||!ob->registered||!ob->object||o==id)continue;
+            if(std::find(hits.begin(),hits.end(),o)!=hits.end())continue;
+            float oz=0;if(!actorWorld_.zLocation(o,oz,error))return false;
+            if(!(z<=oz+float(prop(o,"Thing.Tallness").number())))continue;
+            const float up=float(prop(o,"MaxUpwardVelocityToCollide").number());
+            if(!(up<=0||!ob->physics||ob->physics->upVelocity<=up))continue;
+            if(ob->geometry.empty())continue; // PolygonCollision2ce1d0 empty geometry -> no MTV
+            float ominX=ob->geometry[0].x,omaxX=ominX,ominY=ob->geometry[0].y,omaxY=ominY;
+            for(const auto& v:ob->geometry){ominX=std::min(ominX,v.x);omaxX=std::max(omaxX,v.x);ominY=std::min(ominY,v.y);omaxY=std::max(omaxY,v.y);}
+            const int ox=int(ominX),oy=int(ominY),ow=int(omaxX-ominX),oh=int(omaxY-ominY);
+            if(!(rx<=ow+ox&&ox<=rw+rx&&ry<=oh+oy&&oy<=rh+ry))continue;
+            std::vector<hades::MovementPoint> B;for(const auto& v:ob->geometry)B.push_back({v.x,v.y});
+            const auto r=shiftPolygonCollision(polygonAxisCache_,A,B,sx,sy);
+            if(r.x==0&&r.y==0)continue;
+            bool stops=false;if(!actorWorld_.obstacleStops(o,false,stops,error))return false;
+            if(prop(o,"UseCollisionShift").boolean()&&stops){
+                const auto acc=[](float& c,float v){if(c<0&&v<0){if(v<=c)c=v;}else if(c>0&&v>0){if(c<=v)c=v;}else c=v+c;};
+                acc(px,r.x);acc(py,r.y);
+            }
+            hits.push_back(o);
+        }
+    }
+    float qx=px,qy=py;
+    if(px!=0||py!=0){const float l=std::sqrt(py*py+px*px),s=py*0.25f,l2=std::sqrt(s*s+px*px);qx=(1.f/l2)*px*l;qy=s*(1.f/l2)*l;}
+    auto& sets=unitCollisionSets_[a->entityHandle];sets.lastTranslationX+=qx;sets.lastTranslationY+=qy;
+    if(!std::isfinite(qx)||!std::isfinite(qy))throw std::runtime_error("ApplyShift nonfinite push -> Random::RandomDouble54f80 jitter not reconstructed");
+    if((qx!=0||qy!=0)&&!a->object->playerControlled)throw std::runtime_error("ApplyShift Unit+0x418 mAI collision notify (vtable+0x28) not reconstructed");
+    float damage=0;
+    for(const auto o:hits){
+        if(!unitOnObstacleCollision(id,o,sx,sy,qx,qy,damage,error))return false;
+        a=actorWorld_.actor(id);if(!a||!a->object){error="OnObstacleCollision lost actual Unit";return false;}
+        bool stops=false;if(!actorWorld_.obstacleStops(o,false,stops,error))return false;
+        if(stops&&prop(o,"CollisionBounce").number()>0)collided=true;
+        const auto weapon=prop(id,"InitiatedCollisionWeapon").text();
+        if(!weapon.empty()&&a->physics){const float req=float(prop(id,"CollisionWeaponRequiredVelocity").number());
+            if(req*req<=moveShift*moveShift&&a->physics->lastForceSelfApplied)throw std::runtime_error("ApplyShift InitiatedCollisionWeapon Weapon::RequestFire83160 not reconstructed");}
+    }
+    float tx=nx,ty=ny;
+    if(qx!=0||qy!=0){
+        const float c2=qx*qx+qy*qy,s2=sx*sx+sy*sy;
+        if(s2<c2){const float cl=std::sqrt(c2),sl=std::sqrt(s2);if((1.f/cl)*qy*sy*(1.f/sl)+(1.f/sl)*sx*(1.f/cl)*qx<-0.8f){error.clear();return true;}}
+        const float ux=qx+sx,uy=sy+qy,u2=ux*ux+uy*uy;
+        if(u2<=s2){tx=qx+nx;ty=qy+ny;}
+        else{const float sl=std::sqrt(s2),ul=std::sqrt(u2);ty=uy*(sl/ul)+cy;tx=(sl/ul)*ux+cx;}
+        const float mx=tx-cx,my=ty-cy,m2=mx*mx+my*my;
+        if(m2<s2){const auto found=localMovement_.find(a->entityHandle);if(found==localMovement_.end())throw std::runtime_error("ApplyShift Unit+0x3cc mUnappliedSpeed requires actual Unit movement state");
+            auto& unapplied=found->second.unappliedSpeed;const float blocked=std::sqrt(s2)-std::sqrt(m2);if(unapplied<=blocked)unapplied=blocked;}
+    }
+    // PhysicsComponent::CheckTether2bd890 (TetherElasticity<=0): with no tethers it returns the proposal.
+    if(a->physics&&a->physics->tetherCount)throw std::runtime_error("ApplyShift PhysicsComponent::CheckTether2bd890 tether clamp not reconstructed");
+    return unitSetLocation(id,tx,ty,error);
+    }catch(const std::exception& e){error=e.what();return false;}
+}
+// Unit::OnObstacleCollision2f6ce0 (.local/reports/native-shift-on-obstacle-collision-pseudocode.c);
+// ObstacleDataDef offsets from the PDB (native-shift-obstacle-data-def-type.txt). Reconstructed
+// branches: collision-set insert, first-contact cues (fail loudly when authored), StopsUnits gate,
+// reaction gate, ScriptManager::OnCollisionReaction28a8b0 / OnObstacleCollision28ab40 Lua dispatch
+// (only when the obstacle has an attached Lua table), UnitStatus::ClearOnCollisionEffects2fd730.
+bool ScriptRuntime::unitOnObstacleCollision(int32_t id,int32_t o,float sx,float sy,float px,float py,float& damage,std::string& error){
+    try{
+    auto* a=actorWorld_.actor(id);auto* ob=actorWorld_.actor(o);if(!a||!a->object||!ob||!ob->registered){error="OnObstacleCollision requires actual Unit and Obstacle";return false;}
+    const auto prop=[&](int32_t n,const char* k)->const hades::SourceValue&{const auto* v=actorWorld_.currentProperty(n,k);if(!v)throw std::runtime_error(std::string("OnObstacleCollision original field unavailable: ")+k);return *v;};
+    const uint64_t olife=ob->entityHandle;auto& sets=unitCollisionSets_[a->entityHandle];
+    if(!shiftHas(sets.current,olife))sets.current.push_back({o,olife});
+    const bool wasColliding=shiftHas(sets.previous,olife);
+    if(!wasColliding){
+        // ObstacleDataDef ctor 0x1800d43f0 zeroes CollisionSound (def+0xb0: null cue + empty name);
+        // the actor catalog lists it as an unresolved compiled field, so absent = that empty default.
+        const auto* sound=actorWorld_.currentProperty(o,"CollisionSound");
+        if(sound&&!sound->text().empty())throw std::runtime_error("OnObstacleCollision CollisionSound AudioManager::PlayCue3D4a690 not reconstructed");
+        if(!prop(o,"CollisionAnimation").text().empty())throw std::runtime_error("OnObstacleCollision CollisionAnimation Thing::SetAnimation2decb0 not reconstructed");
+        if(prop(o,"CollisionAlphaOutDuration").number()>0)throw std::runtime_error("OnObstacleCollision CollisionAlphaOutDuration BodyComponent::Adjust2b7440 not reconstructed");
+        if(!prop(o,"CollisionFx").text().empty())throw std::runtime_error("OnObstacleCollision CollisionFx AnimationManager::Create29e410 not reconstructed");
+    }
+    const float speed=a->physics?std::sqrt(a->physics->velocity.x*a->physics->velocity.x+a->physics->velocity.y*a->physics->velocity.y):0.f;
+    bool stops=false;if(!actorWorld_.obstacleStops(o,false,stops,error))return false;
+    if(!stops){error.clear();return true;}
+    const auto clearOnCollision=[&]()->bool{
+        if(a->status){const auto st=a->status->snapshot();for(const auto* list:{&st.active,&st.pending})for(auto h:*list){const auto* d=selfEffects_.effectData(h,error);if(!d)return false;const auto f=d->fields.find("ClearOnCollision");if(f==d->fields.end()||!std::holds_alternative<bool>(f->second))throw std::runtime_error("Original EffectData ClearOnCollision unavailable");if(std::get<bool>(f->second))throw std::runtime_error("UnitStatus::ClearOnCollisionEffects2fd730 effect clear not reconstructed");}}
+        return true;};
+    if(px==0&&py==0){if(!clearOnCollision())return false;error.clear();return true;}
+    const float pl=1.f/std::sqrt(px*px+py*py),sl=1.f/std::sqrt(sx*sx+sy*sy);
+    const float facing=sx*sl*px*pl+sy*sl*py*pl;
+    if(prop(o,"CollisionBounce").number()>0&&float(prop(o,"CollisionBounceRequiredVelocity").number())<speed&&float(prop(id,"Speed").number())+1.f<speed&&facing<-0.3f)
+        throw std::runtime_error("OnObstacleCollision CollisionBounce PhysicsComponent::ApplyCollision2bd3d0 not reconstructed");
+    if(prop(o,"CollisionVelocityRetention").number()!=1)throw std::runtime_error("OnObstacleCollision CollisionVelocityRetention PhysicsComponent::MultiplyVelocity2bd450 not reconstructed");
+    if(prop(o,"VelocityAbsorbtionFraction").number()>0&&ob->physics&&prop(id,"CanVelocityBeAbsorbed").boolean())throw std::runtime_error("OnObstacleCollision VelocityAbsorbtionFraction ApplyDirectForce2bcea0 not reconstructed");
+    if(!ob->hasLife)throw std::runtime_error("OnObstacleCollision reads obstacle pLife(+0xd0) LifeDataDef.DieOnCollision but obstacle has no LifeComponent");
+    const bool die=prop(o,"Life.DieOnCollision").boolean();
+    bool reaction=die;
+    if(!die){const bool selfOk=!a->physics||!a->physics->lastForceSelfApplied||prop(id,"AllowSelfCollisions").boolean();
+        const float req=float(prop(o,"CollisionReactionRequiredVelocity").number());
+        reaction=selfOk&&!wasColliding&&(req<=0||req<=speed);}
+    lua_State* L=state_;pushObjectLuaTable(L,o);const bool hasTable=!lua_isnil(L,-1);lua_pop(L,1);
+    if(reaction){
+        if(facing<-0.3f){
+            if(prop(o,"CollisionDamage").number()>0)throw std::runtime_error("OnObstacleCollision CollisionDamage LifeComponent::TakeHit2b7cd0 not reconstructed");
+            const float perVelocity=float(prop(o,"CollisionDamagePerVelocity").number());
+            if(perVelocity>0&&damage<=0)throw std::runtime_error("OnObstacleCollision CollisionDamagePerVelocity LifeComponent::TakeHit2b7cd0 not reconstructed");
+            if(!prop(o,"CollisionReactionFx").text().empty())throw std::runtime_error("OnObstacleCollision CollisionReactionFx CalcIntersectionPoint2ced20/AnimationManager::Create not reconstructed");
+        }
+        if(a->physics&&prop(o,"CollisionKnockback").number()>0)throw std::runtime_error("OnObstacleCollision CollisionKnockback PhysicsComponent::ApplyForce2bd160 not reconstructed");
+        if(die&&float(prop(id,"Life.DieOnCollisionRequiredVelocityMultiplier").number())*float(prop(o,"Life.DieOnCollisionRequiredVelocity").number())<=speed)throw std::runtime_error("OnObstacleCollision DieOnCollision obstacle vtable+0xc0 not reconstructed");
+        if(hasTable&&!dispatchCallbacks("OnCollisionReaction",a->object->name.c_str(),id,[o,speed](lua_State* S,std::string&){pushObjectLuaTable(S,o);lua_setfield(S,-2,"CollideeTable");lua_pushnumber(S,speed);lua_setfield(S,-2,"Velocity");return true;})){error=error_;return false;}
+    }
+    if(hasTable&&!dispatchCallbacks("OnObstacleCollision",a->object->name.c_str(),id,[o,speed](lua_State* S,std::string&){pushObjectLuaTable(S,o);lua_setfield(S,-2,"CollideeTable");lua_pushnumber(S,speed);lua_setfield(S,-2,"Velocity");return true;})){error=error_;return false;}
+    a=actorWorld_.actor(id);if(!a){error="OnObstacleCollision Lua lost actual Unit";return false;}
+    if(!clearOnCollision())return false;
+    error.clear();return true;
     }catch(const std::exception& e){error=e.what();return false;}
 }

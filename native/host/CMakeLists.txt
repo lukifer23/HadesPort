@@ -54,6 +54,7 @@ target_sources(hades-debug PRIVATE ../app/actor_properties.cpp ../app/lua_lifecy
 target_sources(hades-debug PRIVATE ../app/actor_unit_lifecycle.cpp)
 target_sources(hades-debug PRIVATE ../app/lua_collision_notify.cpp)
 target_sources(hades-debug PRIVATE ../app/blocker_survey.cpp)
+target_sources(hades-debug PRIVATE ../app/lua_stop_animation.cpp)
 target_sources(hades-debug PRIVATE ../app/lua_control_notify.cpp)
 target_sources(hades-debug PRIVATE ../app/lua_spatial_queries.cpp)
 target_sources(hades-debug PRIVATE ../app/native_camera.cpp ../app/lua_camera.cpp)

@@ -101,6 +101,13 @@ bool ActionEffectWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimationB
    // the default owner-flasher behaviour that is pending for every animation.
    if(key=="UseAttachedFlasher"||key=="UseAttachedAddColor"){if(value.boolean())pending.push_back(key);continue;}
    if(key=="PlayBackwards"&&value.boolean()&&type!=NativeAnimationType::Book){unsupported.push_back("PlayBackwards on "+t(d,"Type"));continue;}
+   // AnimationData::Read 0x18008f7bc -> data+0x64; consumed only by
+   // AnimationManager::CreateAndInit 0x18029fd65 (gated in initialize).
+   if(key=="RequiresUnblocked")continue;
+   // VisualFxUseAttachedMarkerLocation (data+0x4c0, AnimationData::Read
+   // 0x180092b86) is read only by SpawnVfxTimeInterval 0x1802943f9 and
+   // SpawnVfxDistanceInterval 0x180294887; inert when VisualFx is empty/"null".
+   if(key=="VisualFxUseAttachedMarkerLocation"){const auto vfx=t(d,"VisualFx");if(!vfx.empty()&&vfx!="null"&&!value.text().empty())unsupported.push_back(key);continue;}
    if(handledFields().contains(key))continue;
    (pendingFieldsSet().contains(key)?pending:unsupported).push_back(key);
   }
@@ -123,6 +130,19 @@ bool ActionEffectWorld::prepare(const std::string&name,int32_t ownerId,const Act
 bool ActionEffectWorld::initialize(const std::string&name,int32_t ownerId,const EffectOwnerState&owner,std::array<float,3>position,uint64_t parent,bool light,const ActionEffectProviders&p,uint64_t&handle,std::string&error){
  const auto&d=definitions_.at(name);
  if(nativeType(d)==NativeAnimationType::Random){const float chance=n(d,"CreateChance",1);if(chance<1){float roll;if(!rng(p,0,1,roll,error))return false;if(roll>chance){handle=0;return true;}}const auto&choices=d.get("Random")->array();if(choices.empty()||choices.size()>64){error="Original Random action choice bound";return false;}uint32_t index=0;if(!p.bounded(uint32_t(choices.size()),index,error)||index>=choices.size())return false;primaryRequest_=primaryRequest_&&!parent&&!light;return initialize(t(choices[index],"Name"),ownerId,owner,position,parent,light,p,handle,error);}
+ // CreateAndInit 0x18029fb70: after the Random (type 5) resolution loop,
+ // RequiresUnblocked tests the creation location (Vector2 param) with
+ // GridManager::IsLocationBlocked 0x180307f70; blocked returns null. Every
+ // factory reaches CreateAndInit: AnimationManager::Create 0x18029e3df/e4e5
+ // (InitData CreateAnimations 0x2933b0/435, slide/interval VisualFx, OnDeath,
+ // TakeHit, Thing::SetAnimation 0x2df358) and CreateCustom 0x29f946 (AddChild).
+ // Approximation: the location tested is the position this model passes to
+ // initialize for that factory.
+ if(const auto*u=d.get("RequiresUnblocked");u&&u->boolean()){
+  if(!p.locationBlocked){error="Actual GridManager::IsLocationBlocked provider unavailable";return false;}
+  bool blocked=false;if(!p.locationBlocked(position[0],position[1],blocked,error))return false;
+  if(blocked){handle=0;return true;}
+ }
  const bool primary=primaryRequest_&&!parent&&!light;primaryRequest_=false;
  ActionEffectState s;s.name=name;s.definition=d;s.primary=primary;s.ownerId=ownerId;s.ownerLifetime=owner.lifetime;s.parent=parent;s.isLight=light;s.type=nativeType(d);s.imageClip=*bank_->find(name);s.position=s.spawnPosition=position;s.ownerSnapshot=owner;if(t(d,"LocationZFromOwner")=="Ignore")s.position[2]=0;s.flipX=b(d,"FlipHorizontal");s.flipY=b(d,"FlipVertical");
  AnimationAllocation a;a.name=name;a.sourceDefinition=d;a.type=s.type;a.ownerId=light?0:ownerId;a.ownerLifetime=light?parent:owner.lifetime;a.manager=light?1:0;a.ownership=light?AnimationOwnership::LightController:(primary?AnimationOwnership::ThingPrimary:(parent?AnimationOwnership::Child:AnimationOwnership::ManagerCreate));a.parent=light?0:parent;a.cancelOverCap=b(d,"CancelOverCap");a.loop=b(d,"Loop");a.onlyWhenVisible=b(d,"OnlyWhenVisible");if(!registry_->allocate(a,s.handle,error))return false;
@@ -174,7 +194,7 @@ bool ActionEffectWorld::initialize(const std::string&name,int32_t ownerId,const 
  if(t(d,"ColorFromOwner")=="Take"){for(size_t c=0;c<4;++c)s.baseColor[c]=uint8_t(uint32_t(s.baseColor[c])*(*owner.baseColor)[c]/255);for(size_t c=0;c<3;++c)s.hsv[c]+=(*owner.baseHsv)[c];}
  states_.emplace(s.handle,s);auto&actual=states_.at(s.handle);
  const auto child=t(d,"ChildAnimation");if(!child.empty()&&child!="null"){uint64_t h;if(!initialize(child,ownerId,owner,position,s.handle,false,p,h,error))return false;actual.child=h;}
- const auto add=[&](const std::string&dep)->bool{if(dep.empty()||dep=="null")return true;uint64_t h;if(!initialize(dep,ownerId,owner,position,0,false,p,h,error))return false;actual.created.push_back(h);return true;};
+ const auto add=[&](const std::string&dep)->bool{if(dep.empty()||dep=="null")return true;uint64_t h;if(!initialize(dep,ownerId,owner,position,0,false,p,h,error))return false;if(h)actual.created.push_back(h);return true;};
  if(!add(t(d,"CreateAnimation")))return false;if(auto*creates=d.get("CreateAnimations"))for(const auto&r:creates->array())if(!add(t(r,"Name")))return false;
  if(n(d,"VisualFxIntervalMin")||n(d,"VisualFxIntervalMax"))if(!rng(p,n(d,"VisualFxIntervalMin"),n(d,"VisualFxIntervalMax"),actual.timeRemaining,error))return false;
  const auto cue=t(d,"Sound");if(!cue.empty()&&p.worldFrame>=uint64_t(n(d,"SoundAllowedAfterFrame",2)))if(!p.sound(cue,ownerId,actual.position,uint32_t(n(d,"SoundManagerCap")),actual.sound,error))return false;
@@ -195,7 +215,7 @@ bool ActionEffectWorld::initialize(const std::string&name,int32_t ownerId,const 
  handle=s.handle;return true;
 }
 bool ActionEffectWorld::create(const std::string&name,int32_t owner,std::optional<std::array<float,3>>position,const ActionEffectProviders&p,uint64_t&handle,std::string&error){try{if(mutating_||!prepare(name,owner,p,error))return false;EffectOwnerState body;if(!p.owner(owner,body,error))return false;mutating_=true;const bool ok=initialize(name,owner,body,position.value_or(std::array<float,3>{body.x,body.y,body.z}),0,false,p,handle,error);mutating_=false;if(!ok)faulted_=true;return ok;}catch(const std::exception&e){mutating_=false;faulted_=true;error=e.what();return false;}}
-bool ActionEffectWorld::slideFx(uint64_t handle,const ActionEffectProviders&p,std::string&error){auto&source=states_.at(handle);const auto&clip=bank_->clips().at(source.imageClip);const auto&step=source.definition.get("Slides")->array().at(clip.slides.at(source.slide).originalFrame-1);const auto fx=t(step,"VisualFx");if(fx.empty())return true;EffectOwnerState owner;if(!p.owner(source.ownerId,owner,error))return false;uint64_t h;if(!initialize(fx,source.ownerId,owner,source.position,0,false,p,h,error))return false;auto&spawned=states_.at(h);spawned.heading+=-1.5707963705062866f+source.heading;if(t(spawned.definition,"ScaleFromOwner")!="Ignore")spawned.ownScale*=source.ownScale*owner.scale;source.created.push_back(h);return true;}
+bool ActionEffectWorld::slideFx(uint64_t handle,const ActionEffectProviders&p,std::string&error){auto&source=states_.at(handle);const auto&clip=bank_->clips().at(source.imageClip);const auto&step=source.definition.get("Slides")->array().at(clip.slides.at(source.slide).originalFrame-1);const auto fx=t(step,"VisualFx");if(fx.empty())return true;EffectOwnerState owner;if(!p.owner(source.ownerId,owner,error))return false;uint64_t h;if(!initialize(fx,source.ownerId,owner,source.position,0,false,p,h,error))return false;if(!h)return true;auto&spawned=states_.at(h);spawned.heading+=-1.5707963705062866f+source.heading;if(t(spawned.definition,"ScaleFromOwner")!="Ignore")spawned.ownScale*=source.ownScale*owner.scale;source.created.push_back(h);return true;}
 bool ActionEffectWorld::advance(float dt,const ActionEffectProviders&p,std::string&error){try{
  if(faulted_||mutating_||!std::isfinite(dt)||dt<0||dt>1){error="Invalid/faulted original action FX world";return false;}const auto snapshot=handles(true);std::vector<uint64_t>dead;
  for(auto h:snapshot){auto& s=states_.at(h);auto*life=registry_->find(h);if(!life||!life->initialized){error="Actual action FX lifetime lost";return false;}if(life->skipUpdate)continue;if(life->canceled){dead.push_back(h);continue;}const auto&d=s.definition;EffectOwnerState owner=s.ownerSnapshot;if(!s.detached){if(!p.owner(s.ownerId,owner,error)||owner.lifetime!=s.ownerLifetime)return false;s.ownerSnapshot=owner;}float elapsed=dt;if(p.elapsed&&!s.detached&&!p.elapsed(s.ownerId,s.preferUnmodified?0:n(d,"TimeModifierFraction",-1),dt,elapsed,error))return false;if(!std::isfinite(elapsed)||elapsed<0||elapsed>1){error="Invalid actual action FX modified time";return false;}
@@ -237,7 +257,7 @@ bool ActionEffectWorld::advance(float dt,const ActionEffectProviders&p,std::stri
  }
  else {if(!hold&&s.durationBound&&s.remaining<0){dead.push_back(h);continue;}s.slideRemaining-=elapsed;if(s.slideRemaining<.0001f){const auto&clip=bank_->clips()[s.imageClip];if(++s.slide>=clip.slides.size())dead.push_back(h);else{s.slideRemaining+=float(clip.slides[s.slide].ticks)/60;s.frame=float(clip.slides[s.slide].originalFrame);if(!slideFx(h,p,error))return false;}}s.fraction=std::clamp((s.frame-n(d,"StartFrame",1)+1)/(n(d,"EndFrame",n(d,"NumFrames"))-n(d,"StartFrame",1)+1),0.f,1.f);}
  }
- for(auto h:dead)if(state(h)){const auto old=*state(h);const auto chain=t(old.definition,"ChainTo");if(!chain.empty()&&chain!="null"){EffectOwnerState owner=old.ownerSnapshot;if(!old.detached&&!p.owner(old.ownerId,owner,error))return false;uint64_t next;if(!initialize(chain,old.ownerId,owner,old.position,0,false,p,next,error))return false;if(next){auto&replacement=states_.at(next);replacement.detached=old.detached;replacement.ownerSnapshot=owner;replacement.preferUnmodified=old.preferUnmodified;replacement.position=old.position;replacement.ownZ=old.ownZ;replacement.rotation=old.rotation;if(b(old.definition,"TransferCopyBody")||b(replacement.definition,"TransferCopyBody")||(!old.definition.get("TransferCopyBody")&&!replacement.definition.get("TransferCopyBody"))){replacement.heading=old.heading;replacement.ownScale=old.ownScale;replacement.baseColor=old.baseColor;replacement.hsv=old.hsv;replacement.flipX=old.flipX;replacement.flipY=old.flipY;}const auto transferLayer=[](const SourceValue&v){const auto*p=v.get("TransferDrawLayer");return !p||p->boolean();};if(transferLayer(old.definition)||transferLayer(replacement.definition))replacement.runtimeGroup=old.runtimeGroup;}}if(!destroy(h,error))return false;}
+ for(auto h:dead)if(state(h)){const auto old=*state(h);const auto chain=t(old.definition,"ChainTo");if(!chain.empty()&&chain!="null"&&!old.preventChain){EffectOwnerState owner=old.ownerSnapshot;if(!old.detached&&!p.owner(old.ownerId,owner,error))return false;uint64_t next;if(!initialize(chain,old.ownerId,owner,old.position,0,false,p,next,error))return false;if(next){auto&replacement=states_.at(next);replacement.detached=old.detached;replacement.ownerSnapshot=owner;replacement.preferUnmodified=old.preferUnmodified;replacement.position=old.position;replacement.ownZ=old.ownZ;replacement.rotation=old.rotation;if(b(old.definition,"TransferCopyBody")||b(replacement.definition,"TransferCopyBody")||(!old.definition.get("TransferCopyBody")&&!replacement.definition.get("TransferCopyBody"))){replacement.heading=old.heading;replacement.ownScale=old.ownScale;replacement.baseColor=old.baseColor;replacement.hsv=old.hsv;replacement.flipX=old.flipX;replacement.flipY=old.flipY;}const auto transferLayer=[](const SourceValue&v){const auto*p=v.get("TransferDrawLayer");return !p||p->boolean();};if(transferLayer(old.definition)||transferLayer(replacement.definition))replacement.runtimeGroup=old.runtimeGroup;}}if(!destroy(h,error))return false;}
  return true;
  }catch(const std::exception&e){faulted_=true;error=e.what();return false;}}
 bool ActionEffectWorld::updateTime(float dt,const ActionEffectProviders&p,uint32_t& spawnedThisFrame,std::string&error){try{
@@ -301,6 +321,25 @@ bool ActionEffectWorld::setDuration(uint64_t h,float d,std::string&error){
  if(!state(h)||!std::isfinite(d)){error="SetDuration target is not a live action Animation";return false;}
  forChain(h,[&](ActionEffectState&s,bool){s.duration=s.remaining=d;s.durationBound=true;});return true;}
 bool ActionEffectWorld::setAttachOffset(uint64_t h,float x,float y,std::string&error){if(!state(h)||!std::isfinite(x)||!std::isfinite(y)){error="Script attach offset target unavailable";return false;}forChain(h,[&](ActionEffectState&s,bool){s.attachOffset=std::array<float,2>{x,y};});return true;}
+// AnimationManager::Cancel 0x29e520: each manager animation whose data has
+// CanCancelAsAttached (+0x9e; AnimationData ctor default 1, VA 0x18009420d),
+// whose data name (+0x8) or instance name (+0x710) equals the name (empty =
+// any) and whose owner (+0xb8) is the Thing: canceled (+0x63) = 1, and with
+// PreventChain +0x6c4 = 1. With a child (+0xc0) and DisableOwnerInput (+0x83)
+// the child's +0x3b8 is set; that owner-input path fails loudly here.
+bool ActionEffectWorld::cancelAttached(int32_t owner,const std::string& name,bool preventChain,size_t& matched,std::string& error){
+ matched=0;
+ for(auto& [h,s]:states_){
+  if(s.ownerId!=owner)continue;const auto& d=s.definition;
+  if(d.get("CanCancelAsAttached")&&!b(d,"CanCancelAsAttached"))continue;
+  if(!name.empty()&&t(d,"Name")!=name&&s.name!=name)continue;
+  auto* life=registry_->find(h);if(!life||!life->initialized)continue;
+  if(s.primary){error="StopAnimation cancel of a Thing primary animation not reconstructed: "+s.name;return false;}
+  if(b(d,"DisableOwnerInput")){error="StopAnimation DisableOwnerInput owner-input release (+0xc0 -> +0x3b8) not reconstructed: "+s.name;return false;}
+  if(!life->canceled&&!registry_->cancel(h,error))return false;if(preventChain)s.preventChain=true;++matched;
+ }
+ error.clear();return true;
+}
 bool ActionEffectWorld::addAngle(uint64_t h,float radians,std::string&error){if(!state(h)||!std::isfinite(radians)){error="Animation AddAngle target unavailable";return false;}if(radians==0)return true;forChain(h,[&](ActionEffectState&s,bool){s.heading=wrapAngle(s.heading+radians);});return true;}
 bool ActionEffectWorld::setup(uint64_t h,const ActionAnimationSetup&a,std::string&error){try{
  auto*root=state(h);if(!root){error="SetupAnimation target is not a live action Animation";return false;}

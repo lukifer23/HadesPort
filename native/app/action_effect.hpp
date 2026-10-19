@@ -14,6 +14,10 @@ struct ActionEffectProviders {
  std::function<bool(const std::string&,int32_t,const std::array<float,3>&,uint32_t,uint32_t&,std::string&)> sound;
  // Source ModifiedTime/TimeModifierFraction adapter. Must use actual clocks.
  std::function<bool(int32_t,float,float,float&,std::string&)> elapsed;
+ // AnimationManager::CreateAndInit 0x18029fd65: RequiresUnblocked (data+0x64)
+ // -> GridManager::IsLocationBlocked 0x180307f70(location, units=true,
+ // PathfindersPreferAvoid=false, BlockSpawns=true); blocked -> no Animation.
+ std::function<bool(float,float,bool&,std::string&)> locationBlocked;
 };
 struct ActionEffectState {
  uint64_t handle=0,parent=0,child=0,light=0,ownerLifetime=0;
@@ -39,6 +43,8 @@ struct ActionEffectState {
  std::vector<uint64_t> vfx;
  // ThingPrimary (Thing::SetAnimation) rather than a manager-created animation.
  bool primary=false;
+ // Animation+0x6c4: set by AnimationManager::Cancel(PreventChain); suppresses ChainTo.
+ bool preventChain=false;
  // Script SetupAnimation/SetAnimation live fields (Animation mAttachOffset
  // +0xa0, mOffsetZ +0x6dc, mScaleRadius +0x6cc). Absent attachOffset means the
  // definition OffsetX/OffsetY seeded at InitData.
@@ -110,6 +116,8 @@ public:
  bool advance(float,const ActionEffectProviders&,std::string&);
  bool updateTime(float,const ActionEffectProviders&,uint32_t& spawnedThisFrame,std::string&);
  bool destroy(uint64_t,std::string&);
+ // AnimationManager::Cancel 0x29e520 for one owner: empty name = all; returns matches.
+ bool cancelAttached(int32_t owner,const std::string& name,bool preventChain,size_t& matched,std::string&);
  bool configureCreated(uint64_t,float rawZ,const std::string& actualFirstGroup,bool preferUnmodified,std::string&);
  bool preDisposeOwner(int32_t,const ActionEffectProviders&,std::string&);
  bool preDisposeOwner(int32_t,const EffectOwnerState&,std::string&);
