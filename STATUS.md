@@ -19,6 +19,7 @@ meaningful milestones.
 
 | Date / time | APK sha256 (prefix) | Result |
 |---|---|---|
+| 2026-10-18 19:37 | ee045bdb (build 27) | Clean Android rebuild from the public repo layout; same content as 26. Survey (`--survey-blockers`): no script-level blockers before frame 1435; sole blocker = projectile marker lookup (HouseDoor02 `weapon_2_TRACKING`, no live primary) → agent |
 | 2026-10-18 19:23 | cdd5e539 (build 26) | Installed: + audio-events-v19 (699/749 cues: AuraCharge, SwordLunge, bus automation, any-rate resample), RotateWithGravity (RotateWithGravitySystem jobs 0x180151740/8a0/ac0) |
 | 2026-10-18 19:17 | b34dc266 (build 25) | Installed: + ghost patrol (obstacle Move → Obstacle::MoveTo 0x2c5bf0, NotifyOnStopped/CheckStopped 0x2797f0), hit-FX tail (SetZLocation/AddAngle). Host stop then: InvincibleHitSparkDynamic RotateWithGravity (fixed in 26) |
 | 2026-10-18 19:08 | 128b61b9 (build 24) | Installed: + audio-events-v18 (670/750 cues incl. Athena VO), Thing AngleTowardTarget (0x74, Body+0x80). Host stop: ghost-patrol obstacle `Move` (Speed/EaseIn/EaseOut) → agent. Exact Action enum: `.local/reports/native-action-enum.json` |

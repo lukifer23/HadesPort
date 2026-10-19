@@ -16,7 +16,8 @@ The original scripts drive the game. The engine fails loudly at the first unreco
 engine behaviour (`SCRIPT_STAGE_BLOCKED stage=… detail=<missing piece>`), and the device
 shows that reason on its "unable to enter" screen. Each fix reconstructs that behaviour
 from the binary and moves the stop later. The Mac host replays the same scripts with a
-recorded input file, so most stops are found without the device.
+recorded input file, so most stops are found without the device. Unsanitized host replays
+of 2400 frames take ~7 s; sanitized ones take minutes, so keep those for the final check.
 
 ## Layout
 
@@ -48,6 +49,9 @@ cmake -S native/host -B .local/native-host-build-X -G Ninja -DCMAKE_BUILD_TYPE=R
 cmake --build .local/native-host-build-X --target hades-debug
 .local/native-host-build-X/hades-debug .local/native-build/assets .local/reports/NEW.json \
   --activate-room --world-frames=2400 --input-replay=.local/reports/native-first-combat-replay-v2.tsv
+# Blocker survey (host-only diagnostic): records every failure instead of stopping
+.local/native-host-build-X/hades-debug .local/native-build/assets .local/reports/SURVEY.json \
+  --activate-room --world-frames=2400 --survey-blockers --input-replay=.local/reports/native-first-combat-replay-v2.tsv
 # RE helpers
 python3 native/analysis/inspect_engine.py 'sgg::Class::Method' --output .local/reports/NEW.json
 python3 scripts/rea.py decompile .local/game/base/x64/EngineWin64s.dll 0x1800XXXXX --format json

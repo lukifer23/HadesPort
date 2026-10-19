@@ -145,6 +145,9 @@ class ScriptRuntime {
     bool roomActivated_=false, activationStarted_=false, worldFaulted_=false;
     float worldTime_=0;
     uint64_t worldFrame_=0;
+    struct SurveyEntry{uint64_t firstFrame=0;uint32_t count=0;};
+    std::map<std::string,SurveyEntry> survey_;
+    static int surveyRecord(lua_State*);
     float localMoveX_=0,localMoveY_=0;
     std::vector<std::string> localActionDown_,previousLocalActionDown_;
     struct WorldNotify {
@@ -359,6 +362,10 @@ public:
     bool gameLoaded() const { return gameLoaded_; }
     bool bootRoom();
     bool activateRoom();
+    // Host-only diagnostic (blocker_survey.cpp): never called by the Android engine.
+    bool enableBlockerSurvey(std::string& error);
+    std::string blockerSurveyReport()const;
+    void surveyRecordWorldFault(); // records error_, clears the fault so the replay continues
     bool advanceWorld(float dt,double screenDt);
     bool advanceVfx(float dt,std::string& error);
     std::vector<int32_t> actorLightOwners()const;

@@ -25,10 +25,11 @@ static void jsonString(std::ostream& out,const std::string& text) {
 }
 
 int main(int argc,char** argv) {
-    bool capture=false,activate=false,probe=false,weaponProbe=false;int worldFrames=120;std::string inputReplay,saveProbeDirectory;
+    bool capture=false,activate=false,probe=false,weaponProbe=false,survey=false;int worldFrames=120;std::string inputReplay,saveProbeDirectory;
     for(int i=3;i<argc;++i){const std::string arg=argv[i];
         if(arg=="--capture-active-room")capture=activate=true;
         else if(arg=="--activate-room")activate=true;
+        else if(arg=="--survey-blockers")survey=true; // diagnostic: list all blockers in one run
         else if(arg=="--probe-load-callbacks")probe=true;
         else if(arg=="--probe-staged-weapons")weaponProbe=true;
         else if(arg.starts_with("--probe-save="))saveProbeDirectory=arg.substr(13);
@@ -48,6 +49,7 @@ int main(int argc,char** argv) {
         }
         hades::FileAssets assets(argv[1]);
         ScriptRuntime scripts(&assets);scripts.initialize();
+        if(survey){std::string e;if(!scripts.enableBlockerSurvey(e))throw std::runtime_error(e);}
         std::string cameraError;if(!scripts.setCameraViewport(1728,1080,cameraError))throw std::runtime_error(cameraError);
         const bool roomBooted=scripts.bootRoom();
         const bool activationComplete=activate&&roomBooted?scripts.activateRoom():false;
@@ -68,7 +70,7 @@ int main(int argc,char** argv) {
         if(activationComplete)for(int i=0;i<worldFrames;++i){
             const auto frameStart=Clock::now();
             if(replayAt<replay.size()&&replay[replayAt].frame==i){const auto& input=replay[replayAt++];if(!scripts.setLocalInput(input.x,input.y,input.controls,mixerError)){updateComplete=false;break;}}
-            if(!scripts.advanceWorld(1.f/60,1./60)){updateComplete=false;break;}
+            if(!scripts.advanceWorld(1.f/60,1./60)){if(survey){scripts.surveyRecordWorldFault();continue;}updateComplete=false;break;}
             const auto mixStart=Clock::now();updateMilliseconds+=std::chrono::duration<double,std::milli>(mixStart-frameStart).count();
             std::array<float,1600> pcm{};if(!scripts.renderOfflineAudio(pcm.data(),800,mixerError)){updateComplete=false;break;}
             const auto mixEnd=Clock::now();mixMilliseconds+=std::chrono::duration<double,std::milli>(mixEnd-mixStart).count();frameMilliseconds.push_back(std::chrono::duration<double,std::milli>(mixEnd-frameStart).count());
@@ -129,6 +131,7 @@ int main(int argc,char** argv) {
                      <<" frame="<<player.frame()<<'\n';
         }
         trace<<"]}\n";
+        if(survey)std::cout<<scripts.blockerSurveyReport();
         std::cout<<"HOST_DEBUG_COMPLETE main="<<scripts.mainLoaded()<<" game_scripts="<<scripts.gameLoaded()<<'\n';
         return roomBooted&&(!activate||(activationComplete&&updateComplete))&&(!probe||probeComplete)&&(!weaponProbe||weaponProbeComplete)&&(saveProbeDirectory.empty()||saveProbeComplete)?0:2;
     }catch(const std::exception& error){std::cerr<<"HOST_DEBUG_FAILURE "<<error.what()<<'\n';return 1;}
