@@ -17,6 +17,7 @@ struct WeaponSelfEffectInstance {
     bool sourceProjectile=false,sourceSpawned=false;
     float sourceAngle=0;
     int32_t factoryType=12;
+    uint8_t crossSourceReapplyDiagnostics=0; // Bounded reconstruction log counter; not native effect state.
     int32_t attacksMade=0; // Effect.defaults VA18005ca1d stores Effect+10=0.
     SpeedEffectState state; // base portion also owns Tag state; no fake Speed admission
     EffectUpdateFxState fx;

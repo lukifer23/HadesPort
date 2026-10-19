@@ -1,0 +1,24 @@
+{
+  "schema": "hades-combat-recovery-ui-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "facts": {
+    "victim_reapply": {
+      "AddEffect": "2fdf3b..2fdf4f matches by name; invokes existing virtual slot20 with incoming data and source weapon; returns same instance",
+      "data_overload": "5d910..5d949 reads existing ExtendDurationOnReapply, optional incoming Duration refresh, tail virtual noarg slot28. Does not replace stored EffectData/source Weapon/type/angle. Speed/Tag inherit this overload.",
+      "observed_device": "iteration9 projectile frame335, weapon frame366 interrupted at local cross-source guard; held controls empty but SwordWeapon3 remained requested, strafe1.",
+      "replay": "mixed hold sword then special then sword: actual OnHitStun reapply retained SwordParry source, incoming SwordWeapon; 2750 frames complete, all4 cardinal velocity/facing recover, final requests/effects empty, strafe0. Contained unrelated AI/UI gaps remain."
+    },
+    "scale_axes": "Thing.RunScriptAction2e2d11/2e2e1b adjusts Body helpers+140/+1a0 from initial1; duration/ease/smooth preserved. BodySystem advances on actual Body clock. SetupGeometry2dcff4..2dd11a uses uniform scale only. Animation.GetDrawScaleVector29859d..2985ed multiplies owner Body axes only when AnimationDataDef.ScaleVectorFromOwner(+67, fullData+bf)==Maintain0. HAP6 retains enum for HAA. Rotated static-scene axis mutation remains explicit unsupported.",
+    "IdExists": "ExecuteBool234 jump table ->2552ee..255381: Int(Id,0) lookup in global World map-Thing registry, nonnull result; no LifeStatus condition. Portable disposed tombstones are excluded.",
+    "Destroy": "Native active-Thing selection excludes portable retired tombstones before virtual Destroy; no fake lifecycle provider for already-disposed id.",
+    "Shift": "ScriptAction.Shift274fb0 -> per source GetLocation+OffsetXY -> virtual MoveTo(slot31) with Duration/Speed/Ease/Smooth/TimeModifierFraction. Actual world Obstacle branch uses existing native transition helpers; Unit branch and randomized timing remain explicit unsupported.",
+    "cast_addammo": "ScriptAction.RunWeaponMethod268b80 selector live owned Weapon; RunMethod2512d8..2512ff AddAmmo adds signed32 wrapping, clamps max(sum,0) then min(MaxAmmo+6e8). Does not follow ShareAmmoWeapon or invent callbacks.",
+    "defense_reflection": "Life.GetReflection2b930a reads EffectData+3b0 ReflectAddition; Reflection belongs to Life state, not EffectData. Collision and detonation use same corrected field.",
+    "weapon_clock": "Unit.UpdateSelf2f1497..2f14a7 multiplies elapsed by live Thing+80, passes to Arsenal.Update2f15e5. Per-Thing physics fraction is not applied again.",
+    "book_frame_target": "GetFrameForFraction2960e0: clamp(start+(end-start+1)*fraction), retains fractional value. Instant routes SetFractionalFrame295ff0, otherwise PlayToFraction2961f0 then PlaySpeedUpdateSystem153b80 approaches positive target. World action/scene primaries implement named owner selection; HAA frame target remains explicit unsupported."
+  },
+  "limits": [
+    "Source contracts and host replay are not full Android encounter/reward completion.",
+    "No original assets, decompiled listings or captures are tracked."
+  ]
+}

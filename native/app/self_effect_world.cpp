@@ -1,4 +1,5 @@
 #include "self_effect_world.hpp"
+#include "platform_log.hpp"
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -317,7 +318,15 @@ bool WeaponSelfEffectWorld::admitProjectileEffect(int32_t victim,int32_t sourceO
     const auto incoming=projectile->effects[index];
     if(auto existing=actor->status->getEffect(incoming.name)){
         auto* record=instance(existing->handle);if(!record){error="Victim duplicate effect belongs to unsupported external factory";return false;}
-        if(!record->sourceProjectile||record->sourceOwner!=sourceOwner||record->sourceWeapon!=weaponName||record->sourceIndex!=index||record->sourceSpawned!=spawned){error="Victim Reapply across source Weapon/EffectData identities needs exact native replacement contract";return false;}
+        // UnitStatus.AddEffect2fdf3b..4f calls virtual Reapply on the existing
+        // name-matched allocation, passing the incoming data/weapon/duration.
+        // Effect.Reapply5d910..949 reads EXISTING ExtendDurationOnReapply,
+        // optionally copies INCOMING Duration, then virtual noarg Reapply.
+        // It never replaces Effect+20 data, source Weapon, angle or factory.
+        // Speed/Tag inherit this overload; source identity equality is not a gate.
+        const bool crossSource=!record->sourceProjectile||record->sourceOwner!=sourceOwner||record->sourceWeapon!=weaponName||record->sourceIndex!=index||record->sourceSpawned!=spawned;
+        if(crossSource&&record->crossSourceReapplyDiagnostics<4){++record->crossSourceReapplyDiagnostics;
+            log(Severity::Info,"HadesNative","EFFECT_REAPPLY victim=%d effect=%s retained=%d/%s/%zu incoming=%d/%s/%zu retainedData=%llu",victim,incoming.name.c_str(),record->sourceOwner,record->sourceWeapon.c_str(),record->sourceIndex,sourceOwner,weaponName.c_str(),index,(unsigned long long)record->dataHandle);}
         if(!reapply(*record,incoming,providers,error))return fail(error,error);error.clear();return true;
     }
     if(nextEffect_==UINT64_MAX||nextData_==UINT64_MAX){error="Portable effect lifetime/data identities exhausted";return false;}
