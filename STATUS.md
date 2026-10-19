@@ -71,7 +71,7 @@ Focused evidence (all private/local):
 
 | Work | Owner | Current boundary |
 |---|---|---|
-| Android build/install, shared combat lifecycle/clocks, logs, docs/remote | main | Candidate12 built; strict ASan/UBSan2950 passed; full device install underway, baseline10a preserved |
+| Android build/install, shared combat lifecycle/clocks, logs, docs/remote | main | Iteration12 installed/hash verified and launched; strict ASan/UBSan2950 passed, baseline10a preserved |
 | Original enemy AI, firing/markers, movie Book resources and timed audio | movement_controls | Source complete; next-wave3100 strict pass, mixed2950 strict pass |
 | Progression resources, zero-fuse Instant, native color normalization | progression_coverage | Source/selected closure complete; actual mixed2950 passes original touchdown detonation/audio and all cardinal recovery |
 | Shared path/attachment, interaction, child lifetime/rendering and text | door_runtime | Source complete; real next-wave child chains and AI/attack passed host integration |
@@ -95,6 +95,7 @@ Focused candidate evidence (all private/local):
 
 | Date / time | APK sha256 (prefix) | Result |
 |---|---|---|
+| 2026-10-19 00:03 | d39fefae (iteration12) | Full non-incremental user0 install; installed2453881955-byte SHA verified and app launched. Launch screenshot captured; current-process launch has0 fault lines. Strict mixed2950 + ASan/UBSan2950 pass, including enemy hits, later sword/special, four cardinals after melee and final clean requests/effects/strafe. Strict nextwave3100 proves enemy death, money pickup, next-wave activation/AI/path/attack. Manual device combat/full encounter/reward/next-room verification remains pending. |
 | 2026-10-18 23:09 | e15269e9 (iteration10a) | Full non-incremental user0 install, installed SHA verified and launched. Shared same-name cross-weapon effect reapplication, world scale axes, IdExists/Shift/stale Destroy selection, native Shake/HAP6, dynamic rubble/raw graphics, Unit activation/CanAttack/state notifications and precise arrival. Mixed2750-frame contained replay logs actual cross-source OnHitStun and all4 directions recover with requests/effects empty and strafe0. User confirms improved controls; enemy attack/death and progression still fail. Screenshot and12second passive video retained locally. Subsequent source repairs are not yet device verified. |
 | 2026-10-18 22:54 | ca356a17 (iteration9) | Full non-incremental user0 install and on-device SHA verified, launched. Real RoomSimple01 screenshot captured; user repeated attacks exposes projectile frame335/weapon frame366 cross-source victim Reapply guard. Released SwordWeapon3 stays queued, strafe1 and disable effects recur, reproducing control lock. Source repair retains original effect identity per native Reapply; not yet device verified. |
 | 2026-10-18 22:45 | 851a3be5 (iteration8) | Full install/SHA verified. Real hit then projectile defense Reflection lookup interrupts firing cleanup; corrected ReflectAddition in iteration9. |

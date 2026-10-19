@@ -110,8 +110,10 @@ coroutine waits/stacks and dynamic enemy arsenals.
    directions after melee, post-special recovery and final requests/effects
    empty with strafe0. Next-wave covers enemy
    death, money pickup, real child-movie activation, AI/pathing and enemy attack.
-   Device iteration10a remains the preserved baseline until main records the new
-   full install/SHA verification. Never infer device success from a host pass.
+   Device iteration12 (d39fefae) is installed, its full SHA/size verified, and
+   launched. Iteration10a rollback APK remains preserved locally. Screenshot
+   proves the launch/menu only; manual device combat remains pending. Never
+   infer device gameplay success from a host pass.
 2. Preserve shared root repairs: same-name victim Reapply keeps original identity;
    native marker fallback separates attach/draw offsets; Action FX preserves the
    first failure; sound coverage is checked before animation allocation. Never
