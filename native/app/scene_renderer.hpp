@@ -58,6 +58,7 @@ struct RenderStats {
 // context. Mac capture uses desktop GL; Android uses GLES3 and the same shader.
 class SceneRenderer {
     unsigned program_=0,vao_=0,buffer_=0,background_=0,hero_=0,white_=0;
+    size_t skippedVisuals_=0; // visuals skipped by containment (logged once per reason)
     unsigned groupTexture_=0,groupFramebuffer_=0;
     int groupWidth_=0,groupHeight_=0;
     int backgroundWidth_=0,backgroundHeight_=0,blendLocation_=-1,addLocation_=-1;

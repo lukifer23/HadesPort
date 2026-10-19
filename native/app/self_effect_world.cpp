@@ -1,4 +1,5 @@
 #include "self_effect_world.hpp"
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <sstream>
@@ -189,6 +190,33 @@ bool WeaponSelfEffectWorld::resetUnit(int32_t id,const WeaponSelfEffectProviders
     const auto dispose=[&](UnitStatusEffect& effect,std::string& detail){return this->dispose(effect,detail);};
     if(!actual->status->reset(setAsAlly,clear,dispose,error))return false;
     ownerViews_.erase(id);collectDisposed();error.clear();return true;
+}
+bool WeaponSelfEffectWorld::clearNamedEffect(int32_t id,const std::string& name,const WeaponSelfEffectProviders& providers,std::string& error){
+    if(faulted_){error=fault_;return false;}
+    auto* actual=actors_.actor(id);if(!actual||!actual->status){error="ClearEffect requires actual UnitStatus (Unit+0x460)";return false;}
+    const auto clear=[&](UnitStatusEffect& effect,std::string& detail){auto* value=instance(effect.handle);if(!value){detail="ClearEffect refers to unsupported effect factory ownership";return false;}return this->clear(*value,providers,detail);};
+    const auto dispose=[&](UnitStatusEffect& effect,std::string& detail){return this->dispose(effect,detail);};
+    if(!actual->status->clearEffect(name,clear,dispose,error))return fail(error,error);
+    collectDisposed();error.clear();return true;
+}
+bool WeaponSelfEffectWorld::clearAllEffects(int32_t id,const std::vector<std::string>* exclude,const WeaponSelfEffectProviders& providers,
+    const std::function<bool(std::string&)>& setAsAlly,std::string& error){
+    if(faulted_){error=fault_;return false;}
+    auto* actual=actors_.actor(id);if(!actual||!actual->status){error="ClearEffect All requires actual UnitStatus (Unit+0x460)";return false;}
+    if(exclude){
+        // VA1802f413b..429c: for each active entry (Unit+0x4b0..0x4b8), keep=true;
+        // any ExcludeNames value string == EffectData name -> keep=false (sticky);
+        // keep -> UnitStatus::ClearEffect2fd9d0(name). No Reset on this branch.
+        for(const auto& name:actual->status->activeEffectNames()){
+            if(std::find(exclude->begin(),exclude->end(),name)!=exclude->end())continue;
+            if(!clearNamedEffect(id,name,providers,error))return false;
+            actual=actors_.actor(id);if(!actual||!actual->status){error="ClearEffect owner lost during Clear callback";return false;}
+        }
+        error.clear();return true;
+    }
+    const auto clear=[&](UnitStatusEffect& effect,std::string& detail){auto* value=instance(effect.handle);if(!value){detail="ClearEffect All refers to unsupported effect factory ownership";return false;}return this->clear(*value,providers,detail);};
+    if(!actual->status->clearActiveEffects(clear,error))return fail(error,error);
+    return resetUnit(id,providers,setAsAlly,error);
 }
 bool WeaponSelfEffectWorld::reapply(WeaponSelfEffectInstance& instance,const WeaponEffectDefinition& incoming,const WeaponSelfEffectProviders& providers,std::string& error){
     WeaponEffectRuntimeData data;if(!runtime(instance,data,error))return false;

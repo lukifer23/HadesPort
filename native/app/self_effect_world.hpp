@@ -93,6 +93,11 @@ public:
     bool clearEffect(uint64_t,const WeaponSelfEffectProviders&,std::string&);
     bool resetUnit(int32_t,const WeaponSelfEffectProviders&,
         const std::function<bool(std::string&)>& setAsAlly,std::string&);
+    // Unit::RunScriptAction case ClearEffect (Action 144, VA1802f410a..4320).
+    // exclude==nullptr: All without ExcludeNames (active Clear, then Reset2fd4c0).
+    bool clearAllEffects(int32_t,const std::vector<std::string>* exclude,const WeaponSelfEffectProviders&,
+        const std::function<bool(std::string&)>& setAsAlly,std::string&);
+    bool clearNamedEffect(int32_t,const std::string&,const WeaponSelfEffectProviders&,std::string&);
     bool retainsSourceWeapon(int32_t sourceOwner,const std::string&)const;
     // Reflection setters alter live copied EffectData. Refresh projected status
     // query flags after such mutations and before parent CanAttack/CanMove.

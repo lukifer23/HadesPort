@@ -1,5 +1,6 @@
 #include "scene_renderer.hpp"
 #include "platform_log.hpp"
+#include <set>
 #ifdef __ANDROID__
 #include <GLES3/gl3.h>
 #define SHADER_HEADER "#version 300 es\nprecision highp float;\n"
@@ -353,7 +354,11 @@ void SceneRenderer::renderImpl(const SceneView& view,int width,int height,const 
     if(actorCount){
         if(drawOrder.size()!=draw_.size()||!std::is_sorted(drawOrder.begin(),drawOrder.end()))throw std::runtime_error("Source actor merge requires current scene order");
         struct Placement {std::array<float,3> key;SceneSprite sprite;};std::vector<Placement> placements;placements.reserve(actorCount);
-        for(size_t i=0;i<actorCount;++i){ActorVisual value;std::string error;if(!actorProvider(i,value,error))throw std::runtime_error("Actual actor visual unavailable: "+error);
+        for(size_t i=0;i<actorCount;++i){ActorVisual value;std::string error;if(!actorProvider(i,value,error)){
+            // Durability: an unreconstructable visual is skipped (logged once per
+            // distinct reason) instead of failing the whole room's frame.
+            static std::set<std::string> reported;if(reported.size()<256&&reported.insert(error).second)hades::log(hades::Severity::Error,"HadesSurvey","CONTAINED_FAULT stage=actor-visual detail=%s",error.c_str());
+            ++skippedVisuals_;continue;}
             if(!value.visible)continue;
             const auto& r=value.localRect;
             for(float f:{value.x,value.y,value.z,value.scale,value.angle,r[0],r[1],r[2],r[3]})if(!std::isfinite(f))throw std::runtime_error("Non-finite native actor visual");

@@ -270,6 +270,7 @@ class ScriptRuntime {
     bool lifeSetVulnerable(int32_t,std::string&);
     static int lifeInvulnerableAction(lua_State*);
     static int hasEffectAction(lua_State*);
+    static int clearEffectAction(lua_State*);
     static int swapWeaponAction(lua_State*);
     void registerLifeActions();
     int32_t lastLocationBlocker_=0; // diagnostic: obstacle that failed the last IsLocationValid

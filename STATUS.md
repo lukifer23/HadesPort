@@ -19,6 +19,8 @@ meaningful milestones.
 
 | Date / time | APK sha256 (prefix) | Result |
 |---|---|---|
+| 2026-10-18 20:17 | 7de04017 (build 35) | + CollisionBounce/VelocityRetention (ApplyCollision 0x2bd3d0, MultiplyVelocity 0x2bd450; the device "character won't move" gap), ClearEffect (Unit 0x1802f410a, UnitStatus::ClearEffect/Reset), render-path containment (bad visual skipped + logged, not room failure). Strict survey of first-combat replay: 0 gaps. Device-play gaps → agents: AddControlOnFire, DetonateGraphic RadialNovaSwordParry, ShowAimLine, OnOutOfAmmo, timed FocusCamera |
+| 2026-10-18 20:10 | 7597f7a0 (build 32) | Device e2e (scripted + user): moved, attacked, killed ghosts; render failure "action FX frame outside resource" ended the room (now contained + detailed); then movement stopped on contained CollisionBounce gap |
 | 2026-10-18 20:07 | 7597f7a0 (build 32) | + CollisionAlphaOutDuration obstacle fade (Body+0x320, OnObstacleCollision 0x2f6ce0) — the contained gap hit at frame 1658 on device |
 | 2026-10-18 20:03 | a8b01272 (build 31) | Device (user): moved further with no "unable to enter"; the "crash" was the package update killing the app mid-play (now: install only when the game isn't foreground). + VisualFxUseAttachedMarkerLocation, exact ApplyShift walking+dash, OnObstacleCollision. Strict survey: only ClearEffect (kill path) → agent |
 | 2026-10-18 20:00 | e23b93c8 (build 30) | Fix: a runtime whose world had faulted was reused after the app surface was lost → instant blank "please try again". Now torn down; empty reasons get a fallback message |

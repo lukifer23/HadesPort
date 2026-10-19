@@ -164,6 +164,15 @@ bool UnitStatus::clearOnAttackEffects(const UnitStatusEffectPredicate& selected,
     }
     error.clear();return true;
 }
+bool UnitStatus::clearActiveEffects(const UnitStatusEffectCallback& clear,std::string& error){
+    if(faulted_){error=fault_;return false;}
+    if(inMutation_){error="Reentrant ClearEffect All requires native iterator invalidation handling";return false;}
+    MutationGuard guard(inMutation_);const auto active=active_;
+    for(const auto& e:active){std::string detail;
+        if(!e->cleared&&(!clear||!clear(*e,detail)))return fault(detail.empty()?"ClearEffect All requires actual virtual Clear":detail,error);}
+    error.clear();return true;
+}
+std::vector<std::string> UnitStatus::activeEffectNames()const{std::vector<std::string> out;for(const auto& e:active_)out.push_back(e->name);return out;}
 bool UnitStatus::cleanupEffects(const UnitStatusEffectCallback& dispose,std::string& error){
     if(faulted_){error=fault_;return false;}if(updatingEffects_){error.clear();return true;}if(inMutation_){error="Status cleanup during an effect callback requires the native updating guard";return false;}MutationGuard guard(inMutation_);
     const auto deleting=toDelete_;size_t consumed=0;

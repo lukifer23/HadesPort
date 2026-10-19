@@ -190,7 +190,50 @@ int ScriptRuntime::swapWeaponAction(lua_State* L){
     }catch(const std::exception& e){std::snprintf(message,sizeof(message),"%s",e.what());}
     if(!ok)return luaL_error(L,"%s",message);return 0;
 }
+int ScriptRuntime::clearEffectAction(lua_State* L){
+    // Action 144 ClearEffect -> per selected Thing RunScriptAction. Thing default:
+    // no-op (non-Units). Unit::RunScriptAction case VA1802f410a..4320 (pseudocode:
+    // native-script-motion-unit-action-static.json; UnitStatus::ClearEffect2fd9d0):
+    //   All ? (HasKey ExcludeNames ? per active effect not excluded -> ClearEffect(name)
+    //          : per active effect !cleared -> Clear, then UnitStatus::Reset2fd4c0);
+    //         BlockAll -> Unit+0x4f1 (UnitStatus+0x91 mBlockAll) = 1
+    //       : ScriptArgs::Names (Name/Names) -> UnitStatus::ClearEffect each.
+    // BlockAll is read by UnitStatus::AddEffect2fdca0 (lua_projectiles.cpp admission).
+    // Selector: Id plus Ids, deduplicated ascending like actorMotionAction
+    // (approximation: native multi-ID iteration order not recovered).
+    char message[1024]{};bool ok=false;
+    try{auto* self=runtime(L);if(!self)throw std::runtime_error("ClearEffect runtime unavailable");
+        hades::SourceValue args;std::string error;if(!lua_istable(L,1)||!hades::readSourceValue(L,1,args,error))throw std::runtime_error(error.empty()?"ClearEffect requires argument table":error);
+        for(const char* k:{"DestinationId","DestinationIds","DestinationName","DestinationNames"})if(args.get(k))throw std::runtime_error(std::string("ClearEffect selector not reconstructed: ")+k);
+        std::vector<int32_t> ids;const auto add=[&](const hades::SourceValue& v){const double n=v.number();if(!std::isfinite(n)||n!=std::trunc(n)||n<INT32_MIN||n>INT32_MAX)throw std::runtime_error("ClearEffect requires signed32 object IDs");ids.push_back(int32_t(n));};
+        if(const auto* v=args.get("Id"))add(*v);
+        if(const auto* v=args.get("Ids"))for(const auto& e:v->array())add(e);
+        std::sort(ids.begin(),ids.end());ids.erase(std::unique(ids.begin(),ids.end()),ids.end());
+        const auto flag=[&](const char* k){const auto* v=args.get(k);return v&&v->boolean();};
+        const bool all=flag("All"),blockAll=flag("BlockAll");
+        std::vector<std::string> names;
+        if(!all){if(const auto* v=args.get("Names")){for(const auto& e:v->array())names.push_back(e.text());}else if(const auto* v=args.get("Name"))names.push_back(v->text());}
+        std::vector<std::string> exclude;const auto* excludeValue=all?args.get("ExcludeNames"):nullptr;
+        if(excludeValue){if(const auto* o=std::get_if<hades::SourceValue::Object>(&excludeValue->value);o&&!o->empty())throw std::runtime_error("ClearEffect keyed ExcludeNames table iteration order not reconstructed");for(const auto& e:excludeValue->array())exclude.push_back(e.text());}
+        const auto providers=self->selfEffectProviders();
+        for(const auto id:ids){
+            auto* a=self->actorWorld_.actor(id);
+            if(!a||!a->registered||!a->object)continue;
+            if(!a->definition||a->definition->kind!="Unit")continue; // Thing::RunScriptAction default.
+            if(!a->status)throw std::runtime_error("ClearEffect Unit lacks actual UnitStatus");
+            if(all){
+                if(!self->selfEffects_.clearAllEffects(id,excludeValue?&exclude:nullptr,providers,
+                    [](std::string& e){e="ClearEffect Reset of a traitor Unit requires native SetAsAlly2fe360 consumer";return false;},error))throw std::runtime_error(error);
+                a=self->actorWorld_.actor(id);
+                if(blockAll&&a&&a->status)a->status->blockAll=true;
+            }else for(const auto& name:names)if(!self->selfEffects_.clearNamedEffect(id,name,providers,error))throw std::runtime_error(error);
+        }
+        ok=true;
+    }catch(const std::exception& e){std::snprintf(message,sizeof(message),"%s",e.what());}
+    if(!ok)return luaL_error(L,"%s",message);return 0;
+}
 void ScriptRuntime::registerLifeActions(){
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,clearEffectAction,1);lua_setglobal(state_,"ClearEffect");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,swapWeaponAction,1);lua_setglobal(state_,"SwapWeapon");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,hasEffectAction,1);lua_setglobal(state_,"HasEffect");
     lua_pushlightuserdata(state_,this);lua_pushboolean(state_,1);lua_pushcclosure(state_,lifeInvulnerableAction,2);lua_setglobal(state_,"SetInvulnerable");

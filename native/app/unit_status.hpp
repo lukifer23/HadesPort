@@ -93,6 +93,19 @@ public:
     // deliberately does not apply cancelDisables' cancelability/name policies.
     bool cancelSelfEffects(const std::string& exactName,const UnitStatusEffectCallback& clear,
         const UnitStatusEffectCallback& dispose,std::string&);
+    // UnitStatus::ClearEffect2fd9d0 (exact-name; EffectData name at Effect+0x20 -> +8):
+    // pending (+0x20..+0x28) reverse: !cleared(+0x2a) -> vfunc+0x48 Clear;
+    // !disposed(+0x28) -> unitId(+0x14)=-1, vfunc+0x38 Dispose(true), disposed=1;
+    // erase. Active (+0x50..+0x58, captured count) forward: !cleared -> Clear;
+    // append to mToDelete (+0x38). Same body as Weapon::CancelSelfEffects' use.
+    bool clearEffect(const std::string& exactName,const UnitStatusEffectCallback& clear,
+        const UnitStatusEffectCallback& dispose,std::string& error){return cancelSelfEffects(exactName,clear,dispose,error);}
+    // Unit::RunScriptAction ClearEffect All (no ExcludeNames) VA1802f42a4..42e9:
+    // over captured active entries only, !cleared(+0x2a) -> vfunc+0x48 Clear.
+    // No deletion append here; the following Reset2fd4c0 performs ClearEffects.
+    bool clearActiveEffects(const UnitStatusEffectCallback& clear,std::string&);
+    // Active effect names in vector order (Unit+0x4b0 == UnitStatus+0x50).
+    std::vector<std::string> activeEffectNames()const;
     // UnitStatus::ClearOnAttackEffects2fd880 scans ONLY captured active entries.
     // Predicate reads each instance's actual live EffectData.ClearOnAttack.
     bool clearOnAttackEffects(const UnitStatusEffectPredicate&,

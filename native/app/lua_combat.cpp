@@ -844,9 +844,27 @@ bool ScriptRuntime::unitOnObstacleCollision(int32_t id,int32_t o,float sx,float 
     if(px==0&&py==0){if(!clearOnCollision())return false;error.clear();return true;}
     const float pl=1.f/std::sqrt(px*px+py*py),sl=1.f/std::sqrt(sx*sx+sy*sy);
     const float facing=sx*sl*px*pl+sy*sl*py*pl;
-    if(prop(o,"CollisionBounce").number()>0&&float(prop(o,"CollisionBounceRequiredVelocity").number())<speed&&float(prop(id,"Speed").number())+1.f<speed&&facing<-0.3f)
-        throw std::runtime_error("OnObstacleCollision CollisionBounce PhysicsComponent::ApplyCollision2bd3d0 not reconstructed");
-    if(prop(o,"CollisionVelocityRetention").number()!=1)throw std::runtime_error("OnObstacleCollision CollisionVelocityRetention PhysicsComponent::MultiplyVelocity2bd450 not reconstructed");
+    // PhysicsComponent::MultiplyVelocity 0x2bd450: velocity *= f; |v|^2 < 1e-4
+    // (0x180610d34) -> velocity = mZero (+0x30).
+    const auto multiplyVelocity=[&](float f){auto& v=a->physics->velocity;v.x*=f;v.y*=f;if(v.x*v.x+v.y*v.y<0.0001f)v={};};
+    const float bounce=float(prop(o,"CollisionBounce").number());
+    if(bounce>0&&float(prop(o,"CollisionBounceRequiredVelocity").number())<speed&&float(prop(id,"Speed").number())+1.f<speed&&facing<-0.3f){
+        if(!a->physics){error="OnObstacleCollision bounce requires actual Physics";return false;}
+        // PhysicsComponent::ApplyCollision 0x2bd3d0: velocity = reflect(mMoveShift +0x68)
+        // about the push normal (v - 2(v.n/n.n)n), then Thing::OnForce(owner,false,true).
+        auto& ms=a->physics->moveShift;const float d=(ms.x*px+ms.y*py)/(px*px+py*py);
+        a->physics->velocity={ms.x-d*px-d*px,ms.y-d*py-d*py};
+        if(!onActorForce(id,true,error))return false;
+        if(bounce>=1)throw std::runtime_error("OnObstacleCollision CollisionBounce>=1 PhysicsComponent::ApplyForce2bd160 not reconstructed");
+        multiplyVelocity(bounce);
+    }
+    // CollisionVelocityRetention != 1: MultiplyVelocity(|-(n.x*dir.x) - n.y*dir.y| * (r-1) + 1),
+    // dir = Thing direction vector (+0xb0/+0xb4 = cos/-sin of the body angle).
+    if(const float r=float(prop(o,"CollisionVelocityRetention").number());r!=1){
+        if(!a->physics){error="OnObstacleCollision velocity retention requires actual Physics";return false;}
+        const float dx=std::cos(a->object->angle),dy=-std::sin(a->object->angle);
+        multiplyVelocity(std::abs(-(px*pl*dx)-py*pl*dy)*(r-1.f)+1.f);
+    }
     if(prop(o,"VelocityAbsorbtionFraction").number()>0&&ob->physics&&prop(id,"CanVelocityBeAbsorbed").boolean())throw std::runtime_error("OnObstacleCollision VelocityAbsorbtionFraction ApplyDirectForce2bcea0 not reconstructed");
     if(!ob->hasLife)throw std::runtime_error("OnObstacleCollision reads obstacle pLife(+0xd0) LifeDataDef.DieOnCollision but obstacle has no LifeComponent");
     const bool die=prop(o,"Life.DieOnCollision").boolean();
