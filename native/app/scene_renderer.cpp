@@ -361,13 +361,20 @@ void SceneRenderer::renderImpl(const SceneView& view,int width,int height,const 
             ++skippedVisuals_;continue;}
             if(!value.visible)continue;
             const auto& r=value.localRect;
-            for(float f:{value.x,value.y,value.z,value.scale,value.angle,r[0],r[1],r[2],r[3]})if(!std::isfinite(f))throw std::runtime_error("Non-finite native actor visual");
-            for(float f:value.color)if(!std::isfinite(f)||f<0||f>1)throw std::runtime_error("Invalid native actor color");
-            for(float f:value.hsv)if(!std::isfinite(f))throw std::runtime_error("Invalid native actor HSV");
-            if(value.scale<0||value.scale>16||r[2]<=0||r[3]<=0||(value.blend!=0&&value.blend!=1&&value.blend!=2&&value.blend!=5&&value.blend!=9&&value.blend!=11&&value.blend!=13))throw std::runtime_error("Invalid source actor transform/material");if(value.scale==0)continue;
+            // Durability: a visual outside the renderer's validated ranges is
+            // skipped and logged once per reason (with its values) instead of
+            // failing the room.
+            const auto reject=[&](const char* why){char line[320];std::snprintf(line,sizeof(line),"%s id=%u scale=%.3f rect=%.1f,%.1f blend=%d psx=%.3f psy=%.3f",why,unsigned(value.id),value.scale,r[2],r[3],int(value.blend),value.postRotateScaleX,value.postRotateScaleY);
+                static std::set<std::string> seen;if(seen.size()<256&&seen.insert(why+std::to_string(int(value.blend))).second)hades::log(hades::Severity::Error,"HadesSurvey","CONTAINED_FAULT stage=actor-visual detail=%s",line);++skippedVisuals_;};
+            bool finite=true;for(float f:{value.x,value.y,value.z,value.scale,value.angle,r[0],r[1],r[2],r[3]})if(!std::isfinite(f))finite=false;
+            if(!finite){reject("Non-finite native actor visual");continue;}
+            bool colorOk=true;for(float f:value.color)if(!std::isfinite(f)||f<0||f>1)colorOk=false;for(float f:value.hsv)if(!std::isfinite(f))colorOk=false;
+            if(!colorOk){reject("Invalid native actor color/HSV");continue;}
+            if(value.scale<0||value.scale>16||r[2]<=0||r[3]<=0||(value.blend!=0&&value.blend!=1&&value.blend!=2&&value.blend!=5&&value.blend!=9&&value.blend!=11&&value.blend!=13)){reject("Invalid source actor transform/material");continue;}
+            if(value.scale==0)continue;
             const float x=(r[0]+r[2]*.5f)*value.scale,y=(r[1]+r[3]*.5f)*value.scale,c=std::cos(value.angle),sn=std::sin(value.angle);
             auto visual=rectangleSprite(0,value.x+c*x-sn*y,value.y-value.z*.8660254037844386f+sn*x+c*y,r[2]*value.scale,r[3]*value.scale,value.angle);
-            if(!std::isfinite(value.postRotateScaleX)||!std::isfinite(value.postRotateScaleY)||value.postRotateScaleX<=0||value.postRotateScaleY<=0||value.postRotateScaleX>16||value.postRotateScaleY>16)throw std::runtime_error("Actual source post-rotation scale bound");
+            if(!std::isfinite(value.postRotateScaleX)||!std::isfinite(value.postRotateScaleY)||value.postRotateScaleX<=0||value.postRotateScaleY<=0||value.postRotateScaleX>16||value.postRotateScaleY>16){reject("Actual source post-rotation scale bound");continue;}
             for(size_t corner=0;corner<4;++corner){visual.corners[corner*2]=value.x+(visual.corners[corner*2]-value.x)*value.postRotateScaleX;const float anchor=value.y-value.z*.8660254037844386f;visual.corners[corner*2+1]=anchor+(visual.corners[corner*2+1]-anchor)*value.postRotateScaleY;}
             for(float f:value.meshTransform)if(!std::isfinite(f)||std::abs(f)>32)throw std::runtime_error("Actual native mesh transform bound");
             for(size_t corner=0;corner<4;++corner){const float anchor=value.y-value.z*.8660254037844386f,x=visual.corners[corner*2]-value.x,y=visual.corners[corner*2+1]-anchor;visual.corners[corner*2]=value.x+value.meshTransform[0]*x+value.meshTransform[1]*y;visual.corners[corner*2+1]=anchor+value.meshTransform[2]*x+value.meshTransform[3]*y;}

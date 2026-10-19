@@ -595,6 +595,8 @@ bool ScriptRuntime::advanceWorld(float dt,double screenDt){
     if(!advanceLocalPlayerMovement(dt,error_)){if(!containStage("player-movement-update"))return false;}
     if(!advanceUnitDisposal(true,error_)){if(!containStage("unit-disposal-update"))return false;}
     if(!advanceObstacleDisposal(error_)){if(!containStage("obstacle-disposal-update"))return false;}
+    // ObstacleManager::Update 0x1802c80c0 occlusion block, before Body update.
+    if(!advanceObstacleOcclusion(error_)){if(!containStage("obstacle-occlusion-update"))return false;}
     for(const auto id:actorWorld_.registrationOrder()){
         auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered)continue;
         if(!actorWorld_.advanceBody(id,dt,1,error_)){if(!containStage("body-update"))return false;}

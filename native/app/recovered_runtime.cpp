@@ -150,6 +150,7 @@ int getConfigDefault(lua_State* state) {
         {"UseMouse", false}, // RVA0xa0e0
         {"GamepadCursorControl", false}, // RVA0xa560
         {"FlipMapThings", false}, // RVA0x11330
+        {"UseOcclusion", true}, // initializer RVA0xba30: movb $1 at 0x18000baa0 -> 0x181a0ed01
         {"CameraShake", true}, // initializer RVA0xd040 movb $1 -> 0x181a0f2d9 (.local/reports/config-defaults)
     };
     for (const auto& option : options) {

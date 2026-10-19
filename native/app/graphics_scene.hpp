@@ -47,6 +47,9 @@ using TextureConsumer = std::function<void(uint32_t,uint32_t,uint32_t,std::span<
 // Streams at most one texture into CPU memory. Both Mac debugging and Android
 // consume the same bounded decoder and transformed vertices.
 GraphicsScene loadGraphicsScene(AssetStore&, const TextureConsumer&, uint32_t maxTexture = 16384);
+// HDS3 sprite corners only (texture payloads skipped by seek): world-space
+// draw quads for logic that needs Animation::GetDrawArea of scene primaries.
+std::vector<std::array<float,8>> loadSceneSpriteCorners(AssetStore&);
 SceneSprite rectangleSprite(uint32_t texture,float x,float y,float width,float height,float rotation=0);
 struct SceneVertex { float x,y,u,v,r,g,b,a,h,s,value; };
 struct SceneView { float left,top,width,height; };

@@ -64,10 +64,21 @@ bool projectileAffectsUnit(const ProjectileActor& projectile,int32_t victim,floa
         result=same?friends:enemies;error.clear();return true;
     }catch(const std::exception& e){error=e.what();return false;}
 }
-bool ProjectileWorld::checkArcProjectileDefense(uint64_t handle,const ProjectileDefenseProviders& providers,std::string& error){
+bool ProjectileWorld::checkArcProjectileDefense(uint64_t handle,const ProjectileDefenseProviders& providers,std::string& error){return checkProjectileDefense(handle,providers,true,error);}
+// arc=false: base Projectile::CheckProjectileDefense72560 (.local/reports/native-weapons-check-
+// projectile-defense-pseudocode.c) with ProjectileManager::ProjectileDefenseApplies7b0b0
+// (native-weapons-projectile-defense-applies-pseudocode.c). ProjectileData = Def + 0x50:
+// +0x640 ProjectileDefenseRadius, +0x644 UseDetonationForProjectileDefense, +0x648
+// ProjectileDefenseAngle, +0x64c DeflectProjectiles. Base differs from ARC in: entry admits
+// radius>0 || UseDetonationForProjectileDefense; defender location = Thing::GetLocation
+// (mAttachedTo live -> its location + mAttachOffset, else +0x88); coverage angle = body(+0xc8)
+// angle(+0x54); reflect direction uses both GetLocations.
+bool ProjectileWorld::checkProjectileDefense(uint64_t handle,const ProjectileDefenseProviders& providers,bool arc,std::string& error){
     bool mutated=false;
-    try{auto* defending=actor(handle);if(!defending||!defending->active||defending->disposed||!defending->firingWorld||defending->descriptor.concreteClass!=ProjectileClass::Arc)throw std::runtime_error("Arc defense requires actual active ARC source binding");
-        const auto& defense=currentData(*defending);const float radius=number(defense,"ProjectileDefenseRadius");if(radius<=0){error.clear();return true;}
+    try{auto* defending=actor(handle);if(!defending||!defending->active||defending->disposed||!defending->firingWorld||(arc!=(defending->descriptor.concreteClass==ProjectileClass::Arc)))throw std::runtime_error("Projectile defense requires actual active source binding of the dispatched class");
+        const auto& defense=currentData(*defending);const float radius=number(defense,"ProjectileDefenseRadius");
+        if(arc?radius<=0:(!(radius>0)&&!boolean(defense,"UseDetonationForProjectileDefense"))){error.clear();return true;}
+        if(!arc&&canBeReflected_.empty()){error.clear();return true;}
         const auto* defenderOwner=unit(*defending->firingWorld,defending->state.ownerId);
         // ProjectileDefenseApplies first owner gate reads ThingData.StopsProjectiles,
         // not groups, collision cache or an assumed healthy player.
@@ -78,6 +89,7 @@ bool ProjectileWorld::checkArcProjectileDefense(uint64_t handle,const Projectile
         const auto candidates=canBeReflected_;
         for(const auto candidateHandle:candidates){auto* candidate=actor(candidateHandle);
             if(!candidate||candidate->lifeStatus!=0)continue; // Thing::IsAlive2c720.
+            if(!arc&&candidateHandle==handle)continue; // base VA180072630 self skip
             const auto& data=currentData(*candidate);
             if((!candidate->state.hasStarted&&boolean(data,"InvulnerableToProjectileDefenseBeforeStart"))||(candidate->state.pauseTimeRemaining>0&&boolean(data,"InvulnerableToProjectileDefenseDuringPause")))continue;
             if(!boolean(data,"CanBeProjectileDefenseDestroyed")&&!deflect){const auto& by=string(data,"CanBeProjectileDefenseDestroyedByName");if(by.empty()||by!=defense.name)continue;}
@@ -92,19 +104,24 @@ bool ProjectileWorld::checkArcProjectileDefense(uint64_t handle,const Projectile
             const bool enemies=boolean(data,candidate->state.flipAllegiance?"AffectsFriends":"AffectsEnemies");
             if((!friends&&same)||(!enemies&&!same))continue;
             if(std::find(candidate->thingsHit.begin(),candidate->thingsHit.end(),defenderOwner->entityHandle)!=candidate->thingsHit.end())continue;
+            float defX=defending->spawnX,defY=defending->spawnY;
+            if(!arc&&!thingLocation(*defending,defX,defY,error))throw std::runtime_error(error);
             if(coverage>0){if(boolean(data,"IgnoreCoverageAngles"))continue;
-                const float direction=normalizedAngle(std::atan2(-(candidate->body.y-defending->spawnY),candidate->body.x-defending->spawnX));
+                // 7b0b0: atan2(-(cand.y-def.y), cand.x-def.x) with cand GetLocation (attachment aware).
+                float cx=candidate->body.x,cy=candidate->body.y;if(!arc&&!thingLocation(*candidate,cx,cy,error))throw std::runtime_error(error);
+                const float direction=normalizedAngle(std::atan2(-(cy-defY),cx-defX));
                 const float defenseAngle=normalizedAngle(defending->body.angle);const float distance=std::abs(direction-defenseAngle);
                 constexpr float turn=6.283185482025146484375f;if(coverage*.5f<std::min(distance,turn-distance))continue;
             }
             bool collision=false;if(boolean(currentData(*defending),"UseDetonationForProjectileDefense")){
                 if(!providers.inBlast||!providers.inBlast(handle,candidateHandle,collision,error))throw std::runtime_error(error.empty()?"Actual defense IsInBlast consumer unavailable":error);
             }
-            if(!collision)collision=circlePolygon(candidate->geometry,defending->spawnX,defending->spawnY,radius);
+            if(!collision)collision=circlePolygon(candidate->geometry,defX,defY,radius); // PolygonCollision2ce260(cand +0x1c0, location, radius)
             if(!collision)continue;
             ProjectileDefenseAction action;action.defender=handle;action.candidate=candidateHandle;action.ownerId=defenderOwner->id;
             if(deflect&&!boolean(currentData(*candidate),"DestroyOnReflect")){
                 action.kind=ProjectileDefenseActionKind::Reflect;action.directionX=candidate->body.x-defending->body.x;action.directionY=candidate->body.y-defending->body.y;
+                if(!arc){float ax=0,ay=0,bx=0,by=0;if(!thingLocation(*candidate,bx,by,error)||!thingLocation(*defending,ax,ay,error))throw std::runtime_error(error);action.directionX=bx-ax;action.directionY=by-ay;}
                 const float length=std::sqrt(action.directionX*action.directionX+action.directionY*action.directionY);if(length!=0){action.directionX/=length;action.directionY/=length;}
             }else{action.kind=ProjectileDefenseActionKind::OnProjectileBlock;action.weaponName=defending->request.weaponName;}
             if(!providers.preflight||!providers.execute||!providers.preflight(action,error))throw std::runtime_error(error.empty()?"Actual projectile defense callback consumer unavailable":error);
@@ -411,17 +428,9 @@ bool ProjectileWorld::isInBlast(uint64_t handle,int32_t target,bool& inside,std:
     }catch(const std::exception& e){error=e.what();return false;}
 }
 bool ProjectileWorld::checkBaseProjectileDefense(uint64_t handle,std::string& error){
-    // Base Projectile::CheckProjectileDefense72560 (vtable slot 0x1b8 for
-    // STRAIGHT). Entry returns when ProjectileDefenseRadius<=0 and
-    // !UseDetonationForProjectileDefense, or when CAN_BE_REFLECTED is empty.
-    // Per candidate: Thing::IsAlive2c720 then self skip come first (VA72610-
-    // 7263b); every later candidate test is not reconstructed and fails.
-    try{const auto* p=actor(handle);if(!p)throw std::runtime_error("Base projectile defense lost actual projectile");const auto& d=currentData(*p);
-        if(!(number(d,"ProjectileDefenseRadius")>0)&&!boolean(d,"UseDetonationForProjectileDefense")){error.clear();return true;}
-        for(const auto candidateHandle:canBeReflected_){const auto* c=actor(candidateHandle);if(!c||c->lifeStatus!=0||candidateHandle==handle)continue;
-            throw std::runtime_error("Base Projectile::CheckProjectileDefense candidate test (VA72641+) not reconstructed");}
-        error.clear();return true;
-    }catch(const std::exception& e){error=e.what();return false;}
+    // Base Projectile::CheckProjectileDefense72560 (vtable slot 0x1b8 for STRAIGHT);
+    // parent-supplied consumers (OnProjectileBlock / Reflect) via setDefenseProviders.
+    return checkProjectileDefense(handle,defenseProviders_,false,error);
 }
 bool ProjectileWorld::updateDetonation(uint64_t handle,float elapsed,const ProjectileDetonationProviders& providers,std::string& error){
     // Projectile::UpdateDetonation71c10 (REA ev_09cc5ff36dcf1dde1a9f0bb02eda7113a5f89572d380f084485e8fb1d7b087f0).
@@ -507,8 +516,16 @@ bool ProjectileWorld::detonate(uint64_t handle,const ProjectileDetonationProvide
                 p=actor(handle);if(!p)throw std::runtime_error("Detonate graphic callback lost projectile storage");}
         }
         // SoundCue(data+0x2b0) -> AudioManager::PlayCue3D4a8a0 at location.
-        const auto cue=d.cues.find("DetonateSound");if(cue==d.cues.end()||!cue->second.validityKnown)throw std::runtime_error("Actual DetonateSound cue validity unavailable");
-        if(cue->second.valid)throw std::runtime_error("Detonate DetonateSound PlayCue3D4a8a0 consumer not reconstructed: "+cue->second.name);
+        // VA18006d8a6..6d8c4: GetLocation, SoundCue copy (43450), PlayCue3D4a8a0(cue, location).
+        // Cue validity is the original event-description lookup, resolved by the parent
+        // against the loaded audio catalog (the exporter leaves named cues unresolved).
+        const auto cue=d.cues.find("DetonateSound");if(cue==d.cues.end())throw std::runtime_error("Actual DetonateSound cue unavailable");
+        if(!(cue->second.validityKnown&&!cue->second.valid)){
+            float sx=0,sy=0;if(!thingLocation(*p,sx,sy,error))throw std::runtime_error(error);
+            if(!detonateSound_)throw std::runtime_error("Detonate DetonateSound requires actual PlayCue3D4a8a0 consumer: "+cue->second.name);
+            if(!detonateSound_(cue->second.name,sx,sy,error))throw std::runtime_error(error.empty()?"Detonate DetonateSound playback failed":error);
+            p=actor(handle);if(!p)throw std::runtime_error("Detonate sound callback lost projectile storage");
+        }
         if(number(d,"DetonateScreenShakeSpeed")>0)throw std::runtime_error("Detonate Camera::Shake303970 consumer not reconstructed");
         if(!updateDetonation(handle,0,providers,error))throw std::runtime_error(error); // VA6d9cd with elapsed 0
         p=actor(handle);

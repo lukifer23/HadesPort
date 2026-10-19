@@ -27,6 +27,13 @@ struct NativeCameraState {
     uint32_t viewportWidth=1920,viewportHeight=1080;
     std::map<int32_t,std::pair<NativeCameraTarget,float>> zoomWeights;
     NativeCameraSpline zoomSpline; // Camera+0x238..0x267 (Camera::Focus)
+    // sgg::CameraSplineHelper at Camera+0x1d0 (CameraSplineHelper::SetPan
+    // 0x1801e6ab0): byte +0x1d0 moving-hold flag, X SplineHelper +0x1d8
+    // (start/end/startTime/duration +0x1f8/+0x1fc/+0x200/+0x204), Y SplineHelper
+    // +0x208 (+0x228/+0x22c/+0x230/+0x234). The moving-hold flag is set only by
+    // ScriptAction MovingHoldCamera (Execute VA180252e88..f98), which no original
+    // script calls and which is not registered natively, so it stays false here.
+    NativeCameraSpline panX,panY;
     // Camera shake (sgg::OffsetHelper at Camera+0x268; Camera::Shake 0x180303970).
     struct Shake {
         bool fixedDirection=false,active=false,falling=false;
@@ -46,11 +53,14 @@ class NativeCamera {
     bool resolveTargets(const std::vector<int32_t>&,const NativeCameraResolve&,std::vector<NativeCameraTarget>&,std::string&)const;
     bool applyClamp(const NativeCameraResolve&,std::string&);
     bool weightedZoom(const NativeCameraResolve&,float&,std::string&)const;
+    // Camera::GetTetherLocation 0x1803021b0 (mean of live tether targets + Camera+0x50 offset).
+    bool tetherLocation(const NativeCameraResolve&,float&x,float&y,size_t&count,std::string&)const;
 public:
     const NativeCameraState& state()const{return state_;}
     bool setViewport(uint32_t width,uint32_t height,std::string&);
     bool lock(const std::vector<int32_t>&,float duration,float speed,float acceleration,float offsetX,float offsetY,bool lazy,bool dynamic,const NativeCameraResolve&,std::string&);
-    bool pan(const std::vector<int32_t>&,bool retarget,const NativeCameraResolve&,std::string&);
+    // Camera::Pan 0x1803018b0 (ScriptAction PanCamera 0x180260bf0).
+    bool pan(const std::vector<int32_t>&,float duration,float easeIn,float easeOut,float offsetX,float offsetY,bool retarget,bool resetWeights,bool fromCurrentLocation,const NativeCameraRandom&,const NativeCameraResolve&,std::string&);
     bool unlock(std::string&);
     bool adjustZoom(float fraction,float lerpTime,std::string&,const NativeCameraResolve& resolve={});
     // Camera::Focus 0x180303240 (ScriptAction FocusCamera, Execute VA180252d66..e1c).

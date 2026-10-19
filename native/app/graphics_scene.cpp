@@ -30,6 +30,18 @@ SceneSprite rectangleSprite(uint32_t texture,float x,float y,float w,float h,flo
     for(size_t i=0;i<4;++i){sprite.corners[2*i]=x+c*dx[i]*w-s*dy[i]*h;sprite.corners[2*i+1]=y+s*dx[i]*w+c*dy[i]*h;}
     return sprite;
 }
+std::vector<std::array<float,8>> loadSceneSpriteCorners(AssetStore& store){
+    auto file=store.open("scene.bin");if(!file)throw std::runtime_error("Missing graphics asset: scene.bin");
+    auto read=[&](void* p,size_t n){if(n>file->remaining())throw std::runtime_error("Truncated scene corners");auto* b=static_cast<uint8_t*>(p);while(n){const auto got=file->read(b,n);if(!got)throw std::runtime_error("Scene corner read failed");b+=got;n-=got;}};
+    auto integer=[&]{uint32_t v;read(&v,4);return v;};
+    if(integer()!=0x33534448)throw std::runtime_error("Scene corner reader requires HDS3");
+    const auto textures=integer(),count=integer();if(!textures||textures>128||!count||count>100000)throw std::runtime_error("Scene counts outside bounds");
+    for(uint32_t i=0;i<textures;++i){const uint64_t w=integer(),h=integer();const size_t at=file->size()-file->remaining()+size_t(w*h*4);if(!w||!h||w>16384||h>16384||!file->seek(at))throw std::runtime_error("Scene corner texture skip failed");}
+    std::vector<std::array<float,8>> out(count);
+    for(auto& corners:out){integer();read(corners.data(),32);float rest[10];read(rest,sizeof rest);for(float v:corners)if(!std::isfinite(v))throw std::runtime_error("Non-finite scene corner");}
+    if(file->remaining())throw std::runtime_error("Unexpected scene corner suffix");
+    return out;
+}
 GraphicsScene loadGraphicsScene(AssetStore& store,const TextureConsumer& consume,uint32_t maxTexture) {
     Reader reader(store,"scene.bin");const auto magic=reader.integer();
     if(magic!=0x31534448&&magic!=0x32534448&&magic!=0x33534448)throw std::runtime_error("Unsupported HDS scene version");

@@ -142,13 +142,38 @@ bool ScriptRuntime::releaseProjectileFxOwner(uint64_t handle,std::string& error)
     const int32_t id=it->second;hades::EffectOwnerState owner;if(!projectileEffectOwner(id,owner,error)||!actionEffects_.preDisposeOwner(id,owner,error))return false;
     projectileFxOwners_.erase(id);projectileFxOwnerIds_.erase(it);error.clear();return true;
 }
+hades::ProjectileDefenseProviders ScriptRuntime::projectileDefenseProviders(){
+    hades::ProjectileDefenseProviders defense;
+    const auto players=snapshotInputPlayers(state_);if(!players.empty())defense.teams.firstPlayerIdentity=players.front().playerIndex;
+    defense.teams.unitPlayerIdentity=[this](int32_t id,uint64_t& token,std::string& e){token=0;const auto* actor=actorWorld_.actor(id);if(actor&&actor->registered)for(const auto& player:snapshotInputPlayers(state_))if(player.activeUnitId==id&&player.activeUnitLifetime==actor->entityHandle){token=player.playerIndex;break;}e.clear();return true;};
+    defense.preflight=[](const hades::ProjectileDefenseAction& a,std::string& e){
+        if(a.kind==hades::ProjectileDefenseActionKind::OnProjectileBlock)return true;
+        e="Projectile defense Reflect (Projectile vslot0x190) not reconstructed";return false;};
+    defense.execute=[this](const hades::ProjectileDefenseAction& a,std::string& e){
+        // ScriptManager::OnProjectileBlock28db00(owner Unit, defender pFiredBy weapon name or ""):
+        // per registered trigger matching the owner, args.WeaponName, then run with the
+        // owner's GetName (vslot0x88). Candidate mExpired is set by the caller afterwards.
+        const auto* owner=actorWorld_.actor(a.ownerId);if(!owner||!owner->registered||!owner->object){e="OnProjectileBlock lost actual owner Unit";return false;}
+        const std::string weapon=a.weaponName;
+        const auto extra=[weapon](lua_State* L,std::string&){lua_pushstring(L,weapon.c_str());lua_setfield(L,-2,"WeaponName");return true;};
+        if(!dispatchCallbacks("OnProjectileBlock",owner->object->name.c_str(),a.ownerId,extra)){e=error_;return false;}e.clear();return true;};
+    defense.inBlast=[this](uint64_t defender,uint64_t candidate,bool& in,std::string& e){(void)defender;(void)candidate;in=false;e="Projectile defense IsInBlast760e0 against a projectile candidate not reconstructed";return false;};
+    return defense;
+}
 void ScriptRuntime::installProjectileGraphicProvider(){
+    projectileWorld_.setDefenseProviders(projectileDefenseProviders());
     projectileWorld_.setDetonateGraphicProvider([this](uint64_t handle,const std::string& name,float x,float y,bool primary,float radius,std::string& e){
         // AnimationManager::Create29e410(name, projectile, Vector2 location) -> SetRadius2974e0 ->
         // PreferUnmodifiedTime29a5c0 (Projectile::Detonate6d670 VA18006d77a..6d80a).
         uint64_t fx=0;if(!createActionEffect(name,projectileFxOwner(handle),std::array<float,3>{x,y,0},fx,e))return false;
         if(fx&&primary&&(!actionEffects_.setRadius(fx,radius,e)||!actionEffects_.preferUnmodifiedTime(fx,e)))return false;
         e.clear();return true;});
+    projectileWorld_.setDetonateSoundProvider([this](const std::string& cue,float x,float y,std::string& e){
+        // PlayCue3D4a8a0 equals the 4aa90 location overload (zero-vector / listener-XY test
+        // -> 2D 49c90, else 3D 49ea0) but passes flag byte 1 and cap 0 to 49ea0.
+        // APPROXIMATION: that flag byte (49ea0 arg5) is not modelled; cap 0 uses the
+        // existing playLocationAudioCue cap gate.
+        uint32_t id=0;return playLocationAudioCue(cue,std::array<float,3>{x,y,0},0,id,e);});
 }
 bool ScriptRuntime::advanceProjectiles(float dt,std::string& error){
     installProjectileGraphicProvider();
@@ -168,12 +193,7 @@ bool ScriptRuntime::advanceProjectiles(float dt,std::string& error){
     };
     providers.execute=[this](const hades::ProjectileUpdateOperation& operation,hades::ProjectileActor& p,hades::ProjectileUpdateReply& reply,std::string& detail){
         using K=hades::ProjectileUpdateOperationKind;
-        if(operation.kind==K::CheckProjectileDefense){
-            hades::ProjectileDefenseProviders defense;
-            const auto players=snapshotInputPlayers(state_);if(!players.empty())defense.teams.firstPlayerIdentity=players.front().playerIndex;
-            defense.teams.unitPlayerIdentity=[this](int32_t id,uint64_t& token,std::string& e){token=0;const auto* actor=actorWorld_.actor(id);if(actor&&actor->registered)for(const auto& player:snapshotInputPlayers(state_))if(player.activeUnitId==id&&player.activeUnitLifetime==actor->entityHandle){token=player.playerIndex;break;}e.clear();return true;};
-            return projectileWorld_.checkArcProjectileDefense(p.request.lifetimeHandle,defense,detail);
-        }
+        if(operation.kind==K::CheckProjectileDefense)return projectileWorld_.checkArcProjectileDefense(p.request.lifetimeHandle,projectileDefenseProviders(),detail);
         if(operation.kind==K::CheckForImpact){
             hades::ProjectileImpactProviders impact;impact.worldTime=worldTime_;
             const auto players=snapshotInputPlayers(state_);if(!players.empty())impact.teams.firstPlayerIdentity=players.front().playerIndex;

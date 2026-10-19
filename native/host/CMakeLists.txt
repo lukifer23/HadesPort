@@ -69,6 +69,7 @@ target_sources(hades-debug PRIVATE ../app/lua_physics.cpp ../app/self_effect_wor
 target_sources(hades-debug PRIVATE ../app/lua_effects.cpp)
 target_sources(hades-debug PRIVATE ../app/lua_projectiles.cpp)
 target_sources(hades-debug PRIVATE ../app/lua_presentation.cpp)
+target_sources(hades-debug PRIVATE ../app/lua_occlusion.cpp)
 target_sources(hades-debug PRIVATE ../app/lua_location.cpp ../app/actor_location.cpp ../app/actor_spatial.cpp)
 target_sources(hades-debug PRIVATE ../app/projectile_collision.cpp)
 target_sources(hades-debug PRIVATE ../app/actor_lighting.cpp)

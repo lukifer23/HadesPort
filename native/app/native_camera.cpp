@@ -43,7 +43,6 @@ bool NativeCamera::lock(const std::vector<int32_t>&ids,float duration,float spee
  }
  state_.lazyTether=lazy;state_.dynamicZoom=dynamic;error.clear();return true;
 }
-bool NativeCamera::pan(const std::vector<int32_t>&ids,bool retarget,const NativeCameraResolve&resolve,std::string&error){std::vector<NativeCameraTarget>targets;if(!resolveTargets(ids,resolve,targets,error))return false;if(!retarget&&same(targets,state_.targets)){error.clear();return true;}if(targets.empty()){error.clear();return true;}error="New-target native Pan requires original randomized CameraSplineHelper paths; existing-target Pan is supported";return false;}
 bool NativeCamera::unlock(std::string&error){state_.targets.clear();state_.offsetX=state_.offsetY=0;error.clear();return true;}
 bool NativeCamera::adjustZoom(float fraction,float lerpTime,std::string&error,const NativeCameraResolve&resolve){if(!finite(fraction)||fraction<=0||fraction>100||!finite(lerpTime)||lerpTime<0){error="Original camera zoom bounds";return false;}const float distance=std::abs(fraction-state_.zoom);if(distance>0){float weight=1;if(lerpTime<=0&&!weightedZoom(resolve,weight,error))return false;state_.goalZoom=fraction;if(lerpTime<=0)state_.zoom=fraction*weight;else state_.zoomSpeed=distance/lerpTime;}error.clear();return true;}
 namespace {
@@ -118,11 +117,65 @@ bool NativeCamera::focus(float fraction,float duration,bool relative,const std::
  state_.zoomSpeed=duration>0?2.f/duration:std::numeric_limits<float>::infinity();
  error.clear();return true;
 }
+// Camera::Pan 0x1803018b0. Arguments from ScriptAction PanCamera 0x180260bf0:
+// getDuration, Float EaseIn/EaseOut (default -1), Bool Retarget (false),
+// ResetWeights (true), FromCurrentLocation (false), OffsetX/OffsetY (0); the
+// action calls Pan only for a nonempty active-Thing selection.
+bool NativeCamera::pan(const std::vector<int32_t>&ids,float duration,float easeIn,float easeOut,float ox,float oy,bool retarget,bool resetWeights,bool fromCurrent,const NativeCameraRandom&random,const NativeCameraResolve&resolve,std::string&error){
+ if(!finite(duration)||duration<0||!std::isfinite(easeIn)||!std::isfinite(easeOut)||!finite(ox)||!finite(oy)){error="Original camera pan bounds";return false;}
+ std::vector<NativeCameraTarget>targets;if(!resolveTargets(ids,resolve,targets,error))return false;
+ if(targets.empty()){error.clear();return true;}
+ // 0x1803018d3: !Retarget && HasSameIds 0x1803017d0 -> return before any path work.
+ if(!retarget&&same(targets,state_.targets)){error.clear();return true;}
+ if(!random){error="Actual camera engine RNG unavailable for CameraSplineHelper::GenerateEase";return false;}
+ // GetLocation-with-shake (Camera+0x78 plus OffsetHelper current +0x29c/+0x2a0
+ // under the 0x18030193d visibility test, same as GetLocation 0x180304fe0).
+ const auto location=[&](float&x,float&y){x=state_.x+state_.shakeOffsetX();y=state_.y+state_.shakeOffsetY();};
+ float fromX=0,fromY=0;
+ if(fromCurrent)location(fromX,fromY);
+ else if(!state_.targets.empty()){
+  // GetMoveGoalLocation 0x180301ee0 on the previous ids: rail branch (+0xa0/+0xa8)
+  // is never armed natively (SetCameraRail unregistered) -> GetTetherLocation.
+  size_t count=0;if(!tetherLocation(resolve,fromX,fromY,count,error))return false;
+  if(!count){error="Camera::GetTetherLocation 0x1803021b0 with no live previous tether target not reconstructed";return false;}
+ }
+ // APPROXIMATION (labelled): with no previous ids GetMoveGoalLocation returns
+ // Camera+0x90; the only native writers (Camera::Update 0x180302874/0x180302bf3)
+ // store the +0xb8 zero vector and no location-goal MoveToOverDuration exists
+ // natively, so it is modelled as (0,0), which then takes the fallback below.
+ if(fromX==0&&fromY==0)location(fromX,fromY);
+ // Inlined Camera::ClearTether 0x180305ca0: ids cleared, offset +0x50 and
+ // look-ahead +0x98 = +0xb8 (zero). ResetWeights clears the tether-weight map
+ // +0x2e0 (SetCameraTetherWeight), which is never populated natively.
+ (void)resetWeights;
+ state_.targets=std::move(targets);state_.offsetX=ox;state_.offsetY=oy; // +0x50 = *OffsetXY
+ size_t count=0;float toX=0,toY=0;if(!tetherLocation(resolve,toX,toY,count,error))return false;
+ if(!count){error="Camera::GetTetherLocation 0x1803021b0 with no live pan target";return false;}
+ // CameraSplineHelper::SetPan 0x1801e6ab0 (Camera+0x1d0, world time World+0x1c).
+ const float a=(0.f>easeIn)?.12f:easeIn/duration,b=(0.f>easeOut)?.5f:easeOut/duration; // comiss/jbe: NaN divides
+ auto& px=state_.panX;auto& py=state_.panY;
+ px.points.clear();px.index=0;px.duration=0;py.points.clear();py.index=0;py.duration=0;
+ generateEase(px,a,b,random);generateEase(py,a,b,random);
+ px.start=fromX;px.end=toX;px.startTime=time_;px.duration=duration;
+ py.start=fromY;py.end=toY;py.startTime=duration/20.f+time_;py.duration=duration*.8f; // __real@41a00000, __real@3f4ccccd
+ error.clear();return true;
+}
 bool NativeCamera::setClamps(const std::vector<int32_t>&ids,float soft,const NativeCameraResolve&resolve,std::string&error){if(!finite(soft)||soft<0){error="Original camera soft clamp bounds";return false;}std::vector<NativeCameraTarget>targets;if(!resolveTargets(ids,resolve,targets,error))return false;if(!targets.empty()&&targets.size()!=2){error="Original polygon camera clamp requires polygon provider";return false;}state_.clampTargets=std::move(targets);state_.softClamp=soft;error.clear();return true;}
+bool NativeCamera::tetherLocation(const NativeCameraResolve&resolve,float&x,float&y,size_t&count,std::string&error)const{
+ x=y=0;count=0;for(const auto&t:state_.targets){NativeCameraTarget live;std::string detail;if(!resolve(t.id,live,detail))continue;if(live.lifetime!=t.lifetime)continue;if(!finite(live.x)||!finite(live.y)){error="Nonfinite actual camera target";return false;}x+=live.x;y+=live.y;++count;}
+ if(count){x=x/count+state_.offsetX;y=y/count+state_.offsetY;}return true;}
 bool NativeCamera::advance(float elapsed,const NativeCameraResolve&resolve,std::string&error){
  if(!finite(elapsed)||elapsed<0||elapsed>1){error="Original camera elapsed bounds";return false;}time_+=elapsed;
- float x=0,y=0;size_t count=0;for(const auto&t:state_.targets){NativeCameraTarget live;std::string detail;if(!resolve(t.id,live,detail))continue;if(live.lifetime!=t.lifetime)continue;if(!finite(live.x)||!finite(live.y)){error="Nonfinite actual camera target";return false;}x+=live.x;y+=live.y;++count;}
- if(count){x=x/count+state_.offsetX;y=y/count+state_.offsetY;if(x!=0||y!=0){if(speed_>0||acceleration_!=0){const float dx=x-state_.x,dy=y-state_.y,length=std::hypot(dx,dy),step=std::max(0.f,speed_*elapsed);if(length<=step){state_.x=x;state_.y=y;speed_=acceleration_=duration_=0;}else if(length>0){state_.x+=dx/length*step;state_.y+=dy/length*step;speed_+=acceleration_*elapsed;}}
+ float x=0,y=0;size_t count=0;if(!tetherLocation(resolve,x,y,count,error))return false;
+ if(count){if(x!=0||y!=0){
+   // Camera::Update pan branch 0x180302c4b..d2a: while either pan SplineHelper
+   // is active (+0x204>0 || +0x234>0) the goal becomes each helper's end value
+   // (moving-hold flag false: +0x1fc/+0x22c = goal), the position is
+   // SplineHelper::GetCurrent per axis (an expired axis takes the goal), and
+   // the Lock speed/duration/tether branches are skipped for the frame.
+   if(state_.panX.duration>0||state_.panY.duration>0){auto&px=state_.panX;auto&py=state_.panY;px.end=x;py.end=y;float cx=x,cy=y;
+    if(px.duration>0&&!splineCurrent(px,time_,cx,error))return false;if(py.duration>0&&!splineCurrent(py,time_,cy,error))return false;state_.x=cx;state_.y=cy;}
+   else if(speed_>0||acceleration_!=0){const float dx=x-state_.x,dy=y-state_.y,length=std::hypot(dx,dy),step=std::max(0.f,speed_*elapsed);if(length<=step){state_.x=x;state_.y=y;speed_=acceleration_=duration_=0;}else if(length>0){state_.x+=dx/length*step;state_.y+=dy/length*step;speed_+=acceleration_*elapsed;}}
    else if(duration_>0){const float f=(time_-startTime_)/duration_;if(f>1||(state_.x==x&&state_.y==y)){state_.x=x;state_.y=y;duration_=0;}else{const double t=std::clamp(f,0.f,1.f),t2=t*t,t3=t2*t;const auto smooth=[&](float a,float b){return float((2.0*a-2.0*b)*t3+(3.0*b-3.0*a)*t2+a);};state_.x=smooth(startX_,x);state_.y=smooth(startY_,y);}}
    else if(!state_.lazyTether){state_.x=x;state_.y=y;}state_.initialized=true;}}
  if(!applyClamp(resolve,error))return false;// Camera::GetGoalZoom 0x180305070: active zoom spline (Camera+0x264>0) else

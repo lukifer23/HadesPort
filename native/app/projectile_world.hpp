@@ -232,6 +232,8 @@ class ProjectileWorld {
     std::function<bool(int32_t owner,const std::string& marker,float& x,float& y,std::string&)> ownerMarker_;
     std::function<bool(int32_t,bool&,bool&,std::string&)> primaryCombat_;
     std::function<bool(uint64_t,const std::string&,float,float,bool,float,std::string&)> detonateGraphic_;
+    std::function<bool(const std::string&,float,float,std::string&)> detonateSound_;
+    ProjectileDefenseProviders defenseProviders_;
     bool attachedAlive(const ProjectileActor&)const;
     // Thing::GetLocation2e0b70 / GetZLocation2e0bf0 composition.
     bool thingLocation(const ProjectileActor&,float& x,float& y,std::string&)const;
@@ -256,6 +258,8 @@ public:
     // PreferUnmodifiedTime29a5c0; DetonateGraphic2 is created only.
     using DetonateGraphicProvider=std::function<bool(uint64_t projectile,const std::string& name,float x,float y,bool primary,float radius,std::string&)>;
     void setDetonateGraphicProvider(DetonateGraphicProvider fn){detonateGraphic_=std::move(fn);}
+    // AudioManager::PlayCue3D4a8a0(cue, location): parent resolves validity and plays.
+    void setDetonateSoundProvider(std::function<bool(const std::string&,float,float,std::string&)> fn){detonateSound_=std::move(fn);}
     bool projectileZ(const ProjectileActor& p,float& z,std::string& e)const{return thingZ(p,z,e);}
     void setPrimaryCombatProvider(std::function<bool(int32_t,bool& invulnerable,bool& noCoverage,std::string&)> fn){primaryCombat_=std::move(fn);}
     void setOwnerMarkerProvider(std::function<bool(int32_t,const std::string&,float&,float&,std::string&)> fn){ownerMarker_=std::move(fn);}
@@ -302,6 +306,8 @@ public:
     bool prepareDeath(uint64_t,int32_t victim,ProjectileDeathArguments&,std::string&);
     bool createStartFx(uint64_t,std::string&);
     bool checkBaseProjectileDefense(uint64_t,std::string&);
+    bool checkProjectileDefense(uint64_t,const ProjectileDefenseProviders&,bool arc,std::string&);
+    void setDefenseProviders(ProjectileDefenseProviders p){defenseProviders_=std::move(p);}
     // Native pre-LifeComponent calculation; not health subtraction nor a
     // fabricated DamageResult. Parent supplies actual Config.DisableDamage.
     bool calcDamage(uint64_t,int32_t victim,bool disableDamage,

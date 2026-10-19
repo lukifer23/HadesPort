@@ -78,6 +78,7 @@ class ScriptRuntime {
     bool projectileEffectOwner(int32_t,hades::EffectOwnerState&,std::string&)const;
     bool releaseProjectileFxOwner(uint64_t handle,std::string&);
     void installProjectileGraphicProvider();
+    hades::ProjectileDefenseProviders projectileDefenseProviders();
     std::shared_ptr<hades::ActorAnimationBank> animationBank_;
     hades::AssetPackages packages_;
     hades::EffectAnimationWorld effects_;
@@ -335,6 +336,11 @@ class ScriptRuntime {
     bool effectOwner(int32_t,hades::EffectOwnerState&,std::string&)const;
     bool markThingDead(int32_t,bool,std::string&);
     bool advanceObstacleDisposal(std::string&);
+    // ObstacleManager::Update 0x1802c80c0 UseOcclusion block (lua_occlusion.cpp).
+    bool advanceObstacleOcclusion(std::string&);
+    bool configOptionBool(const char*,bool&,std::string&);
+    std::optional<std::vector<std::array<float,8>>> sceneCorners_;
+    std::map<int32_t,uint64_t> occlusionBaseAnims_; // Thing+0x3d0 per obstacle
     bool advanceUnitDisposal(bool collectReady,std::string&);
     std::map<uint64_t,int32_t> retainedArsenalOwners_;
     bool retireActorArsenal(int32_t,uint64_t,std::string&);

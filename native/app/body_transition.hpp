@@ -16,5 +16,8 @@ public:
     bool advance(float elapsed,float undoModifier,std::string&);
     float current()const;
     bool active()const{return active_;}
+    // Helper fraction field (Body+0x374 for the +0x320 alpha helper), read by
+    // ObstacleManager::Update 0x1802c80c0 to fade OcclusionBaseAnim.
+    float fraction()const{return fraction_;}
 };
 }

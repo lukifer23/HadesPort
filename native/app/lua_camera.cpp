@@ -35,7 +35,13 @@ bool ScriptRuntime::cameraActionImpl(lua_State*L,int mode,std::string&error){try
  switch(mode){
  case 0:return camera_.lock(ids(),sourceRange(L,args,"Duration","MinDuration","MaxDuration",true),number(args,"Speed"),number(args,"Acceleration"),number(args,"OffsetX"),number(args,"OffsetY"),boolean(args,"LazyTether"),boolean(args,"DynamicZoom"),resolve,error);
  case 1:return camera_.adjustZoom(sourceRange(L,args,"Fraction","MinFraction","MaxFraction",false),number(args,"LerpTime"),error,resolve);
- case 2:return camera_.pan(ids(),boolean(args,"Retarget"),resolve,error);
+ // ScriptAction PanCamera 0x180260bf0: Float EaseIn/EaseOut (default -1,
+ // __real@bf800000), Bool Retarget(false)/ResetWeights(true)/FromCurrentLocation(false),
+ // Float OffsetY then OffsetX (default 0), ScriptArgs::getDuration, Camera::Pan.
+ case 2:{const auto num=[&](const char*k,double fallback){const auto*p=args.get(k);const double v=p?p->number():fallback;if(!std::isfinite(v)||std::abs(v)>1e7)throw std::runtime_error(std::string("Native camera argument bounds: ")+k);return float(v);};
+  const float easeIn=num("EaseIn",-1),easeOut=num("EaseOut",-1);const bool retarget=boolean(args,"Retarget"),resetWeights=boolean(args,"ResetWeights",true),fromCurrent=boolean(args,"FromCurrentLocation");
+  const float offsetY=num("OffsetY",0),offsetX=num("OffsetX",0),duration=sourceRange(L,args,"Duration","MinDuration","MaxDuration",true);
+  return camera_.pan(ids(),duration,easeIn,easeOut,offsetX,offsetY,retarget,resetWeights,fromCurrent,[this]{double v=0;if(!nextRecoveredEngineRandom(state_,v))throw std::runtime_error("Actual camera engine RNG unavailable");return v;},resolve,error);}
  // ScriptAction FocusCamera (Execute VA180252d66..e1c): String ZoomType
  // (default ""), getFraction, Bool Relative, getDuration, then Camera::Focus
  // unconditionally (also for Duration 0). The Ease spline draws the engine RNG.

@@ -119,6 +119,8 @@ public:
  bool advance(float,const ActionEffectProviders&,std::string&);
  bool updateTime(float,const ActionEffectProviders&,uint32_t& spawnedThisFrame,std::string&);
  bool destroy(uint64_t,std::string&);
+ // Animation+0x17c colour alpha byte write (ObstacleManager::Update 0x1802c9a2c).
+ bool setBaseAlpha(uint64_t h,uint8_t a,std::string& error){auto i=states_.find(h);if(i==states_.end()){error="Actual action FX alpha handle unavailable";return false;}i->second.baseColor[3]=a;return true;}
  // AnimationManager::Cancel 0x29e520 for one owner: empty name = all; returns matches.
  bool cancelAttached(int32_t owner,const std::string& name,bool preventChain,size_t& matched,std::string&);
  bool configureCreated(uint64_t,float rawZ,const std::string& actualFirstGroup,bool preferUnmodified,std::string&);
