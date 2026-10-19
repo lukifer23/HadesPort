@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include "asset_store.hpp"
+#include "room_assets.hpp"
 #include "object_runtime.hpp"
 #include "screen_animation.hpp"
 #include "unit_movement.hpp"
@@ -40,11 +41,19 @@ namespace hades {struct WeaponTriggerReply;}
 class ScriptRuntime {
     lua_State* state_ = nullptr;
     hades::AssetStore* assets_;
+    std::unique_ptr<hades::RoomAssets> roomAssets_;
     std::unordered_set<std::string> loaded_;
     std::string error_;
     bool mainLoaded_ = false, gameLoaded_ = false;
     bool roomBooted_ = false;
     std::string mapName_ = "RoomOpening";
+    struct MapRequest {std::string name;bool resetBinks=false,resetWeaponBinks=false;std::optional<std::array<float,4>> background;};
+    std::optional<MapRequest> pendingMap_;
+    uint64_t mapRevision_=0;
+    void registerMapActions();
+    static int loadMapAction(lua_State*);
+    bool loadMapActionImpl(lua_State*,std::string&);
+    bool beginRequestedMap(bool restoreAssetsOnly=false);
     std::vector<ObjectSnapshot> mapMetadata_;
     std::map<int32_t,const ObjectSnapshot*> inactiveMap_;
     MapCreationPlan creationPlan_;
@@ -79,6 +88,8 @@ class ScriptRuntime {
     bool projectileEffectOwner(int32_t,hades::EffectOwnerState&,std::string&)const;
     bool releaseProjectileFxOwner(uint64_t handle,std::string&);
     void installProjectileGraphicProvider();
+    bool setProjectileAnimation(hades::ProjectileActor&,const std::string&,std::string&);
+    bool projectileGraphicTransform(uint64_t,std::string&);
     hades::ProjectileDefenseProviders projectileDefenseProviders();
     std::shared_ptr<hades::ActorAnimationBank> animationBank_;
     hades::AssetPackages packages_;
@@ -166,9 +177,10 @@ class ScriptRuntime {
     struct WorldNotify {
         int arguments=0;
         bool control=false,released=false,playerInput=false;
+        bool allDead=false; // ScriptAction::CheckOnAllDead27ce60.
         bool stopped=false; // ScriptAction::CheckStopped 0x2797f0 (NotifyOnStopped, action 244).
         bool whenSeparated=false,pointOnly=false;
-        uint8_t distance=0; // 1 CheckWithinDistanceAverage, 2 CheckWithinDistanceAny.
+        uint8_t distance=0; // 1 WithinDistanceAverage, 2 WithinDistanceAny, 3 OutsideDistanceAverage.
         float timeout=0;
         std::vector<int32_t> sources,destinations;
         std::vector<std::string> names;
@@ -177,6 +189,8 @@ class ScriptRuntime {
     static int collisionNotifyAction(lua_State*);
     bool collisionNotifyImpl(lua_State*,bool,std::string&);
     bool advanceNativeNotifies(float,std::string&);
+    static int allDeadNotifyAction(lua_State*);
+    bool checkAllDeadNotify(const WorldNotify&,bool&,std::string&);
     static int distanceNotifyAction(lua_State*);
     bool checkDistanceNotify(const WorldNotify&,bool&,std::string&);
     static int stoppedNotifyAction(lua_State*);
@@ -189,8 +203,9 @@ class ScriptRuntime {
     bool controlNotifyImpl(lua_State*,bool,std::string&);
     bool checkControlNotify(const WorldNotify&,bool&,std::string&,std::string&);
     static int spatialQueryAction(lua_State*);
-    bool spatialQueryImpl(lua_State*,bool angle,double&,std::string&);
+    bool spatialQueryImpl(lua_State*,int mode,double&,std::string&);
     std::shared_ptr<hades::TextFontBank> textFonts_;
+    std::function<bool(const std::string&,std::string&,std::string&)> controlLabelProvider_;
     hades::TextCaptionWorld captionText_;
     std::map<uint64_t,hades::UnitMovementState> localMovement_;
 
@@ -233,11 +248,16 @@ class ScriptRuntime {
     bool createAnimationImpl(lua_State*,std::string&);
     static int weaponProperty(lua_State*);
     bool weaponPropertyImpl(lua_State*,int mode,std::string&);
+    static int spawnUnit(lua_State*);
+    bool spawnUnitImpl(lua_State*,int32_t&,std::string&);
     static int spawnObstacle(lua_State*);
     bool spawnObstacleImpl(lua_State*,int32_t&,std::string&);
     static int setUnitProperty(lua_State*);
     static int setLifeProperty(lua_State*);
     static int setThingProperty(lua_State*);
+    static int setObstacleProperty(lua_State*);
+    static int getUnitDataValue(lua_State*);
+    bool getUnitDataValueImpl(lua_State*,hades::SourceValue&,std::string&);
     bool setActorPropertyImpl(lua_State*,int kind,std::string&);
     bool setUnitPropertyImpl(lua_State*,std::string&);
     bool equipWeaponImpl(lua_State*,std::string&);
@@ -258,6 +278,10 @@ class ScriptRuntime {
     bool configurationFloat(const char*,float&,std::string&);
     bool physicsGripValue(int32_t,float&,std::string&);
     bool physicsUnitTouchdown(int32_t,std::string&);
+    struct AimLineState {uint64_t handle=0,frame=0,ownerLifetime=0;float x=0,y=0,endX=0,endY=0,width=0;std::string weapon;};
+    std::map<int32_t,AimLineState> aimLines_;
+    bool weaponAimLine(const hades::WeaponOutput&,bool execute,std::string&);
+    bool aimLineIntersection(int32_t,const hades::ProjectileDefinition&,float,float,float&,float&,float,float,std::string&);
     bool weaponCallback(const hades::WeaponOutput&,std::string&);
     bool weaponOperationSupported(const hades::WeaponOutput&,std::string&);
     bool consumeWeaponOperation(const hades::WeaponOutput&,hades::WeaponTriggerReply&,std::string&);
@@ -266,12 +290,15 @@ class ScriptRuntime {
     bool blinkUpdate(const hades::WeaponOutput&,std::string&);
     bool unitSetLocation(int32_t,float x,float y,std::string&);
     bool unitLocationValid(int32_t,float x,float y,bool& valid,std::string&);
+    bool spawnPointBlocked(float x,float y,bool&,std::string&);
+    bool closestNonBlockedLocation(float x,float y,float& outX,float& outY,std::string&);
     bool gridLineBlocked(float x0,float y0,float x1,float y1,bool& blocked,std::string&);
     bool gridLocationBlocked(float x,float y,bool& blocked,std::string&);
     bool thingCalcValidLocationOnVector(int32_t,float tx,float ty,float sx,float sy,float lx,float ly,float step,float& ox,float& oy,std::string&);
     // Unit::ApplyFullShift2f76d0 / Unit::ApplyShift2f7c00 / Unit::OnObstacleCollision2f6ce0 (unit_shift in lua_combat.cpp).
     bool unitApplyFullShift(int32_t,float locX,float locY,float dx,float dy,bool stopOnCollision,bool ignoreNoCollisionAnim,std::string&);
     bool unitApplyShift(int32_t,float nx,float ny,float sx,float sy,bool ignoreNoCollisionAnim,bool& collided,std::string&);
+    bool unitOnUnitCollision(int32_t unit,int32_t other,float velocity,std::string&);
     bool unitOnObstacleCollision(int32_t unit,int32_t obstacle,float sx,float sy,float px,float py,float& damage,std::string&);
     struct UnitCollisionSets {std::vector<std::pair<int32_t,uint64_t>> previous,current;float lastTranslationX=0,lastTranslationY=0;};
     std::map<uint64_t,UnitCollisionSets> unitCollisionSets_; // Unit+0x4f8 mPrevColliding, +0x528 mCurrentlyColliding, +0x410 mLastCollisionTranslation
@@ -325,6 +352,7 @@ class ScriptRuntime {
     struct ScreenCursor{float x=0,y=0,previousX=0;bool forceUseCheck=false;} screenCursor_;
 
     bool setActorAnimation(int32_t,const std::string&,std::string&);
+    float actorAnimationFacing(const hades::ActorComponents&)const;
     bool setActionPrimaryAnimation(int32_t,const std::string&,std::string&);
     bool worldAnimationArgs(int32_t,const std::string&,lua_State*,std::string&);
     bool actorSlideEvent(int32_t,const hades::ActorAnimationClip&,const hades::ActorAnimationSlide&,std::string&);
@@ -379,8 +407,12 @@ class ScriptRuntime {
     bool saveProfile(const std::string& name,const std::string& nextMap,std::string&);
     std::string savePath(const std::string& name,const char* extension)const;
 public:
+    hades::AssetStore& currentRoomAssets(){return *assets_;}
+    const std::string& currentMapName()const{return mapName_;}
+    uint64_t mapRevision()const{return mapRevision_;}
     bool loadTextDefinitions();
     const std::shared_ptr<hades::TextFontBank>& textFonts()const{return textFonts_;}
+    void setControlLabelProvider(std::function<bool(const std::string&,std::string&,std::string&)>);
     bool advanceText(float worldElapsed,float screenElapsed,std::string&);
     bool consumeSpeechText(const std::vector<hades::SpeechPresentation>&,std::string&);
     std::vector<hades::TextVisual> textVisuals()const;
@@ -414,7 +446,7 @@ public:
     bool sampleActorLight(int32_t,hades::ActorLightVisual&,std::string&);
     bool advancePhysics(float dt,std::string& error);
     bool advanceLocalPlayerInput(float,std::string&);
-    bool advanceLocalPlayerMovement(float,std::string&);
+    bool advanceUnitMovement(float,std::string&);
     bool updateLocalMoveAnimation(int32_t,std::string&);
 
     void setPhysicsTouchdownWeapon(std::function<bool(int32_t,std::string&)> fn){physicsTouchdownWeapon_=std::move(fn);}

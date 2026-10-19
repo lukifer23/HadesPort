@@ -53,7 +53,7 @@ public:
  // GameDataManager::GetTextData(key)->DisplayName, or nullptr when no record.
  const std::string* displayName(const std::string&)const;
  const std::map<std::string,TextSymbol>& symbols()const{return symbols_;}
- std::vector<TextGlyphQuad> layout(const TextLayoutRequest&,std::vector<TextSymbolQuad>* symbols=nullptr)const;
+ std::vector<TextGlyphQuad> layout(const TextLayoutRequest&,std::vector<TextSymbolQuad>* symbols=nullptr,std::array<float,2>* measured=nullptr)const;
 };
 std::vector<uint32_t> textCodepoints(const std::string&);
 // Exact GetColor policy: RGB all in0..1 selects float Color ctor even when

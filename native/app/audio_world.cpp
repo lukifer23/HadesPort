@@ -386,6 +386,14 @@ AUDIO_CHANNEL_OPERATION(play,play)
 AUDIO_CHANNEL_OPERATION(pause,pause)
 AUDIO_CHANNEL_OPERATION(resume,resume)
 #undef AUDIO_CHANNEL_OPERATION
+bool AudioWorld::stopAllGameSounds(std::string& error){
+ // World::Reset 0x3160b5..11f stops the game sound channel group. Keep the
+ // silent persistent Studio MixingControl snapshot controller; it is not a
+ // waveform in that group. No completion/marker callback survives map reset.
+ auto& w=*impl_;std::lock_guard lock(w.mutex);if(w.faulted){error=w.fault;return false;}
+ for(const auto& channel:w.channels.snapshot())if(channel.id!=w.mixingControl){if(!w.channels.stop(channel.id,true,error))return false;w.events.erase(channel.id);w.channels.retireCompleted(channel.id);}
+ w.markers.clear();w.completions.clear();error.clear();return true;
+}
 bool AudioWorld::stop(uint32_t id,bool immediate,std::string& error){auto& w=*impl_;std::lock_guard lock(w.mutex);if(w.faulted){error=w.fault;return false;}return w.channels.stop(id,immediate,error);}
 bool AudioWorld::setParameter(uint32_t id,const std::string& key,float value,float duration,std::string& error){auto& w=*impl_;std::lock_guard lock(w.mutex);if(w.faulted){error=w.fault;return false;}
  try{if(id&&id==w.mixingControl){auto event=w.events.find(id);if(event==w.events.end()){error="Actual MixingControl channel disappeared";return w.fail(error,error);}if(!event->second->timeline.parameters().contains(key)){error.clear();return true;}if(key!="Reverb")return w.fail("Original Primary snapshot controls not yet ported for "+key,error);if(!w.channels.setParameter(id,key,value,duration,error))return w.fail(error,error);if(duration<=0)w.applyReverb(event->second->timeline.parameters().at(key));return true;}return w.channels.setParameter(id,key,value,duration,error);}catch(const std::exception& e){return w.fail(e.what(),error);}}

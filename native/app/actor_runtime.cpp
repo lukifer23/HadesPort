@@ -41,6 +41,14 @@ const ActorMapSeed* ActorWorld::seed(int32_t n)const{const auto i=seeds_.find(n)
 const ActorDefinition* ActorWorld::definition(const std::string& n)const{const auto i=definitions_.find(n);return i==definitions_.end()?nullptr:&i->second;}
 ActorComponents* ActorWorld::actor(int32_t n){const auto i=actors_.find(n);return i==actors_.end()?nullptr:i->second.get();}
 const ActorComponents* ActorWorld::actor(int32_t n)const{const auto i=actors_.find(n);return i==actors_.end()?nullptr:i->second.get();}
+bool ActorWorld::resetForMap(std::string& error){
+ // World::Reset 0x31622d ThingSystem::Reset, then GridManager::Reset.
+ // Portable handles include a map generation so a stale lifetime can never
+ // alias the new map's first Thing even when its public/map ID is reused.
+ if(generation_==UINT32_MAX){error="Actor map generation exhausted";return false;}
+ const auto generation=generation_+1;auto bank=animationBank_;auto collision=std::move(obstacleLocationChanged_);auto auxiliary=std::move(locationAuxiliary_);
+ *this=ActorWorld{};generation_=generation;animationBank_=std::move(bank);obstacleLocationChanged_=std::move(collision);locationAuxiliary_=std::move(auxiliary);error.clear();return true;
+}
 bool ActorWorld::setAnimationBank(std::shared_ptr<ActorAnimationBank> bank,std::string& error){
     if(!actors_.empty()){error="Cannot replace an actor animation bank while components exist";return false;}
     animationBank_=std::move(bank);error.clear();return true;
@@ -49,6 +57,10 @@ bool ActorWorld::loadCatalog(SourceValue root,std::string& error){
     try{
         if(!actors_.empty())throw std::runtime_error("Cannot replace definitions while actors exist");
         if(text(root,"schema")!="hades-source-actor-catalog-v1"||text(root,"target")!="d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254")throw std::runtime_error("Actor catalog identity mismatch");
+        // Exporter mirrors SGD_DeserializeAngle205cf0 for authored UnitData
+        // RotationSpeed/CosmeticRotationSpeed, retaining native ctor defaults.
+        // Reject mixed-unit legacy catalogs instead of guessing at consumption.
+        if(!require(root,"native_unit_angles").boolean())throw std::runtime_error("Actor catalog requires native Unit angular speed normalization");
         std::map<std::string,ActorDefinition> defs;std::map<int32_t,ActorMapSeed> seeds;
         auto& sourceDefs=std::get<SourceValue::Object>(root.value).at("definitions");
         for(auto& [key,value]:std::get<SourceValue::Object>(sourceDefs.value)){
@@ -61,7 +73,8 @@ bool ActorWorld::loadCatalog(SourceValue root,std::string& error){
         for(const auto& [key,value]:require(root,"property_types.Unit").object())types.emplace(key,value.text());
         for(const auto& [key,value]:require(root,"property_types.Life").object())lifePropertyTypes_.emplace(key,value.text());
         for(const auto& [key,value]:require(root,"property_types.Thing").object())thingPropertyTypes_.emplace(key,value.text());
-        unitPropertyTypes_=std::move(types);definitions_=std::move(defs);seeds_=std::move(seeds);error.clear();return true;
+        for(const auto& [key,value]:require(root,"property_types.Obstacle").object())obstaclePropertyTypes_.emplace(key,value.text());
+        unitPropertyTypes_=std::move(types);definitions_=std::move(defs);seeds_=std::move(seeds);nativeUnitAngles_=true;error.clear();return true;
     }catch(const std::exception& e){error=e.what();return false;}
 }
 bool ActorWorld::initializeMapActor(int32_t sourceId,ObjectSnapshot& output,std::shared_ptr<const WeaponCatalog> weapons,const ActorRandom& random,std::string& error){
@@ -72,6 +85,19 @@ bool ActorWorld::initializeMapActor(int32_t sourceId,ObjectSnapshot& output,std:
 bool ActorWorld::initializeDynamicObstacle(int32_t n,const std::string& name,float x,float y,const std::string& group,ObjectSnapshot& output,const ActorRandom& random,std::string& error){
     const auto* d=definition("Obstacles/"+name);if(!d){error="Original obstacle definition unavailable: "+name;return false;}
     return initializeActor(n,*d,nullptr,x,y,group,output,nullptr,random,error);
+}
+// UnitManager.CreateEnemyUnit2fa090/2fa180 selects native UnitData, passes a
+// null MapThing and actual spawn XY to Unit.Init2f0f80. Common initialization
+// preserves actual Life, Status, Arsenal, Physics and geometry ownership.
+bool ActorWorld::initializeDynamicUnit(int32_t n,const std::string& name,float x,float y,const std::string& group,ObjectSnapshot& output,std::shared_ptr<const WeaponCatalog> weapons,const ActorRandom& random,std::string& error){
+    const auto* d=definition("Units/"+name);if(!d){error="Original unit definition unavailable: "+name;return false;}
+    if(!initializeActor(n,*d,nullptr,x,y,group,output,std::move(weapons),random,error))return false;
+    // Unit.Init2f10ec..2f117b: random default angle, else authored degrees
+    // (zero retains Thing angle). Rotation/goal starts at this same value.
+    float facing=output.angle;
+    if(flag(d->properties,"RandomDefaultAngle")){double r=0;if(!random||!random(r,error))return false;facing=float(r)*6.2831854820251465f;}
+    else if(const float degrees=scalar(d->properties,"DefaultAngle");degrees!=0)facing=float(double(degrees)*0.017453292519943295);
+    output.angle=facing;return true;
 }
 bool ActorWorld::initializeActor(int32_t sourceId,const ActorDefinition& definition,const ActorMapSeed* s,float x,float y,const std::string& group,ObjectSnapshot& output,std::shared_ptr<const WeaponCatalog> weapons,const ActorRandom& random,std::string& error){
     try{
@@ -366,6 +392,57 @@ bool ActorWorld::setUnitProperty(int32_t n,const std::string& key,const Property
         else if(key=="LowSpeedThreshold")a->lowSpeedThreshold=std::get<float>(next);
         else if(key=="LowSpeedFraction")a->lowSpeedFraction=std::get<float>(next);
         error.clear();return true;
+    }catch(const std::exception& e){error=e.what();return false;}
+}
+// ScriptAction::GetUnitDataValue VA180266220 selects the first actual Unit,
+// then GetPropertyInfo<UnitData> VA1800f5910 / GetPropertyValue VA1802027f0.
+// The caller owns native target-set ordering; missing units return nullptr.
+bool ActorWorld::unitDataValue(int32_t id,const std::string& key,SourceValue& value,std::string& error)const{
+    try{
+        value={};const auto* a=actor(id);
+        if(!a||!a->registered||!a->definition||a->definition->kind!="Unit"){error.clear();return true;}
+        const auto type=unitPropertyTypes_.find(key);
+        if(type==unitPropertyTypes_.end()){
+            // UnitData reflection delegates unknown names to GameData only;
+            // it does not traverse dotted paths or fall back to MoveAIData.
+            if(key!="Name"&&key!="Organization"&&key!="InheritFrom"){
+                for(const auto* complex:{"LifeData","ThingData","MoveAIData","PlayerUnitData"})
+                    if(key==complex)throw std::runtime_error("UnitData complex reflection query not reconstructed: "+key);
+                error.clear();return true;
+            }
+        }
+        const auto* current=currentProperty(id,key);
+        if(!current)throw std::runtime_error("UnitData reflected query value unavailable: "+key);
+        if(std::holds_alternative<SourceValue::Object>(current->value)||std::holds_alternative<SourceValue::Array>(current->value))throw std::runtime_error("UnitData complex reflection result not reconstructed: "+key);
+        if(type==unitPropertyTypes_.end()||type->second=="string")value=SourceValue{current->text()};
+        else if(type->second=="bool")value=SourceValue{current->boolean()};
+        else if(type->second=="float32")value=SourceValue{double(float(current->number()))};
+        else if(type->second=="int32")value=SourceValue{double(int32_t(current->number()))};
+        else if(type->second!="null_pointer")throw std::runtime_error("UnitData reflected result type not reconstructed: "+type->second);
+        error.clear();return true;
+    }catch(const std::exception& e){error=e.what();return false;}
+}
+// ScriptAction::SetObstacleProperty VA180273230 writes the embedded instance
+// ObstacleData, then always dispatches virtual OnPropertiesDirty (+0x118).
+// DataValue is not read. Existing consumers use currentProperty at their
+// original boundaries, and propertiesDirty refreshes the real collision/grid.
+bool ActorWorld::setObstacleProperty(int32_t id,const std::string& key,const PropertyInput& input,PropertyChange change,std::string& error){
+    try{
+        auto* a=actor(id);if(!a||!a->registered||!a->definition||a->definition->kind!="Obstacle"){error.clear();return true;}
+        const auto type=obstaclePropertyTypes_.find(key);
+        if(type==obstaclePropertyTypes_.end()){
+            for(const auto* complex:{"ThingData","LifeData","CollisionSound","ImpactSound","Name","Organization","InheritFrom"})
+                if(key==complex)throw std::runtime_error("ObstacleData reflected field not reconstructed: "+key);
+            // ReflectionHelper Unknown has no write destination. The action
+            // still calls OnPropertiesDirty even when reflection returns false.
+            return propertiesDirty(id,error);
+        }
+        const auto* value=currentProperty(id,key);if(!value)throw std::runtime_error("ObstacleData current value unavailable: "+key);
+        PropertyPrimitive current;
+        if(type->second=="bool")current=value->boolean();else if(type->second=="float32")current=float(value->number());else if(type->second=="int32")current=int32_t(value->number());else current=value->text();
+        PropertyPrimitive next;if(mutatePrimitiveProperty(current,input,change,next,error)!=PropertyMutation::Applied)return false;
+        a->propertyOverrides[key]=propertyPrimitiveToSource(next);
+        return propertiesDirty(id,error);
     }catch(const std::exception& e){error=e.what();return false;}
 }
 uint8_t parseSortMode(const std::string& name){

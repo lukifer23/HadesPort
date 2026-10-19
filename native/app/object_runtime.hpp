@@ -38,6 +38,9 @@ struct ObjectAnimationDefinition {
 // Registers only implemented object APIs. The explicitly reconstructed allocator
 // uses firstRuntimeId, skips seeded map IDs, never reuses destroyed IDs.
 void registerObjectRuntime(lua_State*, int32_t firstRuntimeId = 2000001);
+// World::Reset 0x315fac resets generated Thing IDs and all map Things while
+// the Lua VM and installed native action closures remain alive.
+bool resetObjectRuntimeForMap(lua_State*,std::string& error);
 bool registerObjectDefinitions(lua_State*, const std::vector<ObjectDefinition>&, std::string& error);
 bool registerObjectAnimations(lua_State*, const std::vector<ObjectAnimationDefinition>&, std::string& error);
 bool seedObjectRuntime(lua_State*, const std::vector<ObjectSnapshot>&, std::string& error);
@@ -56,6 +59,7 @@ bool resolveObjectTargets(lua_State*,bool destination,std::vector<int32_t>&,std:
 bool activeMapThingGroup(lua_State*,const std::string& name,std::vector<int32_t>&,std::string& error);
 
 bool allocateObstacleObjectId(lua_State*,int32_t&,std::string& error);
+bool allocateUnitObjectId(lua_State*,int32_t&,std::string& error);
 void setObjectLuaTable(lua_State*,int32_t id,int valueIndex);
 
 using ObjectGeometryChanged=std::function<bool(int32_t,std::string&)>;

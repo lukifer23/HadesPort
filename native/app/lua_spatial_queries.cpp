@@ -1,4 +1,5 @@
 #include "lua_runtime.hpp"
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <limits>
@@ -12,8 +13,34 @@ bool live(const hades::ActorComponents* a){return a&&a->registered&&a->object&&a
 bool flag(lua_State* L,const char* key){lua_getfield(L,1,key);const bool result=lua_toboolean(L,-1);lua_pop(L,1);return result;}
 float number(lua_State* L,const char* key,float fallback=0){lua_getfield(L,1,key);if(lua_isnil(L,-1)){lua_pop(L,1);return fallback;}int numeric=0;const double n=lua_tonumberx(L,-1,&numeric);lua_pop(L,1);if(!numeric||!std::isfinite(n)||std::abs(n)>std::numeric_limits<float>::max())throw std::runtime_error(std::string("Invalid spatial query scalar: ")+key);return float(n);}
 }
-bool ScriptRuntime::spatialQueryImpl(lua_State* L,bool angle,double& result,std::string& error){try{
+bool ScriptRuntime::spatialQueryImpl(lua_State* L,int mode,double& result,std::string& error){try{
+    const bool angle=mode==1;
     if(!lua_istable(L,1))throw std::runtime_error("Spatial query requires source argument table");result=0;
+    if(mode==2){
+        // ScriptAction::GetClosestUnitOfType VA180278c10: singular Id wins;
+        // otherwise average extant World Things from contiguous Ids entries.
+        // Names/DestinationId arguments are checked for diagnostics only.
+        float x=0,y=0;size_t count=0;
+        const auto add=[&](int32_t id)->bool{const auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->object)return true;float ax=0,ay=0;if(!actorWorld_.location(id,ax,ay,error))return false;x+=ax;y+=ay;++count;return true;};
+        lua_getfield(L,1,"Id");int hasId=0;const auto source=lua_tointegerx(L,-1,&hasId);lua_pop(L,1);
+        if(hasId){if(source>=INT32_MIN&&source<=INT32_MAX&&!add(int32_t(source)))return false;}
+        else{lua_getfield(L,1,"Ids");if(lua_istable(L,-1))for(int i=1;;++i){if(i>100000)throw std::runtime_error("GetClosestUnitOfType source list bound");lua_rawgeti(L,-1,i);if(lua_isnil(L,-1)){lua_pop(L,1);break;}int numeric=0;const auto id=lua_tointegerx(L,-1,&numeric);lua_pop(L,1);if(numeric&&id>=INT32_MIN&&id<=INT32_MAX&&!add(int32_t(id))){lua_pop(L,1);return false;}}lua_pop(L,1);}
+        if(!count)return true;x/=float(count);y/=float(count);
+        // ScriptArgs::DestinationNames2819d0 gives plural-key presence priority.
+        std::vector<std::string> names;lua_getfield(L,1,"DestinationNames");if(lua_isnil(L,-1)){lua_pop(L,1);lua_getfield(L,1,"DestinationName");}
+        const auto name=[&](int at){if(lua_isstring(L,at))names.emplace_back(lua_tostring(L,at));};
+        if(lua_istable(L,-1))for(int i=1;;++i){if(i>100000)throw std::runtime_error("GetClosestUnitOfType name list bound");lua_rawgeti(L,-1,i);if(lua_isnil(L,-1)){lua_pop(L,1);break;}name(-1);lua_pop(L,1);}else name(-1);lua_pop(L,1);
+        const float maximum=number(L,"Distance"),minimum=number(L,"MinDistance"),max2=maximum*maximum,min2=minimum*minimum;
+        float best=std::numeric_limits<float>::max();
+        // Native scans UnitManager::ALL_UNITS, exact UnitData.Name equality,
+        // inclusive distance limits; no alive, allegiance, or IgnoreSelf gate.
+        // Portable manager registration order preserves the first distance tie.
+        for(const auto id:actorWorld_.registrationOrder()){const auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->object||!a->definition||a->definition->kind!="Unit"||std::find(names.begin(),names.end(),a->definition->name)==names.end())continue;
+            float ax=0,ay=0;if(!actorWorld_.location(id,ax,ay,error))return false;const float dx=x-ax,dy=y-ay,d2=dy*dy+dx*dx;
+            if((max2>0&&d2>max2)||(min2>0&&d2<min2))continue;
+            if(d2<best){best=d2;result=float(id);}}
+        return true;
+    }
     std::vector<int32_t> sources,destinations;
     if(angle){
         // Selected source path reads singular IDs before the separate array
@@ -43,7 +70,7 @@ bool ScriptRuntime::spatialQueryImpl(lua_State* L,bool angle,double& result,std:
     return true;
 }catch(const std::exception& e){error=e.what();return false;}}
 int ScriptRuntime::spatialQueryAction(lua_State* L){
-    char message[2048]{};bool ok=false;double result=0;{std::string error;ok=runtime(L)->spatialQueryImpl(L,lua_toboolean(L,lua_upvalueindex(2)),result,error);if(!ok)std::snprintf(message,sizeof(message),"%s",error.c_str());}
+    char message[2048]{};bool ok=false;double result=0;{std::string error;ok=runtime(L)->spatialQueryImpl(L,int(lua_tointeger(L,lua_upvalueindex(2))),result,error);if(!ok)std::snprintf(message,sizeof(message),"%s",error.c_str());}
     if(!ok)return luaL_error(L,"%s",message);lua_pushnumber(L,result);return 1;
 }
 namespace {

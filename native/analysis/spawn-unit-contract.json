@@ -1,0 +1,58 @@
+{
+  "schema": "hades-dynamic-unit-and-scene-primary-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "procedures": {
+    "ScriptAction.SpawnUnit": "0x26eca0",
+    "UnitManager.CreateEnemyUnit_name": "0x2fa090",
+    "UnitManager.CreateEnemyUnit_data": "0x2fa180",
+    "Unit.Init": "0x2f0f80",
+    "UnitManager.Add": "0x2f9380",
+    "Thing.UpdateAnimation": "0x2df5c0",
+    "SlideAnimation.SlideStart": "0x2b4080",
+    "Deterministic.RandomInt": "0x291250",
+    "BookAnimation.UpdateInternal": "0x2af530"
+  },
+  "unit_creation": {
+    "identity": "World.Reset315fac sets nextUnitId1000000; mapless Unit.Init2f1006 preincrements; portable entity lifetime remains separate.",
+    "selection": "Names first value, active destination MapThing selection; offset each consumes same engine RandomDouble symmetric range even whenzero.",
+    "components": "Actual native Unit data, Life, Status, Arsenal initial7slots, Physics and geometry through shared source initialization; actual OnSpawn after registration.",
+    "presentation": "DoActivatePresentation gates Thing.ActivateGraphic and Thing.ActivateFx; Thing.Graphic remains initialized.",
+    "location": "ForceToValidLocation first probes real unit polygon versus original StopsUnits obstacle grid; invalid relocation search remains explicit unsupported.",
+    "limits": [
+      "Original multiple-destination pointer hash iteration ordering not reconstructed.",
+      "RequireValidLocation destination-point admission remains unsupported.",
+      "Enemy AI, death/damage and all wave completion are separate runtime work."
+    ]
+  },
+  "slide_duration": {
+    "operation": "SlideData RandomDurationFramesMin>0 -> integer duration selected at every SlideStart BEFORE slide FX.",
+    "range": "Deterministic.RandomInt uses bounded PCG(max-min)+min, maximum EXCLUSIVE, equal bounds consume no draw.",
+    "storage": "Per-instance current slide ticks replace static authored duration while preserving elapsed remainder; fixed HAA schedule is not silently substituted."
+  },
+  "scene_primary_completion": {
+    "book": "Nonloop completion at frame>=EndFrame+1; Loop/LoopFramesOnly reset start; HoldLastFrame preserves end.",
+    "constant": "Duration seconds/frames and random native uniform duration feed actual remaining-time clock.",
+    "owner_bridge": "After completion Thing.UpdateAnimation reads ChainTo else native ThingData.Graphic; otherwise clears primary. Replacement keeps source owner and verifies entity lifetime.",
+    "resource_alias": "Identical original FilePath may bind alreadyverified one-frame auxiliary source; replacement cannot reuse unrelated old scene image.",
+    "limits": [
+      "Scene child OnChildFinished remains explicit unsupported.",
+      "Unexported resources and unimplemented movie operations remain explicit rejected coverage."
+    ]
+  },
+  "evidence": [
+    ".local/reports/takeover-spawn-unit-action.json",
+    ".local/reports/takeover-spawn-unit-create-name.json",
+    ".local/reports/takeover-spawn-unit-create-data.json",
+    ".local/reports/takeover-spawn-unit-init.json",
+    ".local/reports/takeover-spawn-unit-add.json",
+    ".local/reports/takeover-enemy-slide-start.json",
+    ".local/reports/takeover-enemy-deterministic-randomint.json",
+    ".local/reports/takeover-scene-thing-update-animation.json",
+    ".local/reports/native-effect-marker-data-manager.json",
+    ".local/reports/native-actor-animation-book-update.json"
+  ],
+  "runtime_evidence": {
+    "strict_v9": "Real first enemy initialized, OnSpawn and weapon equip, actual new movie presentation; blocked NotifyOutsideDistance.",
+    "strict_v10": "Passed outside-distance notify; blocked NotifyOnAllDead at completed2156. No claim encounter complete."
+  }
+}

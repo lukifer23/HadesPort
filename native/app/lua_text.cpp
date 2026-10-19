@@ -5,6 +5,7 @@ extern "C" {
 #include <lua.h>
 #include <lauxlib.h>
 }
+void ScriptRuntime::setControlLabelProvider(std::function<bool(const std::string&,std::string&,std::string&)> provider){controlLabelProvider_=std::move(provider);if(state_)configureTextControlLabels(state_,controlLabelProvider_);}
 bool ScriptRuntime::loadTextDefinitions(){try{
  auto file=assets_->open("text-fonts.lua");if(!file||file->size()>4*1024*1024)throw std::runtime_error("Original font/localization catalog unavailable");std::vector<char>b(file->size());size_t at=0;while(at<b.size()){auto n=file->read(b.data()+at,b.size()-at);if(!n)throw std::runtime_error("Truncated original text catalog");at+=n;}
  const int top=lua_gettop(state_);int status=luaL_loadbufferx(state_,b.data(),b.size(),"@text-fonts.lua","t");if(status==LUA_OK)status=lua_pcall(state_,0,1,0);if(status!=LUA_OK){std::string e=lua_tostring(state_,-1);lua_settop(state_,top);throw std::runtime_error(e);}hades::SourceValue data;const bool ok=hades::readSourceValue(state_,-1,data,error_);lua_settop(state_,top);if(!ok)return false;auto bank=std::make_shared<hades::TextFontBank>();bank->load(*assets_,data);configureTextRuntime(state_,bank);textFonts_=std::move(bank);return true;

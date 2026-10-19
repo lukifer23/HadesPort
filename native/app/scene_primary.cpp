@@ -33,7 +33,7 @@ bool ScenePrimaryWorld::load(AssetStore& assets,SourceValue catalog,std::shared_
 const ScenePrimaryRecipe* ScenePrimaryWorld::recipe(int32_t id)const{auto p=recipes_.find(id);return p==recipes_.end()?nullptr:&p->second;}
 bool ScenePrimaryWorld::externalEffect(const std::string& name){return name=="DustSpawner"||name=="BatCluster"||name=="BatClusterWait"||name=="TartarusEmberSpawner";}
 bool ScenePrimaryWorld::initialize(const std::string& name,const ScenePrimaryRecipe& recipe,const EffectOwnerState& owner,uint64_t parent,const EffectAnimationRandom& random,const EffectBoundedRandom& integers,uint64_t& handle,std::string& error){
- auto found=definitions_.find(name);const bool named=found!=definitions_.end();SourceValue d=named?found->second:SourceValue{SourceValue::Object{}};ScenePrimaryState s;s.name=name;s.definition=d;s.ownerId=recipe.ownerId;s.ownerLifetime=owner.lifetime;s.parent=parent;s.type=named?type(text(d,"Type")):NativeAnimationType::Dataless;s.sceneSprites=parent?std::vector<uint32_t>{}:recipe.sceneSprites;s.loop=flag(d,"Loop");s.loopFramesOnly=flag(d,"LoopFramesOnly");s.allowRestart=flag(d,"AllowRestart");s.onlyWhenVisible=flag(d,"OnlyWhenVisible");s.ownerImmobile=flag(d,"OwnerImmobile");s.disableWeapons=flag(d,"DisableOwnerWeapons");s.ownerHasNoCollision=flag(d,"OwnerHasNoCollision");s.ownerInvulnerable=flag(d,"OwnerInvulnerable");s.ownerNoArmorCoverage=flag(d,"OwnerNoArmorCoverage");s.ownerNoInvulnerableCoverage=flag(d,"OwnerNoInvulnerableCoverage");s.blockNewOwnerAnims=flag(d,"BlockNewOwnerAnims");s.ownScale=number(d,"Scale",1);s.offsetX=number(d,"OffsetX");s.offsetY=number(d,"OffsetY");s.offsetZ=number(d,"OffsetZ");s.hsv={number(d,"Hue"),number(d,"Saturation"),number(d,"Value")};
+ auto found=definitions_.find(name);const bool named=found!=definitions_.end();SourceValue d=named?found->second:SourceValue{SourceValue::Object{}};ScenePrimaryState s;s.name=name;s.definition=d;s.ownerId=recipe.ownerId;s.ownerLifetime=owner.lifetime;s.parent=parent;s.type=named?type(text(d,"Type")):NativeAnimationType::Dataless;s.sceneSprites=parent?std::vector<uint32_t>{}:recipe.sceneSprites;s.loop=flag(d,"Loop");s.loopFramesOnly=flag(d,"LoopFramesOnly");s.allowRestart=flag(d,"AllowRestart");s.holdLastFrame=flag(d,"HoldLastFrame");s.onlyWhenVisible=flag(d,"OnlyWhenVisible");s.ownerImmobile=flag(d,"OwnerImmobile");s.disableWeapons=flag(d,"DisableOwnerWeapons");s.ownerHasNoCollision=flag(d,"OwnerHasNoCollision");s.ownerInvulnerable=flag(d,"OwnerInvulnerable");s.ownerNoArmorCoverage=flag(d,"OwnerNoArmorCoverage");s.ownerNoInvulnerableCoverage=flag(d,"OwnerNoInvulnerableCoverage");s.blockNewOwnerAnims=flag(d,"BlockNewOwnerAnims");s.ownScale=number(d,"Scale",1);s.offsetX=number(d,"OffsetX");s.offsetY=number(d,"OffsetY");s.offsetZ=number(d,"OffsetZ");s.hsv={number(d,"Hue"),number(d,"Saturation"),number(d,"Value")};
  if(externalEffect(name)){error="Scene primary initializer cannot duplicate live VFX primary owner";return false;}
  const auto* resources=catalog_.get("Resources")->get(name);
  if(resources){const auto kind=text(*resources,"Kind");
@@ -41,7 +41,25 @@ bool ScenePrimaryWorld::initialize(const std::string& name,const ScenePrimaryRec
   else if(kind=="aux"){s.resource=PrimaryResourceKind::Auxiliary;s.resourceIndex=uint32_t(number(*resources,"Index"));if(s.resourceIndex>=auxiliary_->clips().size()){error="Original child primary resource outside bounds";return false;}if(const auto* scale=resources->get("AtlasScale")){if(scale->array().size()!=2){error="Original primary atlas ratio extent";return false;}for(size_t k=0;k<2;++k){const auto n=scale->array()[k].number();if(!std::isfinite(n)||n<=0||n>16){error="Original primary atlas ratio bound";return false;}s.atlasScale[k]=float(n);}}}
   else if(!s.sceneSprites.empty())s.resource=PrimaryResourceKind::SceneStatic;
  }else if(named){error="Original primary resource descriptor unavailable";return false;}else if(!s.sceneSprites.empty())s.resource=PrimaryResourceKind::SceneStatic;
- if(s.type==NativeAnimationType::Constant){s.duration=number(d,"Duration");s.durationRemaining=s.duration;}
+ // Source-data may alias an already verified actual auxiliary frame by
+ // identical original FilePath (ArchCrumbleDelay and Blank). Never reuse the
+ // old scene quad as a replacement image or invent a transparent texel.
+ if(resources&&text(*resources,"Kind")=="source-data"&&name!=recipe.graphic){
+  s.resource=PrimaryResourceKind::Pending;
+  for(const auto& [other,resource]:catalog_.get("Resources")->object())if(text(resource,"Kind")=="aux"&&text(resource,"FilePath")==text(*resources,"FilePath")&&number(d,"NumFrames",1)==1){
+   s.resource=PrimaryResourceKind::Auxiliary;s.resourceIndex=uint32_t(number(resource,"Index"));
+   if(s.resourceIndex>=auxiliary_->clips().size()||auxiliary_->clips()[s.resourceIndex].slides.size()!=1){error="Actual source primary frame alias extent mismatch";return false;}break;
+  }
+ }
+ if(s.type==NativeAnimationType::Constant){
+  // Animation.InitData291dc6 chooses native seconds/frames duration, then
+  // RandomDouble duration before the TimeRemaining system consumes it.
+  const float lo=number(d,"RandomDurationMin"),hi=number(d,"RandomDurationMax");
+  s.hasDuration=number(d,"Duration")>0||number(d,"DurationFrames")>0||lo>0||hi>0;
+  s.duration=std::max(number(d,"Duration"),number(d,"DurationFrames")/60.f);
+  if(lo!=0||hi!=0){double r=0;if(hi<lo||!random||!random(r,error))return false;const volatile float product=float(r)*(hi-lo);s.duration=product+lo;}
+  s.durationRemaining=s.duration;
+ }
  s.graphicsPending=s.resource==PrimaryResourceKind::Pending;
  AnimationAllocation allocation;allocation.name=name;allocation.sourceDefinition=d;allocation.type=s.type;allocation.ownership=parent?AnimationOwnership::Child:AnimationOwnership::ThingPrimary;allocation.ownerId=s.ownerId;allocation.ownerLifetime=owner.lifetime;allocation.parent=parent;allocation.loop=s.loop;allocation.onlyWhenVisible=s.onlyWhenVisible;allocation.cancelOverCap=flag(d,"CancelOverCap");if(!registry_->allocate(allocation,s.handle,error))return false;
  if(s.type==NativeAnimationType::Book){s.startFrame=number(d,"StartFrame",1);s.endFrame=number(d,"EndFrame",number(d,"NumFrames"));if(s.startFrame<1||s.endFrame<s.startFrame||s.endFrame>10000){error="Original primary Book frame range";return false;}s.frame=s.startFrame;
@@ -92,9 +110,27 @@ bool ScenePrimaryWorld::sampleAuxiliary(uint64_t handle,ActorVisual& out,std::st
  }catch(const std::exception&e){error=e.what();return false;}
 }
 bool ScenePrimaryWorld::replace(uint64_t previous,const std::string& name,const EffectOwnerState& owner,const EffectAnimationRandom& random,const EffectBoundedRandom& integers,uint64_t& current,std::string& error){
- const auto* old=state(previous);const auto* life=registry_->find(previous);if(!old||!life||life->ownerLifetime!=owner.lifetime){error="Actual current primary replacement lifetime unavailable";return false;}if(old->blockNewOwnerAnims){current=previous;return true;}
- if(old->name==name&&!life->canceled){if(!registry_->restart(previous,error))return false;auto& s=states_.at(previous);if(s.allowRestart)s.frame=s.startFrame;current=previous;return true;}
+ const auto* old=state(previous);const auto* life=registry_->find(previous);if(!old||!life||life->ownerLifetime!=owner.lifetime){error="Actual current primary replacement lifetime unavailable";return false;}if(old->blockNewOwnerAnims&&!old->finished){current=previous;return true;}
+ if(old->name==name&&!life->canceled&&!old->finished){if(!registry_->restart(previous,error))return false;auto& s=states_.at(previous);if(s.allowRestart)s.frame=s.startFrame;current=previous;return true;}
  const auto id=old->ownerId;if(!create(id,name,owner,random,integers,current,error))return false;return destroy(previous,error);
 }
-bool ScenePrimaryWorld::advance(float seconds,std::string& error){if(faulted_||!std::isfinite(seconds)||seconds<0||seconds>1){error="Invalid/faulted source primary clock";return false;}for(auto& [id,s]:states_){const auto* life=registry_->find(id);if(!life||!life->initialized){error="Actual source primary lifetime lost";return false;}if(life->skipUpdate||life->canceled||s.type!=NativeAnimationType::Book)continue;s.frame+=s.playSpeed*seconds;if(s.frame>=s.endFrame+1){if(s.loop||s.loopFramesOnly)s.frame=s.startFrame;else{error="Source primary Book completion/ChainTo needs owner bridge";return false;}}}return true;}
+bool ScenePrimaryWorld::advance(float seconds,std::string& error){
+ if(faulted_||!std::isfinite(seconds)||seconds<0||seconds>1){error="Invalid/faulted source primary clock";return false;}
+ for(auto& [id,s]:states_){
+  const auto* life=registry_->find(id);if(!life||!life->initialized){error="Actual source primary lifetime lost";return false;}
+  if(life->skipUpdate||life->canceled||s.finished)continue;
+  if(s.type==NativeAnimationType::Constant&&s.hasDuration){s.durationRemaining-=seconds;if(s.durationRemaining<0)s.finished=true;}
+  if(s.type!=NativeAnimationType::Book)continue;
+  s.frame+=s.playSpeed*seconds;
+  if(s.frame>=s.endFrame+1){
+   if(s.loop||s.loopFramesOnly)s.frame=s.startFrame;
+   else if(s.holdLastFrame)s.frame=s.endFrame;
+   else{s.frame=s.endFrame;s.finished=true;}
+  }
+ }
+ return true;
+}
+std::vector<uint64_t> ScenePrimaryWorld::completedPrimaries()const{
+ std::vector<uint64_t> result;for(const auto& [handle,s]:states_)if(s.finished)result.push_back(handle);return result;
+}
 }

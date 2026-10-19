@@ -24,7 +24,7 @@ void captureLiveWorld(ScriptRuntime& scripts,hades::AssetStore& assets,const std
     constexpr int width=1600,height=1000;GLuint texture=0,target=0;glGenTextures(1,&texture);glBindTexture(GL_TEXTURE_2D,texture);glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,width,height,0,GL_RGBA,GL_UNSIGNED_BYTE,nullptr);
     glGenFramebuffers(1,&target);glBindFramebuffer(GL_FRAMEBUFFER,target);glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,texture,0);
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE)throw std::runtime_error("Live-capture framebuffer incomplete");
-    hades::SceneRenderer renderer;renderer.initialize(assets);
+    hades::SceneRenderer renderer;renderer.initialize(scripts.currentRoomAssets());
     renderer.setSourceSceneProvider([&](uint32_t index,std::optional<hades::SceneFrameSelection>& frame,std::string& error){return scripts.scenePrimaryFrame(index,frame,error);},[&](uint32_t index,std::string& error){return scripts.scenePrimarySubmitted(index,error);},[&](uint32_t index,hades::SceneSprite& sprite,std::string& error){return scripts.sourceSceneSprite(index,sprite,error);});
     const auto player=scripts.localPlayerBody();if(!player)throw std::runtime_error("Actual local Player body unavailable for capture");
     auto visuals=scripts.presentationVisuals();if(worldOnly)std::erase_if(visuals,[](const auto& key){return key.kind==ScriptRuntime::VisualKey::Kind::Screen;});const float viewHeight=1680,viewWidth=viewHeight*float(width)/height;

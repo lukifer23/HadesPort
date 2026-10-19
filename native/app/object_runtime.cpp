@@ -25,7 +25,7 @@ struct ObjectState {
     std::vector<int32_t> insertionOrder;
     std::map<std::string, ObjectDefinition> definitions;
     std::map<std::string, ObjectAnimationDefinition> animations;
-    int32_t nextId = 2000001;
+    int32_t nextId = 2000001,nextUnitId=1000001;
     bool mapSeeded = false;
     ObjectGeometryChanged geometryChanged;
     ObjectAnimationSet animationSet;
@@ -448,6 +448,11 @@ void registerObjectRuntime(lua_State* state,int32_t firstRuntimeId) {
     bind(state,owner,"SetScale",guarded<setFraction<true>>); bind(state,owner,"SetAlpha",guarded<setFraction<false>>);
     lua_settop(state,top);
 }
+bool resetObjectRuntimeForMap(lua_State* state,std::string& error) {
+ auto* registry=lookup(state);if(!registry){error="Map reset requires registered ObjectRuntime";return false;}
+ registry->objects.clear();registry->insertionOrder.clear();registry->mapSeeded=false;registry->nextId=2000001;registry->nextUnitId=1000001;
+ lua_newtable(state);lua_setfield(state,LUA_REGISTRYINDEX,luaTablesKey);error.clear();return true;
+}
 bool registerObjectDefinitions(lua_State* state,const std::vector<ObjectDefinition>& definitions,std::string& error) {
     auto* registry = lookup(state); if (!registry) { error="Object runtime not registered"; return false; }
     for(const auto& definition:definitions) {
@@ -518,6 +523,13 @@ bool resolveObjectTargets(lua_State* L,bool destination,std::vector<int32_t>& re
     const int top=lua_gettop(L);try{table(L);auto* r=lookup(L);if(!r)throw std::runtime_error("Object manager unavailable");result=targets(L,*r,destination);lua_settop(L,top);error.clear();return true;}catch(const std::exception& e){lua_settop(L,top);error=e.what();return false;}
 }
 
+// World.Reset315fac sets next Unit ID1000000; Unit.Init2f1006 preincrements.
+bool allocateUnitObjectId(lua_State* L,int32_t& output,std::string& error){
+    auto* r=lookup(L);if(!r){error="Object allocator unavailable";return false;}
+    while(r->nextUnitId<2000000&&r->objects.contains(r->nextUnitId))++r->nextUnitId;
+    if(r->nextUnitId<1000001||r->nextUnitId>=2000000){error="Native unit ID domain exhausted";return false;}
+    output=r->nextUnitId++;error.clear();return true;
+}
 bool allocateObstacleObjectId(lua_State* L,int32_t& output,std::string& error){
     auto* r=lookup(L);if(!r){error="Object allocator unavailable";return false;}
     while(r->nextId<3000000&&r->objects.contains(r->nextId))++r->nextId;

@@ -11,17 +11,46 @@
       "path": ".local/reports/native-rea-script-get-angle-between-v1.json",
       "sha256": "bf4a6251b0d387aa7b72f4ebacf3da349ad8c21db80e1b1ca5cbd295787b9b19",
       "evidence_id": "ev_99767f89fb3379cabe19e4e85a56035387edf06f75ad14a2c4ad19b3d7fdb1b3"
+    },
+    "GetClosestUnitOfType": {
+      "path": ".local/reports/takeover-closest-unit-type.json",
+      "sha256": "422b929ca7e9d93adf42825787c8ed4e7ce2aa6a806cdfaff921414405853f83",
+      "native_va": "0x180278c10"
+    },
+    "DestinationNames": {
+      "path": ".local/reports/takeover-destination-names.json",
+      "sha256": "dbe49a8148214aa2fb3ddee35a20602ca91a6d3531c4ff0e8ffefb8f6d3d5938",
+      "native_va": "0x1802819d0"
+    },
+    "CheckOutsideDistanceAverage": {
+      "path": ".local/reports/takeover-outside-distance-average.json",
+      "sha256": "64c40e02e3cf628bf4feca6dc5ced667aa4c6e4e43c5a77574f79de8c70ff22f",
+      "native_va": "0x18027b8a0"
+    },
+    "CheckOnAllDead": {
+      "path": ".local/reports/takeover-check-on-all-dead.json",
+      "sha256": "483ea32b7ef2aa095c4d394a88b50a18b7075b393b4c5efbed219befbc571461",
+      "native_va": "0x18027ce60"
+    },
+    "CarryingSpawnWithGroup": {
+      "path": ".local/reports/takeover-carrying-spawn-group.json",
+      "sha256": "74bd884be04f8e256b8b3786f1e3b3df2579f3bf2bd465fe82306af218490c38",
+      "native_va": "0x18007ad30"
     }
   },
   "implementation": [
     "GetClosest resolves real active Thing IDs/groups, averages source XY, uses float squared-distance comparisons and native0 no-match result. Distance0 is uncapped; strict best-distance update.",
     "GetAngleBetween selected singular source/destination IDs uses actual attachment-aware XY, negativeY atan2f, native floatTau normalization and source double radians-to-degrees.",
-    "No canned entrance marker IDs or fixed return values."
+    "No canned entrance marker IDs or fixed return values.",
+    "GetClosestUnitOfType: singular Id takes precedence over contiguous Ids array; average existing World Thing XY; DestinationNames takes precedence over DestinationName. Scan actual Units by exact UnitData.Name; squared MinDistance/Distance inclusive when positive, strict best update, float32 Thing ID or zero. No native allegiance/alive/IgnoreSelf filter is introduced.",
+    "NotifyOutsideDistance: Execute case0x99 queues retained original arguments and Timeout for CheckOutsideDistanceAverage27b8a0; singular IDs take precedence over arrays; empty selections finish, nonempty projected-Z means use OnlyX/OnlyY and strict squared distance greater than threshold. World dispatches the original Notify name; this average check writes no NotifyResultsTable.",
+    "NotifyOnAllDead: Execute case0x9d queues the original table/Timeout. CheckOnAllDead27ce60 reads only Ids/Names arrays, waits for any extant Thing LifeStatus ALIVE0, and checks CarryingSpawnWithGroup7ad30 for each named group. That query scans both active and pending projectiles with nonempty SpawnOnDetonate and SpawnType!=PROJECTILE3, holding the group while a living Unit owner belongs to it or SpawnsInheritGroups and projectile membership match. Existing World notify dispatch uses original Notify key; no NotifyResultsTable write."
   ],
   "limits": [
     "GetClosest tie order is portable sorted-ID selection; native pointer hash order not claimed. Multi-origin IgnoreSelf explicit error.",
     "Native StopsUnits/StopsProjectiles/Homing/Invulnerable/Unblocked filters require further real providers and explicitly error when requested.",
-    "GetAngleBetween array/group path explicitly unsupported until native cache/denominator semantics fully reconstructed."
+    "GetAngleBetween array/group path explicitly unsupported until native cache/denominator semantics fully reconstructed.",
+    "GetClosestUnitOfType uses portable actual manager registration order for equal-distance ties; exact Windows allocation/UnitManager ordering is not claimed."
   ],
   "runtime": {
     "report": ".local/reports/native-active-room-53.json",

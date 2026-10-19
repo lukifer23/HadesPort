@@ -5,7 +5,7 @@
 namespace hades {
 const AnimationLifetime* AnimationRegistry::find(uint64_t id)const{const auto it=live_.find(id);return it==live_.end()?nullptr:&it->second;}
 bool AnimationRegistry::allocate(const AnimationAllocation& a,uint64_t& id,std::string& error){
- if(a.name.empty()||a.name.size()>4096||a.name=="null"||!a.ownerLifetime||a.manager>2||uint8_t(a.type)>uint8_t(NativeAnimationType::Text)||a.type==NativeAnimationType::Random||a.type==NativeAnimationType::Graft){error="Actual concrete animation allocation/owner/type unresolved";return false;}
+ if(a.name.empty()||a.name.size()>4096||a.name=="null"||(a.ownerLifetime==0&&(a.ownerId!=0||(a.ownership!=AnimationOwnership::ManagerCreate&&a.ownership!=AnimationOwnership::Child)))||a.manager>2||uint8_t(a.type)>uint8_t(NativeAnimationType::Text)||a.type==NativeAnimationType::Random||a.type==NativeAnimationType::Graft){error="Actual concrete animation allocation/owner/type unresolved";return false;}
  if(live_.size()>=100000||next_==UINT64_MAX){error="Native animation allocation bound";return false;}
  if(a.ownership==AnimationOwnership::Child){const auto* p=find(a.parent);if(!p||p->child||p->ownerId!=a.ownerId||p->ownerLifetime!=a.ownerLifetime||p->manager!=a.manager){error="Actual parent/owner lifetime for child allocation unavailable";return false;}}
  else if(a.parent){error="Only child admission may have parent";return false;}

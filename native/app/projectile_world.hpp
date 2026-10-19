@@ -8,6 +8,15 @@
 
 namespace hades {
 struct ProjectileActor {
+    // HomingProjectile::Defaults RVA65450: public Unit id at +510,
+    // optional Thing entity link at +518/+520, current turn rate at +528,
+    // retarget request at +52c. Unit targets and Thing links are distinct.
+    struct HomingState {
+        int32_t targetId=-1,linkedTargetId=-1;
+        uint64_t linkedTargetLifetime=0;
+        float adjustRate=0;
+        bool retargetRequested=false;
+    } homing;
     ProjectileInitializationRequest request;
     ProjectileCreationDescriptor descriptor;
     ProjectileInitialState state;
@@ -19,6 +28,7 @@ struct ProjectileActor {
     std::array<BodyTransition,2> fractions;
     std::unique_ptr<PhysicsState> physics;
     std::vector<ActorPoint> geometry;
+    bool suppressSounds=false; // Thing.Defaults mSuppressSounds(+0x62)=false.
     uint64_t primaryAnimation=0,attachedAnimation=0;
     std::vector<uint64_t> attachedAnimations;
     // Actual portable World retains ActorComponents/Arsenal until World teardown.
@@ -58,11 +68,13 @@ struct ProjectileTeamProviders {
 // Detonate6d670 / UpdateDetonation71c10 / IsInBlast760e0. External graphic,
 // sound, shake, spawn and victim-impact branches are evaluated exactly and
 // fail when actually reached; no absent consumer is acknowledged.
+struct ProjectileImpactProviders;
 struct ProjectileDetonationProviders {
     float worldTime=0;
     ProjectileTeamProviders teams;
     // Projectile::ApplyImpact76590 on a detonation victim (parent supplies hit consumers).
     std::function<bool(uint64_t projectile,int32_t victim,std::string&)> applyImpact;
+    const ProjectileImpactProviders* impact=nullptr;
 };
 // Projectile::OnDeath6f5c0 native arguments for ScriptManager::OnProjectileDeath
 // 289ed0 (proj, victim, LastProjectileDeath, FirstUnitInVolley, InvulnerableImpact).
@@ -122,6 +134,7 @@ struct ProjectileImpactProviders {
     // Projectile::ApplyImpact76590 for a detonation victim (UpdateDetonation71c10).
     std::function<bool(uint64_t,int32_t,std::string&)> detonationImpact;
 };
+bool checkProjectileDodge(const ProjectileActor&,int32_t victim,const ProjectileImpactProviders&,bool&,std::string&);
 struct ProjectileCalculatedDamage {float amount=0;bool critical=false;};
 struct ProjectileImpactGeometry {float x=0,y=0,z=0,angle=0;bool nativeImpactAdmitted=false;};
 enum class ProjectileHitOperationKind {
@@ -238,6 +251,8 @@ class ProjectileWorld {
     std::function<bool(uint64_t,const std::string&,float,float,bool,float,std::string&)> detonateGraphic_;
     std::function<bool(const std::string&,float,float,std::string&)> detonateSound_;
     ProjectileDefenseProviders defenseProviders_;
+    std::function<bool(uint64_t,std::string&)> transformChanged_;
+    std::function<bool(uint64_t,const std::string&,std::string&)> deathGraphic_;
     bool attachedAlive(const ProjectileActor&)const;
     // Thing::GetLocation2e0b70 / GetZLocation2e0bf0 composition.
     bool thingLocation(const ProjectileActor&,float& x,float& y,std::string&)const;
@@ -250,8 +265,15 @@ class ProjectileWorld {
     bool stepMove(uint64_t,float fromX,float fromY,float toX,float toY,const ProjectileUpdateProviders&,bool& died,std::string&);
     // Projectile::Move702d0 (vslot0x1a8) for the base class.
     bool moveBase(uint64_t,float dt,const ProjectileUpdateProviders&,bool& died,std::string&);
+    bool homingAdjustRateBonus(const ProjectileActor&,const ActorWorld&,float&,std::string&);
+    bool moveHoming(uint64_t,float,const ProjectileUpdateProviders&,bool& died,std::string&);
+    bool homingTargetEligible(const ProjectileActor&,int32_t,bool&,std::string&)const;
+    bool closestHomingTarget(const ProjectileActor&,const std::vector<int32_t>&,float worldTime,int32_t&,std::string&)const;
     bool updateNumOpacity(std::string&);
 public:
+    void setDeathGraphicProvider(std::function<bool(uint64_t,const std::string&,std::string&)> fn){deathGraphic_=std::move(fn);}
+    void setTransformProvider(std::function<bool(uint64_t,std::string&)> fn){transformChanged_=std::move(fn);}
+    const SourceValue* thingDefinition(const std::string& name)const{auto i=thingData_.find(name);return i==thingData_.end()?nullptr:&i->second;}
     bool retainsWeapon(const WeaponArsenal*,const std::string&)const;
     // Attached-aware Thing::GetLocation2e0b70 of a live projectile.
     bool projectileLocation(const ProjectileActor& p,float& x,float& y,std::string& e)const{return thingLocation(p,x,y,e);}

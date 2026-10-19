@@ -50,11 +50,19 @@ bool ProjectileWorld::allocate(ProjectileInitializationRequest request,const Pro
     ActorWorld& world,uint64_t& output,std::string& error){
     if(faulted_){error=fault_;return false;}
     ProjectileCreationDescriptor descriptor;if(!describeProjectileCreation(definition,descriptor,error))return false;
-    if(descriptor.requiresHomingDefaults){error="Actual Homing Defaults requires current projectile effector query";return false;}
     const auto source=thingData_.find(definition.name);if(source==thingData_.end()){error="Original copied projectile Thing data unavailable: "+definition.name;return false;}
     if(request.lifetimeHandle||request.ownerId<0||request.weaponName.empty()||!std::isfinite(request.x)||!std::isfinite(request.y)){error="Invalid new projectile lifetime request";return false;}
     const uint64_t handle=world.allocateEntityLifetime(error);if(!handle)return false;
     auto entity=std::make_unique<ProjectileActor>();request.lifetimeHandle=handle;entity->request=std::move(request);entity->descriptor=descriptor;entity->thing=&source->second;
+    if(descriptor.requiresHomingDefaults){
+        // HomingProjectile::Defaults VA180065450..654b0 runs before base
+        // Init stores the firing owner. Query the real current effector list
+        // with the native defaults (no target, owner id -1), not the request.
+        const auto scalar=[&](const char* key,float& out){const auto i=definition.fields.find(key);if(i==definition.fields.end()||!std::holds_alternative<double>(i->second)){error=std::string("Homing default field unavailable: ")+key;return false;}out=float(std::get<double>(i->second));if(!std::isfinite(out)){error="Nonfinite Homing default";return false;}return true;};
+        float acceleration=0,maximum=0,bonus=0;
+        if(!scalar("AdjustRateAcceleration",acceleration)||!scalar("MaxAdjustRate",maximum))return false;
+        if(acceleration<=0){if(!homingAdjustRateBonus(*entity,world,bonus,error))return false;entity->homing.adjustRate=maximum+bonus;}
+    }
     entity->state.lifetimeHandle=handle;entity->body.id=-1;entity->body.dataType=3;entity->body.entityHandle=handle;
     entity->body.fromMap=false;entity->body.active=false;entity->body.alive=true;entity->body.name=definition.name;
     actors_.emplace(handle,std::move(entity));output=handle;error.clear();return true;
@@ -262,7 +270,7 @@ bool ProjectileWorld::update(float elapsed,const ProjectileUpdateProviders& prov
     if(updating_||!std::isfinite(elapsed)||elapsed<0||!std::isfinite(providers.worldTime)||!std::isfinite(providers.worldTimeMultiplier)){error="Projectile manager requires finite actual World clock outside nested update";return false;}
     // Reject unsupported concrete classes before promoting/mutating the frame.
     for(const auto* list:{&active_,&pending_})for(uint64_t handle:*list){const auto* entity=actor(handle);
-        if(!entity||!entity->shotInitialized||entity->disposed||(entity->descriptor.concreteClass!=ProjectileClass::Arc&&entity->descriptor.concreteClass!=ProjectileClass::Straight)){error="Actual projectile manager currently supports fully initialized ARC/STRAIGHT only";return false;}}
+        if(!entity||!entity->shotInitialized||entity->disposed||(entity->descriptor.concreteClass!=ProjectileClass::Arc&&entity->descriptor.concreteClass!=ProjectileClass::Straight&&entity->descriptor.concreteClass!=ProjectileClass::Homing)){error="Actual projectile manager supports initialized ARC/STRAIGHT/HOMING only";return false;}}
     if(!flushPending(error))return false;
     updating_=true;
     auto stop=[&](const std::string& reason){updating_=false;faulted_=true;fault_=reason;error=reason;return false;};
@@ -270,7 +278,7 @@ bool ProjectileWorld::update(float elapsed,const ProjectileUpdateProviders& prov
     while(read<active_.size()){
         const uint64_t handle=active_[read++];auto* entity=actor(handle);bool remove=false;
         const float dt=elapsed*entity->timeMultiplier;
-        const bool base=entity->descriptor.concreteClass==ProjectileClass::Straight; // no subclass vtable: base UpdateSelf6a720
+        const bool base=entity->descriptor.concreteClass!=ProjectileClass::Arc; // Homing.UpdateSelf653e0 tail-jumps base6a720
         if(!std::isfinite(dt)||!(base?updateBase(handle,dt,providers,remove,error):updateArc(handle,dt,providers,remove,error)))return stop(error.empty()?"Nonfinite actual projectile elapsed time":error);
         if(remove){
             const ProjectileUpdateOperation operation{ProjectileUpdateOperationKind::DisposeThing,dt};
@@ -350,6 +358,7 @@ bool ProjectileWorld::initializeShot(ProjectileInitializationRequest request,Wea
             case K::AddOwnerZ:case K::RetainFiringWeapon:case K::AddToGroup:case K::SetWeaponLastFirePerfectCharge:
             case K::RequestRandomDouble:case K::SetupGeometry:case K::RefreshLocation:case K::SetAngle:
             case K::SetBodyScale:case K::QueuePendingProjectile:case K::CopyOwnerGroups:return true;
+            case K::FinalizeHomingTargetLink:return request.fire.targetId==-1;
             case K::SetProjectileNumOpacityFlag:return true;
             case K::AttachToOwner:return true;
             case K::SetAnimation:return bool(providers.thing.setAnimation);
@@ -396,6 +405,12 @@ bool ProjectileWorld::initializeShot(ProjectileInitializationRequest request,Wea
             case K::SetAngle:entity->body.angle=op.value;entity->body.geometryDirty=true;entity->body.graphicsDirty=true;return setupGeometry(handle,error);
             case K::SetBodyScale:entity->body.scale=op.value;entity->body.geometryDirty=true;entity->body.graphicsDirty=true;return true;
             case K::QueuePendingProjectile:return queuePending(handle,error);
+            case K::FinalizeHomingTargetLink:
+                // ProjectileManager::Create VA180079d40 copies the
+                // FireRequest Thing entity link; a null link stays null and
+                // Homing.Move performs native closest-target acquisition.
+                if(request.fire.targetId!=-1){error="Homing FireRequest target link requires actual entity lifetime resolver";return false;}
+                entity->homing.linkedTargetId=-1;entity->homing.linkedTargetLifetime=0;return true;
             case K::AttachToOwner:{
                 // Init VA180069f2b..: GetFireOffset86010(weapon, Body?Body.mAngle:0),
                 // vslot0x108 Thing::AttachTo2e59f0(UnitManager::Get(weapon owner), offset)
@@ -469,7 +484,7 @@ bool ProjectileWorld::updateBase(uint64_t handle,float incoming,const Projectile
     // native/analysis/base-projectile-update-contract.json.
     remove=false;auto* entity=actor(handle);
     if(!entity||!entity->shotInitialized||!entity->active||entity->disposed||!entity->firingArsenal||!entity->firingWorld){error="Base projectile update requires actual initialized active projectile/source binding";return false;}
-    if(entity->descriptor.concreteClass!=ProjectileClass::Straight){error="Base Projectile::UpdateSelf reached by an overriding subclass";return false;}
+    if(entity->descriptor.concreteClass!=ProjectileClass::Straight&&entity->descriptor.concreteClass!=ProjectileClass::Homing){error="Base Projectile::UpdateSelf reached by an overriding subclass";return false;}
     auto current=[&](){return entity->firingArsenal->projectileData(entity->request.weaponName,entity->spawnedDefinition,error);};
     auto scalar=[&](const char* key,float& out){const auto* data=current();if(!data)return false;auto it=data->fields.find(key);
         if(it==data->fields.end()||!std::holds_alternative<double>(it->second)||!std::isfinite(std::get<double>(it->second))){error=std::string("Actual projectile numeric data unavailable: ")+key;return false;}
@@ -590,7 +605,7 @@ bool ProjectileWorld::updateBase(uint64_t handle,float incoming,const Projectile
             remove=died;error.clear();return true;
         }
         if(entity->state.speed!=0||entity->state.acceleration!=0){ // VA6af5e vslot0x1a8 Move
-            bool died=false;if(!moveBase(handle,dt,providers,died,error))return false;entity=actor(handle);
+            bool died=false;if(!(entity->descriptor.concreteClass==ProjectileClass::Homing?moveHoming(handle,dt,providers,died,error):moveBase(handle,dt,providers,died,error)))return false;entity=actor(handle);
             bool scale=false;if(!boolean("ScaleGeometryAlongRange",scale))return false;
             if(scale){error="Base projectile ScaleGeometryAlongRange Body scale/SetupGeometry not reconstructed";return false;}
             remove=died;error.clear();return true;
@@ -626,6 +641,33 @@ bool dataBool(const ProjectileActor& p,const char* key,bool& out,std::string& er
 bool dataText(const ProjectileActor& p,const char* key,std::string& out,std::string& error){const auto* v=dataField(p,key,error);if(!v)return false;
     if(!std::holds_alternative<std::string>(*v)){error=std::string("Actual projectile data not name: ")+key;return false;}out=std::get<std::string>(*v);return true;}
 const ActorComponents* liveUnit(const ActorWorld& world,int32_t id){const auto* a=world.actor(id);return a&&a->registered&&a->definition&&a->definition->kind=="Unit"?a:nullptr;}
+}
+bool ProjectileWorld::homingAdjustRateBonus(const ProjectileActor& p,const ActorWorld& world,float& bonus,std::string& error){
+    // HomingProjectile::GetAdjustRateBonus VA180065b40..65ce4 copies the
+    // manager effector vector, compares actual owner Unit pointers, and takes
+    // the first nonzero field whose blast contains both projectile and target.
+    bonus=0;
+    for(const auto handle:std::vector<uint64_t>(effectors_)){
+        const auto* q=actor(handle);if(!q){error="Homing effector lifetime unavailable";return false;}
+        float rate=0;if(!dataNumber(*q,"IncreaseAdjustRateOfFriendlyProjectilesInside",rate,error))return false;
+        if(rate==0||liveUnit(world,q->state.ownerId)!=liveUnit(world,p.state.ownerId))continue;
+        const auto* target=liveUnit(world,p.homing.targetId);
+        // The native final conjunct requires a real living target. This pure
+        // query cannot produce a bonus for Defaults' target id -1.
+        if(!target||target->lifeStatus!=0)continue;
+        bool center=false;if(!dataBool(*q,"RequireHitCenter",center,error))return false;
+        if(!center){error="Homing effector requires projectile Polygon::ClosestPointOnEdge blast test";return false;}
+        float x=0,y=0;if(!thingLocation(p,x,y,error))return false;
+        float sx=0,sy=0,band=0;if(!dataNumber(*q,"DamageRadiusScaleX",sx,error)||!dataNumber(*q,"DamageRadiusScaleY",sy,error)||!dataNumber(*q,"HollowBlastRadiusBand",band,error))return false;
+        const float dx=x-q->body.x,dy=y-q->body.y,r=q->state.blastRadius;
+        bool inside=false;
+        if(sx==1&&sy==1){if(band>0&&band<r&&(dy*dy+dx*dx)<(r-band)*(r-band))continue;inside=dy*dy+dx*dx<r*r;}
+        else{if(band>0&&band<r){const float ix=(r-band)*sx,iy=(r-band)*sy;if(dy*dy/(iy*iy)+dx*dx/(ix*ix)<=1)continue;}const float ex=r*sx,ey=r*sy;inside=dy*dy/(ey*ey)+dx*dx/(ex*ex)<=1;}
+        if(!inside)continue;
+        if(!isInBlast(handle,target->id,inside,error))return false;
+        if(inside){bonus=rate;break;}
+    }
+    error.clear();return true;
 }
 bool ProjectileWorld::attachedAlive(const ProjectileActor& p)const{
     // EntityManager::IsAlive(mAttachedTo+0x148) && mAttachedTo(+0x140)!=null.
@@ -681,7 +723,7 @@ bool ProjectileWorld::setLocation(uint64_t handle,float x,float y,std::string& e
         // Draw rectangle (+0x98) has no portable consumer for projectiles.
         p->body.graphicsDirty=true;
         const bool external=p->primaryAnimation||p->attachedAnimation||!p->attachedAnimations.empty()||!text(*p->thing,"Light").empty();
-        if(external)throw std::runtime_error("Projectile::SetLocation MarkSortScoreChanged/attached graphic propagation consumer not reconstructed");
+        if(external&&(!transformChanged_||!transformChanged_(handle,error)))throw std::runtime_error(error.empty()?"Projectile::SetLocation attached graphic propagation provider unavailable":error);
         error.clear();return true;
     }catch(const std::exception& e){error=e.what();faulted_=true;fault_=error;return false;}
 }
@@ -776,5 +818,106 @@ bool ProjectileWorld::expire(const std::vector<std::string>& names,const std::op
         p->state.expired=true; // +0x4c2
     }
     error.clear();return true;
+}
+}
+
+namespace hades {
+bool ProjectileWorld::homingTargetEligible(const ProjectileActor& p,int32_t id,bool& eligible,std::string& error)const{
+    // Homing.TrackTarget658c0 / Projectile.GetClosestTarget74df0 share these
+    // actual Life/HomingEligible, targetability, invulnerability, Z and primary
+    // NoCollision gates. Native checks raw Thing Z, not Unit airborne Z.
+    eligible=false;const auto* a=liveUnit(*p.firingWorld,id);if(!a||!a->hasLife)return true;
+    const auto* homing=p.firingWorld->currentProperty(id,"Life.HomingEligible");
+    if(!homing){error="Homing target Life.HomingEligible unavailable";return false;}
+    if(!homing->boolean()||!a->targetable)return true;
+    bool allow=false;if(!dataBool(p,"AllowTargetInvulnerable",allow,error))return false;
+    bool invulnerable=a->invulnerable,noCoverage=false;
+    if(a->animation.active()||a->primaryAnimationLifetime||a->primaryEffectAnimation){
+        if(!primaryCombat_){error="Homing target primary invulnerability provider unavailable";return false;}
+        bool primary=false;if(!primaryCombat_(id,primary,noCoverage,error))return false;invulnerable|=primary;
+    }
+    if(invulnerable&&!allow)return true;
+    float z=0,maximum=0;if(!p.firingWorld->zLocation(id,z,error)||!dataNumber(p,"MaxVictimZ",maximum,error))return false;
+    if(z>maximum)return true;
+    if(a->animation.active()&&(a->animation.clip()->flags&ActorNoCollision))return true;
+    if(!a->animation.active()&&!a->object->animation.empty()&&(a->primaryAnimationLifetime||a->primaryEffectAnimation)){
+        error="Homing target non-HAA primary NoCollision property requires source consumer";return false;
+    }
+    eligible=true;error.clear();return true;
+}
+bool ProjectileWorld::closestHomingTarget(const ProjectileActor& p,const std::vector<int32_t>& ignore,float worldTime,int32_t& target,std::string& error)const{
+    // Projectile::GetClosestTarget VA180074df0, REA ev_816c12d3c0e40f7b...
+    // Original GetUnits broadphase is replaced by registered Unit enumeration;
+    // all range-circle candidates pass the same narrow predicates. Native
+    // hash traversal breaks score ties; reject ties until that order is known.
+    target=-1;bool tied=false;float best=std::numeric_limits<float>::max(),maximumRate=0,allegiance=0;
+    if(!dataNumber(p,"MaxAdjustRate",maximumRate,error)||!dataNumber(p,"HomingAllegiance",allegiance,error))return false;
+    float px=0,py=0;if(!thingLocation(p,px,py,error))return false;
+    for(const auto id:p.firingWorld->registrationOrder()){
+        const auto* a=liveUnit(*p.firingWorld,id);if(!a||!a->hasLife)continue;
+        const auto* canHome=p.firingWorld->currentProperty(id,"Life.HomingEligible");
+        if(!canHome){error="Homing target Life.HomingEligible unavailable";return false;}if(!canHome->boolean())continue;
+        bool affects=false;if(!projectileAffectsUnit(p,id,worldTime,defenseProviders_.teams,affects,error))return false;if(!affects)continue;
+        auto* owner=liveUnit(*p.firingWorld,p.state.ownerId);if(!owner&&p.state.ownerSpawnedById)owner=liveUnit(*p.firingWorld,p.state.ownerSpawnedById);
+        if(owner&&(allegiance==0||allegiance==1)){bool same=false;if(!projectileUnitsShareTeam(*p.firingWorld,owner->id,id,defenseProviders_.teams,same,error))return false;if((allegiance==0&&same)||(allegiance==1&&!same))continue;}
+        if(std::find(ignore.begin(),ignore.end(),id)!=ignore.end())continue;
+        bool eligible=false;if(!homingTargetEligible(p,id,eligible,error))return false;if(!eligible)continue;
+        bool charmable=false;if(!dataBool(p,"RequireCharmable",charmable,error))return false;
+        if(charmable){const auto* immune=p.firingWorld->currentProperty(id,"ImmuneToCharm");if(!immune){error="Homing target ImmuneToCharm unavailable";return false;}if(immune->boolean())continue;error="Homing RequireCharmable requires actual UnitStatus Charm query";return false;}
+        float x=0,y=0;if(!p.firingWorld->location(id,x,y,error))return false;
+        const float dx=sub(px,x),dy=sub(py,y),distance=add(mul(dx,dx),mul(dy,dy));if(distance>p.state.rangeSquared)continue;
+        constexpr float turn=6.283185482025146484375f,pi=3.1415927410125732421875f;
+        const float angle=std::atan2(-(y-py),x-px),wrapped=sub(angle,mul(std::floor(angle/turn),turn));
+        const float ownerAngle=sub(p.body.angle,mul(std::floor(p.body.angle/turn),turn)),delta=std::abs(wrapped-ownerAngle);
+        const float arc=std::min(delta,sub(turn,delta));
+        volatile float weight=add(mul(arc/pi,64.f/maximumRate),1.f);const float score=mul(distance,weight);
+        if(score==best&&target!=-1)tied=true;
+        if(score<best){target=id;best=score;tied=false;}
+    }
+    if(tied){error="Homing target equal-score native grid hash order not reconstructed";return false;}
+    error.clear();return true;
+}
+bool ProjectileWorld::moveHoming(uint64_t handle,float dt,const ProjectileUpdateProviders& providers,bool& died,std::string& error){
+    // Homing.Move654f0, ShouldRetarget65cf0, TrackTarget658c0. The derived
+    // turn/target pass always precedes genuine Projectile.Move702d0.
+    auto* p=actor(handle);if(!p||!p->firingWorld){error="Homing Move lost actual source World";return false;}
+    float bonus=0,maximum=0;if(!homingAdjustRateBonus(*p,*p->firingWorld,bonus,error)||!dataNumber(*p,"MaxAdjustRate",maximum,error))return false;
+    if(add(maximum,bonus)>0){
+        bool manual=false,continuous=false;if(!dataBool(*p,"ManuallySetTarget",manual,error)||!dataBool(*p,"ContinouslyRetarget",continuous,error))return false;
+        if(p->homing.linkedTargetLifetime){error="Homing linked-Thing target retarget/impact branch requires actual entity resolver";return false;}
+        bool retarget=continuous||p->homing.retargetRequested;const auto* current=liveUnit(*p->firingWorld,p->homing.targetId);
+        if(!manual&&!retarget){
+            if(!current||current->lifeStatus!=0)retarget=true;
+            else{bool friends=false,enemies=false,same=false;if(!dataBool(*p,p->state.flipAllegiance?"AffectsEnemies":"AffectsFriends",friends,error)||!dataBool(*p,p->state.flipAllegiance?"AffectsFriends":"AffectsEnemies",enemies,error))return false;
+                if(!projectileUnitsShareTeam(*p->firingWorld,current->id,p->state.ownerId,defenseProviders_.teams,same,error))return false;
+                retarget=(friends&&!same)||(enemies&&same);}
+        }
+        if(!manual&&retarget){
+            p->homing.retargetRequested=false;std::vector<int32_t> ignore;
+            bool unique=false,hits=false;if(!dataBool(*p,"RequireUniqueTarget",unique,error)||!dataBool(*p,"HomingIgnoreHits",hits,error))return false;
+            if(unique)for(const auto other:active_){const auto* q=actor(other);if(q&&q->descriptor.concreteClass==ProjectileClass::Homing&&q->homing.targetId!=-1)ignore.push_back(q->homing.targetId);}
+            if(hits)for(const auto entity:p->thingsHit)for(const auto id:p->firingWorld->registrationOrder()){const auto* a=liveUnit(*p->firingWorld,id);if(a&&a->entityHandle==entity)ignore.push_back(id);}
+            if(p->state.firedByTraitor){error="Homing traitor GetClosestAllyWithLoS requires source query";return false;}
+            if(!closestHomingTarget(*p,ignore,providers.worldTime,p->homing.targetId,error))return false;
+        }
+        current=liveUnit(*p->firingWorld,p->homing.targetId);
+        if(current&&current->lifeStatus==0){
+            bool eligible=false;if(!homingTargetEligible(*p,current->id,eligible,error))return false;
+            if(eligible){
+                float acceleration=0;if(!dataNumber(*p,"AdjustRateAcceleration",acceleration,error)||!homingAdjustRateBonus(*p,*p->firingWorld,bonus,error))return false;
+                if(acceleration==0)p->homing.adjustRate=add(maximum,bonus);
+                else{p->homing.adjustRate=add(p->homing.adjustRate,mul(add(acceleration,bonus),dt));float refreshed=0;if(!homingAdjustRateBonus(*p,*p->firingWorld,refreshed,error))return false;p->homing.adjustRate=std::min(std::max(0.f,p->homing.adjustRate),add(maximum,refreshed));}
+                float x=0,y=0;if(!p->firingWorld->location(current->id,x,y,error))return false;
+                constexpr float turn=6.283185482025146484375f;const float angle=std::atan2(-(y-p->body.y),x-p->body.x),goal=sub(angle,mul(std::floor(angle/turn),turn));
+                // stepTowardAngle1ea880 chooses the inverse direction at exactly pi;
+                // remainder() chooses the positive tie and differs there.
+                const float delta=sub(goal,p->body.angle),distance=std::min(std::abs(delta),sub(turn,std::abs(delta))),step=mul(p->homing.adjustRate,dt);
+                const bool positive=std::abs(delta)<3.1415927410125732f?delta>0:delta<0;
+                const float next=distance<=step?goal:add(p->body.angle,positive?step:-step);
+                if(!setThingAngle(handle,next,error))return false;
+            }
+        }
+    }
+    return moveBase(handle,dt,providers,died,error);
 }
 }

@@ -1,6 +1,6 @@
 """Coverage-derived original GUI animation admission for the native screen bank.
 
-Every admitted name is an original GUIAnimations.sjson record (InheritFrom
+Every admitted name is an original Game/Animations record (InheritFrom
 resolved with the native Read rules already used for action effects) or an
 original obstacle Thing.Graphic sprite path (native Dataless animation). The
 script provenance names the original call site that reaches it. Pixels are
@@ -14,20 +14,20 @@ from hades_assets import Package,xnb_image
 from export_actor_animations import string
 
 # Admitted names are not hand-listed: they come from the static animation
-# coverage report (animation_coverage.py) - every GUIAnimations/DevAnimations
+# coverage report (animation_coverage.py) - every original animation
 # record the original scripts reach in scope whose properties this consumer
 # reconstructs, plus obstacle Thing.Graphic sprite paths named by reachable
 # SpawnObstacle/CreateScreenObstacle calls. Each keeps its script provenance;
 # names the screen consumer cannot represent are listed with the reason.
 # Source keys whose runtime semantics are reconstructed by screen_animation.cpp.
-# Any other key (VisualFx, RandomPlaySpeed, CreateAnimations, ChainTo, ...)
+# Any other key (VisualFx, RandomPlaySpeed, CreateAnimations, ...)
 # rejects the export rather than shipping an unimplemented record.
 # Slides: SlideAnimation per-slide DurationFrames only (SetupSlideIndex
 # 0x1802b5010 copies each 0x110-byte slide record's +0x1c duration; NextSlide
 # 0x1802b46d0 skips zero-duration slides; SlideStart 0x1802b4080 duration/60).
 # Sound: animation-level cue played by Animation.InitData 0x180291c70
 # (SoundAllowedAfterFrame gate, default 2).
-KEYS={'Name','InheritFrom','FilePath','Type','StartFrame','EndFrame','NumFrames','PlaySpeed','OffsetX','OffsetY','OriginX','OriginY','Scale','ScaleX','ScaleY','Alpha','AddColor','Material','SortMode','Loop','HoldLastFrame','ChildAnimation','AngleFromOwner','ScaleFromOwner','ColorFromOwner','DieWithOwner','Red','Green','Blue','Slides','Sound'}
+KEYS={'Name','InheritFrom','FilePath','Type','StartFrame','EndFrame','NumFrames','PlaySpeed','OffsetX','OffsetY','OriginX','OriginY','Scale','ScaleX','ScaleY','Alpha','AddColor','Material','SortMode','Loop','HoldLastFrame','ChildAnimation','AngleFromOwner','ScaleFromOwner','ColorFromOwner','DieWithOwner','Red','Green','Blue','Slides','Sound','Color','StartAlpha','EndAlpha','Duration','ChainTo','AttachedTextScalarX','AttachedTextScalarY','Ambient'}
 TYPES={'Constant','ConstantNoUpdate','Book','Slide'}
 SLIDE_KEYS={'DurationFrames'}
 
@@ -43,8 +43,11 @@ class Ranged(Sjson):
 
 def load_records(content):
  records={};origin={};sources=[]
- for filename in ['GUIAnimations.sjson','1_DevAnimations.sjson']:
-  path=content/'Game/Animations'/filename;raw=path.read_bytes();text=raw.decode('utf-8-sig');parser=Ranged(text);sources.append(path)
+ # Screen animation names can come from any original bank (the use prompt
+ # references Fx.sjson through UIData). Consumer property review, rather than
+ # source filename, determines admission; unsupported shapes stay explicit.
+ for path in sorted((content/'Game/Animations').glob('*.sjson')):
+  raw=path.read_bytes();text=raw.decode('utf-8-sig');parser=Ranged(text);sources.append(path)
   bom=len(raw)-len(text.encode('utf-8'))
   for d in parser.parse()['Animations']:
    if 'Name'not in d:continue
@@ -78,10 +81,13 @@ def resolve_all(records,origin,roots):
   if d.get('Type')not in TYPES:raise ValueError('Unreviewed GUI animation type '+name)
   if 'Slides'in d and d.get('Type')!='Slide':raise ValueError('Unreviewed non-Slide Slides data '+name)
   if d.get('Type')=='Slide':slide_durations(d)
-  child=d.get('ChildAnimation')
-  if child and child!='null':
-   edges.append({'parent':name,'field':'ChildAnimation','child':child})
-   if child not in names:names.append(child)
+  if any(k in d for k in ['Duration','StartAlpha','EndAlpha']) and d.get('Type')!='Constant':raise ValueError('Unreviewed non-Constant screen duration/color transition '+name)
+  if d.get('Loop') and d.get('Type')=='Constant' and d.get('Duration',0)>0:raise ValueError('Unreviewed screen Constant duration loop '+name)
+  for field in ['ChildAnimation','ChainTo']:
+   child=d.get(field)
+   if child and child!='null':
+    edges.append({'parent':name,'field':field,'child':child})
+    if child not in names:names.append(child)
   if len(names)>4096:raise ValueError('Bounded GUI closure exceeded')
  return {n:resolved[n]for n in names},provenance,edges
 
@@ -142,6 +148,9 @@ def admissible(records,origin,names,rejected):
  return ok
 
 def append_gui(a,m):
+ retained_review=copy.deepcopy(m.get('gui_review',{}))
+ retained_gui_images=m['statistics'].get('gui_original_images',0)
+ retained_gui_bytes=m['statistics'].get('gui_raw_rgba_bytes',0)
  records,origin,anim_sources=load_records(a.content)
  reviewed,graphics,rejected,cov=coverage_roots(a,records,origin)
  names=admissible(records,origin,sorted(reviewed),rejected)
@@ -232,6 +241,22 @@ def append_gui(a,m):
  m['packet']=identity(target)
  m['sources']=m['sources']+[identity(p)for p in anim_sources]+[identity(p)for p in manifests]+[identity(packages/(p+'.pkg'))for p in sorted({v['package']for v in matches.values()})]
  m['clips']=m['clips']+clip_rows;m['frames']=m['frames']+frame_rows
- st=m['statistics'];st['clips']=nc+len(clip_rows);st['movie_frames']=nf+len(frame_rows);st['gui_original_images']=len(frame_rows);st['gui_raw_rgba_bytes']=sum(r['raw_bytes']for r in frame_rows)
- m['gui_review']={'coverage':str(Path(a.coverage).resolve()),'reviewed_animations':{n:reviewed[n]for n in definitions},'reviewed_graphics':graphics,'rejected':dict(sorted(rejected.items())),'closure_edges':edges,'admitted_keys':sorted(KEYS),'original_payloads':payloads,'rule':'InheritFrom resolved by native Read order (ClearSlides/ClearCreateAnimations, additive CreateAnimations); OriginX/Y baked into frame origin; Offset/Scale/ScaleX/ScaleY/Alpha/Red/Green/Blue/AddColor applied at runtime from the retained definition.'}
+ st=m['statistics'];st['clips']=nc+len(clip_rows);st['movie_frames']=nf+len(frame_rows);st['gui_original_images']=retained_gui_images+len(frame_rows);st['gui_raw_rgba_bytes']=retained_gui_bytes+sum(r['raw_bytes']for r in frame_rows)
+ m['gui_review']={'coverage':str(Path(a.coverage).resolve()),'reviewed_animations':{n:reviewed.get(n,'original dependency closure')for n in definitions},'reviewed_graphics':graphics,'rejected':dict(sorted(rejected.items())),'closure_edges':edges,'admitted_keys':sorted(KEYS),'original_payloads':payloads,'rule':'InheritFrom resolved by native Read order (ClearSlides/ClearCreateAnimations, additive CreateAnimations); OriginX/Y baked into frame origin; Offset/Scale/ScaleX/ScaleY/Alpha/Color/AddColor and Constant duration alpha transitions applied at runtime from the retained definition. AttachedTextScalar uses actual attached text layout dimensions; finite primary ChainTo retains the screen Thing owner.'}
+ m['gui_review']['renderer_approximations']={n:[k for k in ['Ambient','Material','SortMode']if k in d]for n,d in definitions.items()if any(k in d for k in ['Ambient','Material','SortMode'])}
+ # A retained export already owns real frames and admitted definitions. Keep
+ # their review/provenance when appending the newly reached resource closure;
+ # replacing this metadata makes the unchanged packet unverifiable at stage.
+ review=m['gui_review']
+ for field in ['reviewed_animations','reviewed_graphics','renderer_approximations']:
+  review[field]={**retained_review.get(field,{}),**review.get(field,{})}
+ for field in ['closure_edges','original_payloads']:
+  combined=[];seen=set()
+  for row in retained_review.get(field,[])+review.get(field,[]):
+   key=json.dumps(row,sort_keys=True)
+   if key not in seen:seen.add(key);combined.append(row)
+  review[field]=combined
+ review['coverage_history']=list(dict.fromkeys(retained_review.get('coverage_history',[])+([retained_review['coverage']]if retained_review.get('coverage')else[])+[review['coverage']]))
+ admitted=set(review['reviewed_animations'])|set(review['reviewed_graphics'])|{e['child']for e in review['closure_edges']}
+ review['rejected']={n:reason for n,reason in {**retained_review.get('rejected',{}),**review['rejected']}.items()if n not in admitted}
  return m

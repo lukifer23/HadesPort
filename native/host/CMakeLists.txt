@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 project(hades_host_debug LANGUAGES C CXX)
+set(HADES_MAP_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/../app/lua_map.cpp)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(LUA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../.local/native-deps/lua-5.2.2/src)
@@ -8,7 +9,7 @@ list(FILTER LUA_SOURCES EXCLUDE REGEX "/lua(c)?\\.c$")
 add_library(lua52 STATIC ${LUA_SOURCES})
 target_include_directories(lua52 PUBLIC ${LUA_DIR})
 target_compile_definitions(lua52 PRIVATE LUA_USE_POSIX)
-add_executable(hades-debug main.cpp ../app/player.cpp ../app/lua_runtime.cpp ../app/source_value.cpp ../app/actor_runtime.cpp ../app/effect_animation.cpp ../app/effect_particle.cpp ../app/animation_registry.cpp ../app/hit_arguments.cpp ../app/effect_arguments.cpp ../app/self_effects.cpp ../app/effect_affect.cpp ../app/body_transition.cpp ../app/physics_runtime.cpp ../app/camera_fade.cpp ../app/movie_preload.cpp ../app/speed_effects.cpp ../app/effect_update.cpp ../app/weapon_execution.cpp ../app/projectile_runtime.cpp ../app/projectile_world.cpp ../app/unit_status.cpp ../app/actor_animation.cpp ../app/actor_marker.cpp ../app/primitive_properties.cpp ../app/asset_packages.cpp ../app/script_scheduler.cpp ../app/delayed_actions.cpp ../app/recovered_runtime.cpp ../app/scene_runtime.cpp ../app/object_runtime.cpp ../app/weapon_runtime.cpp ../app/weapon_catalog.cpp ../app/text_runtime.cpp ../app/input_runtime.cpp ../app/map_creation.cpp ../app/graphics_scene.cpp)
+add_executable(hades-debug main.cpp ../app/player.cpp ../app/lua_runtime.cpp ../app/lua_spawn.cpp ../app/source_value.cpp ../app/actor_runtime.cpp ../app/effect_animation.cpp ../app/effect_particle.cpp ../app/animation_registry.cpp ../app/hit_arguments.cpp ../app/effect_arguments.cpp ../app/self_effects.cpp ../app/effect_affect.cpp ../app/body_transition.cpp ../app/physics_runtime.cpp ../app/camera_fade.cpp ../app/movie_preload.cpp ../app/speed_effects.cpp ../app/effect_update.cpp ../app/weapon_execution.cpp ../app/projectile_runtime.cpp ../app/projectile_world.cpp ../app/unit_status.cpp ../app/actor_animation.cpp ../app/actor_marker.cpp ../app/primitive_properties.cpp ../app/asset_packages.cpp ../app/script_scheduler.cpp ../app/delayed_actions.cpp ../app/recovered_runtime.cpp ../app/scene_runtime.cpp ../app/object_runtime.cpp ../app/weapon_runtime.cpp ../app/weapon_catalog.cpp ../app/text_runtime.cpp ../app/input_runtime.cpp ../app/map_creation.cpp ../app/graphics_scene.cpp)
 target_compile_options(hades-debug PRIVATE -Wall -Wextra -Wpedantic -Werror=return-type)
 target_link_libraries(hades-debug PRIVATE lua52 z)
 add_executable(hades-controls-debug ../analysis/controls_camera_debug.cpp ../app/game_ui.cpp ../app/touch_controls.cpp ../app/camera_rig.cpp)
@@ -44,6 +45,7 @@ target_link_libraries(hades-debug PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../.loc
 target_sources(hades-debug PRIVATE ../app/lua_audio.cpp)
 
 target_sources(hades-debug PRIVATE ../app/lua_vfx.cpp)
+target_sources(hades-debug PRIVATE ${HADES_MAP_SOURCE})
 
 target_sources(hades-debug PRIVATE ../app/lua_actor_animation.cpp)
 target_sources(hades-debug PRIVATE ../app/action_effect.cpp ../app/lua_action_fx.cpp)
@@ -58,7 +60,7 @@ target_sources(hades-debug PRIVATE ../app/lua_stop_animation.cpp)
 target_sources(hades-debug PRIVATE ../app/lua_control_notify.cpp)
 target_sources(hades-debug PRIVATE ../app/lua_spatial_queries.cpp)
 target_sources(hades-debug PRIVATE ../app/native_camera.cpp ../app/lua_camera.cpp)
-target_sources(hades-debug PRIVATE ../app/lua_actor_motion.cpp)
+target_sources(hades-debug PRIVATE ../app/lua_actor_motion.cpp ../app/unit_path.cpp)
 
 target_sources(hades-debug PRIVATE ../app/scene_primary.cpp ../app/lua_primaries.cpp ../app/scene_animation.cpp)
 

@@ -117,7 +117,7 @@ struct WeaponSnapshot : WeaponSimulationState {
     // affected template (copy on write), rather than mutate catalog storage.
     std::shared_ptr<const ProjectileDefinition> projectileSource,spawnedProjectileSource;
 };
-enum class WeaponOutputKind { SetOwnerAnimation, RemoveWeaponControl, ScriptCallback, ApplySelfEffects, ProjectileSpawn, CheckInvulnerableBarrelImpact, ApplyOwnerPhysics, SetOwnerAngle, SetOwnerCompleteAngle, CancelOwnerMovement, CancelOwnerDisables, CancelOwnerRotateDisables, CreateAttachedAnimation, ConsumeRandomChance, CreateWeaponWorldAnimation, RequestRandomDouble, FinalizeGunProjectile, SetWeaponWorldAnimationRadius, CancelWeaponSelfEffects, RootOwnerMovement, ExtendOwnerDisables, BlinkTeleport, BlinkUpdate, CancelAttachedProjectiles, QueryNearbyDanger };
+enum class WeaponOutputKind { SetOwnerAnimation, RemoveWeaponControl, ScriptCallback, ApplySelfEffects, ProjectileSpawn, CheckInvulnerableBarrelImpact, ApplyOwnerPhysics, SetOwnerAngle, SetOwnerCompleteAngle, CancelOwnerMovement, CancelOwnerDisables, CancelOwnerRotateDisables, CreateAttachedAnimation, ConsumeRandomChance, CreateWeaponWorldAnimation, RequestRandomDouble, FinalizeGunProjectile, SetWeaponWorldAnimationRadius, CancelWeaponSelfEffects, RootOwnerMovement, ExtendOwnerDisables, BlinkTeleport, BlinkUpdate, CancelAttachedProjectiles, QueryNearbyDanger, ShowAimLine };
 struct WeaponOutput {
     WeaponOutputKind kind=WeaponOutputKind::ScriptCallback;
     int32_t ownerId=0;std::string weaponName,name;

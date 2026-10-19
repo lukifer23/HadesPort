@@ -50,10 +50,11 @@ bool ScriptRuntime::advanceNativeNotifies(float dt,std::string& error){
         auto& pending=worldNotifies_[i];if(!pending.arguments)continue;
         bool overlap=false,controlMatched=false;int32_t hit=0;std::string controlName;
         if(pending.control&&!checkControlNotify(pending,controlMatched,controlName,error))return false;
+        bool allDeadDone=false;if(pending.allDead&&!checkAllDeadNotify(pending,allDeadDone,error))return false;
         bool distanceDone=false;if(pending.distance&&!checkDistanceNotify(pending,distanceDone,error))return false;
         bool stoppedDone=false;if(pending.stopped&&!checkStoppedNotify(pending,stoppedDone,error))return false;
         if(pending.playerInput){overlap=playerInputThisFrame_;}
-        else if(!pending.control&&!pending.distance&&!pending.stopped)for(int32_t sourceId:pending.sources){auto* source=actorWorld_.actor(sourceId);if(!available(source))continue;
+        else if(!pending.control&&!pending.distance&&!pending.stopped&&!pending.allDead)for(int32_t sourceId:pending.sources){auto* source=actorWorld_.actor(sourceId);if(!available(source))continue;
             if(!actorWorld_.refreshGeometry(sourceId,error))return false;
             for(int32_t destinationId:pending.destinations){auto* destination=actorWorld_.actor(destinationId);if(!available(destination))continue;
                 bool collided=false;
@@ -69,7 +70,7 @@ bool ScriptRuntime::advanceNativeNotifies(float dt,std::string& error){
                 if(collided){overlap=true;hit=destinationId;break;}
             }if(overlap)break;
         }
-        const bool satisfied=pending.stopped?stoppedDone:pending.distance?distanceDone:pending.control?controlMatched:(pending.whenSeparated?!overlap:overlap);
+        const bool satisfied=pending.allDead?allDeadDone:pending.stopped?stoppedDone:pending.distance?distanceDone:pending.control?controlMatched:(pending.whenSeparated?!overlap:overlap);
         if(!satisfied)pending.timeout-=dt;
         const bool timeout=!satisfied&&pending.timeout<0;if(!satisfied&&!timeout)continue;
         const int top=lua_gettop(state_);lua_rawgeti(state_,LUA_REGISTRYINDEX,pending.arguments);lua_getfield(state_,-1,"Notify");
@@ -112,10 +113,10 @@ template<class F> bool eachName(lua_State* L,int t,const char* key,F&& f){
 // No early empty-selection test precedes admission (unlike OnCollide).
 int ScriptRuntime::distanceNotifyAction(lua_State* L){
     auto* self=runtime(L);const int mode=int(lua_tointeger(L,lua_upvalueindex(2)));
-    if(!self||!lua_istable(L,1))return luaL_error(L,"NotifyWithinDistance requires source argument table");
+    if(!self||!lua_istable(L,1))return luaL_error(L,"Distance notification requires source argument table");
     WorldNotify pending;pending.distance=uint8_t(mode);
     pending.timeout=tableFloat(L,1,"Timeout",std::numeric_limits<float>::max());
-    if(!std::isfinite(pending.timeout))return luaL_error(L,"NotifyWithinDistance Timeout must be finite");
+    if(!std::isfinite(pending.timeout))return luaL_error(L,"Distance notification Timeout must be finite");
     if(self->worldNotifies_.size()>=10000)return luaL_error(L,"Native notification queue bounds");
     lua_pushvalue(L,1);pending.arguments=luaL_ref(L,LUA_REGISTRYINDEX);self->worldNotifies_.push_back(std::move(pending));return 0;
 }
@@ -135,10 +136,15 @@ bool ScriptRuntime::checkDistanceNotify(const WorldNotify& pending,bool& done,st
     auto addSource=[&](int32_t id)->bool{
         if(!available(actorWorld_.actor(id)))return true;P p;if(!place(id,p)){inner=error;return false;}
         sx+=p.x;sy+=p.y;if(useZ)sy-=p.z*0.8660254f;++count;return true;};
-    if(pending.distance==1){
+    if(pending.distance==1||pending.distance==3){
+        // CheckOutsideDistanceAverage VA18027b8a0 uses the same source and
+        // destination means, OnlyX/OnlyY and projected-Z arithmetic, but
+        // singular IDs take precedence over arrays. Empty selection finishes;
+        // nonempty selections finish only at strictly greater distance.
+        const bool outside=pending.distance==3;
         lua_getfield(L,t,"Id");int numeric=0;const lua_Integer id=lua_tointegerx(L,-1,&numeric);lua_pop(L,1);
         if(numeric&&id>=INT32_MIN&&id<=INT32_MAX&&!addSource(int32_t(id)))return fail(inner);
-        if(!eachId(L,t,"Ids",addSource))return fail(inner);
+        if((!outside||!numeric)&&!eachId(L,t,"Ids",addSource))return fail(inner);
         if(count<=0){lua_settop(L,top);done=true;error.clear();return true;}
         const float cx=sx/float(count),cy=sy/float(count);
         float dx=0,dy=0;int dcount=0;
@@ -147,7 +153,7 @@ bool ScriptRuntime::checkDistanceNotify(const WorldNotify& pending,bool& done,st
             dx+=p.x;dy+=p.y;if(useZ)dy-=p.z*0.8660254f;++dcount;return true;};
         lua_getfield(L,t,"DestinationId");numeric=0;const lua_Integer did=lua_tointegerx(L,-1,&numeric);lua_pop(L,1);
         if(numeric&&did>=INT32_MIN&&did<=INT32_MAX&&!addDestination(int32_t(did)))return fail(inner);
-        if(!eachId(L,t,"DestinationIds",addDestination))return fail(inner);
+        if((!outside||!numeric)&&!eachId(L,t,"DestinationIds",addDestination))return fail(inner);
         // No destination resolves: the native check also returns finished.
         if(dcount<=0){lua_settop(L,top);done=true;error.clear();return true;}
         const float ax=dx/float(dcount),ay=dy/float(dcount);
@@ -155,6 +161,7 @@ bool ScriptRuntime::checkDistanceNotify(const WorldNotify& pending,bool& done,st
         if(tableBool(L,t,"OnlyX",false))d2=(cx-ax)*(cx-ax);
         else{d2=(cy-ay)*(cy-ay);if(!tableBool(L,t,"OnlyY",false))d2=d2+(cx-ax)*(cx-ax);}
         const float distance=tableFloat(L,t,"Distance",0);
+        if(outside){done=distance*distance<d2;lua_settop(L,top);error.clear();return true;}
         if(distance*distance<d2){lua_settop(L,top);error.clear();return true;}
         if(tableBool(L,t,"StopsProjectiles",false)||tableBool(L,t,"StopsUnits",false))
             return fail("NotifyWithinDistance StopsProjectiles/StopsUnits requires native GridManager::GetLineOfSightBlocker provider");
@@ -238,4 +245,47 @@ bool ScriptRuntime::checkStoppedNotify(const WorldNotify& pending,bool& done,std
         }
     }
     done=!moving;error.clear();return true;
+}
+
+// ScriptAction.Execute case0x9d registers CheckOnAllDead VA18027ce60 with
+// retained ScriptArgs and standard Timeout. Singular Id/Name are diagnostics
+// only: each check rereads contiguous Ids and Names arrays. Missing Things
+// count as dead; actual Thing::IsAlive reads LifeStatus+0x238==ALIVE0.
+int ScriptRuntime::allDeadNotifyAction(lua_State* L){
+    auto* self=runtime(L);if(!self||!lua_istable(L,1))return luaL_error(L,"NotifyOnAllDead requires source argument table");
+    WorldNotify pending;pending.allDead=true;pending.timeout=tableFloat(L,1,"Timeout",std::numeric_limits<float>::max());
+    if(!std::isfinite(pending.timeout))return luaL_error(L,"NotifyOnAllDead Timeout must be finite");
+    if(self->worldNotifies_.size()>=10000)return luaL_error(L,"Native notification queue bounds");
+    lua_pushvalue(L,1);pending.arguments=luaL_ref(L,LUA_REGISTRYINDEX);self->worldNotifies_.push_back(std::move(pending));return 0;
+}
+bool ScriptRuntime::checkAllDeadNotify(const WorldNotify& pending,bool& done,std::string& error){
+    done=false;lua_State* L=state_;const int top=lua_gettop(L);lua_rawgeti(L,LUA_REGISTRYINDEX,pending.arguments);const int t=lua_absindex(L,-1);
+    auto fail=[&](const std::string& detail){lua_settop(L,top);error=detail;return false;};
+    if(!lua_istable(L,t))return fail("NotifyOnAllDead lost its original argument table");
+    bool alive=false;std::string inner;
+    const auto check=[&](int32_t id){const auto* a=actorWorld_.actor(id);if(a&&a->registered&&a->object&&a->lifeStatus==0)alive=true;return true;};
+    if(!eachId(L,t,"Ids",check))return fail(inner);
+    if(alive){lua_settop(L,top);error.clear();return true;}
+    std::vector<int32_t> members;
+    if(!eachName(L,t,"Names",[&](const std::string& name){
+        if(alive)return true;if(!activeMapThingGroup(L,name,members,inner))return false;
+        for(auto id:members)check(id);if(alive)return true;
+        // CheckOnAllDead VA18027d2f1 calls CarryingSpawnWithGroup7ad30 even
+        // for an empty group. That method scans active AND pending manager
+        // lists: SpawnOnDetonate nonempty, SpawnType!=PROJECTILE3, then living
+        // Unit owner membership or SpawnsInheritGroups projectile membership.
+        for(auto handle:projectileWorld_.bodyComponents()){
+            const auto* p=projectileWorld_.actor(handle);if(!p||(!p->active&&!p->pending))continue;
+            if(!p->firingArsenal){inner="AllDead carrying-spawn query lost actual firing Arsenal";return false;}
+            const auto* data=p->firingArsenal->projectileData(p->request.weaponName,p->spawnedDefinition,inner);if(!data)return false;
+            const auto text=data->fields.find("SpawnOnDetonate"),type=data->fields.find("SpawnType"),inherit=data->fields.find("SpawnsInheritGroups");
+            if(text==data->fields.end()||!std::holds_alternative<std::string>(text->second)||type==data->fields.end()||!std::holds_alternative<double>(type->second)||inherit==data->fields.end()||!std::holds_alternative<bool>(inherit->second)){inner="AllDead native carrying-spawn scalar data unavailable";return false;}
+            if(std::get<std::string>(text->second).empty()||std::get<double>(type->second)==3)continue;
+            const auto* owner=actorWorld_.actor(p->state.ownerId);
+            if(owner&&owner->registered&&owner->object&&owner->definition&&owner->definition->kind=="Unit"&&owner->lifeStatus==0&&std::find(owner->object->groups.begin(),owner->object->groups.end(),name)!=owner->object->groups.end()){alive=true;break;}
+            if(std::get<bool>(inherit->second)&&std::find(p->body.groups.begin(),p->body.groups.end(),name)!=p->body.groups.end()){alive=true;break;}
+        }
+        return true;
+    }))return fail(inner);
+    lua_settop(L,top);done=!alive;error.clear();return true;
 }

@@ -19,6 +19,9 @@ struct EffectOwnerState {
     // SetValuesFromOwner reads these fields rather than final shader color.
     std::optional<std::array<uint8_t,4>> baseColor;
     std::optional<std::array<float,4>> baseHsv;
+    // Portable snapshot of the owning Thing's draw group. Attached FX keep
+    // this with position/color at preDisposeOwner, before the Thing retires.
+    std::optional<std::string> group;
 };
 using EffectOwnerProvider=std::function<bool(int32_t,EffectOwnerState&,std::string&)>;
 using EffectAnimationRandom=std::function<bool(double&,std::string&)>;

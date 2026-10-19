@@ -153,6 +153,25 @@ bool polygonsOverlap(const std::vector<ActorPoint>& a,const std::vector<ActorPoi
 bool primaryNoCollision(const ActorComponents& a){if(a.animation.active())return (a.animation.clip()->flags&ActorNoCollision)!=0;if(a.primaryEffectAnimation||a.primaryAnimationLifetime){if(!a.primaryOwnerHasNoCollision)throw std::runtime_error("Actual collision primary OwnerHasNoCollision unavailable");return *a.primaryOwnerHasNoCollision;}return false;}
 float effectNumber(const WeaponEffectDefinition& d,const char* key){const auto it=d.fields.find(key);if(it==d.fields.end()||!std::holds_alternative<double>(it->second))throw std::runtime_error(std::string("Actual collision effect scalar unavailable: ")+key);return float(std::get<double>(it->second));}
 }
+bool checkProjectileDodge(const ProjectileActor& p,int32_t id,const ProjectileImpactProviders& providers,bool& dodged,std::string& error){
+    // LifeComponent::CheckDodge VA1802b7b70: pending AND active DisableDodge
+    // gate; active DodgeChance additions; RandomDouble is consumed even at 0.
+    try{dodged=false;if(!p.firingWorld)throw std::runtime_error("CheckDodge requires bound World");
+        if(boolean(currentData(p),"IgnoreDodge")){error.clear();return true;}
+        const auto* a=unit(*p.firingWorld,id);if(!a||!a->hasLife){error.clear();return true;}
+        uint64_t player=0;if(!providers.teams.unitPlayerIdentity||!providers.teams.unitPlayerIdentity(id,player,error))throw std::runtime_error(error.empty()?"CheckDodge requires actual Player association":error);
+        // Unit.pPlayer -> active Unit Life.Invulnerable (native +4e0/+d0/+31).
+        // Portable player bindings identify only the live active Unit.
+        if(player&&a->invulnerable){error.clear();return true;}
+        if(!a->status)throw std::runtime_error("CheckDodge requires live UnitStatus");
+        const auto status=a->status->snapshot();float chance=a->life.dodgeChance;
+        auto effect=[&](uint64_t h)->const WeaponEffectDefinition&{const WeaponEffectDefinition* d=nullptr;if(!providers.effectData||!providers.effectData(h,d,error)||!d)throw std::runtime_error(error.empty()?"CheckDodge requires admitted effect":error);return *d;};
+        for(const auto* handles:{&status.pending,&status.active})for(const auto h:*handles){const auto& fields=effect(h).fields;const auto it=fields.find("DisableDodge");if(it==fields.end()||!std::holds_alternative<bool>(it->second))throw std::runtime_error("CheckDodge effect DisableDodge unavailable");if(std::get<bool>(it->second)){error.clear();return true;}}
+        for(const auto h:status.active)chance+=effectNumber(effect(h),"DodgeChance");
+        double draw=0;if(!providers.random||!providers.random(draw,error))throw std::runtime_error(error.empty()?"CheckDodge requires live RandomDouble":error);
+        dodged=double(chance)>=draw;error.clear();return true;
+    }catch(const std::exception& e){error=e.what();return false;}
+}
 bool ProjectileWorld::checkForImpact(uint64_t handle,const ProjectileImpactProviders& providers,ProjectileImpactResult& result,std::string& error,int32_t* stopVictim){
     bool mutated=false;
     try{auto* p=actor(handle);if(!p||!p->active||p->disposed||!p->firingWorld||!std::isfinite(providers.worldTime))throw std::runtime_error("Impact requires actual active projectile and World clock");
@@ -162,7 +181,7 @@ bool ProjectileWorld::checkForImpact(uint64_t handle,const ProjectileImpactProvi
         // mCurrentDistanceSqrd, DetonateAtTarget and Type!=ARC/BEAM range stop.
         {const float dx=p->body.x-p->spawnX,dy=p->body.y-p->spawnY;mutated=true;p->currentDistanceSquared=dx*dx+dy*dy;}
         auto canDetonate=[&](){const auto& d=currentData(*p);return number(d,"DamageRadius")>0||!string(d,"SpawnOnDetonate").empty();}; // CanDetonate75950
-        auto detonateNow=[&](){if(!canDetonate())return;ProjectileDetonationProviders dp;dp.worldTime=providers.worldTime;dp.teams=providers.teams;dp.applyImpact=providers.detonationImpact;if(!detonate(handle,dp,error))throw std::runtime_error(error);p=actor(handle);};
+        auto detonateNow=[&](){if(!canDetonate())return;ProjectileDetonationProviders dp;dp.worldTime=providers.worldTime;dp.teams=providers.teams;dp.applyImpact=providers.detonationImpact;dp.impact=&providers;if(!detonate(handle,dp,error))throw std::runtime_error(error);p=actor(handle);};
         if(boolean(currentData(*p),"DetonateAtTarget")&&(p->state.targetX!=0||p->state.targetY!=0)){
             const float tx=p->spawnX-p->state.targetX,ty=p->spawnY-p->state.targetY;
             if(p->currentDistanceSquared>tx*tx+ty*ty){detonateNow();result=ProjectileImpactResult::Stop;error.clear();return true;}
@@ -178,7 +197,8 @@ bool ProjectileWorld::checkForImpact(uint64_t handle,const ProjectileImpactProvi
         // DamageRadius only gates the movement-reaction sweep below (VA70a9d);
         // positive-radius Impact remains rejected inside the Impact consumer.
         if(boolean(initial,"FinalJumpToOwner")||number(initial,"ReturnToOwnerAfterInactiveSeconds")!=0||p->state.numJumps||p->state.numBounces||number(initial,"PenetrateFinalJumpUnitRangeModifier")!=0)throw std::runtime_error("Actual impact jump/bounce branch not yet supported");
-        if(number(initial,"UnitCollisionCheck")!=1||number(initial,"ObstacleCollisionCheck")!=1)throw std::runtime_error("Actual impact requires reconstructed Polygon collision checks");
+        const auto supportedChecks=[&](const ProjectileDefinition& d){return number(d,"UnitCollisionCheck")==1&&(number(d,"ObstacleCollisionCheck")==1||number(d,"ObstacleCollisionCheck")==4);};
+        if(!supportedChecks(initial))throw std::runtime_error("Actual impact collision check shape not reconstructed");
         result=ProjectileImpactResult::Continue;
         auto call=[&](ProjectileCollisionOperation op,bool predicate,bool& value){op.projectile=handle;ProjectileCollisionReply reply;
             if(!providers.preflight||!providers.execute||!providers.preflight(op,error))throw std::runtime_error(error.empty()?"Missing actual projectile collision consumer":error);
@@ -201,7 +221,7 @@ bool ProjectileWorld::checkForImpact(uint64_t handle,const ProjectileImpactProvi
             }
         }
         p=actor(handle);if(!p)throw std::runtime_error("Collision callback lost retained projectile storage");
-        if(number(currentData(*p),"UnitCollisionCheck")!=1||number(currentData(*p),"ObstacleCollisionCheck")!=1)throw std::runtime_error("Movement-reaction callback selected unsupported collision shape");
+        if(!supportedChecks(currentData(*p)))throw std::runtime_error("Movement-reaction callback selected unsupported collision shape");
         mutated=true; // mCurrentDistanceSqrd was stored by the prelude (VA7096f).
         if(p->geometry.empty()){error.clear();return true;}
         const auto bounds=polygonBounds(p->geometry);
@@ -227,7 +247,13 @@ bool ProjectileWorld::checkForImpact(uint64_t handle,const ProjectileImpactProvi
             }else{bool stops=false;if(!world.obstacleStops(id,true,stops,error))throw std::runtime_error(error);if(!stops)continue;
                 const float threshold=float(actorProperty(world,id,"MaxUpwardVelocityToCollide").number());if(threshold>0&&a->physics&&a->physics->upVelocity>threshold)continue;
             }
-            if(!polygonsOverlap(p->geometry,a->geometry,!isUnit))continue;
+            if(!isUnit&&number(data,"ObstacleCollisionCheck")==4){
+                // GridSquare::detectCollisions30ae10, params+0e==4:
+                // PointInPolygon2ceaf0(target.geometry, projectile GetLocation).
+                // The native rectangle/Z/StopsProjectiles gates above still run.
+                float x=0,y=0;if(!thingLocation(*p,x,y,error))throw std::runtime_error(error);
+                if(!pointInPolygon(a->geometry,x,y))continue;
+            }else if(!polygonsOverlap(p->geometry,a->geometry,!isUnit))continue;
             hits.push_back({id,a->entityHandle,isUnit});
             if(!boolean(currentData(*p),"MultipleCollisionPerFrame"))break;
         }
@@ -357,7 +383,7 @@ bool ProjectileWorld::prepareArcImpact(uint64_t handle,int32_t victim,Projectile
     // Exact REA ev_7ca188a86008fb9ae7732e318dfa7e4903f845a059776d41ba9bbba23403cc36.
     // ARC GetImpactAngle6e7d0 uses current direct owner Body angle unless radial;
     // it does not use shot/arc angle. GetImpactLocation72a90 then uses mImpactLocation.
-    try{output={};auto* p=actor(handle);const bool arc=p&&p->descriptor.concreteClass==ProjectileClass::Arc;if(!p||!p->firingWorld||(!arc&&p->descriptor.concreteClass!=ProjectileClass::Straight))throw std::runtime_error("Impact geometry requires actual ARC/STRAIGHT source binding");
+    try{output={};auto* p=actor(handle);const bool arc=p&&p->descriptor.concreteClass==ProjectileClass::Arc;if(!p||!p->firingWorld||(!arc&&p->descriptor.concreteClass!=ProjectileClass::Straight&&p->descriptor.concreteClass!=ProjectileClass::Homing))throw std::runtime_error("Impact geometry requires actual ARC/STRAIGHT/HOMING source binding");
         auto& world=*p->firingWorld;const auto* target=world.actor(victim);if(!target||!target->object)throw std::runtime_error("Impact geometry requires retained actual victim");
         if(target->isDisposed||!target->hasLife){error.clear();return true;}
         const auto& data=currentData(*p);if(number(data,"ImmunityDuration")>0)throw std::runtime_error("Actual positive projectile immunity needs ECS Immunities storage");
@@ -481,15 +507,26 @@ bool ProjectileWorld::updateDetonation(uint64_t handle,float elapsed,const Proje
         if(!boolean(d,"DrawAsBeam")&&(p->attachedAnimation||!p->attachedAnimations.empty()))throw std::runtime_error("UpdateDetonation attached Animation::SetRadius consumer not reconstructed");
         if(!(p->state.blastRadius>0)){error.clear();return true;}
         // Virtual slot0x1b8: base CheckProjectileDefense72560 / Arc626e0.
-        if(p->descriptor.concreteClass!=ProjectileClass::Straight)throw std::runtime_error("UpdateDetonation non-STRAIGHT CheckProjectileDefense override not reconstructed");
+        if(p->descriptor.concreteClass!=ProjectileClass::Straight&&p->descriptor.concreteClass!=ProjectileClass::Homing)throw std::runtime_error("UpdateDetonation derived CheckProjectileDefense override not reconstructed");
         if(!checkBaseProjectileDefense(handle,error))throw std::runtime_error(error);
         p=actor(handle);const float r=p->state.blastRadius,px=p->body.x,py=p->body.y;
-        // GetUnits309b20 rectangle (int)(x-r),(int)(y-r),(int)(2r) uses the
-        // UNSCALED radius; in-blast Units outside it have unproven grid membership.
+        // GetUnits309b20 visits cells touched by the UNSCALED rectangle and
+        // unions their Unit lists; it does NOT filter Unit centers to that rect.
+        // Android broadphase adaptation: use the same sparse512-unit grid and
+        // transformed polygon AABBs as ActorWorld obstacles. Native map-grid
+        // origin/clamping/hash order remain distinct, explicitly documented.
         const float left=float(int32_t(px-r)),top=float(int32_t(py-r)),size=float(int32_t(r+r));
         const auto* owner=unit(world,p->request.ownerId); // UnitManager::Get(pFiredBy+0x30)
         const auto& data=currentData(*p);
-        for(const auto id:std::vector<int32_t>(world.registrationOrder().begin(),world.registrationOrder().end())){
+        ActorSpatialGrid units;
+        for(const auto id:world.registrationOrder()){const auto* a=unit(world,id);if(!a||!a->object)continue;
+            SpatialObstacle entry;entry.id=id;entry.lifetime=a->entityHandle;
+            float x=0,y=0;if(!world.location(id,x,y,error))throw std::runtime_error(error);entry.bounds={x,y,x,y};
+            if(!a->geometry.empty()){entry.bounds={a->geometry[0].x,a->geometry[0].y,a->geometry[0].x,a->geometry[0].y};for(const auto& q:a->geometry){entry.bounds.minX=std::min(entry.bounds.minX,q.x);entry.bounds.maxX=std::max(entry.bounds.maxX,q.x);entry.bounds.minY=std::min(entry.bounds.minY,q.y);entry.bounds.maxY=std::max(entry.bounds.maxY,q.y);}}
+            if(!units.update(entry,error))throw std::runtime_error(error);
+        }
+        std::vector<SpatialObstacle> candidates;if(!units.query({left,top,left+size,top+size},ObstacleGridCategory::All,candidates,error,false))throw std::runtime_error(error);
+        for(const auto& candidate:candidates){const auto id=candidate.id;
             const auto* a=unit(world,id);if(!a||!a->object)continue;
             if(!actorProperty(world,id,"Thing.StopsProjectiles").boolean())continue; // ThingData+0x219
             if(primaryNoCollision(*a)&&!boolean(data,"IgnoreNoCollisionAnimData"))continue; // AnimData+0x8d
@@ -505,11 +542,40 @@ bool ProjectileWorld::updateDetonation(uint64_t handle,float elapsed,const Proje
             }
             bool in=false;if(!isInBlast(handle,id,in,error))throw std::runtime_error(error);if(!in)continue;
             float ux=0,uy=0;if(!world.location(id,ux,uy,error))throw std::runtime_error(error);
-            if(ux<left||ux>left+size||uy<top||uy>top+size)throw std::runtime_error("UpdateDetonation in-blast Unit outside native GetUnits rectangle: grid membership not reconstructed");
-            (void)owner;
-            // LOS(VA72062/720ad), arc(isAngleBetween1ea670), DoInsertValue, then
-            // CheckDodge/OnDodge or ShouldReflect/CheckImmunities/ApplyImpact76590.
-            throw std::runtime_error("Detonation victim LOS/arc/dodge/reflect/immunity/ApplyImpact sequence not reconstructed: victim "+std::to_string(id));
+            for(unsigned sight=0;sight<2;++sight){
+                const bool fromOwner=sight==1;if(fromOwner?(!owner||!boolean(data,"DetonateLineOfSightFromOwner")):!boolean(data,"DetonateLineOfSight"))continue;
+                ProjectileCollisionOperation op;op.kind=ProjectileCollisionOperationKind::HasLineOfSight;op.projectile=handle;op.victimId=id;op.unit=true;
+                op.fromX=p->body.x;op.fromY=p->body.y;op.toX=ux;op.toY=uy;
+                if(fromOwner&&!world.location(owner->id,op.fromX,op.fromY,error))throw std::runtime_error(error);
+                // Same explicit z/backoff approximation as obstacle detonation.
+                bool clear=false;if(!hasLineOfSight(op,clear,error))throw std::runtime_error(error);if(!clear){in=false;break;}
+            }
+            if(!in)continue;
+            const float start=number(data,"DetonateArcStart"),end=number(data,"DetonateArcEnd");
+            if(start!=end){float x=0,y=0;if(!thingLocation(*p,x,y,error))throw std::runtime_error(error);
+                const float angle=normalizedAngle(std::atan2(-(uy-y),ux-x)),lo=normalizedAngle(start*0.01745329238474369f+p->body.angle),hi=normalizedAngle(end*0.01745329238474369f+p->body.angle);
+                // Exact native isAngleBetween1ea670 branch comparisons. Its
+                // endpoint convention excludes the interval when lo <= hi.
+                if(!(lo>hi?(angle>hi&&lo>angle):(lo>angle||angle>hi)))continue;
+            }
+            if(std::find(p->hitByDetonation.begin(),p->hitByDetonation.end(),id)==p->hitByDetonation.end())p->hitByDetonation.push_back(id);
+            if(!providers.impact)throw std::runtime_error("Unit detonation requires live impact providers");
+            bool dodged=false;if(a->hasLife&&!checkProjectileDodge(*p,id,*providers.impact,dodged,error))throw std::runtime_error(error);
+            if(dodged&&(number(data,"Damage")>0||number(data,"DamageLow")>0||number(data,"DamageHigh")>0))throw std::runtime_error("Detonation Unit::OnDodge2f3c10 consumer not reconstructed");
+            bool reflected=false;
+            if(boolean(data,"CanBeReflected")&&a->hasLife){float reflection=a->life.reflection;
+                if(a->status)for(const auto h:a->status->snapshot().active){const WeaponEffectDefinition* e=nullptr;if(!providers.impact->effectData||!providers.impact->effectData(h,e,error)||!e)throw std::runtime_error(error.empty()?"Detonation reflection effect unavailable":error);reflection+=effectNumber(*e,"Reflection");}
+                if(reflection>0){double draw=0;if(!providers.impact->random||!providers.impact->random(draw,error))throw std::runtime_error(error.empty()?"Detonation reflection RNG unavailable":error);
+                    if(draw<=actorProperty(world,id,"Life.ReflectionChance").number()){float x=0,y=0;if(!thingLocation(*p,x,y,error))throw std::runtime_error(error);
+                        const float direction=normalizedAngle(std::atan2(-(uy-y),ux-x)+3.1415927410125732421875f),facing=normalizedAngle(a->object->angle),diff=std::abs(direction-facing);reflected=a->life.armorCoverage*.5f>std::min(diff,6.283185482025146484375f-diff);}
+                }
+            }
+            if(reflected)continue;
+            // CheckImmunities759a0 returns immediately for nonpositive duration;
+            // a positive authored duration needs the real ECS immunity cache.
+            if(number(data,"ImmunityDuration")>0)throw std::runtime_error("Detonation positive ImmunityDuration ECS cache not reconstructed");
+            if(!providers.applyImpact||!providers.applyImpact(handle,id,error))throw std::runtime_error(error.empty()?"Unit detonation ApplyImpact unavailable":error);
+            p=actor(handle);if(!p)throw std::runtime_error("Unit detonation impact lost projectile storage");
         }
         if(boolean(currentData(*p),"CheckObstacleImpact")){
             std::vector<int32_t> obstacles;if(!world.spatialObstacleCandidates(SpatialBounds{left,top,left+size,top+size},ObstacleGridCategory::StopsProjectiles,obstacles,error))throw std::runtime_error(error);
@@ -604,11 +670,12 @@ bool ProjectileWorld::prepareDeath(uint64_t handle,int32_t victim,ProjectileDeat
     // through ScriptManager::OnProjectileDeath289ed0 argument construction.
     try{out={};const auto* p=actor(handle);if(!p||!p->firingWorld||!p->firingArsenal)throw std::runtime_error("OnDeath requires actual projectile source binding");
         auto& world=*p->firingWorld;const auto& d=currentData(*p);
-        if(victim>=0)throw std::runtime_error("OnDeath non-null victim (vslot0x198 angle, physics force, coverage) not reconstructed");
+        const auto* deathVictim=victim>=0?world.actor(victim):nullptr;if(victim>=0&&(!deathVictim||!deathVictim->registered||!deathVictim->object))throw std::runtime_error("OnDeath actual victim lifetime unavailable");
+        if(deathVictim&&deathVictim->physics&&number(d,"OnDeathImpactForce")!=0)throw std::runtime_error("OnDeath nonzero victim physics force requires actual consumer");
+        out.victimId=victim;out.killedVictim=deathVictim&&deathVictim->hasLife&&deathVictim->lifeStatus!=0;
         std::string dissipate=string(d,"DissipateGraphic");if(dissipate.empty())dissipate=string(d,"ImpactFx"); // VA6f6d4: victim null only
-        if(!absentAnimation(dissipate))throw std::runtime_error("OnDeath DissipateGraphic/ImpactFx CreateCustom animation not reconstructed: "+dissipate);
+        if(!absentAnimation(dissipate)||p->primaryAnimation){if(!deathGraphic_||!deathGraphic_(handle,dissipate,error))throw std::runtime_error(error.empty()?"OnDeath actual animation factory unavailable":error);}
         if(!string(d,"SpawnOnDeath").empty()&&!p->state.blockSpawns)throw std::runtime_error("OnDeath SpawnOnDeath SpawnObject72c70 not reconstructed");
-        if(p->primaryAnimation)throw std::runtime_error("OnDeath primary Animation death chain (AnimData+0x508/0x73) not reconstructed");
         const auto* owner=unit(world,p->request.ownerId); // UnitManager::Get(pFiredBy+0x30)
         if(owner&&(!string(d,"OnDeathFiredByAnimation").empty()||!string(d,"AddControlOnDeath").empty()||!string(d,"AddControlOnDeath2").empty()))throw std::runtime_error("OnDeath owner animation/AddWeaponControl consumer not reconstructed");
         // victim null: InvulnerableImpact derives from the last mThingsHit Thing.
@@ -623,6 +690,7 @@ bool ProjectileWorld::prepareDeath(uint64_t handle,int32_t victim,ProjectileDeat
             for(const auto id:world.registrationOrder()){const auto* a=world.actor(id);if(a&&a->registered&&a->entityHandle==p->thingsHit.back()){last=a;break;}}
             if(last){
                 out.lastHitId=last->id;out.lastHitIsUnit=last->definition&&last->definition->kind=="Unit";
+                if(victim<0){
                 if(!primaryCombat_)throw std::runtime_error("OnDeath last-hit invulnerability requires actual primary combat provider");
                 bool primaryInvulnerable=false,noCoverage=false;if(!primaryCombat_(last->id,primaryInvulnerable,noCoverage,error))throw std::runtime_error(error);
                 const bool lifeInvulnerable=last->hasLife&&last->invulnerable;
@@ -639,6 +707,21 @@ bool ProjectileWorld::prepareDeath(uint64_t handle,int32_t victim,ProjectileDeat
                         out.invulnerableImpact=coverage>0&&!noCoverage&&coverage*0.5f>=distance;
                     }
                 }
+                }
+            }
+        }
+        // Non-null victim branch VA6fb85..6fd9a uses GetImpactAngle(victim)
+        // + pi for its coverage arc; the zero OnDeathImpactForce path has no
+        // Physics mutation (ApplyForce2bd070 returns immediately for force0).
+        if(deathVictim){
+            if(!primaryCombat_)throw std::runtime_error("OnDeath victim requires actual primary combat flags");bool invulnerable=false,noCoverage=false;
+            if(!primaryCombat_(victim,invulnerable,noCoverage,error))throw std::runtime_error(error);
+            if(invulnerable||(deathVictim->hasLife&&deathVictim->invulnerable))out.invulnerableImpact=true;
+            else if(!boolean(d,"IgnoreCoverageAngles")){
+                float x=0,y=0,vx=0,vy=0;if(!thingLocation(*p,x,y,error)||!world.location(victim,vx,vy,error))throw std::runtime_error(error);
+                if(x!=vx||y!=vy){ProjectileImpactGeometry geometry;if(!impactGeometry(handle,victim,geometry,error))throw std::runtime_error(error);
+                    const float direction=normalizedAngle(geometry.angle+3.1415927410125732f),body=normalizedAngle(deathVictim->object->angle),span=std::abs(direction-body),distance=std::min(span,6.2831854820251465f-span);
+                    out.invulnerableImpact=deathVictim->hasLife&&deathVictim->life.invulnerableCoverage>0&&!noCoverage&&deathVictim->life.invulnerableCoverage*.5f>=distance;}
             }
         }
         // Weapon volley block VA6fda8-701b5: Gun weapon (flags&0x44, same gate

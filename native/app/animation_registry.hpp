@@ -8,7 +8,7 @@
 namespace hades {
 // Exact matching PDB enum, not inferred from class names or source omission.
 enum class NativeAnimationType:uint8_t {Book=0,Slide=1,Constant=2,ConstantNoUpdate=3,Dataless=4,Random=5,Graft=6,Text=7};
-enum class AnimationOwnership {ThingPrimary,Child,ManagerCreate,LightController};
+enum class AnimationOwnership {ThingPrimary,Child,ManagerCreate,LightController,GuiComponent};
 struct AnimationAllocation {
     std::string name;
     SourceValue sourceDefinition;

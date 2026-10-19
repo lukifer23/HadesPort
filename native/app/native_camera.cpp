@@ -21,7 +21,38 @@ bool NativeCamera::setViewport(uint32_t w,uint32_t h,std::string&error){if(!w||!
 bool NativeCamera::weightedZoom(const NativeCameraResolve&resolve,float&result,std::string&error)const{if(state_.zoomWeights.empty()){result=1;return true;}if(!resolve){error="Actual weighted camera target provider unavailable";return false;}float sum=0,total=0;for(const auto&[id,binding]:state_.zoomWeights){NativeCameraTarget live;std::string detail;if(!resolve(id,live,detail)||live.lifetime!=binding.first.lifetime)continue;const float distance=std::hypot(live.x-state_.x,live.y-state_.y),weight=distance>1?1000.f/distance:1000.f;total+=weight;sum+=weight*binding.second;}if(total<=0){error="Native weighted camera has no surviving source targets";return false;}result=sum/total;return true;}
 bool NativeCamera::setZoomWeight(const std::vector<int32_t>&ids,float weight,float zoomSpeed,const NativeCameraResolve&resolve,std::string&error){if(!finite(weight)||weight<=0||weight>100||!finite(zoomSpeed)){error="Native camera zoom weight bounds";return false;}std::vector<NativeCameraTarget>targets;if(!resolveTargets(ids,resolve,targets,error))return false;for(const auto&t:targets)state_.zoomWeights[t.id]={t,weight};if(zoomSpeed>0)state_.zoomSpeed=zoomSpeed;error.clear();return true;}
 bool NativeCamera::applyClamp(const NativeCameraResolve&resolve,std::string&error){
- if(state_.clampTargets.empty())return true;if(state_.clampTargets.size()!=2){error="Original polygon camera clamp requires polygon provider";return false;}
+ if(state_.clampTargets.empty())return true;
+ if(state_.clampTargets.size()>2){
+  // Camera::ApplyClamp VA18030611a..6466 rebuilds the polygon from live
+  // selected marker locations in ID order. The polygon branch clamps the
+  // camera point itself; viewport inset belongs only to the rectangle branch.
+  std::vector<NativeCameraTarget> points;
+  for(const auto& t:state_.clampTargets){NativeCameraTarget live;std::string detail;
+   if(!resolve(t.id,live,detail)||live.lifetime!=t.lifetime)continue;
+   if(!finite(live.x)||!finite(live.y)){error="Nonfinite polygon camera clamp marker";return false;}points.push_back(live);}
+  if(points.empty()){error="Original polygon camera clamp lost all live markers";return false;}
+  // PolygonHelpers::PointInPolygon VA1802ceaf0: half-open crossing with
+  // >= comparisons, multiplication order and boundary ties preserved.
+  bool inside=false;auto previous=points.back();bool previousAbove=previous.y>=state_.y;
+  for(const auto& current:points){const bool above=current.y>=state_.y;
+   if(previousAbove!=above){const float lhs=(previous.x-current.x)*(current.y-state_.y),rhs=(previous.y-current.y)*(current.x-state_.x);
+    if((lhs>=rhs)==above)inside=!inside;}previous=current;previousAbove=above;}
+  if(!inside){
+   // Polygon::ClosestPointOnEdge VA180068af0: project onto each ordered
+   // segment; compare sqrt(float squared distance), keeping the first tie.
+   float best=std::numeric_limits<float>::max(),x=0,y=0;
+   for(size_t i=0;i<points.size();++i){const auto& a=points[i];const auto& b=points[(i+1)%points.size()];
+    const float dx=b.x-a.x,dy=b.y-a.y,dot=(state_.x-a.x)*dx+(state_.y-a.y)*dy;
+    float qx=a.x,qy=a.y;
+    if(dot>0){const float len2=dx*dx+dy*dy;if(dot>=len2){qx=b.x;qy=b.y;}else{const float f=dot/len2;qx=dx*f+a.x;qy=dy*f+a.y;}}
+    const float ex=state_.x-qx,ey=state_.y-qy,distance=std::sqrt(ex*ex+ey*ey);
+    if(distance<best){best=distance;x=qx;y=qy;}
+   }
+   if(state_.softClamp>0){x=state_.x+(x-state_.x)*state_.softClamp;y=state_.y+(y-state_.y)*state_.softClamp;}
+   state_.x=x;state_.y=y; // Native polygon branch preserves move speed.
+  }
+  return true;
+ }
  float minX=1e7f,minY=1e7f,maxX=-1e7f,maxY=-1e7f;size_t n=0;for(const auto&t:state_.clampTargets){NativeCameraTarget live;std::string detail;if(!resolve(t.id,live,detail)||live.lifetime!=t.lifetime)continue;minX=std::min(minX,live.x);minY=std::min(minY,live.y);maxX=std::max(maxX,live.x);maxY=std::max(maxY,live.y);++n;}
  if(n<2)return true;const int left=int(minX),top=int(minY),width=int(maxX-minX),height=int(maxY-minY);if(!width||!height)return true;
  // Source deliberately truncates viewport/zoom and half extent separately,
@@ -160,7 +191,7 @@ bool NativeCamera::pan(const std::vector<int32_t>&ids,float duration,float easeI
  py.start=fromY;py.end=toY;py.startTime=duration/20.f+time_;py.duration=duration*.8f; // __real@41a00000, __real@3f4ccccd
  error.clear();return true;
 }
-bool NativeCamera::setClamps(const std::vector<int32_t>&ids,float soft,const NativeCameraResolve&resolve,std::string&error){if(!finite(soft)||soft<0){error="Original camera soft clamp bounds";return false;}std::vector<NativeCameraTarget>targets;if(!resolveTargets(ids,resolve,targets,error))return false;if(!targets.empty()&&targets.size()!=2){error="Original polygon camera clamp requires polygon provider";return false;}state_.clampTargets=std::move(targets);state_.softClamp=soft;error.clear();return true;}
+bool NativeCamera::setClamps(const std::vector<int32_t>&ids,float soft,const NativeCameraResolve&resolve,std::string&error){if(!finite(soft)||soft<0){error="Original camera soft clamp bounds";return false;}std::vector<NativeCameraTarget>targets;if(!resolveTargets(ids,resolve,targets,error))return false;state_.clampTargets=std::move(targets);state_.softClamp=soft;error.clear();return true;}
 bool NativeCamera::tetherLocation(const NativeCameraResolve&resolve,float&x,float&y,size_t&count,std::string&error)const{
  x=y=0;count=0;for(const auto&t:state_.targets){NativeCameraTarget live;std::string detail;if(!resolve(t.id,live,detail))continue;if(live.lifetime!=t.lifetime)continue;if(!finite(live.x)||!finite(live.y)){error="Nonfinite actual camera target";return false;}x+=live.x;y+=live.y;++count;}
  if(count){x=x/count+state_.offsetX;y=y/count+state_.offsetY;}return true;}

@@ -105,17 +105,29 @@ bool ScriptRuntime::createWeaponProjectile(const hades::WeaponOutput& op,uint64_
     hades::ProjectileShotProviders providers;providers.worldTime=worldTime_;
     providers.random=[this](double& value,std::string& detail){if(nextRecoveredEngineRandom(state_,value))return true;detail="Projectile source RNG unavailable";return false;};
     providers.thing.random=providers.random;
+    providers.thing.createAttachedAnimation=[this](hades::ProjectileActor& p,const std::string& name,uint64_t& animation,std::string& e){return createActionEffect(name,projectileFxOwner(p.request.lifetimeHandle),std::nullopt,animation,e);};
+    providers.thing.setAnimation=[this](hades::ProjectileActor& p,const std::string& name,bool,std::string& e){return setProjectileAnimation(p,name,e);};
+    providers.thing.createActivateFx=[this](hades::ProjectileActor& p,const std::string& name,std::string& e){uint64_t animation=0;return createActionEffect(name,projectileFxOwner(p.request.lifetimeHandle),std::nullopt,animation,e);};
+    installProjectileGraphicProvider();
     providers.ownerState=[](const hades::ActorComponents& actual,float& damage,int32_t& spawned,bool& traitor,std::string& detail){if(!actual.status){detail="Firing owner has no actual status";return false;}damage=actual.damageOutputModifier;spawned=actual.spawnedById;traitor=actual.status->snapshot().isTraitor;detail.clear();return true;};
     providers.validateGroup=[this](const std::string& name,std::string& detail){for(const auto& group:snapshotSceneGroups(state_))if(group.name==name){detail.clear();return true;}detail="Actual projectile scene group unavailable: "+name;return false;};
-    providers.preflight=[](const hades::ProjectileInitializationOperation& operation,const hades::ProjectileActor&,std::string& detail){
+    providers.preflight=[this](const hades::ProjectileInitializationOperation& operation,const hades::ProjectileActor& p,std::string& detail){
         using K=hades::ProjectileInitializationOperationKind;
-        if(operation.kind==K::ClearOnAttackEffects||(operation.kind==K::CreateStartAnimation&&(operation.name.empty()||operation.name=="null")))return true;
+        if(operation.kind==K::ClearOnAttackEffects)return true;
+        if(operation.kind==K::SetAttachedAnimationRadius)return std::isfinite(operation.value);
+        if(operation.kind==K::InheritElapsedTimeMultiplier){if(operation.value==1)return true;detail="Projectile inherited non-default animation clock requires Animation elapsed adapter";return false;}
+        if(operation.kind==K::CreateStartAnimation){if(operation.name.empty()||operation.name=="null")return true;return prepareActionEffect(operation.name,projectileFxOwner(p.request.lifetimeHandle),detail);}
         detail="Projectile initialization requires live consumer: "+operation.name;return false;
     };
-    providers.execute=[this](const hades::ProjectileInitializationOperation& operation,hades::ProjectileActor&,std::string& detail){
+    providers.execute=[this](const hades::ProjectileInitializationOperation& operation,hades::ProjectileActor& p,std::string& detail){
         using K=hades::ProjectileInitializationOperationKind;
         if(operation.kind==K::ClearOnAttackEffects)return selfEffects_.clearOnAttack(operation.ownerId,selfEffectProviders(),detail);
-        if(operation.kind==K::CreateStartAnimation&&(operation.name.empty()||operation.name=="null")){detail.clear();return true;}
+        if(operation.kind==K::SetAttachedAnimationRadius){for(auto h:p.attachedAnimations)if(actionEffects_.state(h)&&!actionEffects_.setRadius(h,operation.value,detail))return false;if(p.attachedAnimation&&actionEffects_.state(p.attachedAnimation)&&!actionEffects_.setRadius(p.attachedAnimation,operation.value,detail))return false;return true;}
+        // Internal consumer stores Thing.mElapsedTimeMultiplier before this;
+        // ActionEffectProviders.elapsed reads that actual live projectile clock.
+        if(operation.kind==K::InheritElapsedTimeMultiplier&&operation.value==1)return true;
+        if(operation.kind==K::CreateStartAnimation){if(operation.name.empty()||operation.name=="null"){detail.clear();return true;}
+            float x=0,y=0;if(!projectileWorld_.projectileLocation(p,x,y,detail))return false;uint64_t h=0;if(!createActionEffect(operation.name,projectileFxOwner(p.request.lifetimeHandle),std::array<float,3>{x,y,0},h,detail))return false;return !h||actionEffects_.preferUnmodifiedTime(h,detail);}
         detail="Unconsumed projectile initialization operation";return false;
     };
     return projectileWorld_.initializeShot(std::move(request),*owner->arsenal,actorWorld_,providers,handle,error);
@@ -131,8 +143,9 @@ bool ScriptRuntime::projectileEffectOwner(int32_t id,hades::EffectOwnerState& st
     const auto it=projectileFxOwners_.find(id);const auto* p=it==projectileFxOwners_.end()?nullptr:projectileWorld_.actor(it->second);
     // The mapping is released synchronously inside the projectile's Thing.Dispose consumer
     // (body still valid there), so a mapped projectile is the live owner.
-    if(!p||!p->thingInitialized){error="Effect owner requires actual live projectile";return false;}
+    if(!p||!p->bodyPending){error="Effect owner requires actual initialized projectile body";return false;}
     state=hades::EffectOwnerState{};state.lifetime=p->request.lifetimeHandle;
+    state.group=p->body.group;
     if(!projectileWorld_.projectileLocation(*p,state.x,state.y,error)||!projectileWorld_.projectileZ(*p,state.z,error))return false;
     state.scale=p->body.scale*p->body.scaleFraction;state.angle=p->body.angle;state.baseColor=p->baseColor;state.baseHsv=std::array<float,4>{p->hsv[0],p->hsv[1],p->hsv[2],0};
     state.hasPrimaryAnimation=p->primaryAnimation!=0;state.isUnit=false;error.clear();return true;
@@ -141,7 +154,7 @@ bool ScriptRuntime::releaseProjectileFxOwner(uint64_t handle,std::string& error)
     // Thing::Dispose of the owning projectile: attached FX detach exactly as for
     // other owners (ActionEffectWorld::preDisposeOwner), before the body is retired.
     const auto it=projectileFxOwnerIds_.find(handle);if(it==projectileFxOwnerIds_.end()){error.clear();return true;}
-    const int32_t id=it->second;hades::EffectOwnerState owner;if(!projectileEffectOwner(id,owner,error)||!actionEffects_.preDisposeOwner(id,owner,error))return false;
+    const int32_t id=it->second;if(!audioOwnerDeath(id,error))return false;hades::EffectOwnerState owner;if(!projectileEffectOwner(id,owner,error)||!actionEffects_.preDisposeOwner(id,owner,error))return false;
     projectileFxOwners_.erase(id);projectileFxOwnerIds_.erase(it);error.clear();return true;
 }
 hades::ProjectileDefenseProviders ScriptRuntime::projectileDefenseProviders(){
@@ -162,7 +175,36 @@ hades::ProjectileDefenseProviders ScriptRuntime::projectileDefenseProviders(){
     defense.inBlast=[](uint64_t defender,uint64_t candidate,bool& in,std::string& e){(void)defender;(void)candidate;in=false;e="Projectile defense IsInBlast760e0 against a projectile candidate not reconstructed";return false;};
     return defense;
 }
+// Thing::SetAnimation2decb0 creates the replacement before releasing the old
+// ThingPrimary. Projectiles use the same original Animation factories as Units.
+bool ScriptRuntime::setProjectileAnimation(hades::ProjectileActor& p,const std::string& name,std::string& error){
+    if(const auto* current=actionEffects_.state(p.primaryAnimation);current&&current->name==name)return true;
+    uint64_t animation=0;if(!actionEffects_.createPrimary(name,projectileFxOwner(p.request.lifetimeHandle),actionEffectProviders(),animation,error))return false;
+    if(p.primaryAnimation&&!retirePrimaryAnimation(p.primaryAnimation,error))return false;
+    p.primaryAnimation=animation;p.body.animation=name;p.body.graphicsDirty=true;return true;
+}
+bool ScriptRuntime::projectileGraphicTransform(uint64_t handle,std::string& error){
+    const auto* p=projectileWorld_.actor(handle);if(!p||!p->thingInitialized){error="Projectile graphic transform lost actual body";return false;}
+    if(!p->thing||!p->thing->get("Light")||!p->thing->get("Light")->text().empty()){error="Projectile light transform registration not reconstructed";return false;}
+    return actionEffects_.refreshOwner(projectileFxOwner(handle),actionEffectProviders(),error);
+}
 void ScriptRuntime::installProjectileGraphicProvider(){
+    projectileWorld_.setTransformProvider([this](uint64_t h,std::string& e){return projectileGraphicTransform(h,e);});
+    projectileWorld_.setDeathGraphicProvider([this](uint64_t handle,const std::string& name,std::string& e){
+        auto* p=projectileWorld_.actor(handle);if(!p||!p->thingInitialized){e="OnDeath graphic projectile body unavailable";return false;}
+        const auto* primary=actionEffects_.state(p->primaryAnimation);
+        if(primary){const auto* chain=primary->definition.get("ChainTo"),*loop=primary->definition.get("Loop");if(chain&&!chain->text().empty()&&chain->text()!="null"&&loop&&loop->boolean()){e="OnDeath looping primary ChainTo transfer not reconstructed";return false;}}
+        if(name.empty()||name=="null")return true;
+        float x=0,y=0,z=0;if(!projectileWorld_.projectileLocation(*p,x,y,e)||!projectileWorld_.projectileZ(*p,z,e))return false;
+        uint64_t animation=0;if(!actionEffects_.createStandalone(name,{x,y,0},actionEffectProviders(),animation,e))return false;
+        if(!animation)return true;
+        // OnDeath6f5c0 VA6f73e..6f825: Add, CopyState(primary,true),
+        // PreferUnmodifiedTime, TransferDrawLayer from actual Thing, SetZ.
+        if(!actionEffects_.copyState(animation,p->primaryAnimation,actionEffectProviders(),e)||!actionEffects_.preferUnmodifiedTime(animation,e))return false;
+        const auto* s=actionEffects_.state(animation);const auto* transfer=s?s->definition.get("TransferDrawLayer"):nullptr;
+        if((!transfer||transfer->boolean())&&!actionEffects_.configureCreated(animation,z,p->body.group,true,e))return false;
+        return actionEffects_.setZLocation(animation,z,e);
+    });
     projectileWorld_.setDefenseProviders(projectileDefenseProviders());
     projectileWorld_.setDetonateGraphicProvider([this](uint64_t handle,const std::string& name,float x,float y,bool primary,float radius,std::string& e){
         // AnimationManager::Create29e410(name, projectile, Vector2 location) -> SetRadius2974e0 ->
@@ -187,12 +229,13 @@ void ScriptRuntime::fillImpactProviders(hades::ProjectileImpactProviders& impact
             impact.primaryInvulnerable=[this](int32_t id,bool& invulnerable,std::string& e){bool noArmor=false,noCoverage=false;return primaryCombatFlags(id,invulnerable,noArmor,noCoverage,e);};
             impact.preflight=[](const hades::ProjectileCollisionOperation& op,std::string& e){
                 using C=hades::ProjectileCollisionOperationKind;
-                if(op.kind==C::HasLineOfSight||op.kind==C::OnMovementReaction||op.kind==C::Impact)return true;
+                if(op.kind==C::HasLineOfSight||op.kind==C::OnMovementReaction||op.kind==C::Impact||op.kind==C::CheckDodge)return true;
                 e="Actual projectile collision consumer unavailable: kind="+std::to_string(int(op.kind))+" victim="+std::to_string(op.victimId);return false;
             };
             impact.execute=[this,&impact](const hades::ProjectileCollisionOperation& op,hades::ProjectileCollisionReply& result,std::string& e){
                 using C=hades::ProjectileCollisionOperationKind;
                 if(op.kind==C::Impact)return applyProjectileImpact(op.projectile,op.victimId,impact,e);
+                if(op.kind==C::CheckDodge){const auto* p=projectileWorld_.actor(op.projectile);if(!p){e="CheckDodge lost projectile";return false;}bool dodged=false;if(!hades::checkProjectileDodge(*p,op.victimId,impact,dodged,e))return false;result.predicate=dodged;return true;}
                 if(op.kind==C::HasLineOfSight){bool clear=false;if(!projectileWorld_.hasLineOfSight(op,clear,e))return false;result.predicate=clear;return true;}
                 if(op.kind==C::OnMovementReaction){
                     const auto* observer=actorWorld_.actor(op.victimId);if(!observer||!observer->registered||!observer->object){e="Movement reaction lost actual observer";return false;}
@@ -221,11 +264,21 @@ bool ScriptRuntime::advanceProjectiles(float dt,std::string& error){
         // OnDeath6f5c0: real ProjectileWorld consumers; their unreconstructed
         // graphic/sound/spawn/victim branches fail when actually reached.
         if(operation.kind==K::Detonate||operation.kind==K::UpdateDetonation||operation.kind==K::CreateStartFx||operation.kind==K::OnDeath)return true;
-        if(operation.kind==K::DisposeThing&&!p.primaryAnimation&&!p.attachedAnimation&&p.attachedAnimations.empty()&&!p.physics&&p.thing&&p.thing->get("Light")&&p.thing->get("Light")->text().empty())return true;
+        if(operation.kind==K::UpdateAnimation||operation.kind==K::TransformChanged)return true;
+        if(operation.kind==K::DisposeThing&&!p.physics&&p.thing&&p.thing->get("Light")&&p.thing->get("Light")->text().empty())return true;
         detail=std::string("Projectile update requires live consumer: ")+hades::projectileUpdateOperationName(operation.kind);return false;
     };
     providers.execute=[this](const hades::ProjectileUpdateOperation& operation,hades::ProjectileActor& p,hades::ProjectileUpdateReply& reply,std::string& detail){
         using K=hades::ProjectileUpdateOperationKind;
+        if(operation.kind==K::TransformChanged)return projectileGraphicTransform(p.request.lifetimeHandle,detail);
+        if(operation.kind==K::UpdateAnimation){
+            // Thing.UpdateAnimation2df5c0 owns the primary's finish/chain/default
+            // decision. Component integration/internal frame updates occur once
+            // in the shared action-animation phase (portable ordering adaptation).
+            if(actionEffects_.state(p.primaryAnimation))return true;
+            if(!actionEffects_.retiredPrimary(p.primaryAnimation)){detail="Projectile primary Animation lifetime unavailable";return false;}
+            p.primaryAnimation=0;const auto* graphic=p.thing?p.thing->get("Graphic"):nullptr;if(graphic&&!graphic->text().empty())return setProjectileAnimation(p,graphic->text(),detail);return true;
+        }
         if(operation.kind==K::CheckProjectileDefense)return projectileWorld_.checkArcProjectileDefense(p.request.lifetimeHandle,projectileDefenseProviders(),detail);
         if(operation.kind==K::CheckForImpact){
             hades::ProjectileImpactProviders impact;fillImpactProviders(impact);
@@ -233,7 +286,7 @@ bool ScriptRuntime::advanceProjectiles(float dt,std::string& error){
         }
         if(operation.kind==K::Detonate||operation.kind==K::UpdateDetonation){
             hades::ProjectileImpactProviders impact;fillImpactProviders(impact);
-            hades::ProjectileDetonationProviders blast;blast.worldTime=worldTime_;blast.applyImpact=impact.detonationImpact;
+            hades::ProjectileDetonationProviders blast;blast.worldTime=worldTime_;blast.applyImpact=impact.detonationImpact;blast.impact=&impact;
             const auto players=snapshotInputPlayers(state_);if(!players.empty())blast.teams.firstPlayerIdentity=players.front().playerIndex;
             blast.teams.unitPlayerIdentity=[this](int32_t id,uint64_t& token,std::string& e){token=0;const auto* actor=actorWorld_.actor(id);if(actor&&actor->registered)for(const auto& player:snapshotInputPlayers(state_))if(player.activeUnitId==id&&player.activeUnitLifetime==actor->entityHandle){token=player.playerIndex;break;}e.clear();return true;};
             return operation.kind==K::Detonate?projectileWorld_.detonate(p.request.lifetimeHandle,blast,detail):projectileWorld_.updateDetonation(p.request.lifetimeHandle,operation.elapsed,blast,detail);
@@ -263,7 +316,7 @@ bool ScriptRuntime::advanceProjectiles(float dt,std::string& error){
             if(!dispatchCallbacks("OnProjectileDeath",death.name.c_str(),death.victimId>=0?death.victimId:0,extra)){detail=error_;return false;}
             detail.clear();return true;
         }
-        if(operation.kind==K::DisposeThing){if(!releaseProjectileFxOwner(p.request.lifetimeHandle,detail))return false;p.body.entityHandle=0;detail.clear();return true;}
+        if(operation.kind==K::DisposeThing){if(!releaseProjectileFxOwner(p.request.lifetimeHandle,detail))return false;if(p.primaryAnimation&&!retirePrimaryAnimation(p.primaryAnimation,detail))return false;p.primaryAnimation=0;p.attachedAnimation=0;p.attachedAnimations.clear();p.body.entityHandle=0;detail.clear();return true;}
         detail="Unconsumed live projectile operation";return false;
     };
     return projectileWorld_.update(dt,providers,error);

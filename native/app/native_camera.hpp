@@ -20,8 +20,8 @@ struct NativeCameraState {
     float x=0,y=0,zoom=1,goalZoom=1,zoomSpeed=1;
     float offsetX=0,offsetY=0;
     std::vector<NativeCameraTarget> targets;
-    // Two-Thing source rectangular clamp. Wider polygon/rail paths remain
-    // explicit unsupported branches.
+    // Two markers form the native rectangular clamp; more markers form an
+    // ordered polygon, rebuilt from actual live marker locations each call.
     std::vector<NativeCameraTarget> clampTargets;
     float softClamp=0;
     uint32_t viewportWidth=1920,viewportHeight=1080;

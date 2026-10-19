@@ -102,14 +102,14 @@
     "Teleport": "runWithDestination25eea0 selected ordinary branch passes check=false,propagate=true. Unit.TeleportTo2f8b20 calls SetLocation then StopMoving; does not HaltPhysics or change raw Z.",
     "AdjustZLocation": "Thing.RunScriptAction99 at1802e270d..2804 calls virtual ShiftZLocation for zero duration; nonzero transition start=rawZ,end=rawZ+Distance, default linear. Both positive1500 actions in source are additive. Thing.AdjustZLocation2e4580 applies current transition value minus current rawZ each game update.",
     "ShiftZ": "Thing.ShiftZLocation2e0ae0 clamps upper bound to ThingData.MaxZ; Unit2f2e40 invokes actual sort/properties dirty. No new Physics membership is invented by this setter.",
-    "Move": "Unit.MoveTo2f4920 stores goal and native Precise TargetMode1. Unit.MoveInput2f6220 computes actual velocity/force using live speed/effects/physics; selected source disables obstacle collision temporarily.",
+    "Move": "ScriptAction.Move274230 selects TargetMode Default0 or Precise1. MoveAIPathfind FindPath2e8b80 / CalcPath2e9930 produce an integer six-neighbor graph path and consume stream0 repath RNG; SetNextDestination2e914b collapses the actual list when obstacle collisions are disabled. Unit.MoveInput2f6220 applies actual velocity/force.",
     "Stop": "Unit.RunScriptAction93 at1802f43c2..4459 invokes StopMoving speedFraction0, default StopRotation=true resets goalAngle to bodyAngle and clears MoveAI target/track data; preserves Physics velocity.",
     "AngleTowardTarget": "Unit.RunScriptAction116 at1802f451a..4763 uses averaged actual target world XY and wrapped atan2(-dy,dx); default sets goal angle, CompleteAngle additionally sets body/cosmetic angle."
   },
   "implemented": {
     "Teleport": "Actual source/destination Thing selection, averaged world XY and offsets, real body/geometry/properties state; selected unparented Unit branch.",
     "AdjustZLocation": "Actual lifetime-bound rawZ game-clock transitions and actual source MaxZ; selected world UndoModifier1.",
-    "Move": "Actual source Precise goal, current speed and modifiers, genuine Unit.MoveInput/onActorForce and Physics/Unit body consumption. Collision-disabled branch required.",
+    "Move": "Default collision-disabled path: original graph offsets, costs, EASTL heap tie order, predecessor relaxation, BuildMoveList compression and partial paths, stream0 repath timing, native rotation wait/slow-turn policy and actual movement/animation speed. Precise adapter retains existing approximation.",
     "Stop": "Lifetime target removal, source speedFraction0 and optional rotation stop; no fabricated velocity halt.",
     "AngleTowardTarget": "Live actual target world XY, goalAngle; CompleteAngle invokes actual ActorWorld.setAngle and cosmetic angle state."
   },
@@ -119,34 +119,44 @@
     "ownership": "ActorMotionWorld holds source-created target and Z-transition state keyed by actual entity lifetime; stale lifetimes are erased."
   },
   "android_adaptations": [
-    "Collision-disabled Precise Move uses direct original source XY path with final-step speed fraction. Full Windows path nodes/repath RNG/StopToRotate/SlowToRotate are not reproduced.",
+    "Precise Move retains direct source XY/final-step fraction approximation. Default Move uses the recovered A* graph; collision-disabled SetNextDestination collapses that real list. Native manager scheduling remains the portable sequential phase order.",
     "Portable defined sequential script-motion/physics/body phases; not a claim of identical Windows ECS thread completion ordering."
   ],
   "unsupported": [
-    "Colliding script Move pathfinding",
+    "Obstacle-colliding script Move path-node provider; default path node overlapping any Unit pending actual path collision filters.",
     "Attached actor target-relative setters",
     "Obstacle Teleport/ShiftZ callback branches",
     "Name-query/relative/screen-space Teleport branches",
     "Non-unit Move",
     "Script Z transition modified event UndoModifier",
-    "All other MoveAI behaviors/options"
+    "Authored alternate/LOS/camera/FinishAtGoal/MoveWithoutPath and nondefault OnFailBehavior branches."
   ],
   "validation": {
     "host_syntax": "passed",
     "arm64_api26_syntax": "passed",
-    "actual_intro_replay": "Parent-owned genuine Lua room replay pending",
+    "actual_intro_replay": "Strict replay reaches actual Hero exit target and queues RoomSimple01 at frame2104; first transition failures tracked by retained-VM map consumer. Host evidence does not establish device gameplay.",
     "device_execution_observed": false
   },
   "owned_sessions_open": false,
   "files": {
-    "native/app/actor_motion.hpp": "2dc945ed963ece44794ea8b5392a744f9215a7b304deee4e348f8c3c1b3b758e",
-    "native/app/lua_actor_motion.cpp": "8050d3ec85fd5d4f89262a45baa13418cd3312147329b665dc8bf93a35fe3599",
-    "native/app/lua_player_input.cpp": "d37a3c8535021f03c05ea29cf6d4d119436b8cb2fe8b6399965f3d3a7fd2fab3"
+    "native/app/actor_motion.hpp": "5c26bc1ebf53ea57faa0654e78c354a7802c21bdeeb61ebeb79dd84b242111b6",
+    "native/app/lua_actor_motion.cpp": "e042eb9bb9b4562ac848f70fe82329a6fd1be3fd25aa5763c5399faac3566d65",
+    "native/app/lua_player_input.cpp": "d37a3c8535021f03c05ea29cf6d4d119436b8cb2fe8b6399965f3d3a7fd2fab3",
+    "native/app/unit_path.hpp": "a6df83a0f046c34d2f155f8f06c3a2eaf4ec38a274d98db33e215b9bc221c36e",
+    "native/app/unit_path.cpp": "de43c65cb15a8268942ab76636c28e2ef3af828dba30ce4d3d64a21d1901021b"
   },
   "binary_reports_extra": [
     {
       "path": ".local/reports/native-move-target-mode-enum-v1.txt",
       "observation": "Matching PDB TargetMode Default0,Precise1; MoveAI+14 is enum mode, not generic bool."
+    },
+    {
+      "path": ".local/reports/takeover-door-FindPath-rea.json",
+      "observation": "FindPath original native decompilation retained locally; graph consumer facts cited in unit_path.cpp."
+    },
+    {
+      "path": ".local/reports/takeover-door-CalcPath-rea.json",
+      "observation": "CalcPath original native decompilation retained locally; graph consumer facts cited in unit_path.cpp."
     }
   ]
 }

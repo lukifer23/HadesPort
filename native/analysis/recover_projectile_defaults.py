@@ -3,7 +3,7 @@
 import json,re,struct,hashlib,argparse
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2];R=ROOT/'.local/reports'
-args=argparse.ArgumentParser();args.add_argument('--output',type=Path,default=R/'native-player-projectile-compiled-defaults.json');args.add_argument('--include-enums',action='store_true');options=args.parse_args()
+args=argparse.ArgumentParser();args.add_argument('--output',type=Path,default=R/'native-player-projectile-compiled-defaults.json');args.add_argument('--include-enums',action='store_true');args.add_argument('--enum-pdb-report',type=Path,default=R/'native-engine-pdb-actor-next.json');options=args.parse_args()
 SHA='d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254'
 assert hashlib.sha256((ROOT/'.local/game/base/x64/EngineWin64s.dll').read_bytes()).hexdigest()==SHA
 pdb=json.loads((R/'native-engine-pdb-player-weapons.json').read_text());by={x['index']:x for x in pdb['selected_types']}
@@ -53,8 +53,8 @@ fields=[];unknown=[]
 primitive={0x30:('bool',1,'?'),0x40:('float32',4,'f'),0x74:('int32',4,'i'),0x75:('uint32',4,'I'),0x20:('uint8',1,'B'),0x70:('char',1,'b')}
 enums={}
 if options.include_enums:
- enum_path=R/'native-engine-pdb-actor-next.json';enum_data=json.loads(enum_path.read_text());enum_by={x['index']:x for x in enum_data['selected_types']}
- for idx in (0xdc54,0xd780):
+ enum_path=options.enum_pdb_report.resolve();enum_data=json.loads(enum_path.read_text());enum_by={x['index']:x for x in enum_data['selected_types']}
+ for idx in (0xdc54,0xd780,*((0xdc56,) if 0xdc56 in enum_by else ())):
   t=enum_by[idx];underlying=int(re.search(r'underlying_type: TypeIndex\((0x[\da-f]+)',t['debug'])[1],16);fi_enum=int(re.search(r'fields: TypeIndex\((0x[\da-f]+)',t['debug'])[1],16)
   values={name:int(value)for value,name in re.findall(r'value: [UI]\d+\((\d+)\), name: RawString\("([^"]+)"\)',enum_by[fi_enum]['debug'])}
   assert values and underlying in primitive

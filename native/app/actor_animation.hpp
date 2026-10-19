@@ -105,7 +105,7 @@ public:
 class ActorAnimationPlayback {
     const ActorAnimationBank* bank_=nullptr;
     size_t clip_=0,slide_=0;
-    float remaining_=0;
+    float remaining_=0,playSpeedMultiplier_=1;
     bool active_=false,finished_=false;
 public:
     using SlideEvent=std::function<void(const ActorAnimationClip&,const ActorAnimationSlide&)>;
@@ -113,6 +113,7 @@ public:
     // Base restart clears completion/cancel state even if concrete restart is
     // disabled. Only AllowRestart rewinds the source frame/remaining time.
     void restartSource(const SlideEvent& onSlide={});
+    void replaceCurrentSlideTicks(uint32_t ticks);
     void reset();
     // Caller supplies original modified-time and speed multiplier. Returns a
     // source ChainTo request at completion; it never invents or executes owner
@@ -120,6 +121,8 @@ public:
     std::optional<std::string> advance(double seconds,float playSpeedMultiplier=1,const SlideEvent& onSlide={});
     bool active()const{return active_;}
     bool finished()const{return finished_;}
+    void setPlaySpeedMultiplier(float multiplier);
+    float playSpeedMultiplier()const{return playSpeedMultiplier_;}
     size_t clipIndex()const{return clip_;}
     size_t slideIndex()const{return slide_;}
     uint32_t originalFrame()const;

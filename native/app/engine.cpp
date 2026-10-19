@@ -142,6 +142,7 @@ class Engine {
     enum class LoadStage { Scene, Player, Scripts, Done, Failed };
     LoadStage loadStage_=LoadStage::Scene;
     bool sceneReady_=false;
+    uint64_t renderedMapRevision_=0;
     double loadSeconds_=0;
     std::string loadError_;
     bool focused_ = false, failed_ = false;
@@ -344,7 +345,7 @@ public:
         const auto started=std::chrono::steady_clock::now();
         const int stage=static_cast<int>(loadStage_);
         try {
-            if(loadStage_==LoadStage::Scene){renderer_.initialize(assets_);sceneReady_=true;loadStage_=LoadStage::Player;}
+            if(loadStage_==LoadStage::Scene){renderer_.initialize(assets_);renderedMapRevision_=0;sceneReady_=true;loadStage_=LoadStage::Player;}
             else if(loadStage_==LoadStage::Player){
                 if(!heroBank_){heroBank_=std::make_shared<hades::ActorAnimationBank>();heroBank_->load(assets_);}
                 loadStage_=LoadStage::Scripts;
@@ -355,6 +356,19 @@ public:
                 if(scripts_&&scripts_->worldFaulted()){scripts_->stopAudio();scripts_.reset();}
                 if(!scripts_){appliedVolumes_={-1,-1,-1,-1};scripts_=std::make_unique<ScriptRuntime>(&assets_);scripts_->setAnimationBank(heroBank_);
                     scripts_->setPhysicsRumble([this](int32_t,float intensity,float seconds,std::string&){rumble(intensity,seconds);return true;});
+                    scripts_->setControlLabelProvider([this](const std::string&name,std::string&label,std::string&error){
+                        // Android adaptation of native ParseControlSymbol: show
+                        // the label of the actual visible touch/hardware input.
+                        if(!usingController_&&touchVisible())for(const auto&button:controls_.actionButtons())if(name==button.control){label="["+std::string(button.label)+"]";error.clear();return true;}
+                        const auto*binding=bindings_.find(name);
+                        if(binding){std::string key;
+                            if(usingController_&&binding->gamepadButton>=0)key=hades::input::padButtonName(binding->gamepadButton);
+                            else if(binding->keys[0]>=0)key=hades::input::keyName(binding->keys[0]);
+                            else if(binding->mouseButton>=0)key=binding->mouseButton==0?"MOUSE LEFT":binding->mouseButton==1?"MOUSE RIGHT":"MOUSE";
+                            if(!key.empty()){label="["+key+"]";error.clear();return true;}
+                        }
+                        error="Control prompt has no available input binding: "+name;return false;
+                    });
                     scripts_->setSaveDirectory(savesDir_);scripts_->initialize();
                     // Durability: contain unreconstructed behaviour (logged once as
                     // CONTAINED_FAULT/SURVEY_BLOCKER, counted on screen) instead of
@@ -362,6 +376,10 @@ public:
                     scripts_->setFaultContainment(true);{std::string containError;if(!scripts_->enableBlockerSurvey(containError))ERROR("FAULT_CONTAINMENT_UNAVAILABLE %s",containError.c_str());}configApplied_=false;applyConfig();
                     if(continueLoad_){continueLoad_=false;if(!scripts_->loadSave())throw std::runtime_error("Continue: "+scripts_->lastSaveError());INFO("SAVE_LOADED path=%s",scripts_->loadedSavePath().c_str());}}
                 if(!scripts_->gameLoaded()||!scripts_->bootRoom()||!scripts_->activateRoom())throw std::runtime_error(scripts_->error());
+                if(scripts_->mapRevision()!=renderedMapRevision_){
+                    renderer_.shutdown();renderer_.initialize(scripts_->currentRoomAssets());renderedMapRevision_=scripts_->mapRevision();
+                    INFO("ROOM_RENDERER_RESTORE map=%s revision=%llu",scripts_->currentMapName().c_str(),(unsigned long long)renderedMapRevision_);
+                }
                 renderer_.setSourceSceneProvider([this](uint32_t i,std::optional<hades::SceneFrameSelection>& frame,std::string& error){return scripts_->scenePrimaryFrame(i,frame,error);},[this](uint32_t i,std::string& error){return scripts_->scenePrimarySubmitted(i,error);},[this](uint32_t i,hades::SceneSprite& sprite,std::string& error){return scripts_->sourceSceneSprite(i,sprite,error);});
                 if(focused_&&!scripts_->startAudio())throw std::runtime_error(scripts_->error());
                 worldAccumulator_=0;
@@ -420,6 +438,15 @@ public:
                 if(!scripts_->setLocalInput(move[0],move[1],mergedControls(),inputError))throw std::runtime_error(inputError);
                 if(!scripts_->advanceWorld(1.f/60,1./60)){
                     loadError_=scripts_->error();if(loadError_.empty())loadError_="World update stopped without a reason ("+std::to_string(scripts_->containedFaults())+" contained faults; last: "+scripts_->lastContainedFault()+")";scripts_->stopAudio();ui_.failureDetail=loadError_;ui_.loadFailed();loadStage_=LoadStage::Failed;releaseMovement();ERROR("NATIVE_WORLD_UPDATE_FAILED reason=%s",loadError_.c_str());break;
+                }
+                if(scripts_->mapRevision()!=renderedMapRevision_){
+                    // World::Begin rebuilt map Things in the retained Lua VM.
+                    // GL resources switch on this GL thread to the same scoped
+                    // original scene; opening textures cannot survive the load.
+                    renderer_.shutdown();renderer_.initialize(scripts_->currentRoomAssets());
+                    renderer_.setSourceSceneProvider([this](uint32_t i,std::optional<hades::SceneFrameSelection>& frame,std::string& error){return scripts_->scenePrimaryFrame(i,frame,error);},[this](uint32_t i,std::string& error){return scripts_->scenePrimarySubmitted(i,error);},[this](uint32_t i,hades::SceneSprite& sprite,std::string& error){return scripts_->sourceSceneSprite(i,sprite,error);});
+                    renderedMapRevision_=scripts_->mapRevision();camera_.reset();
+                    INFO("ROOM_RENDERER_SWITCH map=%s revision=%llu",scripts_->currentMapName().c_str(),(unsigned long long)renderedMapRevision_);
                 }
                 worldAccumulator_-=1./60;
             }

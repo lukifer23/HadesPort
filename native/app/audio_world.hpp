@@ -47,6 +47,7 @@ public:
     bool pause(uint32_t id,std::string& error);
     bool resume(uint32_t id,std::string& error);
     bool stop(uint32_t id,bool immediate,std::string& error);
+    bool stopAllGameSounds(std::string& error);
     bool setParameter(uint32_t id,const std::string& name,float value,float duration,std::string& error);
     bool setVolume(uint32_t id,float value,float duration,bool stopOnEnd,bool pauseOnEnd,std::string& error);
     bool advanceControls(float elapsed,std::string& error);

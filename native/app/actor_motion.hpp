@@ -1,10 +1,11 @@
 #pragma once
 #include "body_transition.hpp"
+#include "unit_path.hpp"
 #include <cstdint>
 #include <map>
 #include <string>
 namespace hades {
-struct ActorMoveOrder {int32_t ownerId=0;uint64_t lifetime=0;float goalX=0,goalY=0;bool precise=true;};
+struct ActorMoveOrder {int32_t ownerId=0;uint64_t lifetime=0;float goalX=0,goalY=0;bool precise=true;UnitPathConfig pathConfig;UnitPathState path;};
 struct ActorZTransition {int32_t ownerId=0;uint64_t lifetime=0;BodyTransition transition;};
 // Native TransitionHelper<float> (size 0x50) as used by Obstacle X/Y move
 // helpers at Obstacle+0x5a0/+0x5f0: +0 easeIn, +4 easeOut, +8 TimeModifier-

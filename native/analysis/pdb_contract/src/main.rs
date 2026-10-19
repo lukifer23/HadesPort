@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   if let Ok(d)=t.parse() {
    if [0xd517,0xdbd4,0x1065,0xd716,0xd715].contains(&t.index().0) {type_records.push(json!({"index":t.index().0,"debug":format!("{:?}",d)}));}
    match &d {
-    pdb::TypeData::Enumeration(v) if v.name.to_string().contains("ScriptEnums") || v.name.to_string().contains("Trigger") || v.name.to_string().contains("FileType") || v.name.to_string().contains("FilePath") || v.name.to_string().contains("BlendMode") || v.name.to_string().contains("WeaponType") || v.name.to_string().contains("EffectType") || v.name.to_string().contains("ProjectileOffset") || v.name.to_string().contains("ProjectileType") || v.name.to_string().contains("CollisionCheck") || v.name.to_string().contains("SortMode") || v.name.to_string().contains("MeshType") || v.name.to_string().contains("LifeStatus") => {
+    pdb::TypeData::Enumeration(v) if v.name.to_string().contains("ScriptEnums") || v.name.to_string().contains("Trigger") || v.name.to_string().contains("FileType") || v.name.to_string().contains("FilePath") || v.name.to_string().contains("BlendMode") || v.name.to_string().contains("WeaponType") || v.name.to_string().contains("EffectType") || v.name.to_string().contains("ProjectileOffset") || v.name.to_string().contains("ProjectileType") || v.name.to_string()=="sgg::ProjectileDataDef::Allegiance" || v.name.to_string().contains("CollisionCheck") || v.name.to_string().contains("SortMode") || v.name.to_string().contains("MeshType") || v.name.to_string().contains("LifeStatus") => {
      wanted.insert(v.fields.0);type_records.push(json!({"index":t.index().0,"name":v.name.to_string(),"debug":format!("{:?}",d)}));
     },
     pdb::TypeData::Union(v) if v.name.to_string().contains("Color") => {

@@ -87,7 +87,7 @@ void SceneRenderer::initialize(AssetStore& assets){
             if(displayPass==2){
                 vec4 base=texelFetch(background,ivec2(gl_FragCoord.xy),0);
                 vec4 group=texelFetch(image,ivec2(gl_FragCoord.xy),0);
-                if(blendMode==13){
+                if(blendMode==12||blendMode==13){
                     // Original Displacement2D.frag, SHA615e19f986975622...:
                     // neutral8-bit epsilon, alpha-weighted RG, source scale.15.
                     vec2 shift=(group.rg*2.-1.)*group.a;
@@ -158,7 +158,7 @@ void SceneRenderer::initialize(AssetStore& assets){
         glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,w,h,0,GL_RGBA,GL_UNSIGNED_BYTE,pixels.data());
         if(glGetError()!=GL_NO_ERROR)throw std::runtime_error("Scene texture upload failed");
     },static_cast<uint32_t>(maxTexture));
-    for(const auto& s:scene_.sprites)if(s.blend!=0&&s.blend!=1&&s.blend!=2&&s.blend!=5&&s.blend!=9&&s.blend!=11&&s.blend!=13)throw std::runtime_error("Scene uses an unreconstructed blend mode: "+std::to_string(s.blend));
+    for(const auto& s:scene_.sprites)if(s.blend!=0&&s.blend!=1&&s.blend!=2&&s.blend!=5&&s.blend!=9&&s.blend!=11&&s.blend!=12&&s.blend!=13)throw std::runtime_error("Scene uses an unreconstructed blend mode: "+std::to_string(s.blend));
     animations_.load(assets,scene_);
     for(const auto& clip:animations_.clips()){
         uint32_t w=1,h=1;for(const auto& frame:clip.frames){w=std::max(w,frame.width);h=std::max(h,frame.height);}
@@ -448,13 +448,17 @@ void SceneRenderer::renderImpl(const SceneView& view,int width,int height,const 
     while(start<draw_.size()){
         if(fullscreenEffects_&&!fullscreenApplied&&draw_[start].drawGroup>fullscreenEffectGroup_){fullscreenEffects_(width,height);fullscreenApplied=true;}
         size_t end=start+1;
-        if(scene_.hasSourceComposition&&(draw_[start].blend==9||draw_[start].blend==11||draw_[start].blend==13)){
+        // World::Draw VA18031c69a/31c903 shares the same neutral clear and
+        // Displacement2D shader for native Displacement12/DisplacementMerge13.
+        // GetBlendState226b50 maps both to state5 (ONE,ZERO); offscreen
+        // primitives use state1 (premultiplied source-over) before that pass.
+        if(scene_.hasSourceComposition&&(draw_[start].blend==9||draw_[start].blend==11||draw_[start].blend==12||draw_[start].blend==13)){
             while(end<draw_.size()&&draw_[end].drawGroup==draw_[start].drawGroup)++end;
             ensureGroupTarget(width,height);captureBackground(width,height);
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER,groupFramebuffer_);
             // World::Draw's source clear includes alpha, not just RGB.
             if(draw_[start].blend==9)glClearColor(128.f/255,128.f/255,128.f/255,128.f/255);
-            else if(draw_[start].blend==13)glClearColor(128.f/255,128.f/255,0,128.f/255);
+            else if(draw_[start].blend==12||draw_[start].blend==13)glClearColor(128.f/255,128.f/255,0,128.f/255);
             else glClearColor(0,0,0,1);
             glClear(GL_COLOR_BUFFER_BIT);
             for(size_t batch=start;batch<end;){

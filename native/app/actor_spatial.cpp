@@ -26,14 +26,14 @@ bool ActorSpatialGrid::update(const SpatialObstacle& obstacle,std::string& error
     for(const auto& cell:cells)cells_[cell].push_back(obstacle.lifetime);
     records_.emplace(obstacle.lifetime,Record{obstacle,std::move(cells)});error.clear();return true;
 }
-bool ActorSpatialGrid::query(const SpatialBounds& bounds,ObstacleGridCategory category,std::vector<SpatialObstacle>& out,std::string& error)const{
+bool ActorSpatialGrid::query(const SpatialBounds& bounds,ObstacleGridCategory category,std::vector<SpatialObstacle>& out,std::string& error,bool filterBounds)const{
     std::vector<Cell> cells;if(!coverage(bounds,cells,error))return false;
     std::set<uint64_t> seen;out.clear();
     for(const auto& cell:cells){const auto i=cells_.find(cell);if(i==cells_.end())continue;for(const auto lifetime:i->second){if(!seen.insert(lifetime).second)continue;const auto record=records_.find(lifetime);if(record==records_.end())continue;const auto& o=record->second.obstacle;
         if(category==ObstacleGridCategory::StopsProjectiles&&!o.stopsProjectiles)continue;
         if(category==ObstacleGridCategory::StopsUnits&&!o.stopsUnits)continue;
         if(category==ObstacleGridCategory::MovementReaction&&!o.movementReaction)continue;
-        if(o.bounds.maxX<bounds.minX||o.bounds.minX>bounds.maxX||o.bounds.maxY<bounds.minY||o.bounds.minY>bounds.maxY)continue;
+        if(filterBounds&&(o.bounds.maxX<bounds.minX||o.bounds.minX>bounds.maxX||o.bounds.maxY<bounds.minY||o.bounds.minY>bounds.maxY))continue;
         out.push_back(o);
     }}
     // Portable stable lifetime order, not Windows pointer/hash bucket order.

@@ -1,6 +1,9 @@
 """Validate and stage the original screen movie/rectangle bank without building."""
 import hashlib,json,shutil,struct
 from pathlib import Path
+# ActorAnimationBank::load (native/app/actor_animation.cpp) admits seekable HAA1
+# packets through 512 MiB, with bounded frame/clip counts and lazy frame decode.
+MAX_SCREEN_PACKET_BYTES=512*1024*1024
 def stage_screen_animations(manifest_path,assets):
  m=json.loads(Path(manifest_path).read_text());assets=Path(assets)
  items=[m['packet'],m['screen_catalog'],*m['sources']]
@@ -18,7 +21,8 @@ def stage_screen_animations(manifest_path,assets):
   admitted=set(gui['reviewed_animations'])|{e['child']for e in gui['closure_edges']}|set(gui['reviewed_graphics'])
   expected=base|{'RoomTransitionIn','RoomTransitionOut'}|admitted
   if count!=len(expected)or frames!=153+m['statistics']['gui_original_images']:expected=None
- if expected is None or set(names)!=expected or len(names)!=len(expected)or m['packet']['bytes']>128*1024*1024:raise ValueError('Unexpected bounded screen original source closure')
+ if expected is None or set(names)!=expected or len(names)!=len(expected):raise ValueError('Unexpected bounded screen original source closure')
+ if m['packet']['bytes']>MAX_SCREEN_PACKET_BYTES or not 0<frames<=65536 or not 0<count<=4096:raise ValueError('Screen original packet exceeds native HAA1 size/count bounds')
  with Path(m['packet']['path']).open('rb')as f:header=f.read(12)
  if header[:4]!=b'HAA1'or struct.unpack_from('<II',header,4)!=(frames,count):raise ValueError('Screen source packet/header differs from validated closure')
  if count>=7:

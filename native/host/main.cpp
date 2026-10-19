@@ -4,6 +4,7 @@
 #include "../app/scene_renderer.hpp"
 #include "world_capture.hpp"
 #include "save_probe.hpp"
+#include "../app/touch_controls.hpp"
 #include <array>
 #include <cmath>
 #include <cstring>
@@ -25,12 +26,13 @@ static void jsonString(std::ostream& out,const std::string& text) {
 }
 
 int main(int argc,char** argv) {
-    bool capture=false,activate=false,probe=false,weaponProbe=false,survey=false,contain=false;int worldFrames=120;std::string inputReplay,saveProbeDirectory;
+    bool capture=false,activate=false,probe=false,weaponProbe=false,survey=false,contain=false,validatePresentation=false;int worldFrames=120;std::string inputReplay,saveProbeDirectory;
     for(int i=3;i<argc;++i){const std::string arg=argv[i];
         if(arg=="--capture-active-room")capture=activate=true;
         else if(arg=="--activate-room")activate=true;
         else if(arg=="--survey-blockers")survey=true; // diagnostic: list all blockers in one run
         else if(arg=="--contain-faults")contain=survey=true; // device durability mode: skip a failing stage, keep the frame running
+        else if(arg=="--validate-live-presentation")validatePresentation=true;
         else if(arg=="--probe-load-callbacks")probe=true;
         else if(arg=="--probe-staged-weapons")weaponProbe=true;
         else if(arg.starts_with("--probe-save="))saveProbeDirectory=arg.substr(13);
@@ -49,7 +51,14 @@ int main(int argc,char** argv) {
                 if(controls!="-"){std::istringstream names(controls);std::string name;while(std::getline(names,name,','))input.controls.push_back(name);}replay.push_back(std::move(input));if(replay.size()>36000)throw std::runtime_error("Input recording bound");}
         }
         hades::FileAssets assets(argv[1]);
-        ScriptRuntime scripts(&assets);scripts.initialize();
+        hades::TouchControls touchLabels;
+        ScriptRuntime scripts(&assets);
+        scripts.setControlLabelProvider([&](const std::string&name,std::string&label,std::string&error){
+            // Host replays the Android touch UI policy using its actual labels.
+            for(const auto&button:touchLabels.actionButtons())if(name==button.control){label="["+std::string(button.label)+"]";error.clear();return true;}
+            error="Host touch prompt has no available input: "+name;return false;
+        });
+        scripts.initialize();
         if(survey){std::string e;if(!scripts.enableBlockerSurvey(e))throw std::runtime_error(e);}
         if(contain)scripts.setFaultContainment(true);
         std::string cameraError;if(!scripts.setCameraViewport(1728,1080,cameraError))throw std::runtime_error(cameraError);
@@ -68,11 +77,19 @@ int main(int argc,char** argv) {
         for(size_t i=0;scripts.assetsPending()&&i<128;++i)if(!scripts.serviceAssets())break;
         bool updateComplete=activationComplete;
         std::ostringstream worldTrace;size_t replayAt=0;int worldFramesCompleted=0;uint64_t pcmSamples=0;double pcmSquared=0;float pcmPeak=0;bool firstWorldSample=true;std::string mixerError;
+        size_t presentationSamples=0,validatedPresentationFrames=0;std::string presentationError;
         using Clock=std::chrono::steady_clock;std::vector<double> frameMilliseconds;double updateMilliseconds=0,mixMilliseconds=0;
         if(activationComplete)for(int i=0;i<worldFrames;++i){
             const auto frameStart=Clock::now();
             if(replayAt<replay.size()&&replay[replayAt].frame==i){const auto& input=replay[replayAt++];if(!scripts.setLocalInput(input.x,input.y,input.controls,mixerError)){updateComplete=false;break;}}
             if(!scripts.advanceWorld(1.f/60,1./60)){if(survey){scripts.surveyRecordWorldFault();continue;}updateComplete=false;break;}
+            if(validatePresentation){
+                // Sample transient visuals while their owners are actually
+                // alive/retiring; a final-frame snapshot misses lifetime bugs.
+                for(const auto&key:scripts.presentationVisuals()){hades::ActorVisual visual;if(!scripts.samplePresentation(key,visual,presentationError))break;++presentationSamples;}
+                if(!presentationError.empty()){std::cerr<<"LIVE_PRESENTATION_BLOCKED frame="<<i<<" detail="<<presentationError<<'\n';updateComplete=false;break;}
+                ++validatedPresentationFrames;
+            }
             const auto mixStart=Clock::now();updateMilliseconds+=std::chrono::duration<double,std::milli>(mixStart-frameStart).count();
             std::array<float,1600> pcm{};if(!scripts.renderOfflineAudio(pcm.data(),800,mixerError)){updateComplete=false;break;}
             const auto mixEnd=Clock::now();mixMilliseconds+=std::chrono::duration<double,std::milli>(mixEnd-mixStart).count();frameMilliseconds.push_back(std::chrono::duration<double,std::milli>(mixEnd-frameStart).count());
@@ -84,9 +101,8 @@ int main(int argc,char** argv) {
         }
         // Save/load diagnostic: direct SaveCheckpoint, fresh-runtime reload, state comparison.
         const bool saveProbeComplete=!saveProbeDirectory.empty()&&roomBooted?runSaveProbe(assets,scripts,saveProbeDirectory,std::string(argv[2])+".save.json"):false;
-        size_t presentationSamples=0;std::string presentationError;
-        if(activationComplete){
-            auto scene=hades::loadGraphicsScene(assets,[](uint32_t,uint32_t,uint32_t,std::span<const uint8_t>){});
+        if(activationComplete&&presentationError.empty()){
+            auto scene=hades::loadGraphicsScene(scripts.currentRoomAssets(),[](uint32_t,uint32_t,uint32_t,std::span<const uint8_t>){});
             for(auto sprite:scene.sprites){std::optional<hades::SceneFrameSelection> frame;if(!scripts.scenePrimaryFrame(sprite.sourceIndex,frame,presentationError)||!scripts.sourceSceneSprite(sprite.sourceIndex,sprite,presentationError))break;++presentationSamples;}
             if(presentationError.empty())for(const auto& key:scripts.presentationVisuals()){hades::ActorVisual visual;if(!scripts.samplePresentation(key,visual,presentationError))break;const auto px=visual.frame.pixels();if(px.empty()){presentationError="Actual presentation frame pixels unavailable";break;}volatile uint8_t first=px.front(),last=px.back();(void)first;(void)last;++presentationSamples;}
             std::cout<<"LIVE_PRESENTATION samples="<<presentationSamples<<" error="<<presentationError<<'\n';
@@ -114,7 +130,7 @@ int main(int argc,char** argv) {
         const auto& nativeCamera=scripts.cameraState();trace<<",\"source_camera\":{\"initialized\":"<<(nativeCamera.initialized?"true":"false")<<",\"x\":"<<nativeCamera.x<<",\"y\":"<<nativeCamera.y<<",\"zoom\":"<<nativeCamera.zoom<<",\"goal_zoom\":"<<nativeCamera.goalZoom<<",\"viewport_width\":"<<nativeCamera.viewportWidth<<",\"viewport_height\":"<<nativeCamera.viewportHeight<<",\"target_count\":"<<nativeCamera.targets.size()<<",\"clamp_count\":"<<nativeCamera.clampTargets.size()<<'}';
         std::sort(frameMilliseconds.begin(),frameMilliseconds.end());const auto percentile=[&](double fraction){return frameMilliseconds.empty()?0:frameMilliseconds[size_t(std::ceil(fraction*frameMilliseconds.size()))-1];};
         trace<<",\"host_cpu_timing\":{\"scope\":\"Actual successful world updates and source PCM mixer; excludes rendering, asset setup and failed frame\",\"update_mean_ms\":"<<(worldFramesCompleted?updateMilliseconds/worldFramesCompleted:0)<<",\"mixer_mean_ms\":"<<(worldFramesCompleted?mixMilliseconds/worldFramesCompleted:0)<<",\"combined_p50_ms\":"<<percentile(.5)<<",\"combined_p95_ms\":"<<percentile(.95)<<",\"combined_p99_ms\":"<<percentile(.99)<<",\"combined_max_ms\":"<<percentile(1)<<'}';
-        trace<<",\"world_samples\":["<<worldTrace.str()<<"],\"presentation_samples\":"<<presentationSamples<<",\"presentation_error\":";jsonString(trace,presentationError);trace<<",\"lua_state\":";jsonString(trace,scripts.stateSummary());trace<<",\"samples\":[";
+        trace<<",\"world_samples\":["<<worldTrace.str()<<"],\"presentation_samples\":"<<presentationSamples<<",\"validated_presentation_frames\":"<<validatedPresentationFrames<<",\"presentation_error\":";jsonString(trace,presentationError);trace<<",\"lua_state\":";jsonString(trace,scripts.stateSummary());trace<<",\"samples\":[";
         bool first=true;
         for(size_t segment=0;!activate&&segment<input.size();++segment){
             Point direction=input[segment];const float length=std::hypot(direction.x,direction.y);

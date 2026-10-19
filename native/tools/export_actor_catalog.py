@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Source-bound actor definitions and map records for the native actor runtime."""
-import argparse,hashlib,json,math
+import argparse,hashlib,json,math,struct
 from pathlib import Path
 from export_room_creation import RangedSjson
 from build_room_scene import merge
@@ -18,6 +18,15 @@ def literal(value):
     if isinstance(value,list):return '{'+','.join(literal(v)for v in value)+'}'
     if isinstance(value,dict):return '{'+','.join('['+literal(k)+']='+literal(v)for k,v in value.items())+'}'
     raise ValueError('Unsupported source value')
+
+def native_angle(value):
+    # UnitData SGD_Deserialize VA1800f473b/478f uses SGD_DeserializeAngle
+    # VA180205cf0: JSON number -> float32 -> double*pi/180 -> float32.
+    # Compiled defaults and inherited native data are already radians; callers
+    # invoke this only for a key present in resolved authored source data.
+    number=value if isinstance(value,(int,float)) and not isinstance(value,bool) else 0
+    rounded=struct.unpack('<f',struct.pack('<f',number))[0]
+    return struct.unpack('<f',struct.pack('<f',rounded*float.fromhex('0x1.1df46a2529d39p-6')))[0]
 
 def export(content,creation,defaults,output):
     if output.exists():raise ValueError('Output must be new')
@@ -52,6 +61,9 @@ def export(content,creation,defaults,output):
             key=category+'/'+name;raw=resolve(category,name)
             fields={n:v['value']for n,v in compiled['definitions'][native]['fields'].items()if v['type']!='null_pointer'}
             fields=merge(fields,raw)
+            if category=='Units':
+                for angular_speed in ('RotationSpeed','CosmeticRotationSpeed'):
+                    if angular_speed in raw:fields[angular_speed]=native_angle(raw[angular_speed])
             fields['Thing']=merge({n:v['value']for n,v in compiled['definitions']['Thing']['fields'].items()if v['type']!='null_pointer'},raw.get('Thing',{}))
             if category=='Units'or fields.get('NeedsLife'):
                 fields['Life']=merge({n:v['value']for n,v in compiled['definitions']['Life']['fields'].items()if v['type']!='null_pointer'},raw.get('Life',{}))
@@ -61,9 +73,9 @@ def export(content,creation,defaults,output):
         key=record['definition_key']
         if key not in definitions:raise ValueError('Map actor definition missing')
         rows.append({'id':record['id'],'definition':key,'map':record['raw_map']})
-    data={'schema':'hades-source-actor-catalog-v1','room':source['room'],'target':TARGET,'definitions':definitions,'map':rows,'property_types':{category:{key:field['type']for key,field in data['fields'].items()if field['type']in ('bool','float32','int32','string','null_pointer')and not field.get('enum')}for category,data in compiled['definitions'].items()}}
+    data={'schema':'hades-source-actor-catalog-v1','room':source['room'],'target':TARGET,'native_unit_angles':True,'definitions':definitions,'map':rows,'property_types':{category:{key:field['type']for key,field in data['fields'].items()if field['type']in ('bool','float32','int32','string','null_pointer')and not field.get('enum')}for category,data in compiled['definitions'].items()}}
     output.mkdir(parents=True);packet=output/'actors.lua';packet.write_text('return '+literal(data)+'\n')
-    manifest={'schema':data['schema'],'room':source['room'],'target_sha256':TARGET,'creation':identity(creation),'defaults':identity(defaults),'source_files':source_files,'map_source':source['map_source'],'definition_provenance':proofs,'packet':identity(packet),'definitions':len(definitions),'map_records':len(rows),'limits':['Known compiled scalar/string/color defaults plus original resolved source properties. Other compiled complex defaults remain explicit.','This data catalog does not itself allocate, register, initialize or activate actors.']}
+    manifest={'schema':data['schema'],'native_unit_angles':True,'angle_fields':['RotationSpeed','CosmeticRotationSpeed'],'room':source['room'],'target_sha256':TARGET,'creation':identity(creation),'defaults':identity(defaults),'source_files':source_files,'map_source':source['map_source'],'definition_provenance':proofs,'packet':identity(packet),'definitions':len(definitions),'map_records':len(rows),'limits':['Known compiled scalar/string/color defaults plus original resolved source properties. Other compiled complex defaults remain explicit.','This data catalog does not itself allocate, register, initialize or activate actors.']}
     (output/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n');print(json.dumps({k:manifest[k]for k in ('packet','definitions','map_records')},indent=2))
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--content',type=Path,required=True);p.add_argument('--creation',type=Path,required=True);p.add_argument('--defaults',type=Path,required=True);p.add_argument('--output',type=Path,required=True);a=p.parse_args();export(a.content,a.creation,a.defaults,a.output)

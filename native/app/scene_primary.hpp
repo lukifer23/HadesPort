@@ -26,7 +26,7 @@ struct ScenePrimaryState {
     bool loop=false,loopFramesOnly=false,allowRestart=false,onlyWhenVisible=false;
     bool ownerImmobile=false,disableWeapons=false,ownerHasNoCollision=false,blockNewOwnerAnims=false;
     bool ownerInvulnerable=false,ownerNoArmorCoverage=false,ownerNoInvulnerableCoverage=false;
-    bool initialized=false,graphicsPending=false;
+    bool initialized=false,graphicsPending=false,finished=false,hasDuration=false,holdLastFrame=false;
 };
 // Actual typed primary lifetimes/resources. HAA hero and the nine live VFX
 // primary classes have separate existing owners and are never allocated twice.
@@ -53,6 +53,7 @@ public:
     bool replace(uint64_t,const std::string&,const EffectOwnerState&,
         const EffectAnimationRandom&,const EffectBoundedRandom&,uint64_t&,std::string&);
     bool advance(float,std::string&);
+    std::vector<uint64_t> completedPrimaries()const;
     bool selectSceneFrame(uint32_t,std::optional<SceneFrameSelection>&,std::string&)const;
     bool submitted(uint32_t,std::string&);
     std::vector<uint64_t> auxiliaryHandles()const;

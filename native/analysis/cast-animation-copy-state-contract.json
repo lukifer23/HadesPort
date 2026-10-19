@@ -1,0 +1,46 @@
+{
+  "schema": "hades-cast-animation-copy-state-v1",
+  "status": "native normal-source CopyState and ownerless death-animation consumer implemented; full cast cleanup still blocked at AmmoPackSparkle catalog coverage",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "evidence": {
+    "copy_state": ".local/reports/takeover-animation-copy-state-static.json",
+    "copy_state_rva": "0x295bb0",
+    "on_death": ".local/reports/native-rea-on-death-fn.json",
+    "on_death_rva": "0x6f5c0",
+    "pdb_body_component_field_list": "0xd7ea",
+    "pdb_animation_data_definition_field_list": 60719
+  },
+  "field_facts": {
+    "BodyComponent.mScale": "offset 0x48; inline Animation body at 0x110 makes full offset 0x158",
+    "BodyComponent.mScaleVector": "offset 0x60; full Animation offset 0x170",
+    "BodyComponent.mFlips": "offset 0x69; full Animation offset 0x179",
+    "BodyComponent.mBaseColor": "offset 0x6c; full Animation offset 0x17c; not the value copied at 0x158",
+    "BodyComponent.mHSVColor": "offset 0x70; full Animation offset 0x180; not the value copied at 0x170",
+    "AnimationData.TransferScale": "definition offset 0x37; full data offset 0x7d; compiled default true"
+  },
+  "implemented": [
+    "Normal source without optional mCopyBody: copy location, Z/offset/parallax, optional rotation, radius, play-speed multiplier, attach offset, flips and guarded draw group/angle.",
+    "Copy source scale and scale vector when either source or destination TransferScale is true; presentation consumes copied scale vector.",
+    "Native projectile death creates an ownerless original dissipate animation, copies primary-animation state, transfers projectile draw layer and sets projectile Z."
+  ],
+  "explicit_limits": [
+    "Optional mCopyBody and child/frame transfer branches remain unsupported.",
+    "Shared animation update phase differs from the original per-projectile animation-call timing.",
+    "The original-script cast replay reached native hit/death and ammo-drop creation, but AmmoPackSparkle was unsupported in action-effects-v12; disposal and ammo recovery were not yet proven."
+  ],
+  "runtime": [
+    "native/app/action_effect.hpp",
+    "native/app/action_effect.cpp",
+    "native/app/projectile_collision.cpp",
+    "native/app/lua_projectiles.cpp"
+  ],
+  "validation": {
+    "report": ".local/reports/takeover-cast-graphics-r5.json",
+    "log": ".local/reports/takeover-cast-graphics-r5.log",
+    "result": "Original scripts fired Ranged, entered impact/death, created BloodstoneHitFx and children, then stopped at AmmoPackSparkle unsupported_type. Scale-field correction reviewed against PDB and assembly after this run."
+  }
+}

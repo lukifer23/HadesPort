@@ -28,9 +28,225 @@ def run(command):
                    env=dict(os.environ, JAVA_HOME=str(JAVA)))
 
 
+def stage_room_scene(args, assets, include_shared=True):
+    """Validate and stage one actual scene/map/collision bundle; shared boot assets are optional."""
+    shutil.copyfile(args.scene, assets / 'scene.bin')
+    with args.scene.open('rb') as source:
+        scene_magic = source.read(4)
+    if scene_magic == b'HDS3':
+        manifest = json.loads((args.scene.parent / 'scene-manifest.json').read_text())
+        scene_hash = hashlib.file_digest(args.scene.open('rb'), 'sha256').digest()
+        (assets / 'scene-sha256.bin').write_bytes(scene_hash)
+        with (assets / 'materials.bin').open('wb') as out:
+            out.write(struct.pack('<4sI', b'HSM1', len(manifest['sprites'])))
+            for sprite in manifest['sprites']:
+                out.write(struct.pack('<3f', *sprite['material']['hsv']))
+    else:
+        (assets / 'materials.bin').unlink(missing_ok=True)
+        (assets / 'scene-sha256.bin').unlink(missing_ok=True)
+    ambient_report=None
+    if args.ambient.is_file():
+        ambient=args.ambient.read_bytes()
+        if scene_magic!=b'HDS3' or len(ambient)<52 or ambient[:4]!=b'HLA1' or ambient[4:36]!=scene_hash:
+            raise RuntimeError('Ambient companion is not bound to this exact HDS3 scene')
+        ambient_count=struct.unpack_from('<I',ambient,36)[0]
+        if ambient_count!=len(manifest['sprites']) or len(ambient)!=52+ambient_count*8:
+            raise RuntimeError('Ambient companion sprite count/size differs from the scene')
+        shutil.copyfile(args.ambient,assets / 'ambient.bin')
+        ambient_report={'path':str(args.ambient.resolve()),'sprites':ambient_count,
+                        'sha256':hashlib.sha256(ambient).hexdigest()}
+    else:
+        (assets / 'ambient.bin').unlink(missing_ok=True)
+    composition_report=None
+    if args.composition.is_file():
+        composition=args.composition.read_bytes()
+        if scene_magic!=b'HDS3' or len(composition)<40 or composition[:4]!=b'HGC1' or composition[4:36]!=scene_hash:
+            raise RuntimeError('Composition companion is not bound to the exact HDS3 scene')
+        count=struct.unpack_from('<I',composition,36)[0]
+        if count!=len(manifest['sprites']) or len(composition)!=40+count*4:
+            raise RuntimeError('Composition companion count/size mismatch')
+        shutil.copyfile(args.composition,assets/'composition.bin')
+        composition_report={'path':str(args.composition.resolve()),'sha256':hashlib.sha256(composition).hexdigest()}
+    else:
+        (assets/'composition.bin').unlink(missing_ok=True)
+    if args.animations:
+        with args.animations.open('rb') as source:
+            header = source.read(44)
+        if scene_magic != b'HDS3' or len(header) != 44 or header[:4] != b'HDA1' or header[12:44] != scene_hash:
+            raise RuntimeError('Animation packet is not bound to this exact HDS3 scene')
+        shutil.copyfile(args.animations, assets / 'animations.bin')
+        animation_report = {'path': str(args.animations.resolve()), 'bytes': args.animations.stat().st_size,
+                            'clips': struct.unpack_from('<I', header, 4)[0],
+                            'bindings': struct.unpack_from('<I', header, 8)[0],
+                            'timing_policy': 'Deterministic phase 0 and original minimum FPS; original random phase/order remains unresolved.'}
+    else:
+        (assets / 'animations.bin').unlink(missing_ok=True)
+        animation_report = None
+    if args.parallax.is_file():
+        parallax=args.parallax.read_bytes()
+        count=len(manifest['sprites']) if scene_magic==b'HDS3' else -1
+        if len(parallax)!=40+12*count or parallax[:4]!=b'HPP1' or parallax[4:36]!=scene_hash or struct.unpack_from('<I',parallax,36)[0]!=count:
+            raise RuntimeError('Parallax companion differs from the exact scene')
+        shutil.copyfile(args.parallax,assets/'parallax.bin')
+    else:
+        (assets/'parallax.bin').unlink(missing_ok=True)
+    if args.hulls.is_file():
+        animation_hash=hashlib.file_digest(args.animations.open('rb'),'sha256').digest() if args.animations else bytes(32)
+        hull=args.hulls.read_bytes()
+        if len(hull)<76 or hull[:4]!=b'HHL1' or hull[4:36]!=scene_hash or hull[36:68]!=animation_hash:
+            raise RuntimeError('Hull companion differs from scene/animation identity')
+        shutil.copyfile(args.hulls,assets/'hulls.bin')
+        (assets/'animations-sha256.bin').write_bytes(animation_hash)
+    else:
+        (assets/'hulls.bin').unlink(missing_ok=True)
+        (assets/'animations-sha256.bin').unlink(missing_ok=True)
+    geometry_path = args.geometry or args.scene.parent / 'room-geometry.json'
+    camera = None
+    if geometry_path.is_file():
+        geometry = json.loads(geometry_path.read_text())
+        room_metadata = json.loads((PROJECT / '.local/game/base/Content/Maps' / f'{geometry["room"]}.map_text').read_text())
+        backdrop=room_metadata['BackdropColor']
+        if isinstance(backdrop,dict):
+            backdrop=[backdrop[k] for k in ('R','G','B','A')]
+        if len(backdrop)!=4 or any(not isinstance(c,(int,float)) or not 0<=c<=255 for c in backdrop):
+            raise RuntimeError('Invalid original room BackdropColor')
+        (assets / 'render-options.bin').write_bytes(struct.pack('<4s5f',b'HRO1',*(c/255 for c in backdrop),1))
+        with (assets / 'groups.bin').open('wb') as out:
+            def text_field(value):
+                # Original root ParentGroup.Name is JSON null (no parent).
+                if value is None:
+                    value = ''
+                encoded = value.encode('utf-8')
+                if len(encoded) > 65536:
+                    raise RuntimeError('Map group name exceeds bounds')
+                out.write(struct.pack('<I', len(encoded)))
+                out.write(encoded)
+            groups = room_metadata['ThingGroups']
+            out.write(struct.pack('<4sI', b'SGP1', len(groups)))
+            for group in groups:
+                key, parent = group['Id'], group['ParentGroup']
+                out.write(struct.pack('<iiiI', key['Id'], parent['Id'], group['BlendMode'], int(group['Visible'])))
+                text_field(key['Name'])
+                text_field(parent['Name'])
+                out.write(struct.pack('<I', len(group['ChildGroups'])))
+                for child in group['ChildGroups']:
+                    out.write(struct.pack('<i', child['Id']))
+                    text_field(child['Name'])
+        anchors = [a for a in geometry['anchors'] if a['name'] == 'CameraIntroEnd']
+        if len(anchors) == 1:
+            camera = {'anchor': anchors[0], 'reference_height': 2160,
+                      'android_default_height': 1680, 'android_height_range': [900,3200],
+                      'zoom_basis': 'Android adaptation: smooth hero follow, Settings zoom and independent pinch. Original cinematic camera remains incomplete.'}
+            (assets / 'camera.bin').write_bytes(struct.pack('<4s3f', b'HDC1',
+                anchors[0]['location']['X'], anchors[0]['location']['Y'], camera['reference_height']))
+    elif (assets / 'camera.bin').exists():
+        (assets / 'camera.bin').unlink()
+    if include_shared:
+        scripts = assets / 'Scripts'
+        scripts.mkdir(exist_ok=True)
+        for script in (PROJECT / '.local/game/base/Content/Scripts').glob('*.lua'):
+            shutil.copyfile(script, scripts / script.name)
+    player = None
+    if args.hero.is_dir():
+        if not geometry_path.is_file():
+            raise RuntimeError('Original room geometry is required for the player')
+        sys.path.insert(0, str(PROJECT / 'native/tools'))
+        from build_room_scene import Sjson
+        unit_path = PROJECT / '.local/game/base/Content/Game/Units/PlayerUnits.sjson'
+        units = Sjson(unit_path.read_text(encoding='utf-8-sig')).parse()['Units']
+        unit = next(u for u in units if u['Name'] == '_PlayerUnit')
+        # HeroStart is an airborne entrance marker overlapping the rear barrier.
+        # The current slice skips the drop cinematic and starts at its HeroEnd.
+        spawn = next(a for a in geometry['anchors'] if a['name'] == 'HeroEnd')
+        hull = [(p['X'] * unit['Thing']['Scale'], p['Y'] * unit['Thing']['Scale']) for p in unit['Thing']['Points']]
+        # Initially accept only transforms whose source interpretation is exact.
+        collision=json.loads(args.collision.read_text())
+        scene_manifest=args.scene.parent/'scene-manifest.json'
+        if collision['schema']!='hades-native-collision-v1' or collision['room']!=geometry['room'] or \
+           hashlib.file_digest(scene_manifest.open('rb'),'sha256').hexdigest()!=collision['input_scene_manifest']['sha256'] or \
+           hashlib.file_digest(args.creation.open('rb'),'sha256').hexdigest()!=collision['input_creation_manifest']['sha256']:
+            raise RuntimeError('Collision export does not match exact scene/creation metadata')
+        exact=[p for p in collision['collision_candidates'] if p['world_transform_exact']]
+        polygons=[p['world_points_exact'] for p in exact]
+        polygon_ids=[p['id'] for p in exact]
+        if len(set(polygon_ids))!=len(polygon_ids):raise RuntimeError('Duplicate collision source IDs')
+        with (assets / 'player-world.bin').open('wb') as out:
+            out.write(struct.pack('<4s5fI', b'HDP2', spawn['location']['X'], spawn['location']['Y'],
+                                  unit['Speed'], unit['Acceleration'], unit['Thing']['Grip'], len(hull)))
+            for point in hull:
+                out.write(struct.pack('<2f', *point))
+            out.write(struct.pack('<I', len(polygons)))
+            for source_id,polygon in zip(polygon_ids,polygons):
+                out.write(struct.pack('<iI', source_id,len(polygon)))
+                for point in polygon:
+                    out.write(struct.pack('<2f', *point))
+        if include_shared:
+            for clip in ('ZagreusIdle.bin', 'ZagreusRun.bin'):
+                shutil.copyfile(args.hero / clip, assets / clip)
+        manifest = json.loads((args.scene.parent / 'scene-manifest.json').read_text())
+        objects = {r['object']['Id']: r['object'] for r in manifest['all_original_objects']}
+        creation = json.loads(args.creation.read_text())
+        if creation['schema'] != 'hades-room-creation-v1' or creation['room'] != manifest['room'] or creation['attachment_errors']:
+            raise RuntimeError('Creation metadata does not describe this room or has attachment errors')
+        source_map = PROJECT / '.local/game/base/Content/Win/Maps' / f'{manifest["room"]}.thing_bin'
+        if hashlib.file_digest(source_map.open('rb'), 'sha256').hexdigest() != creation['map_source']['sha256']:
+            raise RuntimeError('Creation metadata is not bound to the preserved original map')
+        creation_records = {record['id']: record for record in creation['records']}
+        if len(creation_records) != len(creation['records']) or set(creation_records) != set(objects):
+            raise RuntimeError('Creation and graphics map identities differ')
+        # A derived data table, not replacement game logic. Lua literals avoid
+        # introducing a second JSON parser into the portable native core.
+        with (assets / 'DecodedMapObjects.lua').open('w') as out:
+            out.write('return {\n')
+            for record in manifest['all_original_objects']:
+                original = record['object']
+                creation_record = creation_records[original['Id']]
+                if creation_record['name'] != original['Name'] or creation_record['source_range'] != original['source_range']:
+                    raise RuntimeError('Creation record source ranges/identity differ from the scene map')
+                fields = {
+                    'id': original['Id'], 'name': original['Name'],
+                    'group': next((g for g in original['GroupNames'] if g), ''),
+                    'x': original['Location']['X'], 'y': original['Location']['Y'], 'z': original['OffsetZ'],
+                    'scale': original['Scale'], 'alpha': original['Color'][3] / 255, 'angle': original['Angle'],
+                    'active': original['Active'], 'doCreate': original['DoCreate'],
+                    'visible': not record['obstacle_thing'].get('Invisible', False),
+                    'flipHorizontal': original['FlipHorizontal'],
+                    'dataType': creation_record['data_type'], 'parentId': original['AttachToID'],
+                    'activateAtRange': original['ActivateAtRange'], 'activationRange': original['ActivationRange'],
+                    'triggerOnSpawn': creation_record['trigger_on_spawn']['value'],
+                }
+                if creation_record['player_controlled'] is not None:
+                    fields['playerControlled'] = creation_record['player_controlled']
+                def lua_literal(value):
+                    return json.dumps(value, ensure_ascii=False, allow_nan=False)
+                memberships = ','.join(lua_literal(group) for group in original['GroupNames'])
+                children = ','.join(str(child) for child in original['AttachedIDs'])
+                out.write('{' + ','.join(f'{key}={lua_literal(value)}' for key, value in fields.items())
+                          + ',groups={' + memberships + '},childIds={' + children + '}},\n')
+            out.write('}\n')
+        with (assets / 'ordering.bin').open('wb') as out:
+            out.write(struct.pack('<4sI', b'HDO1', len(manifest['sprites'])))
+            for sprite in manifest['sprites']:
+                original = objects[sprite['object_id']]
+                out.write(struct.pack('<3f', sprite['source_layer'], original['SortIndex'], original['Location']['Y']))
+        player = {'spawn': spawn, 'speed': unit['Speed'], 'acceleration': unit['Acceleration'],
+                  'grip': unit['Thing']['Grip'], 'collision_polygons': len(polygons),
+                  'skipped_collision_transforms': collision['counts']['unresolved_polygons'],
+                  'collision_export':str(args.collision.resolve()),
+                  'collision_export_sha256':hashlib.file_digest(args.collision.open('rb'),'sha256').hexdigest(),
+                  'collision_scope':'Deterministic active obstacle polygons only; source random-scale placements remain unresolved.',
+                  'hero_assets': str(args.hero), 'entry_presentation_skipped': True,
+                  'movement_semantics': 'Grounded velocity and low-stick branch recovered; collision response and animation pivots remain provisional.'}
+    else:
+        for filename in ('ZagreusIdle.bin', 'ZagreusRun.bin', 'player-world.bin', 'ordering.bin'):
+            (assets / filename).unlink(missing_ok=True)
+    return {'player':player,'camera':camera,'animations':animation_report,'ambient':ambient_report,'composition':composition_report}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--scene', type=Path)
+    parser.add_argument('--room-pack', type=Path, action='append', default=[PROJECT / '.local/native-assets/room-packs-v3/RoomSimple01/manifest.json'], help='Validated map-scoped room bundle; repeat for additional maps')
     parser.add_argument('--geometry', type=Path, help='Decoded original room geometry, if stored separately from the scene')
     parser.add_argument('--animations', type=Path, help='HDA1 original-frame animation companion bound to this exact HDS3 scene')
     parser.add_argument('--creation', type=Path, default=PROJECT / '.local/native-assets/opening-creation-v2/creation.json',
@@ -43,25 +259,25 @@ def main():
     parser.add_argument('--composition', type=Path, default=PROJECT / '.local/native-assets/opening-composition-v1/composition.bin')
     parser.add_argument('--collision', type=Path, default=PROJECT / '.local/native-assets/opening-collision-v1/room-geometry.json',
                         help='Source-verified deterministic collision transforms')
-    parser.add_argument('--weapons', type=Path, default=PROJECT / '.local/native-assets/player-weapons-v19/weapons.bin',
+    parser.add_argument('--weapons', type=Path, default=PROJECT / '.local/native-assets/player-weapons-v22/weapons.bin',
                         help='Source-bound staged weapon initialization catalog; no firing support')
-    parser.add_argument('--actors',type=Path,default=PROJECT / '.local/native-assets/opening-actors-v5/actors.lua')
+    parser.add_argument('--actors',type=Path,default=PROJECT / '.local/native-assets/opening-actors-v12/actors.lua')
     parser.add_argument('--parallax',type=Path,default=PROJECT / '.local/native-assets/opening-parallax-v1/parallax.bin')
     parser.add_argument('--hulls',type=Path,default=PROJECT / '.local/native-assets/opening-hulls-v1/hulls.bin')
     parser.add_argument('--packages',type=Path,default=PROJECT / '.local/native-assets/player-packages-v1/packages.lua')
-    parser.add_argument('--actor-animations',type=Path,default=PROJECT / '.local/native-assets/hero-actions-v4/actor-animations.bin')
+    parser.add_argument('--actor-animations',type=Path,default=PROJECT / '.local/native-assets/actor-actions-v6/actor-animations.bin')
     parser.add_argument('--effects',type=Path,default=PROJECT / '.local/native-assets/opening-spawners-v1/effects.lua')
-    parser.add_argument('--actor-markers',type=Path,default=PROJECT / '.local/native-assets/hero-markers-v4/actor-markers.bin')
-    parser.add_argument('--actor-properties',type=Path,default=PROJECT / '.local/native-assets/hero-properties-v7/actor-properties.bin')
+    parser.add_argument('--actor-markers',type=Path,default=PROJECT / '.local/native-assets/actor-markers-v6/actor-markers.bin')
+    parser.add_argument('--actor-properties',type=Path,default=PROJECT / '.local/native-assets/actor-properties-v9/actor-properties.bin')
     parser.add_argument('--actor-lights',type=Path,default=PROJECT / '.local/native-assets/actor-lights-opening-v1/manifest.json')
     parser.add_argument('--text-resources',type=Path,default=PROJECT / '.local/native-assets/original-text-v6/manifest.json')
-    parser.add_argument('--action-effects',type=Path,default=PROJECT / '.local/native-assets/action-effects-v10/manifest.json')
-    parser.add_argument('--screen-animations',type=Path,default=PROJECT / '.local/native-assets/screen-opening-v9/manifest.json')
+    parser.add_argument('--action-effects',type=Path,default=PROJECT / '.local/native-assets/action-effects-v12/manifest.json')
+    parser.add_argument('--screen-animations',type=Path,default=PROJECT / '.local/native-assets/screen-opening-v12/manifest.json')
     parser.add_argument('--particle-frames',type=Path,default=PROJECT / '.local/native-assets/cinder-frames-v1/cinder-frames.bin')
     parser.add_argument('--primaries',type=Path,default=PROJECT / '.local/native-assets/opening-primaries-v4/manifest.json')
     parser.add_argument('--bloom-settings',type=Path,default=PROJECT / '.local/native-assets/bloom-settings-v1/manifest.json')
     parser.add_argument('--color-grading',type=Path,default=PROJECT / '.local/native-assets/color-grading-v1/manifest.json')
-    parser.add_argument('--audio-events',type=Path,default=PROJECT / '.local/native-assets/audio-events-v19/receipt.json')
+    parser.add_argument('--audio-events',type=Path,default=PROJECT / '.local/native-assets/audio-events-v21/receipt.json')
     parser.add_argument('--room-leaf-frames',type=Path,default=PROJECT / '.local/native-assets/opening-leaf-frames-v1/room-leaf-frames.bin')
     parser.add_argument('--app-icon',type=Path,default=PROJECT / '.local/native-assets/app-icon-v1/manifest.json',
                         help='Original Hades.exe icon mipmaps (native/tools/export_app_icon.py)')
@@ -120,7 +336,7 @@ def main():
     weapon_report={'path':str(args.weapons.resolve()),'sha256':hashlib.sha256(weapon_bytes).hexdigest(),
                    'scope':'Native weapon initialization; firing/combat integration in progress'}
     actor_manifest=json.loads((args.actors.parent/'manifest.json').read_text())
-    if actor_manifest['schema']!='hades-source-actor-catalog-v1' or \
+    if actor_manifest['schema']!='hades-source-actor-catalog-v1' or not actor_manifest.get('native_unit_angles') or \
        hashlib.file_digest(args.actors.open('rb'),'sha256').hexdigest()!=actor_manifest['packet']['sha256']:
         raise RuntimeError('Actor packet/manifest identity mismatch')
     for item in [actor_manifest['creation'],actor_manifest['defaults'],*actor_manifest['source_files']]:
@@ -179,9 +395,10 @@ def main():
     shutil.copyfile(args.actor_markers,assets/'actor-markers.bin')
     properties_manifest=json.loads((args.actor_properties.parent/'manifest.json').read_text())
     properties=args.actor_properties.read_bytes()
-    if properties_manifest['schema'] not in ('hades-primary-animation-properties-v1','hades-primary-animation-properties-v2','hades-primary-animation-properties-v3') or hashlib.sha256(properties).hexdigest()!=properties_manifest['packet']['sha256'] or properties[:4] not in (b'HAP1',b'HAP2',b'HAP3') or properties[4:36]!=action_hash:
+    properties_schemas={('HAP'+str(version)).encode(): 'hades-primary-animation-properties-v'+str(version) for version in range(1,5)}
+    if properties_manifest['schema']!=properties_schemas.get(properties[:4]) or hashlib.sha256(properties).hexdigest()!=properties_manifest['packet']['sha256'] or properties[4:36]!=action_hash:
         raise RuntimeError('Primary animation properties do not match original actor bank')
-    if properties[:4] in (b'HAP2',b'HAP3'):
+    if properties[:4] in (b'HAP2',b'HAP3',b'HAP4'):
         for record in properties_manifest['records']:
             value=record['properties']['AirborneZ']
             if value['provenance']=='native-compiled-default' and value['value']!=100.0:
@@ -308,214 +525,10 @@ def main():
     shutil.copyfile(args.movie_preloads,assets/'movie-preloads.lua')
     shutil.copytree(args.movie_preloads.parent/'movie-preloads',assets/'movie-preloads',dirs_exist_ok=True)
 
-    shutil.copyfile(args.scene, assets / 'scene.bin')
-    with args.scene.open('rb') as source:
-        scene_magic = source.read(4)
-    if scene_magic == b'HDS3':
-        manifest = json.loads((args.scene.parent / 'scene-manifest.json').read_text())
-        scene_hash = hashlib.file_digest(args.scene.open('rb'), 'sha256').digest()
-        (assets / 'scene-sha256.bin').write_bytes(scene_hash)
-        with (assets / 'materials.bin').open('wb') as out:
-            out.write(struct.pack('<4sI', b'HSM1', len(manifest['sprites'])))
-            for sprite in manifest['sprites']:
-                out.write(struct.pack('<3f', *sprite['material']['hsv']))
-    else:
-        (assets / 'materials.bin').unlink(missing_ok=True)
-        (assets / 'scene-sha256.bin').unlink(missing_ok=True)
-    ambient_report=None
-    if args.ambient.is_file():
-        ambient=args.ambient.read_bytes()
-        if scene_magic!=b'HDS3' or len(ambient)<52 or ambient[:4]!=b'HLA1' or ambient[4:36]!=scene_hash:
-            raise RuntimeError('Ambient companion is not bound to this exact HDS3 scene')
-        ambient_count=struct.unpack_from('<I',ambient,36)[0]
-        if ambient_count!=len(manifest['sprites']) or len(ambient)!=52+ambient_count*8:
-            raise RuntimeError('Ambient companion sprite count/size differs from the scene')
-        shutil.copyfile(args.ambient,assets / 'ambient.bin')
-        ambient_report={'path':str(args.ambient.resolve()),'sprites':ambient_count,
-                        'sha256':hashlib.sha256(ambient).hexdigest()}
-    else:
-        (assets / 'ambient.bin').unlink(missing_ok=True)
-    composition_report=None
-    if args.composition.is_file():
-        composition=args.composition.read_bytes()
-        if scene_magic!=b'HDS3' or len(composition)<40 or composition[:4]!=b'HGC1' or composition[4:36]!=scene_hash:
-            raise RuntimeError('Composition companion is not bound to the exact HDS3 scene')
-        count=struct.unpack_from('<I',composition,36)[0]
-        if count!=len(manifest['sprites']) or len(composition)!=40+count*4:
-            raise RuntimeError('Composition companion count/size mismatch')
-        shutil.copyfile(args.composition,assets/'composition.bin')
-        composition_report={'path':str(args.composition.resolve()),'sha256':hashlib.sha256(composition).hexdigest()}
-    else:
-        (assets/'composition.bin').unlink(missing_ok=True)
-    if args.animations:
-        with args.animations.open('rb') as source:
-            header = source.read(44)
-        if scene_magic != b'HDS3' or len(header) != 44 or header[:4] != b'HDA1' or header[12:44] != scene_hash:
-            raise RuntimeError('Animation packet is not bound to this exact HDS3 scene')
-        shutil.copyfile(args.animations, assets / 'animations.bin')
-        animation_report = {'path': str(args.animations.resolve()), 'bytes': args.animations.stat().st_size,
-                            'clips': struct.unpack_from('<I', header, 4)[0],
-                            'bindings': struct.unpack_from('<I', header, 8)[0],
-                            'timing_policy': 'Deterministic phase 0 and original minimum FPS; original random phase/order remains unresolved.'}
-    else:
-        (assets / 'animations.bin').unlink(missing_ok=True)
-        animation_report = None
-    if args.parallax.is_file():
-        parallax=args.parallax.read_bytes()
-        count=len(manifest['sprites']) if scene_magic==b'HDS3' else -1
-        if len(parallax)!=40+12*count or parallax[:4]!=b'HPP1' or parallax[4:36]!=scene_hash or struct.unpack_from('<I',parallax,36)[0]!=count:
-            raise RuntimeError('Parallax companion differs from the exact scene')
-        shutil.copyfile(args.parallax,assets/'parallax.bin')
-    else:
-        (assets/'parallax.bin').unlink(missing_ok=True)
-    if args.hulls.is_file():
-        animation_hash=hashlib.file_digest(args.animations.open('rb'),'sha256').digest() if args.animations else bytes(32)
-        hull=args.hulls.read_bytes()
-        if len(hull)<76 or hull[:4]!=b'HHL1' or hull[4:36]!=scene_hash or hull[36:68]!=animation_hash:
-            raise RuntimeError('Hull companion differs from scene/animation identity')
-        shutil.copyfile(args.hulls,assets/'hulls.bin')
-        (assets/'animations-sha256.bin').write_bytes(animation_hash)
-    else:
-        (assets/'hulls.bin').unlink(missing_ok=True)
-        (assets/'animations-sha256.bin').unlink(missing_ok=True)
-    geometry_path = args.geometry or args.scene.parent / 'room-geometry.json'
-    camera = None
-    if geometry_path.is_file():
-        geometry = json.loads(geometry_path.read_text())
-        room_metadata = json.loads((PROJECT / '.local/game/base/Content/Maps' / f'{geometry["room"]}.map_text').read_text())
-        backdrop=room_metadata['BackdropColor']
-        if isinstance(backdrop,dict):
-            backdrop=[backdrop[k] for k in ('R','G','B','A')]
-        if len(backdrop)!=4 or any(not isinstance(c,(int,float)) or not 0<=c<=255 for c in backdrop):
-            raise RuntimeError('Invalid original room BackdropColor')
-        (assets / 'render-options.bin').write_bytes(struct.pack('<4s5f',b'HRO1',*(c/255 for c in backdrop),1))
-        with (assets / 'groups.bin').open('wb') as out:
-            def text_field(value):
-                # Original root ParentGroup.Name is JSON null (no parent).
-                if value is None:
-                    value = ''
-                encoded = value.encode('utf-8')
-                if len(encoded) > 65536:
-                    raise RuntimeError('Map group name exceeds bounds')
-                out.write(struct.pack('<I', len(encoded)))
-                out.write(encoded)
-            groups = room_metadata['ThingGroups']
-            out.write(struct.pack('<4sI', b'SGP1', len(groups)))
-            for group in groups:
-                key, parent = group['Id'], group['ParentGroup']
-                out.write(struct.pack('<iiiI', key['Id'], parent['Id'], group['BlendMode'], int(group['Visible'])))
-                text_field(key['Name'])
-                text_field(parent['Name'])
-                out.write(struct.pack('<I', len(group['ChildGroups'])))
-                for child in group['ChildGroups']:
-                    out.write(struct.pack('<i', child['Id']))
-                    text_field(child['Name'])
-        anchors = [a for a in geometry['anchors'] if a['name'] == 'CameraIntroEnd']
-        if len(anchors) == 1:
-            camera = {'anchor': anchors[0], 'reference_height': 2160,
-                      'android_default_height': 1680, 'android_height_range': [900,3200],
-                      'zoom_basis': 'Android adaptation: smooth hero follow, Settings zoom and independent pinch. Original cinematic camera remains incomplete.'}
-            (assets / 'camera.bin').write_bytes(struct.pack('<4s3f', b'HDC1',
-                anchors[0]['location']['X'], anchors[0]['location']['Y'], camera['reference_height']))
-    elif (assets / 'camera.bin').exists():
-        (assets / 'camera.bin').unlink()
-    scripts = assets / 'Scripts'
-    scripts.mkdir(exist_ok=True)
-    for script in (PROJECT / '.local/game/base/Content/Scripts').glob('*.lua'):
-        shutil.copyfile(script, scripts / script.name)
-    player = None
-    if args.hero.is_dir():
-        if not geometry_path.is_file():
-            raise RuntimeError('Original room geometry is required for the player')
-        sys.path.insert(0, str(PROJECT / 'native/tools'))
-        from build_room_scene import Sjson
-        unit_path = PROJECT / '.local/game/base/Content/Game/Units/PlayerUnits.sjson'
-        units = Sjson(unit_path.read_text(encoding='utf-8-sig')).parse()['Units']
-        unit = next(u for u in units if u['Name'] == '_PlayerUnit')
-        # HeroStart is an airborne entrance marker overlapping the rear barrier.
-        # The current slice skips the drop cinematic and starts at its HeroEnd.
-        spawn = next(a for a in geometry['anchors'] if a['name'] == 'HeroEnd')
-        hull = [(p['X'] * unit['Thing']['Scale'], p['Y'] * unit['Thing']['Scale']) for p in unit['Thing']['Points']]
-        # Initially accept only transforms whose source interpretation is exact.
-        collision=json.loads(args.collision.read_text())
-        scene_manifest=args.scene.parent/'scene-manifest.json'
-        if collision['schema']!='hades-native-collision-v1' or collision['room']!=geometry['room'] or \
-           hashlib.file_digest(scene_manifest.open('rb'),'sha256').hexdigest()!=collision['input_scene_manifest']['sha256'] or \
-           hashlib.file_digest(args.creation.open('rb'),'sha256').hexdigest()!=collision['input_creation_manifest']['sha256']:
-            raise RuntimeError('Collision export does not match exact scene/creation metadata')
-        exact=[p for p in collision['collision_candidates'] if p['world_transform_exact']]
-        polygons=[p['world_points_exact'] for p in exact]
-        polygon_ids=[p['id'] for p in exact]
-        if len(set(polygon_ids))!=len(polygon_ids):raise RuntimeError('Duplicate collision source IDs')
-        with (assets / 'player-world.bin').open('wb') as out:
-            out.write(struct.pack('<4s5fI', b'HDP2', spawn['location']['X'], spawn['location']['Y'],
-                                  unit['Speed'], unit['Acceleration'], unit['Thing']['Grip'], len(hull)))
-            for point in hull:
-                out.write(struct.pack('<2f', *point))
-            out.write(struct.pack('<I', len(polygons)))
-            for source_id,polygon in zip(polygon_ids,polygons):
-                out.write(struct.pack('<iI', source_id,len(polygon)))
-                for point in polygon:
-                    out.write(struct.pack('<2f', *point))
-        for clip in ('ZagreusIdle.bin', 'ZagreusRun.bin'):
-            shutil.copyfile(args.hero / clip, assets / clip)
-        manifest = json.loads((args.scene.parent / 'scene-manifest.json').read_text())
-        objects = {r['object']['Id']: r['object'] for r in manifest['all_original_objects']}
-        creation = json.loads(args.creation.read_text())
-        if creation['schema'] != 'hades-room-creation-v1' or creation['room'] != manifest['room'] or creation['attachment_errors']:
-            raise RuntimeError('Creation metadata does not describe this room or has attachment errors')
-        source_map = PROJECT / '.local/game/base/Content/Win/Maps' / f'{manifest["room"]}.thing_bin'
-        if hashlib.file_digest(source_map.open('rb'), 'sha256').hexdigest() != creation['map_source']['sha256']:
-            raise RuntimeError('Creation metadata is not bound to the preserved original map')
-        creation_records = {record['id']: record for record in creation['records']}
-        if len(creation_records) != len(creation['records']) or set(creation_records) != set(objects):
-            raise RuntimeError('Creation and graphics map identities differ')
-        # A derived data table, not replacement game logic. Lua literals avoid
-        # introducing a second JSON parser into the portable native core.
-        with (assets / 'DecodedMapObjects.lua').open('w') as out:
-            out.write('return {\n')
-            for record in manifest['all_original_objects']:
-                original = record['object']
-                creation_record = creation_records[original['Id']]
-                if creation_record['name'] != original['Name'] or creation_record['source_range'] != original['source_range']:
-                    raise RuntimeError('Creation record source ranges/identity differ from the scene map')
-                fields = {
-                    'id': original['Id'], 'name': original['Name'],
-                    'group': next((g for g in original['GroupNames'] if g), ''),
-                    'x': original['Location']['X'], 'y': original['Location']['Y'], 'z': original['OffsetZ'],
-                    'scale': original['Scale'], 'alpha': original['Color'][3] / 255, 'angle': original['Angle'],
-                    'active': original['Active'], 'doCreate': original['DoCreate'],
-                    'visible': not record['obstacle_thing'].get('Invisible', False),
-                    'flipHorizontal': original['FlipHorizontal'],
-                    'dataType': creation_record['data_type'], 'parentId': original['AttachToID'],
-                    'activateAtRange': original['ActivateAtRange'], 'activationRange': original['ActivationRange'],
-                    'triggerOnSpawn': creation_record['trigger_on_spawn']['value'],
-                }
-                if creation_record['player_controlled'] is not None:
-                    fields['playerControlled'] = creation_record['player_controlled']
-                def lua_literal(value):
-                    return json.dumps(value, ensure_ascii=False, allow_nan=False)
-                memberships = ','.join(lua_literal(group) for group in original['GroupNames'])
-                children = ','.join(str(child) for child in original['AttachedIDs'])
-                out.write('{' + ','.join(f'{key}={lua_literal(value)}' for key, value in fields.items())
-                          + ',groups={' + memberships + '},childIds={' + children + '}},\n')
-            out.write('}\n')
-        with (assets / 'ordering.bin').open('wb') as out:
-            out.write(struct.pack('<4sI', b'HDO1', len(manifest['sprites'])))
-            for sprite in manifest['sprites']:
-                original = objects[sprite['object_id']]
-                out.write(struct.pack('<3f', sprite['source_layer'], original['SortIndex'], original['Location']['Y']))
-        player = {'spawn': spawn, 'speed': unit['Speed'], 'acceleration': unit['Acceleration'],
-                  'grip': unit['Thing']['Grip'], 'collision_polygons': len(polygons),
-                  'skipped_collision_transforms': collision['counts']['unresolved_polygons'],
-                  'collision_export':str(args.collision.resolve()),
-                  'collision_export_sha256':hashlib.file_digest(args.collision.open('rb'),'sha256').hexdigest(),
-                  'collision_scope':'Deterministic active obstacle polygons only; source random-scale placements remain unresolved.',
-                  'hero_assets': str(args.hero), 'entry_presentation_skipped': True,
-                  'movement_semantics': 'Grounded velocity and low-stick branch recovered; collision response and animation pivots remain provisional.'}
-    else:
-        for filename in ('ZagreusIdle.bin', 'ZagreusRun.bin', 'player-world.bin', 'ordering.bin'):
-            (assets / filename).unlink(missing_ok=True)
+    room_report=stage_room_scene(args,assets)
+    player,camera,animation_report,ambient_report,composition_report=(room_report[k] for k in ('player','camera','animations','ambient','composition'))
+    from stage_room_packs import stage_room_pack
+    for room_manifest in args.room_pack:stage_room_pack(room_manifest,assets)
     if args.assets_only:
         print(json.dumps({'assets': str(assets), 'player': player, 'camera': camera, 'animations': animation_report,'weapons':weapon_report}, indent=2))
         return
@@ -549,9 +562,20 @@ def main():
     stripped = BUILD / 'libhades_native.so'
     shutil.copyfile(library, stripped)
     run([NDK / 'toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip', '--strip-debug', stripped])
-    with zipfile.ZipFile(unsigned, 'a') as archive:
-        archive.write(dex / 'classes.dex', 'classes.dex', compress_type=zipfile.ZIP_DEFLATED)
-        archive.write(stripped, 'lib/arm64-v8a/libhades_native.so', compress_type=zipfile.ZIP_STORED)
+    # APK readers/zipalign require ZIP32. Python conservatively emits ZIP64 at
+    # 2GiB, although ZIP32 offsets support up to 4GiB. Original movie packs can
+    # cross that conservative threshold. Bound the actual ZIP32 domain and
+    # scope the threshold to this single-threaded append, including close().
+    if unsigned.stat().st_size + stripped.stat().st_size + (dex / 'classes.dex').stat().st_size >= (1 << 32) - 1024 * 1024:
+        raise RuntimeError('APK payload exceeds the ZIP32 domain; split original resource packs')
+    old_zip64_limit = zipfile.ZIP64_LIMIT
+    try:
+        zipfile.ZIP64_LIMIT = (1 << 32) - 1
+        with zipfile.ZipFile(unsigned, 'a', allowZip64=False) as archive:
+            archive.write(dex / 'classes.dex', 'classes.dex', compress_type=zipfile.ZIP_DEFLATED)
+            archive.write(stripped, 'lib/arm64-v8a/libhades_native.so', compress_type=zipfile.ZIP_STORED)
+    finally:
+        zipfile.ZIP64_LIMIT = old_zip64_limit
     aligned = BUILD / 'aligned.apk'
     run([TOOLS / 'zipalign', '-f', '-P', '16', '4', unsigned, aligned])
     key = BUILD / 'debug.keystore'
@@ -584,12 +608,13 @@ def main():
         'weapons': weapon_report,
         'native_ui': {'assets': str(args.ui.resolve()), 'screens': ['title','loading','load-failed','pause','settings'],
                       'controls': ['floating or fixed movement stick','independent pinch zoom','pause','brightness','camera zoom','control size','control opacity','handedness'],
-                      'loading': 'Title first; scene, player and original Lua precreation load in three reported stages after Play. Full room activation remains incomplete.',
-                      'settings_persistence': 'HADES_UI_2 app-private local file; accepts HADES_UI_1; no network access'},
-        'current_behavior': 'Native title and staged movement-slice loading, smooth camera/pinch, adjustable touch controls, original room/effect assets and source group composition; engine reconstruction in progress.',
+                      'loading': 'Title first; original map creation, activation and Lua gameplay after Play. See STATUS.md for device results and reached engine gaps.',
+                      'settings_persistence': 'Original Profile1.sjson / Profile1.ctrls plus Android UI preferences; no network access'},
+        'room_packs': [str(path.resolve()) for path in args.room_pack],
+        'current_behavior': 'Native reconstruction in progress. Build success does not establish gameplay correctness; device evidence is recorded separately in STATUS.md.',
         'complete_game': False, 'device_execution_verified': False,
-        'remaining': ['Map activation/OnSpawn/Map::Begin', 'Complete Lua engine bridge', 'Entry presentation',
-                      'Exact materials and lighting', 'Combat', 'Audio', 'Transitions', 'Saves'],
+        'remaining': ['Complete Lua engine bridge and run loop', 'Exact materials and lighting',
+                      'Complete combat, audio, transitions and save compatibility'],
     }
     report_path = PROJECT / '.local/reports/native-build.json'
     report_path.write_text(json.dumps(report, indent=2) + '\n')

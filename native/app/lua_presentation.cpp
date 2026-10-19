@@ -69,7 +69,9 @@ std::vector<ScriptRuntime::VisualKey> ScriptRuntime::presentationVisuals()const{
     for(auto id:actorWorld_.registrationOrder()){const auto* actor=actorWorld_.actor(id);if(actor&&actor->registered&&actor->object&&actor->object->visible&&actor->animation.active())out.push_back({VisualKey::Kind::Actor,id,actor->primaryAnimationLifetime});}
     for(auto handle:scenePrimaries_.auxiliaryHandles()){const auto* s=scenePrimaries_.state(handle);const auto* actor=actorWorld_.actor(s->ownerId);if(actor&&actor->registered&&actor->object&&actor->object->visible)out.push_back({VisualKey::Kind::Auxiliary,s->ownerId,handle});}
     for(const auto& [handle,p]:particles_.particles())if(particles_.alive(handle))out.push_back({VisualKey::Kind::Particle,p.ownerId,handle});
-    for(auto handle:actionEffects_.handles()){const auto* effect=actionEffects_.state(handle);out.push_back({VisualKey::Kind::Action,effect->ownerId,handle});}
+    for(auto handle:actionEffects_.handles()){const auto* effect=actionEffects_.state(handle);
+        if(effect->guiLine){const auto line=aimLines_.find(effect->ownerId);if(line==aimLines_.end()||line->second.handle!=handle||line->second.frame!=worldFrame_)continue;}
+        out.push_back({VisualKey::Kind::Action,effect->ownerId,handle});}
     // One key per drawn screen animation: primary then its ChildAnimation chain
     // (each child draws after its parent, Animation.SubmitDraw 0x2b2707).
     for(const auto& [id,screen]:screenAnimations_.things())if(!screen.dead&&screen.primary&&screen.body&&screen.body->active&&screen.body->visible)for(const auto& layer:screen.layers)out.push_back({VisualKey::Kind::Screen,id,layer.handle});
@@ -108,28 +110,38 @@ bool ScriptRuntime::samplePresentation(const VisualKey& key,hades::ActorVisual& 
     if(key.kind==VisualKey::Kind::Action){
         const auto* source=actionEffects_.state(key.handle);const auto* actor=actorWorld_.actor(key.owner);if(!source)throw std::runtime_error("Actual action FX lifetime unavailable");
         hades::EffectOwnerState owner=source->ownerSnapshot;std::array<uint8_t,4> fraction{255,255,255,255};
-        if(key.owner<0){
+        if(!source->detached&&key.owner<0){
             // Projectile-owned FX (Detonate graphic). Owner fraction = projectile body alpha;
             // APPROXIMATION: projectile tint/ambient fractions are not applied to owned FX.
-            const auto po=projectileFxOwners_.find(key.owner);const auto* q=(source->detached||po==projectileFxOwners_.end())?nullptr:projectileWorld_.actor(po->second);
-            if(!source->detached){if(!q||!effectOwner(key.owner,owner,error))return false;fraction[3]=uint8_t(std::clamp(q->body.alpha,0.f,1.f)*255.f);}
-            if(!actionEffects_.visual(key.handle,owner,fraction,out,error))return false;
-            const auto* groupName=source->definition.get("GroupName");std::string group=source->runtimeGroup?*source->runtimeGroup:(groupName?groupName->text():"");
-            const auto* attached=source->definition.get("UseAttachedGroup");
-            if(group.empty()&&(!attached||attached->boolean())){if(!q)throw std::runtime_error("Detached projectile-owned FX retained group unavailable");group=q->body.group;}
-            if(group.empty())group="Default";
-            out.drawGroup=presentationGroup(group);out.blend=uint32_t(presentationGroups_[out.drawGroup].blendMode);out.visible=presentationGroups_[out.drawGroup].visible;
-            out.sourceSortY=out.y;return true;
+            const auto po=projectileFxOwners_.find(key.owner);const auto* q=po==projectileFxOwners_.end()?nullptr:projectileWorld_.actor(po->second);
+            if(!q||!effectOwner(key.owner,owner,error))return false;fraction[3]=uint8_t(std::clamp(q->body.alpha,0.f,1.f)*255.f);
         }
-        if(!source->detached){
+        else if(!source->detached){
             if(!actor||!actor->registered||!actor->object)throw std::runtime_error("Actual attached action FX draw owner unavailable");
             if(!effectOwner(key.owner,owner,error))return false;
             fraction={uint8_t(actor->tint[0]*255.f),uint8_t(actor->tint[1]*255.f),uint8_t(actor->tint[2]*255.f),uint8_t(std::clamp(actor->object->alpha,0.f,1.f)*255.f)};
         }
         if(!actionEffects_.visual(key.handle,owner,fraction,out,error))return false;
+        if(source->guiLine){
+            const auto i=aimLines_.find(key.owner);if(i==aimLines_.end()||i->second.handle!=key.handle||i->second.ownerLifetime!=owner.lifetime)throw std::runtime_error("Actual GUI aim line lifetime unavailable");const auto& line=i->second;
+            // GUIComponentLine::Draw VA180170b52..b9f: scale X = projected
+            // endpoint distance / AnimationData.ScaleLength; scale Y = integer
+            // projectile width / ScaleWidth. World-space renderer projection
+            // cancels the native camera-zoom multiply on both values.
+            const float dx=line.endX-line.x,dy=line.endY-line.y,length=std::hypot(dx,dy);
+            const auto* sourceLength=source->definition.get("ScaleLength"),*sourceWidth=source->definition.get("ScaleWidth");if(!sourceLength||!sourceWidth||sourceLength->number()<=0||sourceWidth->number()<=0)throw std::runtime_error("Actual GUI line scale metadata unavailable");
+            const float sx=length/float(sourceLength->number()),sy=line.width!=0?line.width/float(sourceWidth->number()):1.f;
+            out.localRect[0]*=sx;out.localRect[2]*=sx;out.localRect[1]*=sy;out.localRect[3]*=sy;
+            out.x=line.x;out.y=line.y;out.z=0;out.scale=1;out.angle=std::atan2(dy,dx);out.visible=line.frame==worldFrame_&&length>0;
+            // Portable draw-group adaptation: GUIComponentLine's UI-system
+            // submission enters the original world combat UI group.
+            out.drawGroup=presentationGroup("Combat_UI_World");out.blend=uint32_t(presentationGroups_[out.drawGroup].blendMode);out.visible=out.visible&&presentationGroups_[out.drawGroup].visible;out.sourceSortY=out.y;return true;
+        }
         const auto* groupName=source->definition.get("GroupName");std::string group=source->runtimeGroup?*source->runtimeGroup:(groupName?groupName->text():"");
         const auto* attached=source->definition.get("UseAttachedGroup");
-        if(group.empty()&&(!attached||attached->boolean())){if(!actor||!actor->registered||!actor->object)throw std::runtime_error("Detached source FX retained group unavailable");group=actor->object->group;}
+        // preDisposeOwner retains the real owner snapshot. Looking up the
+        // retired Thing here drops surviving detonation FX after its disposal.
+        if(group.empty()&&(!attached||attached->boolean())){if(!owner.group)throw std::runtime_error("Action FX owner draw group unavailable");group=*owner.group;}
         if(group.empty())group="Default";
         out.drawGroup=presentationGroup(group);out.blend=uint32_t(presentationGroups_[out.drawGroup].blendMode);out.visible=presentationGroups_[out.drawGroup].visible;
         out.sourceSortY=out.y;return true;
@@ -152,7 +164,7 @@ bool ScriptRuntime::samplePresentation(const VisualKey& key,hades::ActorVisual& 
     out.x+=number(actorWorld_,actor->id,"Thing.Offset.X")*out.scale;out.y+=number(actorWorld_,actor->id,"Thing.Offset.Y")*out.scale;
     if(key.kind==VisualKey::Kind::Actor){
         if(!actor->animation.active()||actor->primaryAnimationLifetime!=key.handle)throw std::runtime_error("HAA presentation lifetime mismatch");
-        out.sourceBank=animationBank_.get();out.frame=animationBank_->sample(actor->animation.clipIndex(),actor->animation.slideIndex(),animationBank_->selectedAngleForFacing(actor->animation.clipIndex(),body.angle));out.localRect=out.frame.worldRect(*actor->animation.clip());out.scale*=actor->animationOwnScale;
+        out.sourceBank=animationBank_.get();out.frame=animationBank_->sample(actor->animation.clipIndex(),actor->animation.slideIndex(),animationBank_->selectedAngleForFacing(actor->animation.clipIndex(),actorAnimationFacing(*actor)));out.localRect=out.frame.worldRect(*actor->animation.clip());out.scale*=actor->animationOwnScale;
         return true;
     }
     const auto* source=scenePrimaries_.state(key.handle);if(!source||source->ownerLifetime!=actor->entityHandle)throw std::runtime_error("Auxiliary image source owner lifetime mismatch");

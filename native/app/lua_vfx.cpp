@@ -28,6 +28,24 @@ bool ScriptRuntime::advanceVfx(float dt,std::string& error){
         if(actor->timeModifierFraction!=1||actor->timeMultiplier!=1){error="Non-default source owner VFX time components require native per-entity adapter";return false;}
     }
     if(!particles_.refreshOwners(owners,error)||!scenePrimaries_.advance(dt,error)||!actionEffects_.advance(dt,actionEffectProviders(),error))return false;
+    // Thing.UpdateAnimation2df5c0: after actual PostUpdate returns done,
+    // ChainTo gets SetAnimation; otherwise restore ThingData.Graphic or clear
+    // the primary. Snapshot handles because SetAnimation disposes old state.
+    for(const auto handle:scenePrimaries_.completedPrimaries()){
+        const auto* source=scenePrimaries_.state(handle);if(!source)continue;
+        const auto old=*source;
+        if(old.parent){error="Original scene child completion needs OnChildFinished: "+old.name;return false;}
+        auto* actor=actorWorld_.actor(old.ownerId);
+        if(!actor||!actor->registered||actor->entityHandle!=old.ownerLifetime||actor->primaryAnimationLifetime!=handle){error="Source scene completion owner lifetime mismatch: "+old.name;return false;}
+        const auto* chain=old.definition.get("ChainTo");std::string next=chain?chain->text():"";
+        if(next.empty()||next=="null"){const auto* graphic=actorWorld_.currentProperty(old.ownerId,"Thing.Graphic");if(!graphic){error="Source scene completion fallback Graphic unavailable";return false;}next=graphic->text();}
+        if(!next.empty()&&next!="null"){
+            if(!setActorAnimation(old.ownerId,next,error))return false;
+        }else{
+            if(!scenePrimaries_.destroy(handle,error))return false;
+            actor->primaryAnimationLifetime=0;actor->object->animation.clear();actor->object->graphicsDirty=true;
+        }
+    }
     // Defined sequential Android schedule. Windows submits overlapping worker
     // batches, so no completion-order equivalence is asserted. Each component
     // equation and explicit Time-before-Distance VFX ordering is source-backed.
@@ -90,6 +108,7 @@ bool ScriptRuntime::advanceVfx(float dt,std::string& error){
     context.managerVisualFxCount=uint32_t(registry->managerCount(0));
     context.phase=hades::EffectUpdatePhase::Distance;
     if(!effects_.update(dt,owners,markers,random,emit,context,error))return false;
+    if(!actionEffects_.updateDistance(actionEffectProviders(),context.managerSpawnedThisFrame,error))return false;
     return true;
  }catch(const std::exception& e){error=std::string("Native VFX phase failed: ")+e.what();return false;}
 }

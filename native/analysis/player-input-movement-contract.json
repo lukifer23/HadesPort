@@ -1,5 +1,5 @@
 {
-  "schema": "hades-local-player-input-movement-v1",
+  "schema": "hades-local-player-input-movement-v2",
   "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
   "api": {
     "setLocalInput": "bounded actual worldXY vector and original control string names; per-frame down states preserve edges",
@@ -68,13 +68,33 @@
       "path": ".local/reports/native-player-unit-can-move.json",
       "bytes": 4427,
       "sha256": "20335d6031c33979633362ad1833f96d701349f74797eda70dce2d122a3a72ec"
+    },
+    {
+      "path": ".local/reports/takeover-is-playing-move-animation.json",
+      "bytes": 6582,
+      "sha256": "c17470ea67f6032b6be45e3c0ef6aa2dbcac450736212ca849b209bde3bdab8c"
+    },
+    {
+      "path": ".local/reports/takeover-unit-speed-or-velocity.json",
+      "bytes": 1937,
+      "sha256": "d8b74e50ab6a099cc3b552ec8d7389ca71f247fe691d5dddc5500b6270472769"
+    },
+    {
+      "path": ".local/reports/takeover-unit-move-input-static.json",
+      "bytes": 17992,
+      "sha256": "0c3d5758915b4721bd5d1ba2f87dde4b3c75c53f541a47967186d0ed7a929644"
+    },
+    {
+      "path": ".local/reports/native-input-unit-update-animation-static.json",
+      "bytes": 19137,
+      "sha256": "4bdf1d4b470821f6f3b771c45768644c404892a52673a97e3bf0bea6be1633cf"
     }
   ],
   "source": [
     {
       "path": "native/app/unit_movement.hpp",
-      "bytes": 1103,
-      "sha256": "c985c38105333e1756d1f38188949a47d6043a19534783b9ca8065404aecc5f6"
+      "bytes": 1191,
+      "sha256": "f4c40af645af322882fd0c0d24c1fc8c03c0f398160bcf8cb3347bd0a62895d0"
     },
     {
       "path": "native/app/unit_movement.cpp",
@@ -83,8 +103,8 @@
     },
     {
       "path": "native/app/lua_player_input.cpp",
-      "bytes": 16322,
-      "sha256": "c1272c35a5f7867dd6826fe2e5c8e4b0037f0bd143333cda4396a1326278c8ad"
+      "bytes": 20174,
+      "sha256": "cbcac6b564da5e02ed4f3df145c42825c4fe36a02199c53f3721ccbbd4c76f2b"
     }
   ],
   "limits": [
@@ -94,5 +114,26 @@
     "Nonzero source angle clamps and attached local player relative movement remain explicit unsupported.",
     "SwordRunStop source events require actual stopFX closure; never suppress those callbacks."
   ],
-  "rea_sessions_owned_open": 0
+  "rea_sessions_owned_open": 0,
+  "animation_transitions": {
+    "UnitUpdateAnimationRVA": "0x2f1a80",
+    "IsPlayingMoveAnimationRVA": "0x2f1d80",
+    "PlayMoveAnimationRVA": "0x2f1e60",
+    "completion": "After primary advancement and ChainTo: finished non-chain primary selects movement when moving and CanMove, otherwise Unit.StopGraphic if classified movement and provided, otherwise Thing.Graphic. Applies independently of CancelOnOwnerMove.",
+    "movement_classification": "StartGraphic/MoveGraphic/LowSpeedAnimation/HighSpeedAnimation/MaxSpeedAnimation name match, or nonempty current AnimationData.StopAnimation. StopGraphic itself is not a movement classification.",
+    "cancel_on_move": "Unfinished primary requires living UnitData.CanMove unit. CancelOnOwnerMove requires moving, positive velocity, CanMove and Physics.lastForceSelfApplied. Existing movement animation may change at positive movement velocity independently of self-applied force.",
+    "stop_selection": "With Unit.StopGraphic nonempty, current AnimationData.StopAnimation overrides it. Without Unit.StopGraphic use FinishMoveAnimationOnIdle or Thing.Graphic.",
+    "native_move_speed": "Unit.MoveInput RVA2f6220 instructions RVA2f6415..2f6501 write current animation PlaySpeedMultiplier = planar velocity / NativeMoveSpeed after accepted input when NativeMoveSpeed>0. Do not recalculate in animation update: a new stop animation has its own multiplier and must advance at zero velocity.",
+    "input_trace": "Unit.UpdateMovement resets speedFraction after consumption; report previousSpeedFraction together with raw stick, velocity, moving, original frame, completion, play-speed multiplier and native facing angle."
+  },
+  "animation_recovery_validation": {
+    "type": "actual strict host replay of original opening scripts and source assets; no containment",
+    "frames": 1940,
+    "replay": ".local/reports/takeover-movement-recovery.tsv",
+    "trace": ".local/reports/takeover-movement-recovery.log",
+    "result": ".local/reports/takeover-movement-recovery.json",
+    "observed": "Sword attack, hold right/release, special, hold left/release, hold up/release. SwordRunStop progresses 2..32 at zero velocity then Idle. Each later movement accepts input and source velocity/facing signs match right/left/up. Original special fire reaches its recovery loop.",
+    "device_verification": false,
+    "limitations": "Host runtime observations do not establish touch acquisition, Android visuals, full cast path, door use or room progression."
+  }
 }

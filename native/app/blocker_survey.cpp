@@ -88,9 +88,13 @@ std::string ScriptRuntime::blockerSurveyReport()const{
 std::string ScriptRuntime::heroMotionTrace(){
     const auto players=snapshotInputPlayers(state_);if(players.empty())return "hero=none";
     const int32_t id=players.front().activeUnitId;auto* a=actorWorld_.actor(id);if(!a||!a->object)return "hero=missing";
-    const auto m=localMovement_.find(a->entityHandle);const auto& cam=camera_.state();char line[320];
+    const auto m=localMovement_.find(a->entityHandle);const auto& cam=camera_.state();char line[640];
     std::string tg;for(const auto& t:cam.targets)tg+=std::to_string(t.id)+",";
-    std::snprintf(line,sizeof(line),"hero x=%.1f y=%.1f angle=%.3f goal=%.3f speedFraction=%.2f anim=%s cam=%.1f,%.1f zoom=%.3f targets=[%s] panActive=%d",a->object->x,a->object->y,a->object->angle,
-        m!=localMovement_.end()?m->second.goalAngle:-1.f,m!=localMovement_.end()?m->second.speedFraction:-1.f,a->object->animation.c_str(),cam.x,cam.y,cam.zoom,tg.c_str(),int(cam.panX.duration>0||cam.panY.duration>0));
+    // UpdateMovement clears speedFraction each frame; report the consumed
+    // previous value plus raw input and velocity so an idle trace is meaningful.
+    const float vx=a->physics?a->physics->velocity.x:0,vy=a->physics?a->physics->velocity.y:0;
+    const auto facing=a->animation.active()?int(animationBank_->originalAngleForFacing(a->animation.clipIndex(),actorAnimationFacing(*a))):-1;
+    std::snprintf(line,sizeof(line),"hero x=%.1f y=%.1f angle=%.3f goal=%.3f input=%.2f,%.2f consumedSpeedFraction=%.2f velocity=%.1f,%.1f moving=%d anim=%s frame=%u finished=%d playSpeed=%.2f facing=%d cam=%.1f,%.1f zoom=%.3f targets=[%s] panActive=%d",a->object->x,a->object->y,a->object->angle,
+        m!=localMovement_.end()?m->second.goalAngle:-1.f,localMoveX_,localMoveY_,m!=localMovement_.end()?m->second.previousSpeedFraction:-1.f,vx,vy,int(m!=localMovement_.end()&&m->second.moving),a->object->animation.c_str(),a->animation.originalFrame(),int(a->animation.finished()),a->animation.playSpeedMultiplier(),facing,cam.x,cam.y,cam.zoom,tg.c_str(),int(cam.panX.duration>0||cam.panY.duration>0));
     return line;
 }

@@ -107,9 +107,9 @@ bool ScriptRuntime::advanceAudio(float elapsed,std::string& error){
     for(auto it=delayedSounds_.begin();it!=delayedSounds_.end();){if(worldTime_>it->deadline){hades::AudioChannelState channel;if(audio_.channelState(it->id,channel)){if(!audio_.play(it->id,error))return false;++audioFramePlays_;}it=delayedSounds_.erase(it);}else ++it;}
     const auto players=snapshotInputPlayers(state_);if(!players.empty()&&players.front().activeUnitLifetime){float x,y,z;if(!actorWorld_.location(players.front().activeUnitId,x,y,error)||!actorWorld_.zLocation(players.front().activeUnitId,z,error)||!audio_.setListener(x,y,z,error))return false;}
     for(const auto& channel:audio_.attachedChannels()){
-        const auto* actor=actorWorld_.actor(channel.source.ownerId);
-        if(!actor||!actor->registered||actor->entityHandle!=channel.source.ownerLifetime){error="Attached audio owner vanished before native OnOwnerDeath";return false;}
-        hades::AudioSource source;if(!actorAudioSource(actor->id,source,error)||!audio_.setSource(channel.id,source,error))return false;
+        hades::AudioSource source;if(!actorAudioSource(channel.source.ownerId,source,error))return false;
+        if(source.ownerLifetime!=channel.source.ownerLifetime){error="Attached audio owner vanished before native OnOwnerDeath";return false;}
+        if(!audio_.setSource(channel.id,source,error))return false;
     }
     if(!audio_.advanceControls(elapsed,error))return false;
     for(const auto& marker:audio_.drainMarkers())if(audioCallbacks_.contains(marker.channelId)){
@@ -125,7 +125,7 @@ void ScriptRuntime::stopAudio(){audioOutput_.stop();}
 // global per-frame counter (default16); VO cues bypass the frame cap.
 bool ScriptRuntime::playAudioCue(const std::string& cue,int32_t owner,const std::array<float,3>& p,uint32_t& id,std::string& error){
     bool valid=false;if(!audio_.resolveCue(cue,valid,error,true))return false;if(!valid){id=0;return true;}
-    const auto players=snapshotInputPlayers(state_);const bool spatial=owner>0&&(players.empty()||players.front().activeUnitId!=owner);
+    const auto players=snapshotInputPlayers(state_);const bool spatial=owner<0||(owner>0&&(players.empty()||players.front().activeUnitId!=owner));
     if(spatial){bool allowed=false;if(!admitOwnerAudio(cue,owner,allowed,error))return false;if(!allowed){id=0;return true;}}
     hades::AudioSource source{spatial,p[0],p[1],0};if(spatial&&!actorAudioSource(owner,source,error))return false;
     if(!audio_.createCue(cue,source,id,error,true)||!audio_.play(id,error))return false;
@@ -151,11 +151,13 @@ bool ScriptRuntime::playLocationAudioCue(const std::string& cue,const std::array
 // attachment), then transforms screen-location Things through Camera. Native
 // Set3DAttributes always places this XY in a plane; raw Thing Z is not used.
 bool ScriptRuntime::actorAudioSource(int32_t id,hades::AudioSource& out,std::string& error){
+ if(id<0){const auto it=projectileFxOwners_.find(id);const auto* p=it==projectileFxOwners_.end()?nullptr:projectileWorld_.actor(it->second);if(!p||!p->bodyPending){error="Projectile audio source body unavailable";return false;}if(p->body.screenSpace){error="Spatial screen projectile audio requires camera conversion";return false;}out={true,0,0,0,id,p->request.lifetimeHandle};return projectileWorld_.projectileLocation(*p,out.x,out.y,error);}
  const auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->object){error="Audio source requires registered Thing";return false;}
  if(a->object->screenSpace){error="Spatial screen Thing audio requires native Camera screen-to-world provider";return false;}
  out={true,0,0,0,id,a->entityHandle};return actorWorld_.location(id,out.x,out.y,error);
 }
 bool ScriptRuntime::audioOwnerDeath(int32_t id,std::string& error){
+ if(id<0){hades::AudioSource final;if(!actorAudioSource(id,final,error))return false;return audio_.detachOwner(id,final.ownerLifetime,final.x,final.y,error);}
  const auto* a=actorWorld_.actor(id);if(!a||!a->registered){error="AudioOwnerDeath requires still-registered actor";return false;}
  if(audio_.ownedChannels(id,a->entityHandle).empty())return true;
  hades::AudioSource final;if(!actorAudioSource(id,final,error))return false;
@@ -168,7 +170,9 @@ bool ScriptRuntime::stopActorAmbientSound(int32_t id,std::string& error){
 }
 
 bool ScriptRuntime::admitOwnerAudio(const std::string& cue,int32_t owner,bool& allowed,std::string& error){
- allowed=false;const auto* a=actorWorld_.actor(owner);if(!a||!a->registered){error="Owner3D sound requires registered Thing";return false;}
+ allowed=false;
+ if(owner<0){const auto it=projectileFxOwners_.find(owner);const auto* p=it==projectileFxOwners_.end()?nullptr:projectileWorld_.actor(it->second);if(!p||!p->bodyPending||!p->thing){error="Projectile owner3D sound requires actual initialized Thing";return false;}bool voice=false;if(!audio_.voiceCue(cue,voice,error))return false;if(p->suppressSounds&&!voice)return true;const auto* priority=p->thing->get("HighPrioritySfx");if(!priority){error="Projectile sound source HighPrioritySfx unavailable";return false;}allowed=priority->boolean()||audioFramePlays_<16||voice;return true;}
+ const auto* a=actorWorld_.actor(owner);if(!a||!a->registered){error="Owner3D sound requires registered Thing";return false;}
  bool voice=false;if(!audio_.voiceCue(cue,voice,error))return false;
  // Native49d93 reads LIVE Thing+62 before Data.HighPrioritySfx and frame cap.
  // Active-listener owner2D and delayed CreateCue3D bypass this entire path.

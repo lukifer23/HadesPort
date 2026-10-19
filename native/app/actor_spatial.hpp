@@ -23,7 +23,7 @@ class ActorSpatialGrid {
 public:
     bool update(const SpatialObstacle&,std::string&);
     void remove(uint64_t lifetime);
-    bool query(const SpatialBounds&,ObstacleGridCategory,std::vector<SpatialObstacle>&,std::string&)const;
+    bool query(const SpatialBounds&,ObstacleGridCategory,std::vector<SpatialObstacle>&,std::string&,bool filterBounds=true)const;
     bool contains(uint64_t lifetime)const{return records_.contains(lifetime);}
     size_t size()const{return records_.size();}
 };

@@ -1,5 +1,6 @@
 #include "lua_runtime.hpp"
 #include "scene_runtime.hpp"
+#include "text_runtime.hpp"
 #include <cmath>
 #include <algorithm>
 #include <stdexcept>
@@ -12,9 +13,10 @@ bool ScriptRuntime::loadScreenAnimationDefinitions(){try{
  auto file=assets_->open("screen-animations.lua");if(!file||file->size()>1024*1024)throw std::runtime_error("Original screen animation catalog unavailable");std::vector<char>bytes(file->size());size_t at=0;while(at<bytes.size()){auto n=file->read(bytes.data()+at,bytes.size()-at);if(!n)throw std::runtime_error("Original screen catalog truncated");at+=n;}
  const int top=lua_gettop(state_);int status=luaL_loadbufferx(state_,bytes.data(),bytes.size(),"@screen-animations.lua","t");if(status==LUA_OK)status=lua_pcall(state_,0,1,0);if(status!=LUA_OK){error_=lua_tostring(state_,-1);lua_settop(state_,top);return false;}hades::SourceValue data;const bool ok=hades::readSourceValue(state_,-1,data,error_);lua_settop(state_,top);if(!ok)return false;
  screenAnimationBank_=std::make_shared<hades::ActorAnimationBank>();screenAnimationBank_->load(*assets_,"screen-animation-frames.bin");if(!screenAnimations_.load(std::move(data),screenAnimationBank_,effects_.registry(),error_))return false;
+ screenAnimations_.setTextDimensionsProvider([this](int32_t id,std::array<float,2>&size,std::string&e){return attachedTextDimensions(state_,id,size,e);});
  ObjectScreenHooks hooks;hooks.animation=[this](int32_t id,const std::string&n,std::string&e){return setScreenAnimation(id,n,e);};hooks.fraction=[this](int32_t id,bool scale,float target,const hades::BodyTransitionOptions&o,std::string&e){return screenFraction(id,scale,target,o,e);};hooks.location=[this](int32_t id,float&x,float&y,std::string&e){const auto*s=screenAnimations_.thing(id);if(!s||s->dead){e="Actual screen location unavailable";return false;}x=s->body->x;y=s->body->y;return true;};hooks.destroy=[this](int32_t id,bool,std::string&e){return screenDestroy(id,e);};hooks.animationArgs=[this](int32_t id,const std::string&n,lua_State*L,std::string&e){return screenAnimationArgs(id,n,L,e);};setObjectScreenHooks(state_,std::move(hooks));
  // Registered before installDelayedActions so source Delay wrapping applies.
- {const char*names[]{"SetAnimationFrameTarget","SetScaleX","SetScaleY","FadeObstacleIn","HideObstacle","GetWeaponMaxAmmo","TeleportCursor"};for(int mode=0;mode<7;++mode){lua_pushlightuserdata(state_,this);lua_pushinteger(state_,mode);lua_pushcclosure(state_,screenAction,2);lua_setglobal(state_,names[mode]);}}
+ if(mapRevision_==0){const char*names[]{"SetAnimationFrameTarget","SetScaleX","SetScaleY","FadeObstacleIn","HideObstacle","GetWeaponMaxAmmo","TeleportCursor"};for(int mode=0;mode<7;++mode){lua_pushlightuserdata(state_,this);lua_pushinteger(state_,mode);lua_pushcclosure(state_,screenAction,2);lua_setglobal(state_,names[mode]);}}
  return true;
  }catch(const std::exception&e){error_=e.what();return false;}}
 hades::ScreenAnimationSound ScriptRuntime::screenAnimationSound(){hades::ScreenAnimationSound p;p.worldFrame=worldFrame_;

@@ -73,6 +73,13 @@ bool ScriptRuntime::externalForceOwner(int32_t id,hades::PhysicsForceOwner& data
     return physicsGrip_?physicsGrip_(id,data.grip,error):physicsGripValue(id,data.grip,error);
 }
 bool ScriptRuntime::weaponCallback(const hades::WeaponOutput& op,std::string& error){
+    // ScriptManager::OnOutOfAmmo RVA0x28ed40 takes only the weapon's name:
+    // filter mSourceNames then Script::run(nullptr, name, empty args).
+    // Unlike OnWeaponFired it supplies neither a Thing nor OwnerTable/Ammo.
+    if(op.name=="OnOutOfAmmo"){
+        if(!dispatchCallbacks(op.name.c_str(),op.weaponName.c_str(),0,{},false)){error=error_;return false;}
+        return true;
+    }
     auto* actor=actorWorld_.actor(op.ownerId);if(!actor||!actor->registered||!actor->arsenal){error="Weapon callback lost actual owner";return false;}
     const auto extra=[&](lua_State* L,std::string& detail){
         auto* actor=actorWorld_.actor(op.ownerId);if(!actor||!actor->arsenal){detail="Weapon callback owner data unavailable";return false;}
@@ -126,9 +133,90 @@ bool ScriptRuntime::weaponAnimationRadius(const hades::WeaponOutput& op,bool exe
     }
     (void)execute;error.clear();return true;
 }
+// GridManager::GetClosestStopsProjectilesIntersection3086e0: native edge
+// intersections, victim-height overlap, ProjectilesAlwaysPenetrate and source
+// StopsProjectiles filters; penetration skips EDGE hits in distance-key order.
+// Sparse portable broadphase ordering is irrelevant unless native integer keys
+// tie at the selected hit; that ambiguity remains an explicit blocker.
+bool ScriptRuntime::aimLineIntersection(int32_t owner,const hades::ProjectileDefinition& data,float x,float y,float& endX,float& endY,float angle,float width,std::string& error){try{
+    const auto number=[&](const char* key){const auto i=data.fields.find(key);if(i==data.fields.end()||!std::holds_alternative<double>(i->second))throw std::runtime_error(std::string("AimLine projectile field unavailable: ")+key);return float(std::get<double>(i->second));};
+    const auto flag=[&](const char* key){const auto i=data.fields.find(key);if(i==data.fields.end()||!std::holds_alternative<bool>(i->second))throw std::runtime_error(std::string("AimLine projectile flag unavailable: ")+key);return std::get<bool>(i->second);};
+    float originX=0,originY=0;if(!actorWorld_.location(owner,originX,originY,error))return false;
+    const auto ray=[&](float sx,float sy,float tx,float ty,std::optional<std::array<float,2>>& result)->bool{
+        hades::SpatialBounds bounds{std::min(sx,tx),std::min(sy,ty),std::max(sx,tx),std::max(sy,ty)};std::vector<int32_t> candidates;
+        if(!actorWorld_.spatialObstacleCandidates(bounds,hades::ObstacleGridCategory::StopsProjectiles,candidates,error))return false;
+        if(!flag("UnlimitedUnitPenetration"))for(auto id:actorWorld_.registrationOrder()){const auto* a=actorWorld_.actor(id);if(a&&a->registered&&a->definition&&a->definition->kind=="Unit"&&id!=owner)candidates.push_back(id);}
+        std::sort(candidates.begin(),candidates.end());candidates.erase(std::unique(candidates.begin(),candidates.end()),candidates.end());
+        struct Hit {int64_t key;float x,y;};std::vector<Hit> hits;const float dx=tx-sx,dy=ty-sy;
+        for(auto id:candidates){const auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->object)continue;
+            const auto* penetrate=actorWorld_.currentProperty(id,"Life.ProjectilesAlwaysPenetrate");const auto* stops=actorWorld_.currentProperty(id,"Thing.StopsProjectiles");if(!penetrate||!stops)throw std::runtime_error("AimLine source Life/Thing projectile collision flags unavailable");if(penetrate->boolean()||!stops->boolean())continue;
+            float z=0;if(!actorWorld_.zLocation(id,z,error))return false;const auto* tall=actorWorld_.currentProperty(id,"Thing.Tallness");if(!tall)throw std::runtime_error("AimLine source victim Tallness unavailable");
+            if(z>number("MaxVictimZ")||number("MinVictimZ")>z+float(tall->number()))continue;
+            if(!actorWorld_.refreshGeometry(id,error))return false;a=actorWorld_.actor(id);const auto& polygon=a->geometry;
+            for(size_t i=0;i<polygon.size();++i){const auto p=polygon[i],q=polygon[(i+1)%polygon.size()];const float ex=q.x-p.x,ey=q.y-p.y,cross=dx*ey-dy*ex;if(cross==0)continue;
+                const float px=sx-p.x,py=sy-p.y,t=(py*ex-px*ey)/cross,u=(py*dx-px*dy)/cross;if(t<0||t>1||u<0||u>1)continue;
+                const float hx=sx+dx*t,hy=sy+dy*t;if(hx==0&&hy==0)continue;const float rx=sx-hx,ry=sy-hy;hits.push_back({int64_t(2147483648.f-(rx*rx+ry*ry)),hx,hy});}
+        }
+        std::sort(hits.begin(),hits.end(),[](const Hit& a,const Hit& b){return a.key>b.key;});const auto index=size_t(std::max(number("NumPenetrations"),0.f));if(index>=hits.size())return true;
+        const auto& hit=hits[index];for(const auto& other:hits)if(other.key==hit.key&&(other.x!=hit.x||other.y!=hit.y))throw std::runtime_error("AimLine native equal-distance heap ordering unavailable");result=std::array<float,2>{hit.x,hit.y};return true;
+    };
+    float length2=(endX-x)*(endX-x)+(endY-y)*(endY-y);std::optional<std::array<float,2>> hit;
+    if(int(number("ObstacleCollisionCheck"))==4){if(!ray(x,y,endX,endY,hit))return false;if(hit){endX=(*hit)[0];endY=(*hit)[1];}return true;}
+    for(int side:{1,-1,0}){const float perpendicular=angle+(side>0?1.5707963705062866f:-1.5707963705062866f);const float ox=side?std::cos(perpendicular)*width*.5f:0,oy=side?-std::sin(perpendicular)*width*.5f:0;hit.reset();
+        if(!ray(side?originX+ox:x,side?originY+oy:y,endX+ox,endY+oy,hit))return false;if(hit){const float dx=(*hit)[0]-x,dy=(*hit)[1]-y;length2=std::min(length2,dx*dx+dy*dy);}}
+    const float length=std::sqrt(length2);endX=x+std::cos(angle)*length;endY=y-std::sin(angle)*length;return true;
+ }catch(const std::exception& e){error=e.what();return false;}}
+// Weapon::ShowAimLine86650 -> PlayerUI::ShowAimLine1daf20 -> SetupAimLine1dbb40.
+// The portable GUI allocation is backed by the real exported animation/texture.
+bool ScriptRuntime::weaponAimLine(const hades::WeaponOutput& op,bool execute,std::string& error){try{
+    const int top=lua_gettop(state_);lua_getglobal(state_,"GetConfigOptionValue");lua_newtable(state_);lua_pushliteral(state_,"ShowUIAnimations");lua_setfield(state_,-2,"Name");
+    if(lua_pcall(state_,1,1,0)!=LUA_OK){error=lua_tostring(state_,-1);lua_settop(state_,top);return false;}
+    if(!lua_isboolean(state_,-1)){lua_settop(state_,top);throw std::runtime_error("Actual ShowUIAnimations configuration unavailable");}const bool enabled=lua_toboolean(state_,-1);lua_settop(state_,top);if(!enabled)return true;
+    auto* actor=actorWorld_.actor(op.ownerId);if(!actor||!actor->registered||!actor->object||!actor->arsenal||!op.fireRequest)throw std::runtime_error("ShowAimLine actual owner/weapon/request unavailable");
+    const auto* weapon=actor->arsenal->weaponState(op.weaponName,error);if(!weapon)return false;
+    const auto scalar=[](const auto& fields,const char* name){const auto i=fields.find(name);if(i==fields.end()||!std::holds_alternative<double>(i->second))throw std::runtime_error(std::string("AimLine scalar unavailable: ")+name);const float v=float(std::get<double>(i->second));if(!std::isfinite(v))throw std::runtime_error("Nonfinite aim line scalar");return v;};
+    const auto flag=[](const auto& fields,const char* name){const auto i=fields.find(name);if(i==fields.end()||!std::holds_alternative<bool>(i->second))throw std::runtime_error(std::string("AimLine flag unavailable: ")+name);return std::get<bool>(i->second);};
+    const auto text=[](const auto& fields,const char* name){const auto i=fields.find(name);if(i==fields.end()||!std::holds_alternative<std::string>(i->second))throw std::runtime_error(std::string("AimLine string unavailable: ")+name);return std::get<std::string>(i->second);};
+    const auto& fields=weapon->definition.fields;
+    const float charge=scalar(fields,"ChargeTime"),fraction=charge==0?1:std::clamp(1-weapon->chargeTimeRemaining/charge,0.f,1.f);
+    if(fraction<scalar(fields,"MinChargeToFire")&&!flag(fields,"LockTriggerForCharge"))return true;
+    bool local=false;for(const auto& player:snapshotInputPlayers(state_))if(player.playerIndex==1&&player.activeUnitId==op.ownerId&&player.activeUnitLifetime==actor->entityHandle)local=true;if(!local)return true;
+    if(!text(fields,"TargetReticleAnimation").empty())throw std::runtime_error("AimLine target reticle consumer not reconstructed");
+    const auto name=text(fields,"AimLineAnimation");if(name.empty())return true;
+    if(weapon->definition.type!=0||!weapon->validProjectileData)throw std::runtime_error("AimLine requires reconstructed GUN/source projectile branch");
+    if(scalar(fields,"NumProjectiles")>1||scalar(fields,"SelfVelocity")>0||scalar(fields,"PerfectChargeWindowDuration")>0)throw std::runtime_error("AimLine spread/self-motion/perfect-charge flash branch not reconstructed");
+    const auto* thing=projectileWorld_.thingDefinition(weapon->projectileData.name);if(!thing)throw std::runtime_error("AimLine original projectile Thing definition unavailable");
+    const auto required=[&](const char* key)->const hades::SourceValue&{const auto* v=thing->get(key);if(!v)throw std::runtime_error(std::string("AimLine projectile Thing field unavailable: ")+key);return *v;};
+    const auto& points=required("Points").array();if(points.empty())throw std::runtime_error("AimLine requires original nonempty projectile polygon");
+    float minY=std::numeric_limits<float>::max(),maxY=std::numeric_limits<float>::min(),maxX=0;
+    for(const auto& p:points){const float x=float(p.get("X")->number()),y=float(p.get("Y")->number());minY=std::min(minY,y);maxY=std::max(maxY,y);maxX=std::max(maxX,x);}
+    const float width=std::abs(minY-maxY)*float(required("Scale").number());
+    float x=0,y=0;if(!actorWorld_.location(op.ownerId,x,y,error))return false;
+    const auto movement=localMovement_.find(actor->entityHandle);const float angle=movement!=localMovement_.end()&&movement->second.initialized?movement->second.cosmeticAngle:actor->object->angle;
+    float endX=op.fireRequest->targetX,endY=op.fireRequest->targetY;
+    if(!flag(fields,"ManualAiming")){
+        if(int(scalar(weapon->projectileData.fields,"Type"))==3)throw std::runtime_error("AimLine lob effective-range branch not reconstructed");
+        const float chargeRange=scalar(fields,"ChargeRangeMultiplier"),multiplier=chargeRange>0?1+(chargeRange-1)*fraction:1;
+        const float range=std::max(scalar(fields,"BarrelLength"),0.f)+scalar(weapon->projectileData.fields,"Range")*multiplier+maxX;
+        endX=x+std::cos(angle)*range;endY=y-std::sin(angle)*range;
+    }else if(actor->object->playerControlled)throw std::runtime_error("AimLine manual PlayerUnit free-aim cache not reconstructed");
+    hades::WeaponPoint offset;if(!actor->arsenal->fireOffset(op.weaponName,angle,offset,error))return false;x+=offset.x;y+=offset.y;
+    float dx=endX-x,dy=endY-y,length=std::hypot(dx,dy);const float reticle=scalar(fields,"TargetReticleOffset");if(reticle>0&&length>0){endX=x+dx/length*reticle;endY=y+dy/length*reticle;length=reticle;}
+    if(flag(weapon->projectileData.fields,"CheckObstacleImpact")&&scalar(weapon->projectileData.fields,"NumPenetrations")<99){
+        // Filled from GridManager::GetClosestStopsProjectilesIntersection3086e0 below.
+        if(!aimLineIntersection(op.ownerId,weapon->projectileData,x,y,endX,endY,angle,width,error))return false;
+    }
+    if(!actionEffectBank_&&!loadActionEffectDefinitions()){error=error_;return false;}if(!actionEffects_.prepare(name,op.ownerId,actionEffectProviders(),error,true))return false;
+    if(!execute)return true;
+    auto& line=aimLines_[op.ownerId];const auto* old=actionEffects_.state(line.handle);
+    if(old&&(line.ownerLifetime!=actor->entityHandle||old->name!=name)){if(!actionEffects_.destroy(line.handle,error))return false;old=nullptr;}
+    if(!old){uint64_t handle=0;if(!actionEffects_.create(name,op.ownerId,std::array<float,3>{x,y,0},actionEffectProviders(),handle,error,true))return false;line.handle=handle;}
+    line.frame=worldFrame_;line.ownerLifetime=actor->entityHandle;line.x=x;line.y=y;line.endX=endX;line.endY=endY;line.width=float(int32_t(width));line.weapon=op.weaponName;return true;
+ }catch(const std::exception& e){error=e.what();return false;}}
 bool ScriptRuntime::weaponOperationSupported(const hades::WeaponOutput& op,std::string& error){
     using K=hades::WeaponOutputKind;
     switch(op.kind){
+    case K::ShowAimLine:return weaponAimLine(op,false,error);
     case K::SetOwnerCompleteAngle:case K::CancelOwnerMovement:case K::CancelOwnerDisables:case K::CancelOwnerRotateDisables:case K::RemoveWeaponControl:case K::ExtendOwnerDisables:case K::RootOwnerMovement:{
         const auto* actor=actorWorld_.actor(op.ownerId);
         if(!actor||!actor->registered||!actor->object||!actor->arsenal||!actor->status){error="Weapon owner operation requires actual registered Unit/body/status/arsenal";return false;}
@@ -155,7 +243,7 @@ bool ScriptRuntime::weaponOperationSupported(const hades::WeaponOutput& op,std::
         return true;
     }
     case K::ScriptCallback:
-        if(op.name=="OnWeaponCharging"||op.name=="OnWeaponChargeCanceled"||op.name=="OnWeaponTriggerRelease"||op.name=="OnWeaponFired"||op.name=="OnWeaponFailedToFire")return true;
+        if(op.name=="OnWeaponCharging"||op.name=="OnWeaponChargeCanceled"||op.name=="OnWeaponTriggerRelease"||op.name=="OnWeaponFired"||op.name=="OnWeaponFailedToFire"||op.name=="OnOutOfAmmo")return true;
         break;
     case K::CreateAttachedAnimation:case K::CreateWeaponWorldAnimation:
         // Original empty/null lookup returns no animation, not a placeholder.
@@ -168,6 +256,7 @@ bool ScriptRuntime::weaponOperationSupported(const hades::WeaponOutput& op,std::
 bool ScriptRuntime::consumeWeaponOperation(const hades::WeaponOutput& op,hades::WeaponTriggerReply& reply,std::string& error){
     using K=hades::WeaponOutputKind;
     switch(op.kind){
+    case K::ShowAimLine:return weaponAimLine(op,true,error);
     case K::CancelOwnerMovement:{
         if(!weaponOperationSupported(op,error))return false;
         // Unit.StopMoving2ebd00, virtual+188: no velocity/shift cancellation.
@@ -748,15 +837,37 @@ bool ScriptRuntime::unitApplyShift(int32_t id,float nx,float ny,float sx,float s
     if(unitsFlag&&a->status){const auto st=a->status->snapshot();for(auto h:st.active){const auto* d=selfEffects_.effectData(h,error);if(!d)return false;const auto f=d->fields.find("NoUnitCollision");if(f==d->fields.end()||!std::holds_alternative<bool>(f->second))throw std::runtime_error("Original EffectData NoUnitCollision unavailable");if(std::get<bool>(f->second)){unitsFlag=false;break;}}}
     if(unitsFlag)unitsFlag=z<=float(prop(id,"MaxCollisionZ").number());
     const float moveShift=a->physics?std::sqrt(a->physics->moveShift.x*a->physics->moveShift.x+a->physics->moveShift.y*a->physics->moveShift.y):0.f;
+    float px=0,py=0;std::vector<int32_t> unitHits,hits;
     if(unitsFlag){
-        // GridSquare::detectCollisions30ae10 unit branch -> Unit::OnUnitCollision2f7580: fail loudly on any candidate.
-        for(const auto o:actorWorld_.registrationOrder()){if(o==id)continue;const auto* u=actorWorld_.actor(o);
-            if(!u||!u->registered||u->isDisposed||!u->object||!u->definition||u->definition->kind!="Unit"||!u->object->alive||u->geometry.size()<3)continue;
+        // ApplyShift VA1802f7f24 sets CollisionParameters+2/+0b=true. Native
+        // GridSquare::detectCollisions VA18030ae10 filters candidate unit data,
+        // primary animation, active effects, inclusive z/rectangle overlap, then
+        // sums PolygonCollisionOpt MTVs (unit accumulation is plain addition).
+        // APPROXIMATION: candidate iteration follows portable registration order;
+        // candidate rectangles use the same documented polygon AABB as obstacles.
+        const auto candidates=actorWorld_.registrationOrder();
+        const float maxZ=z+float(prop(id,"Thing.Tallness").number());
+        for(const auto o:candidates){if(o==id)continue;auto* u=actorWorld_.actor(o);
+            if(!u||!u->registered||u->isDisposed||!u->object||!u->definition||u->definition->kind!="Unit"||!u->object->active)continue;
+            if(!prop(o,"CollideWithUnits").boolean()||hades::actorOwnerHasNoCollision(*u))continue;
+            bool disabled=false;if(u->status){const auto st=u->status->snapshot();for(auto h:st.active){
+                const auto* d=selfEffects_.effectData(h,error);if(!d)return false;
+                const auto f=d->fields.find("NoUnitCollision");if(f==d->fields.end()||!std::holds_alternative<bool>(f->second))throw std::runtime_error("Original EffectData NoUnitCollision unavailable");
+                if(std::get<bool>(f->second)){disabled=true;break;}}}
+            if(disabled)continue;
+            float uz=0;if(!actorWorld_.zLocation(o,uz,error))return false;
+            if(!(uz<=maxZ&&z<=uz+float(prop(o,"Thing.Tallness").number())))continue;
+            if(!actorWorld_.refreshGeometry(o,error))return false;
+            if(u->geometry.size()<3)continue;
+            float ux=u->geometry[0].x,uy=u->geometry[0].y,ex=ux,ey=uy;
+            for(const auto& q:u->geometry){ux=std::min(ux,q.x);uy=std::min(uy,q.y);ex=std::max(ex,q.x);ey=std::max(ey,q.y);}
+            const int ox=int(ux),oy=int(uy),ow=int(ex-ux),oh=int(ey-uy);
+            if(!(rx<=ox+ow&&ox<=rx+rw&&ry<=oy+oh&&oy<=ry+rh))continue;
             std::vector<hades::MovementPoint> U;for(const auto& q:u->geometry)U.push_back({q.x,q.y});
             const auto r=shiftPolygonCollision(polygonAxisCache_,A,U,sx,sy);
-            if(r.intersect||r.willIntersect)throw std::runtime_error("ApplyShift unit-unit push (GridSquare::detectCollisions30ae10 unit branch / Unit::OnUnitCollision2f7580) not reconstructed");}
+            if(r.intersect||r.willIntersect){px+=r.x;py+=r.y;unitHits.push_back(o);}
+        }
     }
-    float px=0,py=0;std::vector<int32_t> hits;
     if(obstaclesFlag){
         hades::SpatialBounds bounds{float(rx),float(ry),float(rx+rw),float(ry+rh)};
         std::vector<int32_t> candidates;if(!actorWorld_.spatialObstacleCandidates(bounds,hades::ObstacleGridCategory::StopsUnits,candidates,error))return false;
@@ -797,6 +908,13 @@ bool ScriptRuntime::unitApplyShift(int32_t id,float nx,float ny,float sx,float s
         if(!weapon.empty()&&a->physics){const float req=float(prop(id,"CollisionWeaponRequiredVelocity").number());
             if(req*req<=moveShift*moveShift&&a->physics->lastForceSelfApplied)throw std::runtime_error("ApplyShift InitiatedCollisionWeapon Weapon::RequestFire83160 not reconstructed");}
     }
+    // ApplyShift VA1802f8247..82d8: each collided Unit, then self once when
+    // any Unit collision or stopping/bouncing obstacle occurred. A Unit hit
+    // makes ApplyShift report a stopping collision even with a zero MTV.
+    if(!unitHits.empty())collided=true;
+    for(const auto o:unitHits)if(!unitOnUnitCollision(id,o,moveShift,error))return false;
+    if(collided&&!unitOnUnitCollision(id,id,moveShift,error))return false;
+    a=actorWorld_.actor(id);if(!a||!a->registered||!a->object){error="OnUnitCollision lost actual Unit";return false;}
     float tx=nx,ty=ny;
     if(qx!=0||qy!=0){
         const float c2=qx*qx+qy*qy,s2=sx*sx+sy*sy;
@@ -811,6 +929,43 @@ bool ScriptRuntime::unitApplyShift(int32_t id,float nx,float ny,float sx,float s
     // PhysicsComponent::CheckTether2bd890 (TetherElasticity<=0): with no tethers it returns the proposal.
     if(a->physics&&a->physics->tetherCount)throw std::runtime_error("ApplyShift PhysicsComponent::CheckTether2bd890 tether clamp not reconstructed");
     return unitSetLocation(id,tx,ty,error);
+    }catch(const std::exception& e){error=e.what();return false;}
+}
+// Unit::OnUnitCollision VA1802f7580 and ScriptManager::OnUnitCollision
+// VA18028add0: clear collision effects, collidee arsenal collision weapon,
+// initiator weapon, then thresholded Lua event. Authored weapon/effect branches
+// retain explicit boundaries until their actual consumers exist.
+bool ScriptRuntime::unitOnUnitCollision(int32_t id,int32_t other,float velocity,std::string& error){
+    try{
+    auto* a=actorWorld_.actor(id);auto* b=actorWorld_.actor(other);
+    if(!a||!a->registered||!a->object||!b||!b->registered||!b->object){error="OnUnitCollision requires actual registered Units";return false;}
+    const auto prop=[&](int32_t n,const char* k)->const hades::SourceValue&{const auto* v=actorWorld_.currentProperty(n,k);if(!v)throw std::runtime_error(std::string("OnUnitCollision original field unavailable: ")+k);return *v;};
+    if(a->status){const auto st=a->status->snapshot();for(const auto* list:{&st.active,&st.pending})for(auto h:*list){
+        const auto* d=selfEffects_.effectData(h,error);if(!d)return false;const auto f=d->fields.find("ClearOnCollision");
+        if(f==d->fields.end()||!std::holds_alternative<bool>(f->second))throw std::runtime_error("Original EffectData ClearOnCollision unavailable");
+        if(std::get<bool>(f->second))throw std::runtime_error("UnitStatus::ClearOnCollisionEffects2fd730 effect clear not reconstructed");}}
+    if(!b->physics||!b->physics->lastForceSelfApplied||prop(other,"AllowSelfCollisions").boolean()){
+        const auto name=prop(other,"CollisionWeapon").text();
+        // FireCollisionWeapon VA1802ff380 looks up this exact equipped weapon;
+        // a missing weapon or Physics returns before damage/request operations.
+        if(!name.empty()&&name!="null"&&b->arsenal&&b->arsenal->scriptMutableWeapon(name)&&b->physics){
+            const float req=float(prop(other,"CollisionWeaponRequiredVelocity").number());
+            const auto& ms=b->physics->moveShift;
+            if(req<=0||req*req<=ms.x*ms.x+ms.y*ms.y)throw std::runtime_error("WeaponArsenal::FireCollisionWeapon2ff380 projectile collision damage/request not reconstructed");
+        }
+    }
+    const auto initiated=prop(id,"InitiatedCollisionWeapon").text();
+    if(!initiated.empty()&&initiated!="null"&&a->physics&&a->physics->lastForceSelfApplied&&id!=other){
+        const float req=float(prop(id,"CollisionWeaponRequiredVelocity").number());
+        if(req*req<=velocity*velocity&&a->arsenal&&a->arsenal->scriptMutableWeapon(initiated))throw std::runtime_error("OnUnitCollision InitiatedCollisionWeapon RequestFire83160 target entity link not reconstructed");
+    }
+    if(float(prop(other,"CollisionTriggerMinSpeed").number())<velocity){
+        // ScriptManager VA18028adef skips an owner with a non-null Lua table;
+        // CollideeTable is the actual collidee table or nil; Velocity is float.
+        pushObjectLuaTable(state_,id);const bool hasOwnerTable=!lua_isnil(state_,-1);lua_pop(state_,1);
+        if(!hasOwnerTable&&!dispatchCallbacks("OnUnitCollision",a->object->name.c_str(),id,[other,velocity](lua_State* S,std::string&){pushObjectLuaTable(S,other);lua_setfield(S,-2,"CollideeTable");lua_pushnumber(S,velocity);lua_setfield(S,-2,"Velocity");return true;})){error=error_;return false;}
+    }
+    error.clear();return true;
     }catch(const std::exception& e){error=e.what();return false;}
 }
 // Unit::OnObstacleCollision2f6ce0 (.local/reports/native-shift-on-obstacle-collision-pseudocode.c);

@@ -5,12 +5,12 @@ An unofficial, work-in-progress **native ARM64 Android engine** for **Hades (Sup
 purchased PC copy** — on a C++/OpenGL ES engine reconstructed from the PC engine binary.
 No emulation, Wine, CPU translation, ads, accounts or network access.
 
-> **Status: prototype, not a playable game yet** (2026-10-18). On a Galaxy Z Fold the
-> title screen, settings, intro, opening room, HUD, walking (with the original wall
-> push-out), sword combo, dash and audio run at ~90-120 fps. Missing engine behaviour is
-> contained (logged and counted as "engine gaps") instead of crashing. Still missing:
-> the dash/special detonation against obstacles, Athena's boon and the doors, and
-> every room after the first (so no enemies yet). See [`STATUS.md`](STATUS.md).
+> **Status: prototype; full gameplay remains incomplete** (2026-10-18). The Fold
+> runs the title, settings, intro, opening room, HUD, movement, sword attacks,
+> dash and audio. Animation recovery, collisions, cast and room progression are
+> under active repair. RoomSimple01 now has a real map pack and transition path;
+> successful full encounters are not yet verified. Missing engine behavior is
+> logged as engine gaps. See [`STATUS.md`](STATUS.md) for current build evidence.
 
 **This repository contains no game files.** You must own Hades (e.g. on Steam or the Epic
 Games Store) and supply its files yourself. Read [`DISCLAIMER.md`](DISCLAIMER.md).
@@ -67,7 +67,7 @@ python3 scripts/prepare_native_dependencies.py
 python3 scripts/build_native.py --scene <scene.bin> --geometry <room-geometry.json> --animations <animations.bin>
 
 # 4. Install on your device
-adb -s "$HADES_DEVICE_SERIAL" install -r .local/build/native/hades-native-engine-preview.apk
+adb -s "$HADES_DEVICE_SERIAL" install --no-incremental -r --user 0 .local/build/native/hades-native-engine-preview.apk
 ```
 
 The asset pipeline is still evolving; `HANDOFF.md` lists the exact commands and current

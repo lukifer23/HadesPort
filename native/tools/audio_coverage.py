@@ -2,9 +2,10 @@
 """Static sound-cue coverage of the original game for the current native scope.
 
 Reuses the animation-coverage scope (animation_coverage.Coverage: fresh-save
-RoomOpening + Tartarus A_Combat rooms, AthenaUpgrade first-boon flow, the hero
+RoomOpening + forced RoomSimple01 + Tartarus A_Combat rooms, AthenaUpgrade first-boon flow, the hero
 sword arsenal with dash/cast, EnemiesBiome1/TrapsBiome1, and every Lua function
-statically reachable from StartRoom and in-scope data) and collects every FMOD
+statically reachable from StartRoom, in-scope data and native interaction
+registrations, including referenced Lua data subtrees) and collects every FMOD
 cue name those can play, with provenance per cue, instead of hand lists:
 
   sources = (1) string literals in every reachable Lua function (PlaySound,
@@ -202,7 +203,7 @@ def main():
         by_bank[r['bank'] or 'unresolved'].append(cue)
     report = {
         'schema': 'hades-audio-coverage-v1', 'method': __doc__.strip(),
-        'scope': {k: scope[k] for k in ('rooms', 'units', 'weapons', 'projectiles')}, 'animation_closure': closure,
+        'scope': {k: scope[k] for k in ('rooms', 'units', 'weapons', 'projectiles', 'functions', 'interaction_callbacks')}, 'animation_closure': closure,
         'cues': resolved, 'by_bank': {k: sorted(v) for k, v in sorted(by_bank.items())},
         'provenance': {c: cov.cues[c] for c in sorted(cov.cues)},
         'out_of_scope': {c: v for c, v in sorted(gated.items())},

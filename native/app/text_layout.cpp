@@ -25,7 +25,7 @@ void TextFontBank::load(AssetStore&store,const SourceValue&catalog){
   y.rgba.assign(image.b.begin()+image.p,image.b.end());symbols.emplace(texture,std::move(y));}
  fonts_=std::move(fonts);localized_=std::move(localized);symbols_=std::move(symbols);subtitleStyle_=*catalog.get("SubtitleStyle");
 }
-std::vector<TextGlyphQuad> TextFontBank::layout(const TextLayoutRequest&r,std::vector<TextSymbolQuad>*symbolsOut)const{
+std::vector<TextGlyphQuad> TextFontBank::layout(const TextLayoutRequest&r,std::vector<TextSymbolQuad>*symbolsOut,std::array<float,2>*measured)const{
  const auto*f=font(r.font);if(!f)throw std::runtime_error("Original font has not been loaded: "+r.font);if(!std::isfinite(r.size)||r.size<=0||r.size>1024||!std::isfinite(r.scale)||r.scale<=0||r.scale>32||!std::isfinite(r.width)||r.width<0||r.width>100000||!std::isfinite(r.textSymbolScale)||r.textSymbolScale<0||r.textSymbolScale>64)throw std::runtime_error("Text layout numeric bound");const float scale=r.size/float(f->nativeSize)*r.scale;
  // Items: codepoint (symbol<0) or inline symbol. Symbol advance follows
  // ParseImage: entryWidth*TextSymbolScale(data)*TextSymbolScale(); the
@@ -47,6 +47,7 @@ std::vector<TextGlyphQuad> TextFontBank::layout(const TextLayoutRequest&r,std::v
  // follow native DrawInto. Symbols are atomic words (Parse break set holds '@').
  for(const auto&it:items){if(it.symbol>=0){flush();word.push_back(it);flush();continue;}if(it.cp=='\r')continue;if(it.cp=='\n'){flush();lines.emplace_back();}else if(it.cp==' '){flush();if(!lines.back().empty())lines.back().push_back(it);}else word.push_back(it);}flush();
  if(lines.size()>1024)throw std::runtime_error("Text line bound");const float height=float(lines.size())*f->lineSpacing*scale;const float y0=r.vertical==TextJustification::Center?-height*.5f:r.vertical==TextJustification::End?-height:0;std::vector<TextGlyphQuad>out;
+ if(measured){float width=0;for(const auto&line:lines)width=std::max(width,extent(line)*scale);*measured={width,height};}
  for(size_t line=0;line<lines.size();++line){float x=0;const float width=extent(lines[line])*scale;const float x0=r.horizontal==TextJustification::Center?-width*.5f:r.horizontal==TextJustification::End?-width:0;
   for(const auto&it:lines[line]){if(it.symbol>=0){const auto&y=*used[it.symbol];const float w=float(y.width)*symbolUnits*scale,h=float(y.height)*symbolUnits*scale;
     // DrawLine: centre (pen+advance/2, line centre); size width/height*symbolScale.

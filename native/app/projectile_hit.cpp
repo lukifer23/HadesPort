@@ -143,9 +143,11 @@ bool ProjectileWorld::applyImpact(uint64_t handle,int32_t victim,const Projectil
             const float window=number(data().fields,"ConsecutiveHitWindow");if(window>0){++target->life.consecutiveHits;target->life.consecutiveHitWindow=std::max(target->life.consecutiveHitWindow,window);run(ProjectileHitOperationKind::MarkDirty);}
             if(number(data().fields,"DamagePerConsecutiveProjectileHit")>0)++p->consecutiveHits[victim];
         }
-        // Unit::OnHit and ArcProjectile::OnHit resolve to the exact empty native
-        // virtual in this bounded concrete class path; no arbitrary callback is
-        // acknowledged as implemented.
+        // HomingProjectile::OnHit VA1800654c0 clears both target domains only
+        // when source HomingIgnoreHits is enabled. ARC/base remain empty.
+        if(p->descriptor.concreteClass==ProjectileClass::Homing&&flag(data().fields,"HomingIgnoreHits")){
+            p->homing.targetId=-1;p->homing.linkedTargetId=-1;p->homing.linkedTargetLifetime=0;
+        }
         p->thingsHit.push_back(victimLifetime);error.clear();return true;
     }catch(const std::exception& e){error=e.what();if(mutated){faulted_=true;fault_=error;}return false;}
 }

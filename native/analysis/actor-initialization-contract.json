@@ -630,5 +630,20 @@
     "Static original binary/source evidence, not observed original runtime execution.",
     "Exact common scalar/map transformations recovered; complete engine actor creation remains incomplete.",
     "Generic dynamic attachment supporting disassembly is distinguished from the four parent-owned REA procedure results."
-  ]
+  ],
+  "native_unit_angle_catalog": {
+    "metadata": "native_unit_angles=true required by ActorWorld.loadCatalog; covers RotationSpeed and CosmeticRotationSpeed only.",
+    "export": "Resolved authored fields use original SGD_DeserializeAngle205cf0 float32 -> double*pi/180 -> float32. Compiled default fields remain native radians; inherited authored values normalize once for each exported final definition.",
+    "source_branches": {
+      "RotationSpeed": "UnitData SGD_Deserialize VA1800f473b calls SGD_DeserializeAngle.",
+      "CosmeticRotationSpeed": "UnitData SGD_Deserialize VA1800f478f calls SGD_DeserializeAngle.",
+      "RotationAcceleration": "VA1800f4765 ordinary scalar parser.",
+      "DefaultAngle": "VA1800f4a6c ordinary scalar parser; Unit.Init later converts degrees."
+    },
+    "factor_bits": "0x3f91df46a2529d39",
+    "reports": [
+      ".local/reports/takeover-unit-data-deserialize.json",
+      ".local/reports/takeover-deserialize-angle.json"
+    ]
+  }
 }

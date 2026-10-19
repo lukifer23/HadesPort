@@ -6,7 +6,8 @@ namespace hades {
 struct ActorLightState {
     int32_t ownerId=0;uint64_t ownerLifetime=0,controller=0;
     std::string name;size_t imageClip=0;
-    bool named=false,createsShadow=false,constant=false;
+    bool named=false,createsShadow=false,constant=false,book=false;
+    float bookFrame=1,playSpeed=60;uint32_t frame=1;
     float duration=0,remaining=0,fraction=0,baseAlpha=1;
     uint64_t locationRevision=0;
 };

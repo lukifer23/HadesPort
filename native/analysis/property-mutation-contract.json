@@ -82,7 +82,8 @@
       "mStopsUnitsDirty": 947,
       "mStopsProjectilesDirty": 949,
       "mData": 984
-    }
+    },
+    "implementation": "Generic destination selector and actual Obstacle kind gate; typed scalar instance overrides from original exported Obstacle field metadata, then existing actual OnPropertiesDirty provider. Unknown reflected names still dispatch dirty; unsupported complex fields block."
   },
   "reflection_primitive_observations": {
     "bool": "SetPropertyValue receives native PropertyInfo destination pointer/type. Bool any writes exact bool. char*/EASTL string accepts case-insensitive true/false; unmatched strings become false. Unsupported any types return false rather than Lua truthiness conversion.",
@@ -236,6 +237,11 @@
       "path": "hades/.local/reports/native-rea-property-multiply-base.json",
       "sha256": "1493ba05fd85558ce31c026f61a74b189b527548d804a8b1b7876eb496839719",
       "evidence_id": "ev_d1971677c6d9884367cefe470ea8ce18452a1cc6d00c3d7133fb47f2bd6ef467"
+    },
+    {
+      "path": "hades/.local/reports/takeover-door-GetUnitDataValue-rea.json",
+      "sha256": "fc1bdf703df9f611fb9b7dd5af592f8aff3fd5c6dbe35c225c3bd4e1893d6ca8",
+      "evidence_id": "ev_091a941d41e04af9257ffa26a2e8c74f5baa9e5f7c9174f1f4ea71ff13fb348c"
     }
   ],
   "remaining_unknowns": [
@@ -287,5 +293,19 @@
       "result": "passed",
       "compiler": "clang++ -std=c++20 -Wall -Wextra -Werror -fsanitize=address,undefined"
     }
+  },
+  "GetUnitDataValue": {
+    "id": 166,
+    "rva": "0x266220",
+    "evidence_id": "ev_091a941d41e04af9257ffa26a2e8c74f5baa9e5f7c9174f1f4ea71ff13fb348c",
+    "selectors": "ScriptArgs::Ids/Names union via World::GetActiveMapThings; Source selectors, not Destination selectors.",
+    "type_gate": "First nonnull actual Unit matching flags ((~flags)&0x221)==0 in native pointer hash-set iteration.",
+    "return": "Unit.pData+0x3c0 passed to GetPropertyInfo<UnitData> VA1800f5910 then GetPropertyValue VA1802027f0; returns immediately, including unknown property. No Unit produces boxed nullptr. Does not query live instance or MoveAI fallback.",
+    "portable_limits": [
+      "Scalar instance UnitData values including overrides; missing recognized storage blocks explicitly.",
+      "Unknown reflected property yields nil; complex recognized fields remain explicit blockers.",
+      "Selecting more than one actual Unit fails explicitly because Windows pointer hash-set ordering is not reproduced."
+    ],
+    "implementation": "ActorWorld::unitDataValue plus ScriptRuntime GetUnitDataValue registration"
   }
 }

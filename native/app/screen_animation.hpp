@@ -21,6 +21,8 @@ struct ScreenLayer {
  // Native Book frame state: DataPlaySpeed{speed,target}, PlaySpeedMultiplier,
  // Animation.mFractionalFrame/mFrame (.local/reports/hud-ft-semantics.json).
  float frac=1,speed=0,target=0,multiplier=1;int32_t frame=1;
+ // Constant AnimationFractionFromDurationSystem / TimeRemainingSystem.
+ float duration=0,remaining=0,progress=0;bool durationBound=false;
 };
 // Native ObstacleManager TransitionHelper<float> pair (Obstacle+0x5a0/0x5f0).
 struct ScreenMoveAxis {bool active=false;float start=0,end=0,duration=0,remaining=0,fraction=0;};
@@ -48,11 +50,13 @@ class ScreenAnimationWorld {
  std::shared_ptr<ActorAnimationBank> bank_;std::shared_ptr<AnimationRegistry> registry_;
  std::map<std::string,SourceValue> definitions_;
  std::map<int32_t,ScreenThing> things_;
+ std::function<bool(int32_t,std::array<float,2>&,std::string&)> textDimensions_;
  bool releasePrimary(ScreenThing&,const ScreenAnimationSound&,std::string&);
  bool allocateLayers(int32_t,ScreenThing&,const std::string&,std::vector<ScreenLayer>&,std::string&);
  bool layerVisual(const ScreenThing&,const ScreenLayer&,ActorVisual&,std::string&)const;
 public:
  static bool legacyClip(const std::string&);
+ void setTextDimensionsProvider(std::function<bool(int32_t,std::array<float,2>&,std::string&)> provider){textDimensions_=std::move(provider);}
  bool load(SourceValue,std::shared_ptr<ActorAnimationBank>,std::shared_ptr<AnimationRegistry>,std::string&);
  bool admits(const std::string& name)const{return definitions_.contains(name);}
  bool create(ObjectSnapshot&,std::array<float,4>,const ScreenAnimationSound&,std::string&);

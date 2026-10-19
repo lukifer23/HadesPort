@@ -22,7 +22,10 @@ void ActorAnimationBank::load(AssetStore& store,const char* filename,const char*
     reset();
     try{
         file_=store.open(filename);if(!file_)throw std::runtime_error("Missing HAA1 actor animations");
-        if(file_->size()>512ull*1024*1024||integer(*file_)!=0x31414148)throw std::runtime_error("Invalid HAA1 identity/size");
+        // Bounded lazy file: hero + original first-encounter movies retain 8 source
+        // directions. Payloads stay seekable and decode only through the cache;
+        // frame/count/raw/CRC bounds below remain independent of packet size.
+        if(file_->size()>1024ull*1024*1024||integer(*file_)!=0x31414148)throw std::runtime_error("Invalid HAA1 identity/size");
         const auto frames=integer(*file_),clips=integer(*file_);if(!frames||frames>65536||!clips||clips>4096)throw std::runtime_error("HAA1 counts outside bound");
         uint64_t rawTotal=0,slideTotal=0;
         for(uint32_t i=0;i<frames;++i){
@@ -133,9 +136,20 @@ std::span<const uint8_t> ActorAnimationImage::pixels()const{
     if(!rgba.empty()||!decoder)return rgba;
     const auto decoded=decoder->decode(packetFrameIndex);if(decoded.size()!=byteCount())throw std::runtime_error("HAA1 lazy frame size mismatch");return decoded;
 }
-void ActorAnimationPlayback::reset(){bank_=nullptr;clip_=slide_=0;remaining_=0;active_=finished_=false;}
+void ActorAnimationPlayback::reset(){bank_=nullptr;clip_=slide_=0;remaining_=0;playSpeedMultiplier_=1;active_=finished_=false;}
 void ActorAnimationPlayback::play(const ActorAnimationBank& bank,std::string_view name,const SlideEvent& onSlide){
-    auto index=bank.find(name);if(!index)throw std::runtime_error("Unsupported source actor animation: "+std::string(name));bank_=&bank;clip_=*index;slide_=0;active_=true;finished_=false;const auto& c=bank_->clips().at(clip_);remaining_=(c.flags&ActorBook)?c.secondsPerTick:float(c.slides[0].ticks)/60.f;if(onSlide)onSlide(c,c.slides[0]);
+    auto index=bank.find(name);if(!index)throw std::runtime_error("Unsupported source actor animation: "+std::string(name));bank_=&bank;clip_=*index;slide_=0;active_=true;finished_=false;playSpeedMultiplier_=1;const auto& c=bank_->clips().at(clip_);remaining_=(c.flags&ActorBook)?c.secondsPerTick:float(c.slides[0].ticks)/60.f;if(onSlide)onSlide(c,c.slides[0]);
+}
+// SlideStart2b40e7..2b4136 replaces the current per-instance slide ticks
+// with Deterministic.RandomInt(min,max), then adds ticks/60 to remaining.
+// Call exactly once at the source slide-entry callback, before slide FX.
+void ActorAnimationPlayback::replaceCurrentSlideTicks(uint32_t ticks){
+    const auto* c=clip();if(!c||(c->flags&ActorBook)||ticks>100000)throw std::runtime_error("Actual random Slide duration outside source bounds");
+    remaining_+=(float(ticks)-float(c->slides.at(slide_).ticks))/60.f;
+}
+void ActorAnimationPlayback::setPlaySpeedMultiplier(float multiplier){
+    if(!std::isfinite(multiplier)||multiplier<0||multiplier>100)throw std::runtime_error("Actor animation play-speed multiplier bound");
+    playSpeedMultiplier_=multiplier;
 }
 const ActorAnimationClip* ActorAnimationPlayback::clip()const{return active_&&bank_?&bank_->clips().at(clip_):nullptr;}
 void ActorAnimationPlayback::restartSource(const SlideEvent& onSlide){

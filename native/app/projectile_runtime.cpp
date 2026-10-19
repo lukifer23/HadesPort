@@ -329,7 +329,7 @@ bool ProjectileInitializationTail::advance(const ProjectileDefinition& definitio
             ProjectileCreationDescriptor descriptor;
             if(!describeProjectileCreation(definition,descriptor,error))return false;
             if(descriptor.concreteClass==ProjectileClass::Homing)
-                return yield(ProjectileInitializationOperationKind::FinalizeHomingTargetLink,"invalid FireRequest target link copy");
+                return yield(ProjectileInitializationOperationKind::FinalizeHomingTargetLink,"FireRequest target entity link copy");
             ++phase_;continue;
         }
         case 11:

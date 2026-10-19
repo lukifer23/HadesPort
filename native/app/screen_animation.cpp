@@ -17,7 +17,10 @@ float num(const SourceValue&d,const char*k,float fallback=0){auto*p=d.get(k);ret
 bool flag(const SourceValue&d,const char*k){auto*p=d.get(k);return p&&p->boolean();}
 // Source keys reconstructed for reviewed GUI records (mirrors the exporter's
 // screen_gui_review.KEYS). Anything else is rejected at load.
-const std::set<std::string> guiKeys{"Name","InheritFrom","FilePath","Type","StartFrame","EndFrame","NumFrames","PlaySpeed","OffsetX","OffsetY","OriginX","OriginY","Scale","ScaleX","ScaleY","Alpha","AddColor","Material","SortMode","Loop","HoldLastFrame","ChildAnimation","AngleFromOwner","ScaleFromOwner","ColorFromOwner","DieWithOwner","Red","Green","Blue","Slides","Sound"};
+const std::set<std::string> guiKeys{"Name","InheritFrom","FilePath","Type","StartFrame","EndFrame","NumFrames","PlaySpeed","OffsetX","OffsetY","OriginX","OriginY","Scale","ScaleX","ScaleY","Alpha","AddColor","Material","SortMode","Loop","HoldLastFrame","ChildAnimation","AngleFromOwner","ScaleFromOwner","ColorFromOwner","DieWithOwner","Red","Green","Blue","Slides","Sound","Color","StartAlpha","EndAlpha","Duration","ChainTo","AttachedTextScalarX","AttachedTextScalarY","Ambient"};
+// APPROXIMATION: Material/Ambient/SortMode remain renderer presentation hints,
+// as in ActionEffectWorld::pendingFieldsSet; exporter receipts enumerate every
+// admitted definition that has one. This does not rebuild native lighting.
 NativeAnimationType typeOf(const SourceValue&d){const auto t=text(d,"Type");return t=="Slide"?NativeAnimationType::Slide:t=="Dataless"?NativeAnimationType::Dataless:(t=="ConstantNoUpdate"?NativeAnimationType::ConstantNoUpdate:(t=="Constant"?NativeAnimationType::Constant:NativeAnimationType::Book));}
 // FromOwnerBehavior: 0 Maintain (constructor default), 1 Take, 2 Ignore.
 bool maintain(const SourceValue&d,const char*k){const auto v=text(d,k);if(v.empty()||v=="Maintain")return true;if(v=="Ignore")return false;throw std::runtime_error(std::string("Native screen FromOwner Take branch not reconstructed: ")+k);}
@@ -43,11 +46,13 @@ bool ScreenAnimationWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimati
    // with zero-duration slides skipped (ActorAnimationPlayback). Loop/PingPong
    // wrap and draw offsets are not reviewed for GUI slides.
    if(t=="Slide"){const auto bankIndex=bank->find(name);if(!bankIndex||(bank->clips().at(*bankIndex).flags&(ActorBook|ActorLoop))||flag(*definition,"Loop")||num(*definition,"OffsetX")!=0||num(*definition,"OffsetY")!=0)throw std::runtime_error("Unreviewed native screen Slide record "+name);}
+   if((definition->get("Duration")||definition->get("StartAlpha")||definition->get("EndAlpha"))&&t!="Constant")throw std::runtime_error("Unreviewed non-Constant screen duration/color transition "+name);
+   if(t=="Constant"&&flag(*definition,"Loop")&&num(*definition,"Duration")>0)throw std::runtime_error("Unreviewed screen Constant duration loop "+name);
    if(t=="Book"&&(startFrame(*definition)<1||endFrame(*definition)<startFrame(*definition)))throw std::runtime_error("Unreviewed native Book frame range "+name);
   }
   if(!bank->find(name))throw std::runtime_error("Screen original pixels unavailable: "+name);definitions_[name]=*definition;}
  for(const char*required:{"RemBGIntro","RemBG","Backgrounds\\rectangle_01","Blank","VignetteOverlay"})if(!definitions_.contains(required))throw std::runtime_error("Incomplete screen original resource graph");
- for(const auto&[name,d]:definitions_){const auto child=text(d,"ChildAnimation");if(!child.empty()&&child!="null"&&!definitions_.contains(child))throw std::runtime_error("Original screen ChildAnimation closure missing: "+child);}
+ for(const auto&[name,d]:definitions_){for(const auto*field:{"ChildAnimation","ChainTo"}){const auto child=text(d,field);if(!child.empty()&&child!="null"&&!definitions_.contains(child))throw std::runtime_error(std::string("Original screen ")+field+" closure missing: "+child);}}
  bank_=std::move(bank);registry_=std::move(registry);return true;
  }catch(const std::exception&x){e=x.what();return false;}}
 bool ScreenAnimationWorld::create(ObjectSnapshot&body,std::array<float,4>color,const ScreenAnimationSound&sound,std::string&e){
@@ -74,7 +79,12 @@ bool ScreenAnimationWorld::allocateLayers(int32_t id,ScreenThing&s,const std::st
    // SetupSlideIndex: index=StartFrame-1 then NextSlide to the first
    // positive-duration slide (exported bank omits zero-duration slides).
    l.playback.play(*bank_,next);l.frame=int32_t(l.playback.originalFrame());l.frac=float(l.frame);
-  }else{l.frac=1;l.frame=1;}
+  }else{l.frac=1;l.frame=1;
+   // InitData 0x291dc6; TimeRemainingSystem 0x189140 and
+   // AnimationFractionFromDurationSystem 0x152ce0. HoldLastFrame suppresses
+   // cancellation but the duration/color transition still reaches its end.
+   l.duration=num(d,"Duration");l.durationBound=l.duration>0;l.remaining=l.duration;
+  }
   parent=l.handle;out.push_back(std::move(l));next=text(d,"ChildAnimation");
  }
  for(const auto&l:out)if(!registry_->commitInitialization(l.handle,false,e))return false;
@@ -187,6 +197,7 @@ bool ScreenAnimationWorld::advance(float dt,const ScreenAnimationSound&sound,std
     }
     continue;
    }
+   if(typeOf(d)==NativeAnimationType::Constant){if(l.durationBound){l.remaining-=dt*l.multiplier;l.progress=std::clamp(1.f-l.remaining/l.duration,0.f,1.f);if(l.remaining<0&&!flag(d,"HoldLastFrame")){if(k!=0)throw std::runtime_error("Native finished screen child Constant not reconstructed: "+l.name);finished=true;}}continue;}
    if(typeOf(d)!=NativeAnimationType::Book)continue;
    // PlaySpeedUpdateSystem::Execute 0x153b80: step toward a positive target
    // (snap when within one step), otherwise free-running playback.
@@ -201,7 +212,13 @@ bool ScreenAnimationWorld::advance(float dt,const ScreenAnimationSound&sound,std
     finished=true;
    }
   }
-  if(finished){if(!releasePrimary(s,sound,e))return false;s.body->animation.clear();s.body->frame=0;s.body->numFrames=0;}
+  if(finished){
+   // Thing::UpdateAnimation 0x2df602..652: finite primary completion
+   // selects ChainTo through Thing::SetAnimation, otherwise clears primary.
+   const auto chain=text(definitions_.at(s.body->animation),"ChainTo");
+   if(!chain.empty()&&chain!="null"){if(!setAnimation(i->first,chain,sound,e))return false;}
+   else{if(!releasePrimary(s,sound,e))return false;s.body->animation.clear();s.body->frame=0;s.body->numFrames=0;}
+  }
   else s.body->frame=uint32_t(s.layers.front().frame);s.body->graphicsDirty=true;
  }++i;}return true;
  }catch(const std::exception&x){e=x.what();return false;}}
@@ -215,7 +232,15 @@ bool ScreenAnimationWorld::layerVisual(const ScreenThing&s,const ScreenLayer&l,A
  // mScale x Thing ScaleTransition. GetDrawScaleVector 0x298500: Data.ScaleX/Y
  // x (Maintain) Thing ScaleX/ScaleY transitions. Drawable scale = (v.x s, v.y s).
  const float scale=num(d,"Scale",1)*(maintain(d,"ScaleFromOwner")?s.body->scale*s.body->scaleFraction:1.f);
- const float vx=num(d,"ScaleX",1)*s.modifier(2),vy=num(d,"ScaleY",1)*s.modifier(3);
+ float vx=num(d,"ScaleX",1)*s.modifier(2),vy=num(d,"ScaleY",1)*s.modifier(3);
+ // GetDrawScaleVector 0x2985ef..6e8: largest attached textbox width/height
+ // divided by the corresponding scalar, independently of text opacity.
+ if(num(d,"AttachedTextScalarX")>0||num(d,"AttachedTextScalarY")>0){
+  if(!textDimensions_){e="Actual screen attached-text dimensions provider unavailable";return false;}
+  std::array<float,2> dimensions{-1,-1};if(!textDimensions_(s.body->id,dimensions,e))return false;
+  if(dimensions[0]>=0&&num(d,"AttachedTextScalarX")>0)vx*=dimensions[0]/num(d,"AttachedTextScalarX");
+  if(dimensions[1]>=0&&num(d,"AttachedTextScalarY")>0)vy*=dimensions[1]/num(d,"AttachedTextScalarY");
+ }
  out.localRect[0]*=vx;out.localRect[2]*=vx;out.localRect[1]*=vy;out.localRect[3]*=vy;out.scale=scale;
  // Constant screen path adds the offset scaled by the owner body (2b1f73..2b1ff7);
  // Book adds it unscaled (2af8e8..2af93c). The original HUD geometry fixes the
@@ -228,8 +253,16 @@ bool ScreenAnimationWorld::layerVisual(const ScreenThing&s,const ScreenLayer&l,A
  // InitData/GetDrawColor 0x298810: own {mColor.rgb,trunc(mColor.a/255*Alpha*255)};
  // top-level Red/Green/Blue set mColor only when all three are present (>=0).
  std::array<uint32_t,4> c{255,255,255,255};
- if(d.get("Red")&&d.get("Green")&&d.get("Blue")&&num(d,"Red")>=0&&num(d,"Green")>=0&&num(d,"Blue")>=0){size_t k=0;for(const char*key:{"Red","Green","Blue"})c[k++]=uint32_t(std::trunc(std::clamp(num(d,key),0.f,1.f)*255.f));}
- c[3]=uint32_t(std::trunc(255.f/255.f*num(d,"Alpha",1)*255.f));
+ // AnimationData Color deserialization 0x92172 and InitData 0x292492:
+ // nested Color is the initial packed color, overridden by top-level RGB.
+ if(const auto*color=d.get("Color")){size_t k=0;for(const auto*key:{"Red","Green","Blue","Alpha"})c[k++]=uint32_t(std::trunc(std::clamp(num(*color,key,1),0.f,1.f)*255.f));}
+ if(d.get("Red")&&d.get("Green")&&d.get("Blue")&&num(d,"Red")>=0&&num(d,"Green")>=0&&num(d,"Blue")>=0){size_t k=0;for(const char*key:{"Red","Green","Blue"})c[k++]=uint32_t(std::trunc(std::clamp(num(d,key),0.f,1.f)*255.f));c[3]=255;}
+ c[3]=uint32_t(std::trunc(float(c[3])/255.f*num(d,"Alpha",1)*255.f));
+ // InitData 0x29266c..26de sets the animation alpha helper (default
+ // StartAlpha=EndAlpha=1); its progress comes from the duration component.
+ const float start=num(d,"StartAlpha",1),end=num(d,"EndAlpha",1);
+ const float alpha=start==end?1.f:start+(end-start)*l.progress;
+ c[3]=c[3]*uint32_t(std::trunc(std::clamp(alpha,0.f,1.f)*255.f))/255;
  if(maintain(d,"ColorFromOwner")){const std::array<uint8_t,4> base{byteOf(s.baseColor[0]),byteOf(s.baseColor[1]),byteOf(s.baseColor[2]),byteOf(s.baseColor[3])};const std::array<uint8_t,4> fraction{byteOf(s.fractionColor[0]),byteOf(s.fractionColor[1]),byteOf(s.fractionColor[2]),byteOf(s.body->alpha)};for(size_t k=0;k<4;++k){c[k]=c[k]*base[k]/255;c[k]=c[k]*fraction[k]/255;}}
  for(size_t k=0;k<4;++k)out.color[k]=float(std::min<uint32_t>(c[k],255))/255.f;
  // ShouldAddColor 0x296760 -> Drawable shader 13 (AddColor.frag).

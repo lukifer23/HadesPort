@@ -3,10 +3,18 @@
 #include <cmath>
 #include <stdexcept>
 #include "object_runtime.hpp"
+#include "recovered_runtime.hpp"
 #include "platform_log.hpp"
 extern "C" {
 #include <lua.h>
 #include <lauxlib.h>
+}
+float ScriptRuntime::actorAnimationFacing(const hades::ActorComponents& actor)const{
+    // BookAnimation::GetAngleNum VA1802b0652..666: a Unit owner supplies
+    // mCosmeticAngle(+3d0), whereas an ordinary Thing supplies body.angle.
+    const auto move=localMovement_.find(actor.entityHandle);
+    if(actor.definition&&actor.definition->kind=="Unit"&&move!=localMovement_.end()&&move->second.initialized)return move->second.cosmeticAngle;
+    return actor.object?actor.object->angle:0;
 }
 bool ScriptRuntime::primaryCombatFlags(int32_t id,bool& invulnerable,bool& noArmor,bool& noCoverage,std::string& error)const{
     const auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered||!actor->object){error="Actual primary combat owner unavailable";return false;}
@@ -64,11 +72,19 @@ bool ScriptRuntime::actorSlideEvent(int32_t id,const hades::ActorAnimationClip& 
     const auto definition=actorAnimationDefinitions_.find(clip.name);if(definition==actorAnimationDefinitions_.end()){error="Actor source definition unavailable";return false;}
     const auto* frames=definition->second.get("frames");const auto* events=frames?frames->get(std::to_string(slide.originalFrame)):nullptr;
     if(!events||events->object().empty())return true;
+    // Native SlideStart2b40e7 tests RandomDurationFramesMin>0; RandomInt
+    //291250 uses the engine PCG stream, upper-exclusive, no draw if equal.
+    // These timing fields are source operations, not sound/FX events.
+    if(!(clip.flags&hades::ActorBook))if(const auto* minimum=events->get("RandomDurationFramesMin")){
+        const double lo=minimum->number();const auto* maximum=events->get("RandomDurationFramesMax");const double hi=maximum?maximum->number():0;
+        if(!std::isfinite(lo)||!std::isfinite(hi)||lo<0||hi<lo||hi>100000||lo!=std::trunc(lo)||hi!=std::trunc(hi)){error="Original random slide duration integer bounds";return false;}
+        if(lo>0){uint32_t draw=0;if(hi!=lo&&!nextRecoveredEngineBoundedRandom(state_,uint32_t(hi-lo),draw)){error="Original random slide duration RNG unavailable";return false;}auto* actor=actorWorld_.actor(id);if(!actor){error="Random Slide duration owner unavailable";return false;}actor->animation.replaceCurrentSlideTicks(uint32_t(lo)+draw);}
+    }
     // Validate every operation before consuming the first event. Native source
     // FX allocation then owns its real marker/time/children, not metadata ack.
     for(const auto&[key,value]:events->object()){
         if(key=="FootstepFxR"||key=="FootstepFxL"||key=="VisualFx"){if(!prepareActionEffect(value.text(),id,error))return false;}
-        else if(key!="Sound"&&key!="FootstepSound"){error="Unsupported actual source slide event: "+key;return false;}
+        else if(key!="Sound"&&key!="FootstepSound"&&key!="RandomDurationFramesMin"&&key!="RandomDurationFramesMax"){error="Unsupported actual source slide event: "+key;return false;}
     }
     for(const auto* key:{"FootstepSound","FootstepFxL","FootstepFxR","Sound","VisualFx"}){
         const auto* value=events->get(key);if(!value)continue;const auto& name=value->text();if(name.empty()||name=="null")continue;
@@ -133,9 +149,14 @@ bool ScriptRuntime::advanceActorAnimations(float dt,std::string& error){
         for(auto id:actorWorld_.registrationOrder()){
             auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered||!actor->animation.active())continue;
             if(actor->timeModifierFraction!=1||actor->timeMultiplier!=1){error="Actor animation requires non-default source time adapter";return false;}
-            float sourcePlaySpeed=1;const auto data=actorAnimationDefinitions_.find(actor->animation.clip()->name);if(data!=actorAnimationDefinitions_.end()){const auto* nativeSpeed=data->second.get("definition")->get("NativeMoveSpeed");if(nativeSpeed&&nativeSpeed->number()>0&&actor->physics)sourcePlaySpeed=std::hypot(actor->physics->velocity.x,actor->physics->velocity.y)/float(nativeSpeed->number());}
-            const auto chain=actor->animation.advance(dt,sourcePlaySpeed,[&](const auto& clip,const auto& slide){if(!actorSlideEvent(id,clip,slide,error))throw std::runtime_error(error);});
+            // Unit::MoveInput VA1802f6220 writes PlaySpeedMultiplier only on
+            // accepted movement input. Recomputing it here from zero velocity
+            // freezes NativeMoveSpeed stop animations at their first frame.
+            const auto chain=actor->animation.advance(dt,actor->animation.playSpeedMultiplier(),[&](const auto& clip,const auto& slide){if(!actorSlideEvent(id,clip,slide,error))throw std::runtime_error(error);});
             if(chain&&!setActorAnimation(id,*chain,error))return false;
+            // Unit::UpdateAnimation VA1802f1a80 advances first, then handles
+            // completion and movement cancellation on the resulting primary.
+            if(!updateLocalMoveAnimation(id,error))return false;
             actor->object->frame=actor->animation.originalFrame();actor->object->graphicsDirty=true;
         }
         return true;

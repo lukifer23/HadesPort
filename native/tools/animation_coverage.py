@@ -4,14 +4,20 @@
 Derives every animation name the original scripts/data can reach in the scope
 the native runtime runs now, with provenance per name, instead of hand lists:
 
-  scope   = fresh-save opening room (RoomOpening) and the Tartarus combat rooms
+  scope   = fresh-save opening room (RoomOpening), its forced first encounter
+            room (RoomSimple01), and the Tartarus combat rooms
             (A_Combat*), the first-boon flow (AthenaUpgrade loot, boon choice,
             door reward previews and door icons), the hero sword arsenal and the
             Tartarus enemy/trap sets (EnemySets.EnemiesBiome1 / TrapsBiome1).
 
   sources = (1) string literals in every Lua function reachable (static call
             graph: direct calls, function values, function-name strings) from
-            StartRoom and from function names held by in-scope data;
+            StartRoom, function names held by in-scope data, and native
+            interaction callbacks whose source-name/group selectors match
+            scoped map objects or groups added by reachable scripts;
+            anonymous registration callbacks have explicit graph identities;
+            statically referenced Lua data subtrees (UIData.UsePrompt, etc.)
+            add their resource values and function references;
             literal-concatenation sites inside animation calls resolve to every
             animation matching the literal prefix/suffix;
             (2) every animation-valued field of in-scope Lua data records
@@ -49,7 +55,7 @@ TARGET = 'd98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254'
 # packages named after in-scope weapons/loot (RoomManager.lua:1509
 # LoadPackages{Name=lootName}, Combat.lua:3742 EquipWeapon LoadPackages).
 BASE_PACKAGES = ['Fx', 'GUI', 'RoomManager', 'Dev', 'Tartarus']
-ROOMS = re.compile(r'^(RoomOpening|A_Combat\d+[AB]?)$')
+ROOMS = re.compile(r'^(RoomOpening|RoomSimple01|A_Combat\d+[AB]?)$')
 LOOT = ['AthenaUpgrade']
 HERO_SET = 'SwordWeapon'                      # WeaponSets.lua HeroWeaponSets (fresh save)
 HERO_EXTRA_WEAPONS = ['RushWeapon', 'RangedWeapon']  # PlayerUnits _PlayerUnit dash / cast
@@ -242,13 +248,16 @@ class Coverage:
         scope = {'rooms': [], 'units': [], 'weapons': [], 'projectiles': [], 'obstacles': [], 'lua_records': [], 'functions': []}
         # Rooms and their map objects.
         obstacles, units = set(), set()
+        callback_selectors = set()
         self.scene_graphics = {}
         for path in sorted((self.content / 'Win/Maps').glob('*.thing_bin')):
             if not ROOMS.match(path.stem):
                 continue
             scope['rooms'].append(path.stem); self.sources.append(path)
+            callback_selectors.add(path.stem)
             for obj in map_objects(path):
                 (obstacles if obj['DataType'] == 1 else units).add(obj['Name'])
+                callback_selectors.update(g for g in obj['GroupNames'] if g)
         map_placed = set(obstacles)
         enemy_sets = self.lua_table('EnemySets') if 'EnemySets' in self.data else {}
         for s in ENEMY_SETS:
@@ -330,8 +339,35 @@ class Coverage:
                     v = rec.get(field)
                     if isinstance(v, str) and v in self.anims: add(v, f'LootData.{key}.{field} (RoomPresentation.lua CreateDoorRewardPreview)')
         scope.update(units=sorted(units), weapons=sorted(weapons), projectiles=sorted(projectiles), obstacles=sorted(obstacles))
+        # Native interaction dispatch enters anonymous top-level registrations,
+        # outside StartRoom's named-function graph. Derive event kinds from the
+        # actual bridge, and selectors from scoped map groups/entities/data.
+        # Scope is interaction only; UI mouse/debug/meta events remain excluded.
+        callback_source = Path(__file__).resolve().parents[1] / 'app/lua_interaction.cpp'
+        self.sources.append(callback_source)
+        events = set(re.findall(r'dispatchThingCallbacks\("(On\w+)"', callback_source.read_text()))
+        callback_selectors.update(units | weapons | projectiles | obstacles | set(LOOT) | self.universe)
+        registrations, excluded = [], []
+        pending = [(fname, entry) for fname, f in self.lua.items() for entry in f.registrations if entry['event'] in events]
+        while True:
+            rest = []
+            for fname, entry in pending:
+                selectors = entry['selector'].split() if entry['selector'] else []
+                selectors = selectors[:selectors.index(';')] if ';' in selectors else selectors
+                selected = not selectors or bool(set(selectors) & callback_selectors)
+                record = {**entry, 'source': fname, 'reason': 'unfiltered' if not selectors else 'scoped source-name/group match' if selected else 'selector outside scoped maps/data'}
+                if selected:
+                    registrations.append(record);function_seeds.add(entry['name'])
+                else: rest.append((fname,entry))
+            reach, sites, dynamic = self.reach(function_seeds)
+            extra = set(self.reachable_groups) - callback_selectors
+            if not extra:
+                excluded = [{**entry, 'source': fname, 'reason': 'selector outside scoped maps/data'} for fname,entry in rest]
+                break
+            callback_selectors.update(extra);pending=rest
+        scope['interaction_callbacks'] = {'native_source': str(callback_source), 'events': sorted(events), 'included': registrations, 'excluded': excluded}
+        scope['interaction_callbacks']['script_groups'] = self.reachable_groups
         # Script reachability.
-        reach, sites, dynamic = self.reach(function_seeds)
         scope['entity_origin'] = dict(sorted(self.entity_origin.items()))
         scope['scene_map_graphics'] = dict(sorted(self.scene_graphics.items()))
         scope['functions'] = {'boundary': sorted(BOUNDARY), 'seeds': sorted(function_seeds & set(self.functions)), 'reachable': len(reach)}
@@ -342,6 +378,8 @@ class Coverage:
 
     def reach(self, seeds):
         refs, lits, concat, dyn, strs, obst = defaultdict(set), defaultdict(list), defaultdict(list), defaultdict(list), defaultdict(set), defaultdict(list)
+        data_refs = defaultdict(list)
+        groups = defaultdict(dict)
         var_concat, var_use = defaultdict(list), defaultdict(dict)
         for fname, f in self.lua.items():
             owner = f.owners(); t = f.tokens
@@ -349,7 +387,7 @@ class Coverage:
             # Token -> innermost animation call (function name) for concat/dynamic sites.
             call_at = [None] * len(t)
             for i, tk in enumerate(t):
-                if tk.kind == 'name' and tk.value in (ANIM_CALLS | OBSTACLE_CALLS) and t[i + 1].kind == 'op' and t[i + 1].value == '(':
+                if tk.kind == 'name' and tk.value in (ANIM_CALLS | OBSTACLE_CALLS | {'AddToGroup'}) and t[i + 1].kind == 'op' and t[i + 1].value == '(':
                     depth, j = 0, i + 1
                     while True:
                         v = t[j]
@@ -362,11 +400,38 @@ class Coverage:
             for i, tk in enumerate(t):
                 o = owner[i]
                 if o is None:
-                    continue  # top-level data and registrations are scoped through data
+                    continue  # unselected top-level code is outside the graph
+                # Static data references carry resources indirectly (for example
+                # UIData.UsePrompt.AttractAnim), and may name more functions.
+                # Resolve only the referenced literal subtree, not the complete
+                # global data universe. Dynamic indexing remains unresolved.
+                if tk.kind == 'name' and not (t[i - 1].kind == 'op' and t[i - 1].value in ('.', ':')):
+                    parts, j = [tk.value], i + 1
+                    while j + 1 < len(t) and t[j].value == '.' and t[j + 1].kind == 'name':
+                        parts.append(t[j + 1].value); j += 2
+                    if len(parts) > 1:
+                        for k in range(len(parts), 0, -1):
+                            key = '.'.join(parts[:k])
+                            if key not in self.data: continue
+                            value, source, line = self.data[key]
+                            resolved = True
+                            for field in parts[k:]:
+                                if not isinstance(value, dict) or field not in value:
+                                    resolved = False; break
+                                value = value[field]
+                            if resolved:
+                                # Defer actual collection until this function
+                                # is reachable: unreachable UI/meta code must
+                                # not widen the scope.
+                                data_refs[o].append((value, f'{fname}:{tk.line} {o} -> {".".join(parts)} ({source}:{line})'))
+                                refs[o].update(s for s in self.strings(value) if s in self.functions)
+                            break
                 if tk.kind == 'name' and tk.value in self.functions and not (t[i - 1].kind == 'op' and t[i - 1].value in ('.', ':')):
                     refs[o].add(tk.value)
                 elif tk.kind == 'str':
                     strs[o].add(tk.value)
+                    if (call_at[i] == 'AddToGroup' and t[i - 2].value == 'Name') or (call_at[i] in OBSTACLE_CALLS and t[i - 2].value == 'Group'):
+                        groups[o].setdefault(tk.value, f'{fname}:{tk.line} {o} {call_at[i]}')
                     if tk.value in self.functions: refs[o].add(tk.value)
                     if tk.value in self.anims: lits[o].append((tk.value, f'{fname}:{tk.line} {o}'))
                     elif tk.value in self.things['Obstacles']: obst[o].append((tk.value, f'{fname}:{tk.line} {o}'))
@@ -397,6 +462,9 @@ class Coverage:
             universe.update(strs.get(fn, ()))
         for fn in sorted(seen):
             sites += lits.get(fn, [])
+            for value, origin in data_refs.get(fn, []):
+                universe.update(self.strings(value))
+                sites += self.walk_values(value, origin, keyed=False)
             # A concatenation resolves only to names whose remainder is an
             # in-scope string (data value or reachable literal).
             for var, text, suffix, origin in var_concat.get(fn, []):
@@ -425,6 +493,7 @@ class Coverage:
                 if isinstance(graphic, str) and graphic and graphic not in self.anims and graphic != 'null':
                     self.obstacle_graphics.setdefault(graphic, []).append(f'{origin} {obstacle}.Thing.Graphic')
         self.reach_universe = universe
+        self.reachable_groups = {g:origin for fn in sorted(seen) for g,origin in groups[fn].items()}
         return seen, sites, dynamic
 
     def resolve_concat(self, reached):

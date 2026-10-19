@@ -98,12 +98,13 @@ using ActorRandom=std::function<bool(double&,std::string&)>;
 // Primary-animation OwnerHasNoCollision (AnimationDataDef+0x35) as read by obstacle/unit collision.
 bool actorOwnerHasNoCollision(const ActorComponents&);
 class ActorWorld {
+    bool nativeUnitAngles_=false; // Catalog metadata: RotationSpeed/CosmeticRotationSpeed in native radians.
     std::map<std::string,ActorDefinition> definitions_;
     std::map<int32_t,ActorMapSeed> seeds_;
     std::map<int32_t,std::unique_ptr<ActorComponents>> actors_;
     std::vector<int32_t> registrationOrder_;
     std::map<std::string,std::string> unitPropertyTypes_;
-    std::map<std::string,std::string> lifePropertyTypes_,thingPropertyTypes_;
+    std::map<std::string,std::string> lifePropertyTypes_,thingPropertyTypes_,obstaclePropertyTypes_;
     bool initializeActor(int32_t,const ActorDefinition&,const ActorMapSeed*,float,float,const std::string&,
                          ObjectSnapshot&,std::shared_ptr<const WeaponCatalog>,const ActorRandom&,std::string&);
     uint32_t generation_=1,nextEntity_=1;
@@ -121,13 +122,17 @@ class ActorWorld {
     bool disposalInProgress_=false,disposalFaulted_=false;
     std::string disposalFault_;
 public:
+    bool resetForMap(std::string& error);
     bool loadCatalog(SourceValue,std::string& error);
+    bool nativeUnitAngles()const{return nativeUnitAngles_;}
     bool setAnimationBank(std::shared_ptr<ActorAnimationBank>,std::string& error);
     bool initializeMapActor(int32_t sourceId,ObjectSnapshot& initial,
                             std::shared_ptr<const WeaponCatalog>,const ActorRandom&,
                             std::string& error);
     bool initializeDynamicObstacle(int32_t,const std::string&,float x,float y,const std::string& group,
         ObjectSnapshot&,const ActorRandom&,std::string& error);
+    bool initializeDynamicUnit(int32_t,const std::string&,float,float,const std::string&,ObjectSnapshot&,
+        std::shared_ptr<const WeaponCatalog>,const ActorRandom&,std::string& error);
     bool registerActor(int32_t,ObjectSnapshot&,std::string& error);
     bool linkStructuralChild(int32_t parent,int32_t child,std::string& error);
     bool destroyActor(int32_t,std::string& error);
@@ -183,6 +188,8 @@ public:
     bool weaponOwnerFrame(int32_t,float worldTime,float actualPlayerSpeedMultiplier,
         bool editingMode,bool actualInputAllowed,WeaponOwnerFrame&,std::string& error)const;
     bool setUnitProperty(int32_t,const std::string&,const PropertyInput&,PropertyChange,std::string& error);
+    bool setObstacleProperty(int32_t,const std::string&,const PropertyInput&,PropertyChange,std::string& error);
+    bool unitDataValue(int32_t,const std::string&,SourceValue&,std::string& error)const;
     bool setThingProperty(int32_t,const std::string&,const PropertyInput&,PropertyChange,std::string& error);
     bool setLifeProperty(int32_t,const std::string&,const PropertyInput&,PropertyChange,bool data,std::string& error);
     const SourceValue* currentProperty(int32_t,const std::string&)const;

@@ -58,7 +58,9 @@
     ".local/reports/native-camera-apply-clamp-static.json",
     ".local/reports/native-camera-clamp-rectangle-static.json",
     ".local/reports/native-camera-zoom-weight-action-static.json",
-    ".local/reports/native-camera-weighted-zoom-static.json"
+    ".local/reports/native-camera-weighted-zoom-static.json",
+    ".local/reports/takeover-camera-closest-point.json",
+    ".local/reports/takeover-camera-point-in-polygon.json"
   ],
   "source": [
     "Content/Scripts/RoomPresentation.lua:1-33",
@@ -76,7 +78,7 @@
     "adjust_zoom": "Execute VA18025231b..391: if Fraction != current, sets goal; if LerpTime>0 speed=abs(Fraction-current)/LerpTime else current=GetGoalZoom. Update steps zoom at speed*dt. No invented exponential smoothing.",
     "lock": "ScriptAction261080 chooses actual active Thing set; camera301be0 tracks IDs, duration/source world time, speed and acceleration, offsets. Instant branch averages actual current world XY and clamps. Update tethers to current resolved target positions.",
     "duration_move": "MoveFraction302530=(worldTime-start)/duration; SmoothStep21efd0 computes Hermite in double using zero endpoint tangents and clamps t.",
-    "clamp": "Exactly two RoomOpening source clamp Things40013/40014. Rectangle304dc0 truncates min XY and max-min extent to int. ApplyClamp305fc0 truncates reference viewport/zoom then half dimensions, max followed by min even inverted bounds; positive SoftClamp blends per call. Update calls clamp before and after zoom.",
+    "clamp": "ApplyClamp305fc0: <=2 markers use Rectangle304dc0 integer extents and viewport half-size inset. >2 markers rebuild an ordered polygon from live selected marker XY; PointInPolygon2ceaf0 uses >= crossing ties. Outside points project via ClosestPointOnEdge68af0 to the nearest ordered segment (first tie retained). Both branches blend positive SoftClamp; polygon branch preserves move speed and does not inset viewport. Update applies clamp before and after zoom.",
     "same_target_pan": "3018b0 returns before path generation when Retarget=false and HasSameIds. Opening ReattachCameraOnInput pans the already tethered hero, so selected path neither allocates randomized spline nor consumes spline RNG.",
     "random_arguments": "ScriptArgs.getDuration uses range only when both MinDuration and MaxDuration nonzero; getFraction uses range when either endpoint nonzero; real recovered RNG stream consumed.",
     "weights": "SetCameraZoomWeight2614d0 stores per-active-Thing Weight(default1); positive ZoomSpeed sets mZoomSpeed. GetWeightedZoom306820 computes sum(weight*(distance>1?1000/distance:1000))/sum(influence), live distance from camera location. GetGoalZoom multiplies source base goal by this result. Original RoomOpening targets410007=(5177.9267578125,4083.625), Weight1.25 and410008=(1726.3673095703125,5012.44140625), Weight1.0.",
@@ -103,7 +105,7 @@
     "New-target/Retarget timed Pan source randomized splines",
     "LazyTether cursor zone",
     "Multi-target DynamicZoom weighted path",
-    "Clamps wider than two source points/polygon/rail paths",
+    "Camera rails",
     "Source shake/virtual cursor/walls reconstruction",
     "AdjustCameraFocus action (ScriptAction 0x180260e50: GenerateAdjustSimple/GenerateAdjust) not registered",
     "AxisPath Catmull-Rom (Interpolate type 1) segments; unused by the Focus generators"

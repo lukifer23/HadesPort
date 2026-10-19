@@ -267,9 +267,9 @@ bool ScriptRuntime::loadSave(){
     const auto& file=chosen->file;
     // ProgressManager::Restore: the world's next map is nextMap, else currentMap.
     const std::string& target=file.restoreMap();
-    if(target!=mapName_){error_="Saved map "+target+" is not loadable by this build (loadable: "+mapName_+")";return false;}
     std::string state;
     if(!hades::save::luabinsState(file,state,error_))return false;
+    if(target!=mapName_){MapRequest request;request.name=target;pendingMap_=std::move(request);if(!beginRequestedMap(true))return false;}
     // ProgressManager::LoadLua: Lua Load(buffer) then _worldTime/_screenTime.
     const int top=lua_gettop(state_);
     lua_rawgeti(state_,LUA_REGISTRYINDEX,LUA_RIDX_GLOBALS);

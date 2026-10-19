@@ -128,6 +128,39 @@ class LuaFile:
         self.tokens = tokenize(self.path.read_text(encoding='utf-8-sig', errors='strict'))
         self.functions = []  # dicts: name, start, end (token indices), line
         self._index()
+        self.registrations = self._registrations()
+
+    def _registrations(self):
+        """Index anonymous callbacks passed to top-level OnEvent{...} calls.
+
+        Give the outer callback a stable owner so its literals/calls participate
+        in the same reachability graph as named functions. This only identifies
+        registrations; callers decide which native events/selectors are in scope.
+        """
+        t = self.tokens
+        inside = set()
+        for rec in self.functions:
+            inside.update(range(rec['start'], rec['end'] + 1))
+        out = []
+        for i, tok in enumerate(t[:-1]):
+            if i in inside or tok.kind != 'name' or not re.fullmatch(r'On[A-Z]\w*', tok.value) or t[i + 1].value != '{':
+                continue
+            depth, j = 1, i + 2
+            while depth:
+                if t[j].kind == 'eof':
+                    raise ValueError(f'{self.path.name}: unclosed registration at {tok.line}')
+                if t[j].value == '{': depth += 1
+                elif t[j].value == '}': depth -= 1
+                j += 1
+            callbacks = [r for r in self.functions if i < r['start'] < r['end'] < j and r['name'] is None]
+            for rec in callbacks:
+                if any(parent['start'] < rec['start'] < parent['end'] for parent in callbacks):
+                    continue
+                rec['name'] = f'@{self.path.name}:{tok.line}:{tok.value}:{rec["line"]}'
+                selector = t[i + 2].value if t[i + 2].kind == 'str' else None
+                entry = {'event': tok.value, 'selector': selector, 'name': rec['name'], 'line': tok.line}
+                out.append(entry)
+        return out
 
     def _index(self):
         t = self.tokens

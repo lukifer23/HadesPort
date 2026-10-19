@@ -1,6 +1,6 @@
 {
   "schema": "hades-original-group-composition-contract-v1",
-  "scope": "Original static RoomOpening Overlay and LighterColor software group route; source HDS3/HDA1 unchanged.",
+  "scope": "Original software group composition including Overlay9, LighterColor11 and Displacement12/DisplacementMerge13; source scene and animation packets unchanged.",
   "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
   "packet": {
     "path": ".local/native-assets/opening-composition-v1/composition.bin",
@@ -49,7 +49,8 @@
       "shader_selection_va": "0x18031c903..0x18031c92a",
       "base_sampler_va": "0x18031ca11",
       "restore_target_va": "0x18031ca42",
-      "fullscreen_draw_va": "0x18031cb32"
+      "fullscreen_draw_va": "0x18031cb32",
+      "displacement_shared_route": "Clear switch VA18031c69a and shader switch VA18031c903 select identical operations for modes12 and13."
     },
     "GetBlendState": {
       "va": "0x180226b50",
@@ -59,7 +60,7 @@
         "bytes": 157892,
         "sha256": "d9dc8d8194ee5981f59f3bc7f3eef923c9a1c809f8cb98201b83b60a6c8b4730"
       },
-      "result": "Modes9 and11 both return5."
+      "result": "Modes9,11,12,13 return5 (ONE,ZERO)."
     },
     "createAllDepthAndBlendStates": {
       "va": "0x18022cde0",
@@ -82,6 +83,11 @@
         "path": ".local/native-assets/shader-sources-v2/969127a39f8313ef-lightercolor2d.frag",
         "bytes": 574,
         "sha256": "969127a39f8313ef4e1c6578ed86819e93fc1b4e77379362bfd2bb57fae32e20"
+      },
+      {
+        "path": ".local/native-assets/shader-sources-v2/615e19f986975622-displacement2d.frag",
+        "sha256": "615e19f986975622fe824ea66f4270ad65fc06eb21e5cfc33669fec7e36ba574",
+        "bytes": 793
       }
     ]
   },
@@ -105,6 +111,26 @@
       ],
       "inside_group": "premultiplied source-over",
       "final": "LighterColor2D,opaque"
+    },
+    "12": {
+      "clear_rgba8": [
+        128,
+        128,
+        0,
+        128
+      ],
+      "inside_group": "premultiplied source-over",
+      "final": "Displacement2D, opaque; source alpha-weighted RG displacement, neutral8-bit epsilon, scale0.15"
+    },
+    "13": {
+      "clear_rgba8": [
+        128,
+        128,
+        0,
+        128
+      ],
+      "inside_group": "premultiplied source-over",
+      "final": "Displacement2D, opaque; source alpha-weighted RG displacement, neutral8-bit epsilon, scale0.15"
     }
   },
   "order": {

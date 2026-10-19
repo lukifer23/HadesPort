@@ -34,7 +34,12 @@ def export(a):
  if identity(packet)['sha256']!=m['packet']['sha256']:raise ValueError('Original actor bank changed')
  data=[];byfile={};clips=[]
  for clip in m['clips']:
-  d=clip['definition'];logical=d['FrameDataFile'].replace('\\','/')
+  d=clip['definition'];logical=(d.get('FrameDataFile')or'').replace('\\','/')
+  # GameDataManager.GetAnimFrameDataSet b510a/b5157 -> b5349 returns
+  # no dataset for empty or literal null; retain that absence explicitly.
+  if logical in ('','null'):
+   clips.append({'name':clip['name'],'dataset':0xffffffff,'frames':d['NumFrames'],'angles':d['NumAngles'],'own_scale':d.get('Scale',1),'offset_x':d.get('OffsetX',0),'offset_y':d.get('OffsetY',0),'partial_source_tracks':[],'native_no_dataset':True})
+   continue
   # Matching GameDataManager::GetAnimFrameDataSet inserts _bin at FrameData/.
   if logical.count('FrameData/')!=1:raise ValueError('Unsupported original marker path')
   p=a.content/logical.replace('FrameData/','FrameData_bin/')

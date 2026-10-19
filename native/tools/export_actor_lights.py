@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export actual RoomOpening Thing.Light controllers and lossless source atlas images.
+"""Export actual room Thing.Light controllers and lossless source atlas images.
 
 No original execution or edits. FX-owned lights are a different runtime owner.
 """
@@ -32,17 +32,21 @@ def export(content,creation,output):
  definitions={};images={};unsupported={}
  for name in names:
   named=name in records;d=resolve(name)if named else {'Name':name,'FilePath':name,'Type':'Dataless'}
-  # Unreviewed shapes (multi-frame Book controllers, extra operations) are not
+  # Unreviewed shapes (multi-angle controllers, extra operations) are not
   # exported: they are listed in Unsupported so the runtime fails loudly for
   # exactly the owning actors instead of the whole room export failing.
   reason=None
-  if d['Type']not in ['Constant','Dataless']or d.get('NumFrames',1)!=1 or d.get('NumAngles',1)!=1:reason='Unreviewed actor light controller shape Type=%s NumFrames=%s NumAngles=%s'%(d['Type'],d.get('NumFrames',1),d.get('NumAngles',1))
+  if d['Type']not in ['Constant','Dataless','Book']or (d['Type']!='Book'and d.get('NumFrames',1)!=1) or d.get('NumAngles',1)!=1:reason='Unreviewed actor light controller shape Type=%s NumFrames=%s NumAngles=%s'%(d['Type'],d.get('NumFrames',1),d.get('NumAngles',1))
+  if d['Type']=='Book':
+   keys={'Name','InheritFrom','FilePath','Type','StartFrame','EndFrame','NumFrames','NumAngles','Loop','Scale','ScaleX','ScaleY','FlipHorizontal','FlipVertical','StartScale','EndScale','PingPongScale','EaseIn','EaseOut','PlaySpeed','RandomPlaySpeedMin','RandomPlaySpeedMax','ReRandomizeOnLoop','Ambient','OnlyWhenVisible'}
+   unknown=set(d)-keys
+   if unknown:reason='Unreviewed Book light properties '+repr(sorted(unknown))
   for key in ['ChildAnimation','CreateAnimation','CreateAnimations','VisualFx','Light','Sound']:
    if reason is None and d.get(key):reason='Actual actor light has additional required operation '+key
   if reason:unsupported[name]=reason;continue
-  definitions[name]={'Named':named,'Definition':d};images[name]=d['FilePath']
+  definitions[name]={'Named':named,'Definition':d};images[name]=([d['FilePath']+f'{i:04}'for i in range(1,d.get('NumFrames',1)+1)]if d.get('NumFrames',1)>1 else[d['FilePath']])
  names=[n for n in names if n not in unsupported]
- wanted=set(images.values());matches={};manifests=[];payloads=[];package_root=content/'Win/Packages'
+ wanted={image for rows in images.values()for image in rows};matches={};manifests=[];payloads=[];package_root=content/'Win/Packages'
  for package in ['Fx','Dev','RoomManager','Tartarus']:
   path=package_root/(package+'.pkg_manifest');manifests.append(identity(path))
   for entry in Package(path).entries():
@@ -70,8 +74,12 @@ def export(content,creation,output):
    w,h=f['sprite']['rect'][2:];out.write(struct.pack('<8I2f',w,h,0,0,w,h,i,0,*f['origin']));out.write(struct.pack('<III',len(f['rgba']),len(f['packed']),zlib.crc32(f['rgba'])));out.write(f['packed'])
   for name in names:
    for text in [name,'','']:string(out,text)
-   out.write(struct.pack('<4I4f',1,1,0,1,1.,0.,0.,1/60));out.write(struct.pack('<I',0));out.write(struct.pack('<III',1,1,indices[images[name]]));string(out,'{}')
-   clips.append({'Name':name,'Index':len(clips),'Frame':indices[images[name]],'AtlasRatio':matches[images[name]]['sprite']['scale_ratio']})
+   rows=images[name];d=definitions[name]['Definition'];flags=(512 if d['Type']=='Book'else 0)|(1 if d.get('Loop')else 0)
+   out.write(struct.pack('<4I4f',1,1,flags,len(rows),1.,0.,0.,1/60));out.write(struct.pack('<I',0))
+   for frame,image in enumerate(rows,1):out.write(struct.pack('<III',frame,1,indices[image]));string(out,'{}')
+   ratios={tuple(matches[image]['sprite']['scale_ratio'])for image in rows}
+   if len(ratios)!=1:raise ValueError('Varying actor light frame atlas ratio')
+   clips.append({'Name':name,'Index':len(clips),'Frame':indices[rows[0]],'AtlasRatio':list(next(iter(ratios)))})
  catalog={'Schema':'HadesActorLightResources1','Target':TARGET,'ActorLights':actors,'Definitions':definitions,'Unsupported':unsupported,'Clips':clips,'Frames':[{k:v for k,v in f.items()if k not in ['rgba','packed']}for f in frames],'ImageBankSha256':identity(packet)['sha256'],'Limits':['Data/resource export does not claim light execution or native Windows shadow shader equivalence.','Constant LightTorchFlicker retains all real RNG/loop/color fields; runtime must execute its native source phases.','Dataless lights are original texture fallback, not fabricated animation definitions.']}
  (output/'actor-lights.lua').write_text('return '+literal(catalog)+'\n');(output/'catalog.json').write_text(json.dumps(catalog,indent=2)+'\n')
  manifest={'schema':'hades-actor-light-resources-v1','unsupported_controllers':unsupported,'target_sha256':TARGET,'creation':identity(creation),'animation_source':identity(animation_file),'manifests':manifests,'record_provenance':provenance,'payloads':payloads,'packet':identity(packet),'catalog':identity(output/'catalog.json'),'lua':identity(output/'actor-lights.lua'),'actors':len(actors),'controllers':len(definitions),'original_images':len(frames),'raw_rgba_bytes':sum(len(f['rgba'])for f in frames)}

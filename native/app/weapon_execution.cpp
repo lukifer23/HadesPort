@@ -917,7 +917,7 @@ bool WeaponTriggerExecution::advance(const WeaponOwnerFrame& owner,const WeaponT
         error="Unexpected typed native trigger reply at phase "+std::to_string(phase_)+" random="+std::to_string(reply.randomDouble.has_value())+" projectile="+std::to_string(reply.createdProjectile.has_value())+" animation="+std::to_string(reply.createdAnimation.has_value());return false;
     }
     WeaponTriggerReply remaining=reply;
-    while(phase_<7){
+    while(phase_<8){
         const auto* w=arsenal_->weaponState(name_,error);if(!w)return false;
         auto flag=[&](const char* key,bool& v){auto f=w->definition.fields.find(key);
             if(f==w->definition.fields.end()||!std::holds_alternative<bool>(f->second)){error=std::string("Missing native trigger flag ")+key;return false;}v=std::get<bool>(f->second);return true;};
@@ -943,7 +943,9 @@ bool WeaponTriggerExecution::advance(const WeaponOwnerFrame& owner,const WeaponT
             if(child.progress==WeaponExecutionProgress::Blocked||!child.chargeReady||release){
                 // ShowAimLine has a native source guard at VA180086677.
                 bool show=false;if(!flag("ShowFreeAimLine",show))return false;
-                if(show){error="Native ShowAimLine requires original player UI geometry/animation consumer";return false;}
+                if(show){WeaponOutput op;op.kind=WeaponOutputKind::ShowAimLine;op.ownerId=owner.ownerId;op.weaponName=name_;op.name="Weapon::ShowAimLine";if(!w->currentFireRequest){error="Native aim line lost current fire request";return false;}op.fireRequest=*w->currentFireRequest;
+                    if(!support||!support(op,error)){if(error.empty())error="Native aim line consumer unavailable";return false;}
+                    phase_=7;next.operation=std::move(op);output=next;return true;}
                 next.progress=WeaponTriggerProgress::Finished;output=next;finished_=true;return true;
             }
             // Native receives a reference to the current request. Reacquire its
@@ -983,6 +985,7 @@ bool WeaponTriggerExecution::advance(const WeaponOwnerFrame& owner,const WeaponT
             if(child.progress==WeaponPostFireProgress::Yielded){next.expectsRandomReply=child.operation.kind==WeaponOutputKind::RequestRandomDouble;next.operation=std::move(child.operation);output=next;return true;}
             ++phase_;continue;
         }
+        case 7:next.progress=WeaponTriggerProgress::Finished;output=next;finished_=true;return true;
         case 6:next.progress=WeaponTriggerProgress::Finished;next.nativeResult=true;output=next;finished_=true;return true;
         }
     }

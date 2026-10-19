@@ -1,6 +1,7 @@
 #include "text_runtime.hpp"
 #include "object_runtime.hpp"
 #include "platform_log.hpp"
+#include "control_symbols.hpp"
 #include <algorithm>
 #include <array>
 #include <cstdlib>
@@ -60,9 +61,10 @@ struct TextBody {
     float scale=1,scaleModifier=1,scaleTarget=1,scaleSpeed=4,fadeOpacity=0,fadeTarget=1,fadeSpeed=4,colorSpeed=4;
     Color color{1,1,1,1},colorTarget{1,1,1,1};
     std::map<std::string,int> luaParams; // registry refs, GUIComponentTextBox+0xd08
+    std::map<std::string,std::string> controlLabels;
     bool dirty=true;std::string resolved;std::vector<hades::TextPiece> pieces;
 };
-struct TextState { std::vector<TextFormatSnapshot> formats;std::map<uint64_t,TextBody> bodies;std::shared_ptr<const hades::TextFontBank> fonts; uint64_t nextSequence = 1; };
+struct TextState { std::vector<TextFormatSnapshot> formats;std::map<uint64_t,TextBody> bodies;std::map<int32_t,uint64_t> components;std::shared_ptr<const hades::TextFontBank> fonts;TextControlLabelProvider controlLabel; uint64_t nextSequence = 1; };
 TextState* lookup(lua_State* state) {
     lua_getfield(state,LUA_REGISTRYINDEX,registryKey);
     auto* result=static_cast<TextState*>(lua_touserdata(state,-1)); lua_pop(state,1); return result;
@@ -141,11 +143,20 @@ void appendText(std::vector<hades::TextPiece>&pieces,const std::string&text){if(
 // is GetTextData(value)->DisplayName when such a record exists, else the
 // value, and is re-tokenized (PushTokenizer). '{!X}' yields "@"+value, an
 // inline ParseImage symbol. All other markup/escapes fail explicitly.
-void parseMarkup(lua_State*L,const hades::TextFontBank&fonts,const TextBody&body,const std::string&s,std::vector<hades::TextPiece>&pieces,int depth){
+void parseMarkup(lua_State*L,const hades::TextFontBank&fonts,TextBody&body,const std::string&s,std::vector<hades::TextPiece>&pieces,int depth){
     if(depth>8)throw std::runtime_error("Original text markup recursion bound");std::string run;
     for(size_t i=0;i<s.size();++i){const char c=s[i];
         if(c=='{'){const size_t end=s.find('}',i+1);if(end==std::string::npos)throw std::runtime_error("Unterminated original text markup");std::string inner=s.substr(i+1,end-i-1);
             const size_t lead=inner.find_first_not_of(" \t");inner=lead==std::string::npos?"":inner.substr(lead);
+            const auto control=hades::input::controlForTextSymbol(inner);
+            if(!control.empty()){
+                auto*registry=lookup(L);std::string label,error;
+                if(!registry||!registry->controlLabel||!registry->controlLabel(std::string(control),label,error))throw std::runtime_error(error.empty()?"Control prompt requires actual platform input label: "+std::string(control):error);
+                body.controlLabels[std::string(control)]=label;
+                // Android input presentation uses the actual touch button or
+                // remapped hardware label. It does not substitute a PC icon.
+                appendText(pieces,run);run.clear();appendText(pieces,label);i=end;continue;
+            }
             if(inner.empty()||(inner[0]!='$'&&inner[0]!='!'))throw std::runtime_error("Original text markup unreconstructed: {"+inner+"}");
             appendText(pieces,run);run.clear();const std::string value=luaMarkupValue(L,inner.substr(1));
             if(inner[0]=='!'){if(value.empty())throw std::runtime_error("Original empty text symbol path");pieces.push_back({true,value});}
@@ -159,7 +170,7 @@ void reparse(lua_State*L,const hades::TextFontBank&fonts,TextBody&body,int32_t o
     const std::string before=body.resolved;std::string beforePieces;for(const auto&p:body.pieces)beforePieces+=(p.symbol?"@"+p.text+"@":p.text);
     body.resolved=body.raw?body.rawText:[&]{const auto*d=fonts.displayName(body.textKey);return d?*d:body.textKey;}();
     for(const auto&[key,ref]:body.luaParams){lua_rawgeti(L,LUA_REGISTRYINDEX,ref);lua_setglobal(L,key.c_str());}
-    std::vector<hades::TextPiece> pieces;parseMarkup(L,fonts,body,body.resolved,pieces,0);body.pieces=std::move(pieces);body.dirty=false;
+    body.controlLabels.clear();std::vector<hades::TextPiece> pieces;parseMarkup(L,fonts,body,body.resolved,pieces,0);body.pieces=std::move(pieces);body.dirty=false;
     if(!body.resolved.empty()){if(body.font.empty())throw std::runtime_error("Original default text font unreconstructed");if(body.fontSize<=0)throw std::runtime_error("Original nonpositive FontSize text unreconstructed");
         hades::TextLayoutRequest request;request.font=body.font;request.size=float(body.fontSize);request.pieces=body.pieces;request.textSymbolScale=body.textSymbolScale;request.horizontal=body.horizontal;request.vertical=body.vertical;request.width=body.width;if(request.pieces.empty())request.text=" ";std::vector<hades::TextSymbolQuad> symbols;fonts.layout(request,&symbols);}
     std::string shown;for(const auto&p:body.pieces)shown+=(p.symbol?"@"+p.text+"@":p.text);if(shown!=beforePieces)hades::log(hades::Severity::Info,"HadesLua","TEXT_BOX_TEXT owner=%d font=%s size=%d text=%s",int(owner),body.font.c_str(),int(body.fontSize),shown.c_str());(void)before;}
@@ -221,14 +232,22 @@ int create(lua_State* state) {
     setLuaParam(state,body,1);
     if(registry->formats.size()>=20000)throw std::runtime_error("Actual live text component bound");
     if(registry->fonts)reparse(state,*registry->fonts,body,format.ownerId);
+    registry->components[format.ownerId]=body.ownerLifetime;
     format.sequence=registry->nextSequence++;registry->bodies.emplace(format.sequence,std::move(body));
     registry->formats.push_back(std::move(format));
     return 0; // Native bridge declares CreateTextBox a void action.
 }
 int modify(lua_State*state){
     if(!lua_istable(state,1))throw std::runtime_error("ModifyTextBox requires argument table");auto*registry=static_cast<TextState*>(lua_touserdata(state,lua_upvalueindex(1)));
-    lua_getfield(state,1,"Id");if(!lua_isnumber(state,-1))throw std::runtime_error("TextBox target Id bound");const double id=lua_tonumber(state,-1);lua_pop(state,1);if(id<=0||id>INT32_MAX||std::trunc(id)!=id)throw std::runtime_error("TextBox target Id bound");const int32_t owner=int32_t(id);
-    if(hasArg(state,1,"Ids"))throw std::runtime_error("Original ModifyTextBox Ids selection unreconstructed");
+    // ScriptAction::ModifyTextBox VA18025832a..35b gives a successfully parsed
+    // numeric Id precedence; otherwise traverses numeric entries in Ids
+    // (25840d..550). Neither field => no targets. ScreenAnchorReference is not
+    // an alias in this native action (e.g. RangedLastAmmoPresentation passes it).
+    std::vector<int32_t> owners;
+    lua_getfield(state,1,"Id");int numeric=0;const auto id=lua_tointegerx(state,-1,&numeric);lua_pop(state,1);
+    if(numeric){if(id<INT32_MIN||id>INT32_MAX)throw std::runtime_error("TextBox target outside native signed32 domain");owners.push_back(int32_t(id));}
+    else{lua_getfield(state,1,"Ids");if(lua_istable(state,-1)){for(size_t i=1,n=lua_rawlen(state,-1);i<=n;++i){if(n>100000)throw std::runtime_error("TextBox target count bound");lua_rawgeti(state,-1,int(i));if(lua_isnumber(state,-1)){const double value=lua_tonumber(state,-1);if(!std::isfinite(value)||value<INT32_MIN||value>INT32_MAX)throw std::runtime_error("TextBox Ids outside native signed32 domain");owners.push_back(int32_t(value));}lua_pop(state,1);}}lua_pop(state,1);}
+    if(owners.empty())return 0;
     if(argBool(state,1,"AutoSetDataProperties",false))throw std::runtime_error("Original ModifyTextBox AutoSetDataProperties reflection unreconstructed");
     for(const char*k:{"ParamValue","ParamTarget","TooltipKey","TooltipData","BlockTooltip","ReReadImmedaitely"})if(hasArg(state,1,k))throw std::runtime_error(std::string("Original ModifyTextBox argument unreconstructed: ")+k);
     if(argBool(state,1,"UseDescription",false)&&!argText(state,1,"Text").empty())throw std::runtime_error("Original ModifyTextBox UseDescription unreconstructed");
@@ -238,7 +257,7 @@ int modify(lua_State*state){
     if(fadeTarget>1||scaleTarget>32)throw std::runtime_error("Text transition target bound");
     const bool hasAutoFormat=hasArg(state,1,"VariableAutoFormat");const std::string autoFormat=argText(state,1,"VariableAutoFormat");const bool markDirty=argBool(state,1,"MarkDirty",false);
     for(auto&format:registry->formats){auto&body=registry->bodies.at(format.sequence);
-        if(format.ownerId!=owner||body.destroyed)continue;
+        if(std::find(owners.begin(),owners.end(),format.ownerId)==owners.end()||body.destroyed)continue;const int32_t owner=format.ownerId;
         if(!affect.empty()&&format.name!=affect&&body.textKey!=affect)continue;
         if(!exclude.empty()&&(format.name==exclude||body.textKey==exclude))continue;
         if(!text.empty()&&(body.raw||text!=body.textKey)){body.textKey=text;body.raw=false;body.rawText.clear();body.dirty=true;}
@@ -282,6 +301,7 @@ void registerTextRuntime(lua_State* state) {
     lua_pushvalue(state,owner);lua_pushcclosure(state,guardedDestroy,1);lua_setglobal(state,"DestroyTextBox");
     lua_settop(state,top);
 }
+void configureTextControlLabels(lua_State*state,TextControlLabelProvider provider){auto*registry=lookup(state);if(!registry)throw std::runtime_error("Text input-label registry unavailable");registry->controlLabel=std::move(provider);for(auto&[id,body]:registry->bodies)body.dirty=true;}
 std::vector<TextFormatSnapshot> snapshotTextFormats(lua_State* state) {
     const auto* registry=lookup(state);if(!registry)return {};
     auto result=registry->formats;
@@ -307,6 +327,8 @@ bool advanceTextRuntime(lua_State*state,float world,float screen,std::string&err
     if(!std::isfinite(world)||!std::isfinite(screen)||world<0||world>1||screen<0||screen>1)throw std::runtime_error("Text clock bound");auto*registry=lookup(state);if(!registry)return true;
     for(const auto&format:registry->formats){auto&body=registry->bodies.at(format.sequence);const auto*owner=findObjectSnapshot(state,format.ownerId);if(body.destroyed)continue;if(!owner||!owner->alive||owner->entityHandle!=body.ownerLifetime){body.destroyed=true;continue;}
         const float dt=owner->screenSpace?screen:world;
+        for(const auto&[control,previous]:body.controlLabels){std::string current;if(!registry->controlLabel||!registry->controlLabel(control,current,error))throw std::runtime_error(error.empty()?"Control prompt input provider unavailable":error);if(current!=previous){body.dirty=true;break;}}
+        if(body.dirty&&registry->fonts)reparse(state,*registry->fonts,body,format.ownerId);
         step(body.fadeOpacity,body.fadeTarget,dt*body.fadeSpeed);
         if(body.scaleSpeed>0)step(body.scaleModifier,body.scaleTarget,dt*body.scaleSpeed);
         if(body.colorSpeed>0&&body.color!=body.colorTarget)for(size_t c=0;c<4;++c){float v=body.color[c];step(v,body.colorTarget[c],body.colorSpeed*dt);body.color[c]=float(int(std::clamp(v,0.f,1.f)*255))/255;}
@@ -328,4 +350,24 @@ std::vector<hades::TextVisual> snapshotTextVisuals(lua_State*state){std::vector<
         for(auto&c:v.shadowColor)c=float(int(std::clamp(c,0.f,1.f)*255))/255;
         v.shadowColor[3]*=v.color[3];v.outlineColor[3]*=v.color[3];out.push_back(std::move(v));}
     return out;}
-void disposeTextOwner(lua_State*state,int32_t ownerId){auto*registry=lookup(state);if(!registry)return;std::erase_if(registry->formats,[&](const auto&format){if(format.ownerId!=ownerId)return false;releaseBody(state,registry->bodies.at(format.sequence));registry->bodies.erase(format.sequence);return true;});}
+bool attachedTextDimensions(lua_State*state,int32_t ownerId,std::array<float,2>&out,std::string&error){
+    out={-1,-1};try{
+        auto*registry=lookup(state);if(!registry){error.clear();return true;}
+        const auto component=registry->components.find(ownerId);const auto*owner=findObjectSnapshot(state,ownerId);
+        if(component==registry->components.end()||!owner||owner->entityHandle!=component->second){error.clear();return true;}
+        out={0,0};
+        for(const auto&format:registry->formats){if(format.ownerId!=ownerId)continue;auto&body=registry->bodies.at(format.sequence);
+            if(body.destroyed||body.ownerLifetime!=owner->entityHandle||body.resolved.empty())continue;
+            if(!registry->fonts)throw std::runtime_error("Attached text dimensions require source fonts");
+            if(body.dirty)reparse(state,*registry->fonts,body,ownerId);
+            hades::TextLayoutRequest request;request.font=body.font;request.size=float(body.fontSize);request.width=body.width;request.scale=body.scale*body.scaleModifier;request.horizontal=body.horizontal;request.vertical=body.vertical;request.pieces=body.pieces;request.textSymbolScale=body.textSymbolScale;
+            // TextWidth/Height are measured regardless of fade, hide or owner alpha.
+            if(request.scale==0)continue;
+            std::array<float,2>measured{};std::vector<hades::TextSymbolQuad>symbols;
+            registry->fonts->layout(request,&symbols,&measured);
+            out[0]=std::max(out[0],measured[0]);out[1]=std::max(out[1],measured[1]);
+        }
+        error.clear();return true;
+    }catch(const std::exception&e){error=e.what();return false;}
+}
+void disposeTextOwner(lua_State*state,int32_t ownerId){auto*registry=lookup(state);if(!registry)return;registry->components.erase(ownerId);std::erase_if(registry->formats,[&](const auto&format){if(format.ownerId!=ownerId)return false;releaseBody(state,registry->bodies.at(format.sequence));registry->bodies.erase(format.sequence);return true;});}

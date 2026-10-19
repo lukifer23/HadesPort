@@ -120,18 +120,27 @@
   "valid DetonateSound PlayCue3D",
   "Camera::Shake",
   "GetAirborneZ for airborne Slide",
-  "in-blast Unit outside the unscaled GetUnits rectangle",
-  "detonation victim LOS/arc/dodge/reflect/immunity/ApplyImpact",
   "detonation obstacle movement reaction/impact",
   "OnDeath with non-null victim or nonempty mThingsHit",
-  "RequireHitCenter=false"
+  "RequireHitCenter=false",
+  "Detonation OnDodge",
+  "Positive ImmunityDuration ECS victim cache"
  ],
  "portable_adaptations": [
-  "Unit candidates are registration order, not GetUnits hash order; every victim path that would be order-sensitive fails before mutation",
-  "ProjectileActor has no attachment storage; AttachToOwner true fails rather than assuming unattached"
+  "Android sparse512-cell unit broadphase uses source polygon AABBs and cell-list union without center/rectangle rejection; map-origin clamping and native pointer/hash ordering differ. Victim callbacks can be order sensitive."
  ],
  "verification": {
   "run": ".local/reports/native-detonate-replay-v1.log",
   "result": "HeroTouchdown STRAIGHT detonated on its first tick, no victims, OnDeath(null) and original Lua OnProjectileDeath (Combat.lua:2803) completed, projectile retired without fault; replay then blocked at RoomPresentation.lua:392 DustLanding CreateAnimation DustPuffALarge (unadmitted action effect definition)."
+ },
+ "unit_detonation_recovery": {
+  "source": [
+   "Projectile::UpdateDetonation RVA0x71c10",
+   "LifeComponent::CheckDodge RVA0x2b7b70",
+   "Thing::ShouldReflect RVA0x2e6490",
+   "Projectile::CheckImmunities RVA0x759a0",
+   "isAngleBetween RVA0x1ea670"
+  ],
+  "behavior": "Real LOS and owner LOS, recovered arc comparisons, hit-set insertion, live dodge RNG including zero chance, active/pending DisableDodge, reflection coverage, nonpositive immunity gate, and shared ApplyImpact consumers. Actual OnDodge and positive-duration ECS immunity remain explicit boundaries. Unit candidate enumeration uses registration order as a labelled portable broadphase adaptation."
  }
 }
