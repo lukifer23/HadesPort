@@ -1,0 +1,205 @@
+{
+  "schema": "hades-native-unit-status-contract-v1",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "scope": "Native UnitStatus attack query, three disable timers and callback-driven cancellation/cleanup subset. Not full Effect admission/application/update, allegiance or damage. Static original DLL/PDB; portable smoke separate.",
+  "layout": {
+    "Unit_mStatus": "0x460",
+    "size": 152,
+    "moveCancelable": 0,
+    "rotateCancelable": 1,
+    "attackCancelable": 2,
+    "updatingEffects": 3,
+    "disableMoveTime": 4,
+    "disableAttackTime": 8,
+    "disableRotateTime": 12,
+    "mToAdd": 32,
+    "mToDelete": 56,
+    "mEffects": 80,
+    "owner": 128
+  },
+  "effect_layout": {
+    "size": 136,
+    "unitId": 20,
+    "data": 32,
+    "disposed": 40,
+    "selfApplied": 41,
+    "cleared": 42,
+    "data_definition_offset": 104,
+    "definition_cancelable": 325,
+    "definition_disableAttack": 329,
+    "full_data_cancelable": "0x1ad",
+    "full_data_disableAttack": "0x1b1",
+    "full_data_disableMove": "0x1af"
+  },
+  "construction": {
+    "Unit_constructor": "RVA2f0bb0 zeroes native status fields beginning Unit+0x460 at1802f0cd1 onward. Pending/delete/active empty, flagsfalse, timerzero.",
+    "Unit_Init": "VA1802f12f5 takes status atUnit+0x460,1802f12fc assigns owner,1802f1303 calls UnitStatus::Reset.",
+    "Reset": "Sets move/rotate/attack timers=-1 then restores ally, clears/cleans all effects, block state and immunities. Does not reset cancelable flags. Portable initializeFreshUnit only covers fresh zeroed unit with no effects; existing-unit Reset requires real effects/allegiance callbacks."
+  },
+  "CanAttack": {
+    "rva": "0x2fcd50",
+    "returns_false_if": [
+      "ConfigOptions::EditingMode istrue.",
+      "mDisableAttackTime>0 and allowCancellation=false. With allowCancellation=true timer is ignored regardless timer cancelable flag.",
+      "Any pending OR active effect DisableAttack=true, except cancelable effects are ignored when allowCancellation=true; remaining effect blocks iff owner.UnitData.ImmuneToStun=false OR effect.SelfApplied=true."
+    ],
+    "does_not_check": [
+      "UnitData.CanAttack source flag",
+      "unit Enabled/liveness",
+      "effect cleared/disposed flags",
+      "move/rotate timers"
+    ],
+    "distinction": "WeaponOwnerFrame.canAttack and canAttackAllowCancellation are these two query variants; UnitData.CanAttack and weapon enabled/animation checks remain distinct consumers."
+  },
+  "timer_advance": {
+    "original_update_rva": "0x2fcf00",
+    "order": [
+      "move",
+      "rotate",
+      "attack"
+    ],
+    "formula": "Only when timer>0, timer-=unitElapsed*owner.UnitData.StunBreakModifier(full+0x154). Float32 operations; no clamp, equalityzero stops future decrement.",
+    "portable_limit": "advanceDisableTimers implements only these lines; it is not full UnitStatus::Update."
+  },
+  "pending_commit": {
+    "behavior": "Before iterating active Effect::Update, append all pending refs to active in order then clear pending. Native has duplicate search but append is unconditional in shipped assembly; portable preserves actual repeated refs.",
+    "ownership": "trackAdmittedEffect only tracks actual already-admitted Effect records and owns shared references. It does not stand in for native AddEffect validation/application."
+  },
+  "cancellation": {
+    "rva": "0x2fc470",
+    "input": "Actual firing Weapon instance supplies WeaponData.mEffects names atfull+0x998..0x9a0 and CanCancelOwnDisables atfull+0x8f3. Exact-case name comparison.",
+    "timers": "Reset each corresponding timer to-1 only if its cancelable flag istrue.",
+    "names": "Native global CANCELED_EFFECT_NAMES is cleared at every invocation and returned by reference. Portable stores result per UnitStatus; parent must copy this result to the immediate caller and must not present it as persistent native global storage.",
+    "pending": "Iterate initial pending list count. Every Cancelable effect not matching any weapon effect name is cleared ifnotalreadycleared, queued todelete and name appended. Matching pending effects are preserved even when CanCancelOwnDisables=true.",
+    "active": "Iterate initial active list count after pending phase. Same except matching own name is canceled if CanCancelOwnDisables=true.",
+    "not_limited_to_disables": "No DisableMove/Rotate/Attack test in cancel selection; all eligible cancelable effects are candidates.",
+    "barrier": "Virtual Effect::Clear +0x48 is synchronous. Base Clear RVA5d560 immediately marks mCleared+0x2a=true, resolves actual unit, restores animation/property/time multiplier, restores enabled weapons, handles sounds/graphics/force and ultimately ScriptManager::OnEffectCleared RVA28e9b0. Portable requires parent real callback; does not fabricate those actions.",
+    "deferred": "Cancel does not erase effect vectors. CanAttack still sees cleared effect until CleanupEffects removes it."
+  },
+  "cleanup": {
+    "rva": "0x2fd2c0",
+    "guard": "Does nothing while mUpdatingEffects=true. Parent invokes portable cleanup outside original active update iteration.",
+    "barrier": "For every deletion ref, if !mIsDisposed, sets UnitId=-1 before virtual Dispose(true)+0x38, then marks disposed. Removes every matching ref from active and pending and eventually clears delete queue.",
+    "portable": "cleanupEffects requires actual Dispose(true) executor; synthetic success callback alone does not establish original effect disposal."
+  },
+  "portable_api": {
+    "files": [
+      "native/app/unit_status.hpp",
+      "native/app/unit_status.cpp"
+    ],
+    "failure_policy": "Finite clocks/modifier required, missing real callbacks fail closed with sticky fault. canAttack false while faulted; partial mutation retained. Reentrant cancel/cleanup unsupported explicitly. These guards are reconstruction policies, not claims of original exception handling.",
+    "integration": "Root owns actor/component and weapon adapter calls. No CMake/runtime spine files changed here.",
+    "test": {
+      "source": "native/analysis/unit_status_smoke.cpp",
+      "result": "ASan+UBSan passed",
+      "kind": "Synthetic observers only; covers timers, immune/self effect gates, pending/active cancellation asymmetry, callback ordering, new pending admissions, deferred disposal and missing executor failure."
+    }
+  },
+  "remaining_unknowns": [
+    "Effect subclass constructors/compiled defaults and full native AddEffect admission/filtering.",
+    "Full Effect::Update execution, duration/refresh/type effects and callback conditions.",
+    "UnitData.CanAttack/CanMove actual consumers beyond this status query.",
+    "Complete mBlockEffect/allegiance and status reset on an existing effect-bearing actor.",
+    "Reentrant nested cancellation side effects and native global result clobbering."
+  ],
+  "reports": [
+    {
+      "path": "hades/.local/reports/native-status-can-attack.json",
+      "sha256": "094b3195e07caa5eaa82e36d187ee1b093520ebe1c0559e9ea1a196780e5aa47"
+    },
+    {
+      "path": "hades/.local/reports/native-status-cancel-disables.json",
+      "sha256": "0864aaa5c87418c79c2b3f95863fc2f72318d9613e1d93eafc8cd02110f5c3a5"
+    },
+    {
+      "path": "hades/.local/reports/native-status-update.json",
+      "sha256": "cae3e0ea08a8f6b6972ffd11a473ff73708800808a3bfadc676dccd58a86ec63"
+    },
+    {
+      "path": "hades/.local/reports/native-status-reset.json",
+      "sha256": "8aeabca3234b24582fd962d2011a85ab3a12a65214c58b950628a08397b184a0"
+    },
+    {
+      "path": "hades/.local/reports/native-status-cleanup-effects.json",
+      "sha256": "cbd2cbf9e3ce75fc0b5cfeae285ed6231a35b7ef98cd69cc0d6993eb1b6a884b"
+    },
+    {
+      "path": "hades/.local/reports/native-status-unit-constructor.json",
+      "sha256": "3039644762784736db98bdeb05063aa385dc1e983c08256ea99504229f518d43"
+    },
+    {
+      "path": "hades/.local/reports/native-weapon-owner-unit-init.json",
+      "sha256": "f87d2c4a9d5a958b91ffd17855dbf88dcf3e5dccadee4f2a808e1ddf1c12f7d7"
+    },
+    {
+      "path": "hades/.local/reports/native-status-pdb-types.txt",
+      "sha256": "75af38aebc1c5401493f115472c306ae33653a47482319d923eaab61da418d76"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-status-can-attack.json",
+      "sha256": "df37c1225fc4fbbb93720e23f27cbc98c47c3ca6c5fe1ba039381b26437d674c",
+      "evidence_id": "ev_702a1bb7951a947d6b5df85b6fa2670116ba43f28b21d48c0a87cab4dcbfaafc"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-status-cancel-disables.json",
+      "sha256": "3e7baf3f434a764d1f6e64ecfe0d90b82d3cde4ccf96f0af33add1738cd856ae",
+      "evidence_id": "ev_5abc6277c3ae0f26a5c5ed9e03f871a77cdea489e48ba5defbced789d22b0408"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-status-update.json",
+      "sha256": "123c3f3ff36a03935338028fab4f14efbd0f487404ad450999387a7b9c39df76",
+      "evidence_id": "ev_5b4023f7cbf4dce832af681aa247b9206cfee0f57856cb249ad5fe2d20de5821"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-status-reset.json",
+      "sha256": "0a0943e288cc80a9fb1fc987e27011fe6be8c18689d4086a0360932221015071",
+      "evidence_id": "ev_0cf31e6ea710749b908b0247d5dfc7341336300bf3c71c7b8ddb2066adc85cd5"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-status-effect-clear.json",
+      "sha256": "5c4db9b694690f413149e48730223b8b382a181b45a5c96e3069f386abbec2b3",
+      "evidence_id": "ev_02dbd73d34a9df20eeb27ace97f569c07cd1fee72a8cf67c68b22e114cecb04e"
+    },
+    {
+      "path": "hades/.local/reports/native-player-unit-can-move.json",
+      "sha256": "20335d6031c33979633362ad1833f96d701349f74797eda70dce2d122a3a72ec"
+    }
+  ],
+  "effect_update_phase": {
+    "module": "native/app/unit_status.hpp/.cpp advanceEffects",
+    "order": [
+      "Promote current pending entries in original order",
+      "Set updating guard and capture initial active references/count",
+      "For each actual active effect query current data.TimeModifierFraction and current owner Thing.TimeMultiplier",
+      "If fraction<1: effectElapsed=unitElapsed/(((1-ownerTimeMultiplier)*fraction)+ownerTimeMultiplier), with float32 operation boundaries",
+      "Invoke actual virtual Effect.Update using effective effectElapsed",
+      "True returns append same effect pointer to deletion queue, including original duplicate behavior",
+      "Clear updating guard then real cleanup disposal; ownerID=-1 before actual Dispose(true)"
+    ],
+    "callback_visibility": "New admissions during effects remain pending. Earlier original Clear callbacks can alter owner time multiplier for later effects. Cleanup calls during updating return without disposal.",
+    "remaining_scope": "Block-effect timer and allegiance timeout in UnitStatus.Update remain separate parent behavior; advanceEffects is the exact effect phase, not entire Update.",
+    "validation": "unit_status_effect_phase_smoke ASan+UBSan passed, old unit_status_smoke and self_effects_smoke recompiled and passed",
+    "contract": "native/analysis/effect-update-contract.json"
+  },
+  "get_effect": {
+    "rva": "0x2fdf60",
+    "order": [
+      "Any name in toDelete masks lookup -> null",
+      "First active exact name match",
+      "First pending exact name match"
+    ],
+    "report": ".local/reports/native-effect-get-effect.json"
+  },
+  "CanMove_subset": {
+    "native_Unit_CanMove_rva": "0x2f0af0",
+    "portable": "UnitStatus.canMove() covers only move timer and pending/active effect list gates. Parent retains active AnimationData.DisableOwnerMovement and effective speed checks.",
+    "timer": "False iff disableMoveTime>0; equality zero does not block.",
+    "effects": "Any pending or active EffectData.DisableMove at full+0x1af blocks; cleared/disposed/cancelable/selfApplied/immuneToStun are not consulted.",
+    "separate": "UnitData.CanMove controls entry to movement update and is not this query.",
+    "validation": "unit_status_smoke ASan+UBSan passed with positive/zero timer, pending/active and cleared+disposed disableMove coverage."
+  }
+}

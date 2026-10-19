@@ -1,0 +1,66 @@
+{
+  "schema": "hades-projectile-collision-v1",
+  "source_dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "implementation": "native/app/projectile_collision.cpp",
+  "api": [
+    "ProjectileWorld::checkForImpact",
+    "ProjectileWorld::hasLineOfSight",
+    "ProjectileWorld::calcDamage",
+    "projectileAffectsUnit",
+    "projectileUnitsShareTeam"
+  ],
+  "source_evidence": {
+    "GridSquare.detectCollisions": "ev_3e78d7242bf72fd8de95715dda746325b3f31d5c701fbecc3cdaf83f2d757cd7",
+    "Projectile.CheckForImpact": "ev_32488bbd7f5cf0d62ca8207cf948f933a4d72ef15615da163f82425933429d47",
+    "Projectile.Impact": "ev_a1dda49d9dbbed7869afcbd02f2e0cbcb8f4bbc46089d10c63f88f48b394bd20",
+    "Projectile.ApplyImpact": "ev_40a4c8700f27450b8403d415d29e3ba80e7b1fcf7443ce2f8c596abe5371852f",
+    "Projectile.CalcDamage": "ev_7fbb6fc6748742adfb9d1b5ddf2eaadc6af901ba7d6c14901cffa072a52aa46b",
+    "Life.TakeHit_retained": "ev_65a766c571a851d1589c649081b52d50c349f1752be1c426785301d4f589872a"
+  },
+  "recovered_logic": [
+    "actual registered source actor identities, collision polygons and sparse source obstacle broadphase",
+    "Unit ALIVE/mapCollision/Z/tallness/primaryOwnerHasNoCollision/StopsProjectiles filters",
+    "actual Player-identity HasSameTeam and status-traitor filters",
+    "captured narrowphase results before synchronous Lua/impact callbacks",
+    "source mHitByImpact repetition policy distinct from mThingsHit entity identity vector",
+    "source firstSword no-jump/no-bounce penetration policy, fresh source properties after callbacks",
+    "MapThing.AllowMovementReaction-gated original obstacle subtree traversal, actual callback required",
+    "source zero-width LOS, original target backoff, StopsUnits requirement, Tallness and DieOnCollision exceptions",
+    "native float pre-Life damage calculation including equal Low/High RNG draw, weapon/live modifiers, distance falloff, actual Unit/effect crit additions"
+  ],
+  "portable_adaptations": [
+    "ActorSpatialGrid conservative sparse512-unit broadphase instead of Windows bounded grid cells",
+    "Unit registration order and sparse obstacle encounter order; native cross-cell hash encounter order not claimed",
+    "portable convex separating-axis and line/polygon predicates; source flags and actual original vertices retained, no Windows floating-instruction equivalence claim",
+    "Entity identity uses parent-owned lifetime handle; public map ID remains distinct"
+  ],
+  "required_real_callbacks": [
+    "OnMovementReaction when actual flagged map source reached",
+    "actual admitted effect definition for reflection/crit/defense-effect queries",
+    "CheckDodge and OnDodge only if actual source IgnoreDodge=false",
+    "genuine Impact/ApplyImpact/Life.TakeHit/OnHit; absent consumer fails rather than acknowledge damage"
+  ],
+  "still_unsupported": [
+    "nonARC range/target impact paths",
+    "jump/bounce/detonation-radius collision profiles",
+    "reflect branch needing native aggregate minimum-translation vector",
+    "positive crit with primary AnimationData.OwnerInvulnerable until actual getter supplied",
+    "victim active crit vulnerability with nonzero per-stack addition until actual live stack count supplied",
+    "full Life.TakeHit multiplier/volley/OnHitWeapon sequencing is next implementation, not fabricated here",
+    "general victim ApplyEffects admission/execution"
+  ],
+  "first_sword": {
+    "DamageLow": 20,
+    "DamageHigh": 20,
+    "always_consumes_damage_rng": true,
+    "ImmunityDuration": 0,
+    "CheckImmunities": "proven immediate false",
+    "no_hit_result": "derived from actual predicates/polygons, never fixed Continue"
+  },
+  "verification": {
+    "log": ".local/reports/native-projectile-shot-debug-v13-asan.log",
+    "sha256": "a35e2515add3d7cfc11e201f10e15849066db1eeb4731d18eadea48a1d549472",
+    "asan_ubsan": "passed actual source Hero-only construction, native defense, true polygon query,5frame ARC disposal; no hit dispatched",
+    "limits": "not a complete RoomOpening activation or gameplay observation"
+  }
+}

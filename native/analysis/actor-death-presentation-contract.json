@@ -1,0 +1,49 @@
+{
+  "schema": "hades-native-actor-death-presentation-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence": [
+    ".local/reports/native-active-thing-destroy-static.json",
+    ".local/reports/native-thing-set-animation-string-static-v1.json",
+    ".local/reports/native-audio-life-play-location-cap-static.json",
+    ".local/reports/native-audio-play-location3d-static.json",
+    ".local/reports/native-audio-death-fx-unmodified-static.json",
+    ".local/reports/native-audio-death-first-group-static.json"
+  ],
+  "observed": {
+    "order": [
+      "When Life exists, unconditional Thing.SetAnimation(Life.DeathGraphic)",
+      "If Thing.NoSound false, Life.DeathSound copied and played via location overload4aa90, actual current worldXY and Life.SoundManagerCap",
+      "If Life.DeathFx nonempty, manager0 Create(name,actualLifeOwnerThing,actualXY,angle0)",
+      "When FX created: SetZLocation(actual owner raw mZ); PreferUnmodifiedTime; copy actual FIRST MapThingGroupId",
+      "Only afterward Thing.mIsDead=true"
+    ],
+    "empty_death_graphic": "Exact name overload2decb0 branches on empty length before current-primary mutation; genuine no-op. Empty call does not imply clearing.",
+    "null_death_fx": "AnimationManager.Create29e410 literal null/empty return null before resource lookup/allocation; earlier retained native-effect-manager-create.json.",
+    "death_sound_descriptor": "Thing.Destroy never branches on SoundCue.mValid, only Thing.NoSound. Empty cue name returns0 in Play2D/3D; literal-null source normalization is proven SoundCueDeserializer. Name validity resolves through real audio namespace, valid-but-unexported is an error.",
+    "location_audio": "ZeroXY or EXACT current listener Thing/fallback listenerXY selects2D; otherwise location3D with Z0 and no Thing.HighPrioritySfx flag.",
+    "location_cap_condition": "First compute frameAllowed=frameCount<SfxFrameCap(default16). If frameAllowed and totalAllocatedChannels<uint64(int64(suppliedCap)), admit immediately; otherwise GetVoIndex>=0 admits, else frameAllowed decides. Therefore supplied cap cannot bypass frame gate for regular nonVO. All allocated channels count, not same-cue instances.",
+    "breakable_data": "Original Units/Enemies.sjson Breakable Life.DeathSound=/SFX/CeramicPotSmash, SoundManagerCap28, DeathFx=BreakableDeathAnim.",
+    "prefer_unmodified": "Across actual animation/mChild chain, only original AnimationData.TimeModifierFraction<0 adds ModifiedTime and TimeModifierFraction components initializedfloat0. Nonnegative source overrides retained.",
+    "first_group": "Nonempty mGroups copies FIRST complete MapThingGroupId; empty uses virtual Thing.GetName with groupId0, never invents Default/None."
+  },
+  "implementation": {
+    "files": [
+      "app/lua_lifecycle.cpp",
+      "app/lua_audio.cpp",
+      "app/audio_world.cpp"
+    ],
+    "sound_catalog": ".local/native-assets/audio-events-opening-v11",
+    "fx_consumer": "ActionEffectWorld.configureCreated on actual returned Create handle; graphics source fixture pending at handoff",
+    "empty_group_fallback": "Explicit renderer barrier until actual GroupId0/name descriptor is supported",
+    "life_no_sound": "Current bridge passes caller noSound; broader live Thing.NoSound mutation not claimed"
+  },
+  "validation": {
+    "sound_all7_actual_original_choices": ".local/reports/native-audio-world-ceramic-pot-v1.log",
+    "compressed_PCM_identity": "All7 derivedFSB wrappers proven PCM-identical to complete original Sounds.bank by same pinned decoder",
+    "Mac_Werror": true,
+    "Android_API26_Werror": true,
+    "original_execution": false,
+    "hardware_playback": false,
+    "complete_death_presentation": "Not claimed before graphics packet fixture + integrated actual kill replay"
+  }
+}

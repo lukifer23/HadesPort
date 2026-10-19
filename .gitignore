@@ -1,0 +1,29 @@
+# Everything local: original game files, exported asset packs, builds, reports,
+# evidence, device captures, private notes. Never commit any of it.
+.local/
+
+# Build outputs
+build/
+*.apk
+*.so
+*.o
+*.a
+native/analysis/pdb_contract/target/
+
+# Game files must never be committed (belt and braces beyond .local/)
+*.dll
+*.pdb
+*.exe
+*.pkg
+*.bank
+*.fsb
+*.bik
+*.sjson
+*.map_text
+Content/
+x64/
+
+# Python / OS
+__pycache__/
+*.pyc
+.DS_Store

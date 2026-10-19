@@ -1,0 +1,204 @@
+{
+  "schema": "hades-native-room-leaf-particle-contract-v2",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "native_evidence_kind": "Matching PDB/LLVM static inspection plus retained REA; no supplied game code executed.",
+  "frame_bank": {
+    "path": ".local/native-assets/opening-leaf-frames-v1/room-leaf-frames.bin",
+    "bytes": 288791,
+    "sha256": "a35e60f97d124433342b721a57496a79972ec0b8971bbe8d5c99e833558c0824"
+  },
+  "image_validation": {
+    "result": "passed",
+    "clips": 12,
+    "crc_checked_frame_bindings": 427,
+    "rgba_bytes": 3158504,
+    "bat_original_directions": 32,
+    "native_particle_execution_observed": false
+  },
+  "runtime_validation": {
+    "result": "passed",
+    "selected_primary_allocations": 9,
+    "sequential_steps": 12,
+    "diagnostic_step_seconds": 0.55,
+    "source_image_draw_bindings": 1058,
+    "nested_ember_observations": 270,
+    "source_sound_requests": 22,
+    "source_sound_stops": 8,
+    "uniform_draws": 2523,
+    "windows_worker_order_equivalence": false,
+    "audio_mixing_observed": false,
+    "full_room_or_android_execution_observed": false
+  },
+  "dust_validation": {
+    "result": "passed",
+    "original_dust_variants": 7,
+    "uniform_draws": 8,
+    "selector_bound": 7,
+    "packed_alpha": 121,
+    "source_constant_lifetime": true,
+    "android_world_execution_observed": false
+  },
+  "source_files": [
+    {
+      "path": "native/app/effect_particle.hpp",
+      "bytes": 6469,
+      "sha256": "9e619876f9a9dc1a58db053c1b2ad514b2fbf0b92862012dd8661bcf503c9926"
+    },
+    {
+      "path": "native/app/effect_particle.cpp",
+      "bytes": 34674,
+      "sha256": "983cf84b91664b25c14a35fb2f0a30722bb018fee0b3ecd0e8b6441c8013e4d2"
+    },
+    {
+      "path": "native/app/effect_animation.hpp",
+      "bytes": 7071,
+      "sha256": "d5873a3409bd22ac53ff3781e8de16b178fd6b3f1564b02b7de447b1a7d0d1c1"
+    },
+    {
+      "path": "native/app/effect_animation.cpp",
+      "bytes": 26730,
+      "sha256": "18e268d45e82d888598863b4bc1e15fb40ba7888a1957ad08afd4036ff41ea5f"
+    },
+    {
+      "path": "native/app/effect_particle_visual.hpp",
+      "bytes": 3005,
+      "sha256": "877965a6edbcf472feb9e03d6c5199bb722121422b4f7740d9cc1a38e0f62490"
+    },
+    {
+      "path": "native/app/scene_renderer.hpp",
+      "bytes": 4389,
+      "sha256": "dc911ac95dce3662a74699da5b59df0dec1db35e2527d5c3d57da5400047e175"
+    },
+    {
+      "path": "native/app/scene_renderer.cpp",
+      "bytes": 32110,
+      "sha256": "29772c6fcc0f6e6df2c342bc7f1a493a65c8e1104c6fcf8d3145a27ac82d4a29"
+    },
+    {
+      "path": "native/tools/export_room_leaf_frames.py",
+      "bytes": 6478,
+      "sha256": "849600e0560870a91b9e87f15c3c326ecafbb6bac42a0eb94d41ca0ceab0cc0a"
+    },
+    {
+      "path": "native/analysis/room_particle_frame_smoke.cpp",
+      "bytes": 7075,
+      "sha256": "6a29012bf8c68cee78a60863eda320d205ba55ae9fd35a9537b12c1da9e8dfd8"
+    },
+    {
+      "path": "native/app/lua_vfx.cpp",
+      "bytes": 6988,
+      "sha256": "7624c9d78e633e95626826b8b819945aefbae025f05ee8a5ea8a6e1423d51057"
+    }
+  ],
+  "source_data": ".local/native-assets/opening-spawners-v1/catalog.json",
+  "integration": {
+    "assets": [
+      "room-leaf-frames.bin",
+      "room-leaf-facing.bin",
+      "room-leaf-sha256.bin"
+    ],
+    "bank_load": "ActorAnimationBank.load(store,\"room-leaf-frames.bin\",\"room-leaf-facing.bin\",\"room-leaf-sha256.bin\"); particles.addImageBank(leafBank,error)",
+    "registry": "Same shared AnimationRegistry for map/root/particle allocations. Exactly one lifetime per Ember plus its TimeSpawner component; component admission does not allocate a second entity.",
+    "admission": [
+      "nativeManagerAdmissionResolved actual caller coverage",
+      "completePermanentRegistry actual current covered CancelOverCap classes",
+      "permanentVfxCap native config",
+      "actual ownerTimeModifierFraction",
+      "componentWorld=&same EffectAnimationWorld for Ember",
+      "audio.start(cue,ownerId,XYZ,outHandle,error) and stop(handle,fade,error) for Bat"
+    ],
+    "phases": "TimeRemaining subtracts actual supplied modifiedtime; Fraction maps 1-remaining/duration for duration-bound leaves; Rotation/Acceleration/Gravity/Heading/Upward/PlaySpeed/Translation remain explicit; BookUpdateInternal handles Bat duration and frame loops; ConstantUpdateInternal checks strictly negative remaining. Call refreshOwners then syncSpawners before source Time VFX; disposeDone in actual caller manager-disposal phase.",
+    "platform_schedule": "A defined serial Android schedule is an explicit platform adaptation. Existing Windows ECS submits jobs without a global completion ordering. No bit-exact Windows worker completion equivalence claimed.",
+    "renderer": "effectParticleVisual selects source bank per actual particle and synchronous sample; Bat all32 original angles use retained native HAF lookup from actual body heading; multidirection Book drawangle zero. ActorVisual.hsv passes native source HSV to existing shader.",
+    "source_color": "Own selected leaf fractionRGBA native compiled1. Dust ColorFromOwnerTake copies owner packed baseRGBA/HSV at init, excludes dynamic owner fractions. BatIgnore excludesowner. Cinder/Ember defaultMultiply reads live owner packedbaseRGBA then bodyfractionRGBA with integer /255 at each step; currentownerHSV includes base+live transitions. DrawContext.ownerBaseColor/ownerFractionColor/ownerHsv required for that branch. Context.color is separate actual fraction/material modulation, never reapplyownerbase forTake.",
+    "orchestration": "ScriptRuntime::advanceVfx(dt,error) in lua_vfx.cpp; real RNG/PCG/owner/marker/audio; per-frame actual registrycounts and Time\u2192Distance; root wires advanceWorld/build."
+  },
+  "typed_cases": {
+    "Dust": "Seven original Constant variants, exact Random selector bound7;8uniform init draws: duration,scale,alpha,angle,velocity,rotationSpeed,offsetX,offsetY. Alpha truncates to packedbyte before owner baseRGBA integer multiplication.",
+    "Bat": "Original EnvironmentBat Book13frames\u00d732directions. Fixed Duration5 no durationRNG;7uniform init draws. ScaleFromOwnerIgnore bypasses inherited/source scale. LoopFramesOnly calls BookLoop(false) resetting source frame to1, leaves duration intact. Source /SFX/BatGroupLoop requested before allocation; actual audio start+stop .2s adapters required. Source BatCluster primary now genuinely creates Wait(.01seconds) then BatCluster before releasing previous primary; source RNG interval/duration draws occur at replacement.",
+    "Ember": "Three selected original Constant leaves +nested Ember01B. Random selector3; parent9uniforms including final Time interval; B6uniforms, zero offsets skipdraws. Parent PingPongScale forward/back half-fractions uses native easing. Same real allocation owns TimeSpawner component, totalspawncap2/manager200\u00d74; nested source location follows actual moving parent body."
+  },
+  "evidence": [
+    {
+      "path": ".local/reports/native-effect-init-data-pseudocode.txt",
+      "bytes": 30180,
+      "sha256": "d025d3f244f576b10da7e3e61c05a80ccf6dd8fcf8c4f46e1a83617762ef7d41"
+    },
+    {
+      "path": ".local/reports/native-effect-setup-spawned.json",
+      "bytes": 26124,
+      "sha256": "48cb6f54faff3f2e77aa5f6f5e79e299f4b79379e811a9265050834aee78c46e"
+    },
+    {
+      "path": ".local/reports/native-effect-SetValuesFromOwner.json",
+      "bytes": 14065,
+      "sha256": "9c0f4e4ba6d11859d059aec13472a31e016a0f071175460d8c60a347b71b999c"
+    },
+    {
+      "path": ".local/reports/native-effect-book-update-internal.json",
+      "bytes": 16228,
+      "sha256": "a4afac789fd1fa761096e5fdf149a8bdbec3f25552c6b254d034237ebb6e8d71"
+    },
+    {
+      "path": ".local/reports/native-particle-book-loop.json",
+      "bytes": 2743,
+      "sha256": "6719b9892e1983ced14aa123e3903774b25fa4e0664c879d32ac16fb4121aae6"
+    },
+    {
+      "path": ".local/reports/native-particle-constant-update.json",
+      "bytes": 6777,
+      "sha256": "5ddc87a43f731bf460247400c8a31dd8e12a39e244ed12e7fbd871f0d94a0acf"
+    },
+    {
+      "path": ".local/reports/native-particle-time-remaining-run.json",
+      "bytes": 55282,
+      "sha256": "976da814cb11c237cdb0134cdd77113486d8caed4869860d4b17e8fe0c0e092f"
+    },
+    {
+      "path": ".local/reports/native-effect-body-transition-value.json",
+      "bytes": 6444,
+      "sha256": "c6bf2d53c2748b29672dbbdee945096a92b70058c4a24ad2551b684c54d84860"
+    },
+    {
+      "path": ".local/reports/native-particle-body-multiply-color.json",
+      "bytes": 4330,
+      "sha256": "e1ed81c8bf8ea79f173992541d6ed325b2a39ff7bbc6b867feab37bd60836ec9"
+    },
+    {
+      "path": ".local/reports/native-draw-color-rea.json",
+      "bytes": 272256,
+      "sha256": "7b789a080b1b27b82bfec591530407d894fe8d6e8b008a32fadd8f4724cc04b8"
+    },
+    {
+      "path": ".local/reports/native-particle-animation-hsv.json",
+      "bytes": 5173,
+      "sha256": "84abe9a1b4b4a8bcf7f13c3e226bd5e0e848f8f9dda484ff6d93c70b95ee37e0"
+    },
+    {
+      "path": ".local/reports/native-registry-animation-get-location.json",
+      "bytes": 16259,
+      "sha256": "442cb82969ee43aa4ce1b9479311c693a13d1424e71c47536ebeb6f3305d6503"
+    },
+    {
+      "path": ".local/reports/native-collision-body-constructor2.json",
+      "bytes": 15438,
+      "sha256": "4ce82c7847c55d8a05a0fb3c32cdc4a6056ca23f331b0e83800a97b809fc0113"
+    },
+    {
+      "path": ".local/reports/native-audio-play-cue-fx-static.json",
+      "bytes": 6011,
+      "sha256": "a1449770e2f022ea25249c3f5de8045fb507e514a6a05d0956733853546efa1f"
+    }
+  ],
+  "draw_color_evidence_id": "ev_3ba873205b0d3c765a216ddbeb01117ea5058eec4820d5e07b28408f36c3e71a",
+  "limits": [
+    "Focused harness diagnostic owner/RNG/audio callbacks are not original game runtime or real audio mixing.",
+    "General1033 primary allocation/resource admission remains root integration dependency.",
+    "Native visibility/SkipUpdate transitions require real draw/owner admission; alpha and culling do not replace source visibility.",
+    "Per-entity ModifiedTime/TimeModifierFraction non-default remains explicit unsupported phase adapter before mutation.",
+    "Original full-world graph sorting and all-room/fullgame performance are not established by these checks.",
+    "No Fold/device/emulator operations performed by this worker."
+  ],
+  "arm64_validation": "NDK29 API26 C++20 -Wall -Wextra -Werror passed actor_animation/effect_animation/effect_particle/scene_renderer.",
+  "sessions": "No new REA session; all owned sessions closed."
+}

@@ -1,0 +1,588 @@
+{
+  "target": {
+    "dll": "EngineWin64s.dll",
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb": "EngineWin64s.pdb",
+    "pdb_sha256": "a75edd9c15ebbd4caa7a89ce2e3197cfb96cecb1e5a750f62a950caff48fcace",
+    "matching_codeview_identity": {
+      "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+      "age": 1
+    },
+    "build_scope": "Supplied base game Windows x64 engine; source build identity is not inferred from archive filename."
+  },
+  "observed": {
+    "lua": {
+      "version": "5.2.2",
+      "version_string_file_offset": "0x4a7740",
+      "linkage": "Lua C API functions have native addresses inside this DLL and version text is embedded; engine Lua is statically linked.",
+      "registration": {
+        "name": "sgg::ScriptManager::InitLua",
+        "rva": "0x285190",
+        "bytes": 5396,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptManager.obj"
+      },
+      "actions": 319,
+      "triggers": 71,
+      "return_kind_counts": {
+        "Void": 218,
+        "Float": 35,
+        "Bool": 28,
+        "Object": 16,
+        "Table": 13,
+        "String": 9
+      },
+      "contract_json": "native/analysis/lua-bridge-contract.json",
+      "cpp_metadata_header": "native/analysis/lua_bridge_contract.hpp"
+    },
+    "startup": [
+      {
+        "function": {
+          "name": "sgg::App::OnStart",
+          "rva": "0x34980",
+          "bytes": 1758,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\App.obj"
+        },
+        "direct_observations": "Creates GameAssetManager, starts its load thread, initializes world/GUI/load entity systems, configures bloom and shadow-map components."
+      },
+      {
+        "function": {
+          "name": "sgg::App::Initialize",
+          "rva": "0x35a70",
+          "bytes": 1522,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\App.obj"
+        },
+        "direct_observations": "DrawManager::Load, RenderCommands::Initialize, package Launch, package Dev, Localization::Init, Fonts::Init, ColorGradingComponent::LoadContent, LaunchAnimations.sjson, PlayerManager AddPlayer/AssignController, LaunchScreen::Create and ScreenManager::AddScreen."
+      },
+      {
+        "function": {
+          "name": "sgg::ScriptManager::Init",
+          "rva": "0x2847e0",
+          "bytes": 497,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptManager.obj"
+        },
+        "direct_observations": "Calls ScriptManager::Clear then InitLua; remaining observed calls set up script debug text boxes."
+      },
+      {
+        "function": {
+          "name": "sgg::ScriptManager::InitLua",
+          "rva": "0x285190",
+          "bytes": 5396,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptManager.obj"
+        },
+        "direct_observations": "Creates Lua state; opens standard libraries and debug; allocates 71 trigger and 319 action closures; installs custom RNG helpers and Import; disables debugprint and debug.sethook using original bootstrap strings; installs newFunctionCall; loads Main.lua then RoomManager.lua; retrieves update, print and dispatch."
+      }
+    ],
+    "api_binding": {
+      "argument_shape": "Native trigger invoker checks Lua argument 1 for type LUA_TTABLE(5), retains it with luaL_ref and calls RegisterTrigger. Action functor categories bind Lua-state callbacks; full argument semantics remain per-action obligations.",
+      "trigger_return": "Native trigger C closure pushes the integer returned by its functor/RegisterTrigger.",
+      "action_special_name": {
+        "action_id": 148,
+        "enum_name": "LoadMap",
+        "lua_global": "LoadMapInternal"
+      },
+      "extra_globals": [
+        "Import",
+        "random",
+        "randomint",
+        "randomseed",
+        "randomgaussian",
+        "newFunctionCall",
+        "verboseLogging"
+      ],
+      "script_args_win64_fields": [
+        {
+          "name": "mTable",
+          "win64_offset": 0,
+          "pdb_type_index": "0x9232"
+        },
+        {
+          "name": "mDestinationNames",
+          "win64_offset": 16,
+          "pdb_type_index": "0x23c4"
+        },
+        {
+          "name": "mTargetNames",
+          "win64_offset": 40,
+          "pdb_type_index": "0x23c4"
+        },
+        {
+          "name": "mParams",
+          "win64_offset": 64,
+          "pdb_type_index": "0x23c4"
+        },
+        {
+          "name": "mIds",
+          "win64_offset": 88,
+          "pdb_type_index": "0x7b93"
+        },
+        {
+          "name": "mdestinationIds",
+          "win64_offset": 112,
+          "pdb_type_index": "0x7b93"
+        },
+        {
+          "name": "mSearchedForParams",
+          "win64_offset": 136,
+          "pdb_type_index": "0x30"
+        }
+      ],
+      "layout_warning": "Win64 offsets describe the original artifact and must not be reused as an Android ABI layout."
+    },
+    "script_loading": {
+      "function": {
+        "name": "sgg::ScriptManager::Load",
+        "rva": "0x287ef0",
+        "bytes": 2089,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptManager.obj"
+      },
+      "sequence": "Deduplicates via LOADED_SCRIPT_FILES; opens a PlatformFile stream, reads bytes, computes XXH64 for diagnostics, invokes luaL_loadbufferx with file basename as chunk name, calls lua_pcallk and restores prior Lua stack top. Errors set HAS_CRASHED and add a ScreenManager error.",
+      "import_handler_rva": "0x287dc0",
+      "import_sequence": "Native Import handler appends scripts extension when not found, then calls ScriptManager::Load synchronously. No custom source preprocessing is observed in ScriptManager::Load.",
+      "using": "The original Content/Scripts/Main.lua defines Using(usingName) with an empty body at line1290. Do not invent engine effects for that Lua function."
+    },
+    "callbacks": {
+      "update": {
+        "signature": "update(worldTime, screenTime)",
+        "semantics": "Absolute clocks, not delta. Native Update pushes two numbers; original Main.lua611 computes elapsed = time - _worldTime, then resumes queued coroutines using world or screen clock.",
+        "native": {
+          "name": "sgg::ScriptManager::Update",
+          "rva": "0x283c90",
+          "bytes": 2067,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptManager.obj"
+        }
+      },
+      "dispatch": {
+        "signature": "dispatch(func, triggerArgs)",
+        "semantics": "Original Main.lua469 creates a coroutine wrapping func(triggerArgs), then resumes it through the original thread scheduler."
+      },
+      "print": {
+        "semantics": "Retrieved as a LuaFunction during InitLua; detailed native interception semantics not recovered."
+      }
+    },
+    "data_loading": {
+      "game_data": {
+        "name": "sgg::GameDataManager::ReadGameData",
+        "rva": "0xb6df0",
+        "bytes": 5862,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\GameDataManager.obj"
+      },
+      "observed_filenames": [
+        "*.sjson",
+        "*.pkg",
+        "Weapons.sjson",
+        "Projectiles.sjson"
+      ],
+      "asset_functions": [
+        {
+          "name": "sgg::GameAssetManager::ReadPackageFile",
+          "rva": "0x1ed570",
+          "bytes": 1104,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\GameAssetManager.obj"
+        },
+        {
+          "name": "sgg::GameAssetManager::ReadNextAsset",
+          "rva": "0x1f4f50",
+          "bytes": 503,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\GameAssetManager.obj"
+        },
+        {
+          "name": "sgg::GameAssetManager::ReadAtlas",
+          "rva": "0x1f3990",
+          "bytes": 4016,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\GameAssetManager.obj"
+        },
+        {
+          "name": "sgg::GameAssetManager::ReadTexture",
+          "rva": "0x1f0790",
+          "bytes": 1498,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\GameAssetManager.obj"
+        },
+        {
+          "name": "sgg::GameAssetManager::ReadTexture3D",
+          "rva": "0x1f0290",
+          "bytes": 1277,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\GameAssetManager.obj"
+        },
+        {
+          "name": "sgg::GameAssetManager::LoadManifest",
+          "rva": "0x1ed9c0",
+          "bytes": 3686,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\GameAssetManager.obj"
+        },
+        {
+          "name": "sgg::GameAssetManager::ProcessMultiTextureAtlasMaps",
+          "rva": "0x1f58e0",
+          "bytes": 2287,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\GameAssetManager.obj"
+        }
+      ]
+    },
+    "rendering": {
+      "backend": "PDB module paths include ShipDx11; DLL directly imports d3d11.dll, dxgi.dll and D3DCOMPILER_47.dll. A new GLES renderer must reproduce required semantics, not load these Windows modules.",
+      "functions": [
+        {
+          "name": "sgg::App::Draw",
+          "rva": "0x372f0",
+          "bytes": 2971,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\App.obj"
+        },
+        {
+          "name": "sgg::DrawManager::Begin",
+          "rva": "0x226e70",
+          "bytes": 310,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\DrawManager.obj"
+        },
+        {
+          "name": "sgg::DrawManager::DoDraw",
+          "rva": "0x229180",
+          "bytes": 3504,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\DrawManager.obj"
+        },
+        {
+          "name": "sgg::DrawManager::Draw2D",
+          "rva": "0x226fb0",
+          "bytes": 204,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\DrawManager.obj"
+        },
+        {
+          "name": "sgg::RenderCommands::Run",
+          "rva": "0x238270",
+          "bytes": 5684,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\RenderCommands.obj"
+        },
+        {
+          "name": "sgg::RenderCommands::MeshFromDrawable",
+          "rva": "0x23a050",
+          "bytes": 3578,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\RenderCommands.obj"
+        },
+        {
+          "name": "sgg::RenderMesh::Set2D",
+          "rva": "0x323e10",
+          "bytes": 1151,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\RenderMesh.obj"
+        },
+        {
+          "name": "sgg::RenderMesh::SetSprite",
+          "rva": "0x324da0",
+          "bytes": 1405,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\RenderMesh.obj"
+        },
+        {
+          "name": "sgg::RenderMesh::IsometricSkewAndScale",
+          "rva": "0x322b80",
+          "bytes": 1983,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\RenderMesh.obj"
+        },
+        {
+          "name": "sgg::ForgeRenderer::CmdRecord_Draw",
+          "rva": "0x235590",
+          "bytes": 129,
+          "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ForgeRenderer.obj"
+        }
+      ],
+      "app_draw_observations": "PDB-annotated native instructions record Z-pass markers, clears, viewports, camera commands, ScreenManager::Draw, DrawManager Begin, UI/cursor rectangles, end commands, movie/texture disposal queues and render-command double-buffer handoff. These are conditional paths and not all execute every frame."
+    },
+    "recovered_config_defaults": {
+      "scope": "Compiled defaults for all20 literal getter names plus2 boot setter names. VM-owned mutable typed override table implements SetConfigOption; GetConfigOptionValue reads overrides. Unknown names/types error; loaded user config and FastForward external engine side effects remain unreconstructed.",
+      "typed_values": {
+        "DebugRNGSeed": 0,
+        "FreeFormSelecSearchFromId": 0,
+        "KioskModeNumLives": 2,
+        "ExclusiveInteractGroup": "",
+        "ShowDamageNumbers": true,
+        "ShowUIAnimations": true,
+        "LogCombatMultipliers": false,
+        "ShowSpeechBubble": true,
+        "EasyMode": false,
+        "HardMode": false,
+        "AllowStripRequirements": false,
+        "DrawBloom": true,
+        "DumpRunStatsOnLoad": false,
+        "EditingMode": false,
+        "EnableConsoleMenus": false,
+        "FastForward": false,
+        "ForceFlipMapThings": false,
+        "KioskMode": false,
+        "ResetRoomData": false,
+        "UseMouse": false,
+        "GamepadCursorControl": false,
+        "FlipMapThings": false
+      },
+      "evidence": "Matching PDB named dynamic initializers, full bounded native disassembly in .local/reports/native-config-<key>-annotated.json (DebugRNGSeed also native-rng-default-annotated.json).",
+      "cache": "RunManager.lua5561 UpdateConfigOptionCache populates6 entries; RoomManager.lua146 calls before RandomInit at OnPreThingCreation."
+    },
+    "rng": {
+      "algorithm": "PCG32 XSH-RR; integer output rotate-right32(uint32((old>>45)^(old>>27)),old>>59)",
+      "multiplier": "0x5851f42d4c957f2d",
+      "increment": "0xb47c73972972b7b7",
+      "native_static_state": "0xea1b84321029ee21",
+      "seed": "state=uint64(int64(int32(seed)))*multiplier-0x03d657cc62bc341e (mod2^64)",
+      "double": "ldexp(unsigned_output,-32), interval[0,1)",
+      "bounded_integer": "Inclusive signedlow/high, bound=uint32(high)-uint32(low)+1. If bound=0 returns low without drawing; otherwise reject PCG values below(-bound mod2^32)%bound, then output low+(value%bound) with int32 wrap.",
+      "native_procedures": {
+        "RandomDouble": "0x54f80",
+        "Seed": "0x201660",
+        "random": "0x287b10",
+        "randomint": "0x287b60",
+        "randomseed": "0x287bd0",
+        "randomgaussian": "0x287be0",
+        "pcg32_boundedrand_r": "0x327dd0"
+      },
+      "limits": [
+        "Reconstructed stream0 is reserved with native static initializer; exact engine boot reseed time has not been recovered. Script stream1 is exact after explicit Random.lua seeding.",
+        "randomgaussian observed uses separate Gaussian array and polar Box-Muller; native Seed only writes Rngs array. Not registered in reconstructed bindings yet.",
+        "Lua argument coercion is stricter for malformed inputs than native wrapper; valid original-script integer arguments are supported."
+      ],
+      "implemented": "native/app/recovered_runtime.cpp",
+      "host_debug_smoke": {
+        "reproducer": "native/analysis/smoke_recovered_runtime.py",
+        "log": ".local/reports/native-runtime-smoke.log",
+        "result": "Pass actual Random.lua import, explicit seed123 stream1 outputs353602019/2^32 and2452673855/2^32, inclusive integer result10 in1..10, boolean type preservation and unknown config failure. Harness isolates DebugScripts import only; production importer is unchanged."
+      }
+    },
+    "language": {
+      "GetLanguage_action": 281,
+      "dispatch": "ExecuteString RVA0x2556a0 selector RVA0x255a18 and table RVA0x2559f0 route281 to0x25584f, copies Localization::UiLang code string at globalRVA0x1ca33c0.",
+      "compiled_Language_default": "Empty string, initializerRVA0x12f80. This differs from a selected locale.",
+      "native_selection": "Localization::Init RVA0x1fd220: first obtain platform language, override by nonempty ConfigOptions.Language, otherwise ConfigOptions.UiLanguage, then SetLang.",
+      "reconstruction": "Explicit configureRecoveredLanguage(state,\"en\") selects English; unset getter errors. No implicit assertion English was compiled default.",
+      "reports": [
+        ".local/reports/native-language-owner-255861.json",
+        ".local/reports/native-localization-init-annotated.json",
+        ".local/reports/native-config-Language-annotated.json",
+        ".local/reports/native-supported-ui-languages.json"
+      ]
+    },
+    "movement_reconstruction": {
+      "data_source": "Content/Game/Units/PlayerUnits.sjson _PlayerUnit",
+      "data_values": {
+        "Speed": 540,
+        "Acceleration": 2000,
+        "Thing.Grip": 1000,
+        "BackpedalSpeedModifier": 0.34,
+        "LowSpeedThreshold": 0.5,
+        "LowSpeedFraction": 0.2,
+        "FullControlVelocityThreshold": 400,
+        "HighSpeedThreshold": 700,
+        "RotationSpeed": 216000,
+        "CosmeticRotationSpeed": 1340
+      },
+      "native_behavior": [
+        "DirectMovement computes angle atan2(-inputY,inputX). Low stick compares input length\u00b2 against LowSpeedThreshold; picks LowSpeedFraction or1.",
+        "MoveInput normally directly sets vx=cos(angle)*maxSpeed*fraction, vy=-sin(angle)*maxSpeed*fraction. Acceleration applied as force*dt while PhysicsComponent.mFootingLostTime>0. Additional over-speed force branch exists.",
+        "Max speed=(UnitDataDef.mSpeed +unit.mSpeedAddition)*unit.mSpeedModifier, multiplied by global player speed modifier for controlled unit.",
+        "UpdateMovement uses physics mMoveShift times time-adjusted dt then ApplyFullShift collision. Move started/stopped emit corresponding ScriptManager triggers."
+      ],
+      "evidence_reports": [
+        ".local/reports/native-direct-movement-pdb-pseudocode.txt",
+        ".local/reports/native-unit-move-input-pdb-pseudocode.txt",
+        ".local/reports/native-unit-update-movement-pdb-pseudocode.txt",
+        ".local/reports/native-fields-PhysicsComponent.txt",
+        ".local/reports/native-fields-UnitDataDef.txt"
+      ],
+      "limits": "No claim full physics/collision reconstructed. Original Win64 member offsets are evidence, not Android ABI prescriptions."
+    },
+    "trigger_execution_detail": {
+      "native_procedures": {
+        "RegisterTrigger": "0x288720",
+        "ScriptConstructor": "0x24c9a0",
+        "ScriptParseSource": "0x250040",
+        "ScriptRun": "0x24f610",
+        "PreThingCreation": "0x28e0f0"
+      },
+      "registration": "Read table1, optional source string at table[1]. Iterate keys, retain callable function by Lua registry reference. Invalid/no callable returns-1. Valid registration appends to per-trigger ordered vector and returns LuaFunction registry reference.",
+      "source_tokenizer": "Split ASCII space0x20, omit empty tokens. Stop at token semicolon. Comparisons>,<,==,!=,>=,<= set comparison and next numeric token triggerValue. Full numeric token ->int ID via strtof; partly numeric token ->triggerValue; other strings ->source names. Trigger24 OnSoundComplete adds leading slash to names if absent.",
+      "run": "Cached dispatch(func,table), creating global_triggerArgs fresh if no provided optional Lua table. Source Thing adds triggeredById and TriggeredByTable. Nonempty name adds name.",
+      "pre_thing_context": "Registration-order run with no Thing, empty name, no optional LuaTable ->fresh empty global_triggerArgs.",
+      "original_lua_boot": "RoomManager OnPreThingCreation146 updates config cache then RandomInit, DoPatches, SetupMap, AudioInit, NarrativeInit, CodexInit. GetMapName must reflect selected map. RoomData missing returns; otherwise nil GameState calls StartNewGame and nil CurrentRun calls StartNewRun. RunData.lua661 invokes SetupRunData at import completion.",
+      "limits": [
+        "Comparison evaluation and Thing group/name/ID matching have not been fully reconstructed. Source-filter inventory does not justify unconditional dispatch of filtered registrations.",
+        "RegisterTrigger stores path and debug line, which may be useful for accurate unsupported diagnostics."
+      ],
+      "reports": [
+        ".local/reports/native-script-constructor-annotated.json",
+        ".local/reports/native-source-filter-annotated.json",
+        ".local/reports/native-source-comparison-annotated.json",
+        ".local/reports/native-string-split-annotated.json",
+        ".local/reports/native-script-run-annotated.json",
+        ".local/reports/native-trigger-args-name.json",
+        ".local/reports/native-pre-thing-creation-annotated.json"
+      ],
+      "numeric_metadata_keys": [
+        "triggerValue",
+        "traction",
+        "playerindex",
+        "linenum"
+      ],
+      "rea_evidence": {
+        "ScriptConstructor": "ev_feb0ab4f0b92a6187d2907933a483fa3b4317562443118231138e7979a954425",
+        "SourceParser": "ev_8ea3f1a1686576c9a3781a9eef79ccc440d0a3230fb260d5bb22817f509921dd",
+        "OnPreThingCreation": "ev_e8bafad6c371e0c1ab6971bf4dae16e146ba15f0114977f25f44ca53750e5ba9",
+        "LocalizationSetLang": "ev_258109d81a17b9703c4418ad7398bf1a36f959fadc654a624b83a089f6dc6c5c"
+      }
+    },
+    "scene_runtime": {
+      "implementation": [
+        "native/app/scene_runtime.hpp",
+        "native/app/scene_runtime.cpp"
+      ],
+      "native_evidence": {
+        "GroupManagerInit": "0x30c030",
+        "AddGroup": "0x30c140",
+        "Insert": "0x30c440",
+        "AddName": "0x30c9d0",
+        "Reset": "0x30c250",
+        "CreateGroupAction84": "Execute RVA0x251910 selector0x254cc8 table0x254a1c ->0x251fc9",
+        "HasGroupAction85": "ExecuteBool0x254e10 selector0x2555b8 table0x255548 ->0x2554af"
+      },
+      "observed_behaviors": [
+        "Init traverses root map definitions in metadata order; child arrays reverse-recursed, parent appended after descendants; add Overlay(-1), ScreenOverlay(-2) with overlay flag.",
+        "Native dynamic groups use highId=INT32_MIN then preincrement. Add existingName returns existing group. CreateGroup always replaces blend mode, defaultAlpha0.",
+        "Insert moves source contiguous subtree, removes old parent edge, places subtree immediately before/after destination; inherits destination parent.",
+        "PDB blend enum Alpha0 Opaque1 Additive2 Multiplicative2x3 Screen4 AdditiveMerge5 Multiplicative2xMerge6 ScreenMerge7 ColorBurn8 Overlay9 DarkerColor10 LighterColor11 Displacement12 DisplacementMerge13 Undefined255."
+      ],
+      "delivery": "Root confirms actual original SetupMap completed on host with69groups.",
+      "SGP1": "Bounded map metadata loader preserves group IDs+names (ID210001 duplicated across two names in supplied map). Snapshot/dump exposes actual registry.",
+      "limits": [
+        "Undefined missing destination/self/descendant moves explicitly error instead of mimicking native fallback/destructive behavior.",
+        "No claim all blend equations rendered; registry stores exact native enum for renderer."
+      ]
+    },
+    "object_runtime": {
+      "implementation": [
+        "native/app/object_runtime.hpp",
+        "native/app/object_runtime.cpp"
+      ],
+      "source_first_call": "RoomManager5831 CreateVignette ->UIScripts2354 CreateScreenObstacle ->SpawnObstacle BlankObstacle at screen center, groupVignette, TriggerOnSpawnfalse, SortByIdtrue, UseScreenLocationtrue; SetAnimationVignetteOverlay follows.",
+      "source_definitions": [
+        "1_DevObstacles.sjson520 BlankObstacle inheritsInvisibleTarget252; GraphicBlank, Invisiblefalse, NeedsLifefalse, StopsUnitsfalse, StopsProjectilesfalse, MaterialUnlit.",
+        "1_DevAnimations.sjson5 Blank fileDev\\blank_invisible,ConstantNoUpdate,frame1of1.",
+        "GUIAnimations.sjson4323 VignetteOverlay fileFx\\Vignette\\VignetteOverlay,Constant,duration1,looptrue,frame1of1."
+      ],
+      "native_evidence": {
+        "SpawnObstacle": "0x26f4a0",
+        "GetLocation": "0x26c690",
+        "GetIdsByType": "0x26bb40",
+        "SetAnimation": "0x261a10",
+        "ThingDefaults": "0x2dbbb0",
+        "ObstacleHandleAcquire": "0x2cd050"
+      },
+      "implemented": [
+        "VM-owned native registry; actual positive object IDs and lifetime, source definition/animation catalog, native state snapshots.",
+        "SpawnObstacle existing-destination meanXY or LocationX/Y plus offsets, Zoffset, actual group, screenSpace/sortById state.",
+        "Destroy deactivates registered IDs; GetLocation meanXY of loaded active targets; GetIdsByType queries seeded original map/runtime type names; no empty fabricated map registry.",
+        "SetAnimation selects only loaded single-frame original animation metadata; immediate scale/alpha changes update native state."
+      ],
+      "limits": [
+        "Reconstructed ThingID allocator starts at explicitly configured positive1000000, skips seeded map IDs, never reuses retired IDs. Native handle generation bytes partly decoded but full public ThingID allocator is not reconstructed.",
+        "Unsupported collision placement, attachment, spawn event dispatch, timed property interpolation and multiframe object animation fail explicitly.",
+        "Snapshot records animation metadata for renderer; implementation does not itself render UI images.",
+        "Seed original map transforms before global type queries; original Active and DoCreate fields preserved separately."
+      ],
+      "phase_audit": {
+        "report": ".local/reports/native-boot-phase-comparison.json",
+        "reproducer": "native/analysis/audit_boot_phase.cpp",
+        "result": "Identical complete canonical GameState/CurrentRun for current original Active flags vs all original map metadata Active=false. Only2SpawnObstacle calls; no type/map/location/ID lookup APIs called during seed0 OnPreThingCreation.",
+        "limits": [
+          "Observed deterministic current startup clock/RNG seed0 only. RandomSwaps GetMapThings branch was not taken.",
+          "Preloading Active map objects remains phase approximation; native event precedes mapThing creation. Other seeds/callbacks and later OnAnyLoad remain unproven.",
+          "Lua states compared recursively with sorted keys; cyclic references marked cycle; no gameplay comparison implied."
+        ]
+      },
+      "native_rea": {
+        "SpawnObstacle": "ev_8477c9cf483946c8e7ed7541efe149a799a011d00ec01a44f68b003b1795ab8e",
+        "GetLocation": "ev_eeb122b6b89603dd65bfde12ef3462574ae776d5531e386cc385f26bef43f564",
+        "ObstacleHandleAcquire": "ev_cf31e139237f58e07250b88966249fdc0d088a762f4ce46f394e9276ee62bb4f",
+        "ObstacleCreate": "ev_b0c08d6bde089774b2fcc9180e93da45ed8d9bf58e8531cfa45196b9d78b0752"
+      }
+    }
+  },
+  "rea_evidence": [
+    {
+      "id": "ev_08279d784dddd396d174403198e1ba81447d03144341031449a1d43b321429e2",
+      "report": ".local/reports/native-rea-init-lua.json",
+      "operation": "analyze_function"
+    },
+    {
+      "id": "ev_aab839b086dce8d393a125278963a2a2a478cd641bfe2fbce8701cc8716f599a",
+      "report": ".local/reports/native-rea-app-initialize.json",
+      "operation": "analyze_function"
+    },
+    {
+      "id": "ev_a06f547194831cf76cd583a80cd4f24671c6c16bfed897f4ddd4ec08bbb6acf9",
+      "report": ".local/reports/native-rea-app-on-start.json",
+      "operation": "analyze_function"
+    },
+    {
+      "id": "ev_bd1b486c7d568be880ba0f668f761b8b31250b3847b862195d977962286f5cbd",
+      "report": ".local/reports/native-rea-script-load.json",
+      "operation": "analyze_function"
+    },
+    {
+      "id": "ev_cf2994b8925a823ba259675ca52e3b7e1c3ebcbdb691d8aa163f5532e0ae8e41",
+      "report": ".local/reports/native-rea-script-update.json",
+      "operation": "analyze_function"
+    },
+    {
+      "id": "ev_10f8c90c7307549defd2172c17f5b0549726e36e6ada2ff9d1918273cb095ed1",
+      "report": ".local/reports/native-rea-app-draw.json",
+      "operation": "analyze_function"
+    }
+  ],
+  "corroborating_reports": [
+    ".local/reports/native-engine-pdb.json",
+    ".local/reports/native-init-lua-annotated.json",
+    ".local/reports/native-import-c-closure-annotated.json",
+    ".local/reports/native-import-handler-annotated.json",
+    ".local/reports/native-trigger-invoker-annotated.json",
+    ".local/reports/native-game-data-annotated.json",
+    ".local/reports/native-draw-annotated.json"
+  ],
+  "tooling": {
+    "pdb_parser": "native/analysis/pdb_contract (pdb crate0.8.0; Cargo.lock retained)",
+    "api_extractor": "native/analysis/extract_bridge.py",
+    "native_disassembly": "native/analysis/inspect_engine.py using existing NDK29 llvm-objdump; reads PDB exact function bounds.",
+    "rea_client": "native/analysis/rea_contract.mjs uses sibling public REA MCP launcher; owned session closed successfully."
+  },
+  "limits": [
+    "Native API names, return kinds and startup contracts are recovered; complete gameplay implementations are not.",
+    "Ghidra misidentifies InitLua as1510 analyzed bytes versus PDB5396, dropping action-switch and later initialization blocks. Exact registry and late boot claims use complete PDB-bounded machine instructions and decoded PE tables, not incomplete Ghidra pseudocode.",
+    "Native ScriptArgs field offsets are artifact observations only; Android replacements should use semantic fields.",
+    "Physics, weapon/effect behavior, UI behavior, object-to-Lua conversions and rendering equivalence remain reconstruction work.",
+    "No original Windows game code was executed during this static investigation."
+  ],
+  "portable_core_pass_2": {
+    "report": ".local/reports/native-engine-development-pass-2.json",
+    "object_contract": "native/analysis/object-state-contract.json",
+    "input_contract": "native/analysis/input-runtime-contract.json",
+    "creation_contract": "native/analysis/map-creation-contract.json",
+    "next_action": "EquipWeapon",
+    "native_actor_activation_complete": false
+  },
+  "native_visual_pass_1": {
+    "report": ".local/reports/native-ui-visual-pass-checklist.json",
+    "ambient_contract": "native/analysis/ambient-lighting-contract.json",
+    "actor_initialization_contract": "native/analysis/actor-initialization-contract.json",
+    "weapon_defaults_contract": "native/analysis/weapon-defaults-contract.json",
+    "apk_sha256": "4352aadd5eb8756e63ae37dc88d9425ff4ef31f911e176147b1d71f667ed42cd",
+    "scope": "Native menu/settings/touch adaptation and source ambient lighting, original asset font decoding, MacGPU/ARM64/emulator checks. Full game incomplete; Fold untouched."
+  },
+  "native_controls_loading_pass": {
+    "report": ".local/reports/native-controls-loading-pass.json",
+    "collision_contract": "native/analysis/collision-transform-contract.json",
+    "composition_contract": "native/analysis/group-composition-contract.json",
+    "apk_sha256": "357ad5043e2370c9cc1532f347083891f22e5dccc93767cd99811ee1766d9e00",
+    "scope": "Native Android camera, touch, staged loading, source collision and group composition; movement slice only",
+    "complete_game": false,
+    "Fold_operated": false
+  },
+  "native_unit_arsenal_pass": {
+    "report": ".local/reports/native-unit-arsenal-pass.json",
+    "component_contract": "native/analysis/weapon-component-contract.json",
+    "effect_contract": "native/analysis/weapon-effect-normalization-contract.json",
+    "APK_updated": false,
+    "live_actor_activation": false,
+    "complete_game": false
+  }
+}

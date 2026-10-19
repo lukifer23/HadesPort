@@ -1,0 +1,83 @@
+{
+  "contract": "hades-save-pipeline-v1",
+  "subject": {
+    "dll": ".local/game/base/x64/EngineWin64s.dll",
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "image_base": "0x180000000"
+  },
+  "evidence": [
+    ".local/reports/native-save-checkpoint-script-static-v1.json",
+    ".local/reports/native-save-gather-data-static-v1.json",
+    ".local/reports/native-save-gather-lua-static-v1.json",
+    ".local/reports/native-save-valid-checkpoint-static-v1.json",
+    ".local/reports/save-re/ (static-*.json from native/analysis/inspect_engine.py; decomp-*.json from scripts/rea.py decompile)",
+    ".local/reports/native-save-probe-v5.json.save.json (host round trip)"
+  ],
+  "dependencies": {
+    "luabins": {
+      "version": "Luabins 0.3",
+      "proof": "EngineWin64s.dll strings 'Luabins 0.3', 'Copyright (C) 2009-2010, Luabins authors', 'Trivial Lua Binary Serialization Library'; PDB symbols luabins_save/luabins_load/lbsSB_*/lbs_write*",
+      "source": "https://github.com/agladysh/luabins/archive/refs/tags/v0.3.tar.gz (tag v0.3 -> 1ab67eeb0fbb7ae3ebd0011ceecf04f85a4449d1)",
+      "sha256": "701f68b988fcd1b5cb874dfefc6df84830f6f2b801339c273395ab3ad9de79cb",
+      "lua52_port": "luaopen_luabins 0x1803933bc = lua_createtable(L,0,2); luaL_setfuncs({save 0x1803932f4, load 0x180393340},0); _VERSION/_COPYRIGHT/_DESCRIPTION; return 1. Equivalent to luaL_newlib; native/app/luabins_lua52_compat.h maps luaL_register->luaL_newlib, luaL_reg->luaL_Reg, lua_objlen->lua_rawlen (engine imports lua_rawlen). l_save/l_load disassembly matches upstream (nil + message on error).",
+      "registration": "Engine luaL_openlibs 0x1803863ac iterates table 0x1804a9150 {_G, coroutine, table, string, bit32, math, debug, luabins, utf8} through luaL_requiref(L,name,fn,1): global table 'luabins' with save/load."
+    },
+    "lz4": {
+      "proof": "LZ4_compress_fast 0x18036a9d0 (4-arg wrapper, 0x4020-byte stream state memset => 1.9.x LZ4_stream_t, acceleration folded to 1 = LZ4_compress_default) and LZ4_decompress_safe 0x18036aa20, linked from rmem_hook.obj; LZ4_wildCopy8 present (>=1.9.0)",
+      "source": "https://github.com/lz4/lz4/archive/refs/tags/v1.9.4.tar.gz",
+      "sha256": "0b0e3aa07c8c063ddf40b082bdf7e37a1562bda40a0ff5272957f3e987e0e54b",
+      "approximation": "Exact 1.9.x patch release is not identified; the LZ4 block format is identical, but compressed bytes are not proven identical to the engine's."
+    }
+  },
+  "file_format": {
+    "container": "sgg::BinarySaveData (ctor 0x180189c10: reserves 4 + 4*checksum header bytes; PrepareForWrite 0x1802043a0; toStream 0x180204300). All integers little-endian raw copies.",
+    "header": [
+      {"offset": 0, "type": "u32", "value": "0x31424753 'SGB1' (cppCompatVersion magic)"},
+      {"offset": 4, "type": "u32", "value": "sgg::adler32 (0x1802f5eb0, standard Adler-32, a=1 b=0, NMAX 5552) over bytes [8, end)"}
+    ],
+    "payload_v16": [
+      "i32 version = 16 (GatherSaveData 0x18021c3c0)",
+      "u64 timestamp = _time64(NULL) low 32 bits zero-extended",
+      "string SaveInfo+0x98 location = GameState.LocationName (lua_isstring) else ''",
+      "i32 SaveInfo+0x74 = (int)GameState.CompletedRunsCache",
+      "i32 SaveInfo+0x78 = (int)GameState.AccumulatedMetaPointsCache",
+      "i32 SaveInfo+0x7c = (int)GameState.SpentShrinePointsCache",
+      "u8 SaveInfo+0x70 = ConfigOptions::EasyMode",
+      "u8 SaveInfo+0x71 = GameState.Flags.HardMode",
+      "u32 count + strings: notable list when ConfigOptions::SaveNotableLuaInfo (compiled true): GameState.MetaUpgrades keys with (int)value>0; CurrentRun.Hero.Weapons keys; CurrentRun.Hero.Traits[int].Name; 'WellShop'/'ChallengeSwitch'/'SellTraitShop' if CurrentRoom has that key, 'FishingPoint' if CurrentRoom.FishingPointId; OfferedExitDoors[k].Name",
+      "string world current map name (world->+0xa0 +8)",
+      "string next map (Save() 4th argument)",
+      "only if stream position <= 0x4000: u32 compressed size + LZ4 block of the luabins _saveData string (uncompressed < 0x8f4000, compressed <= 0x2fc000)"
+    ],
+    "string_encoding": "BinarySaveData::saveString 0x180199a50 / BinaryLoadData::loadString 0x18009ed80: u32 length + bytes, no terminator",
+    "load_checks": "BinaryLoadData::fromStream 0x180204130: magic sets cppCompat; header 8 bytes with magic (4 without); checksum mismatch flags corrupt. ProgressManager::Load 0x18021bed0 accepts version 1..16.",
+    "restore_by_version": "ProgressManager::Restore 0x18021cc20: v>=16 u64; v>=11 string; v>=10 {i32,i32; 12<=v<14 i32; v>=14 i32,bool,bool; v>=13 stringList} else {string,string; v>=5 string; i32,i32; v>=2 i32,i32; v>=7 bool}; 6<=v<=12 i32,i32; then currentMap, nextMap. Target map = nextMap if non-empty else currentMap (stored at world+0xc0, world+0x18 = 1, or 2 if already the loaded map). CURRENT_LOAD_DATA keeps the stream.",
+    "lua_block": "ProgressManager::LoadLua 0x18021d120: loadString; version > 14 -> LZ4_decompress_safe into COMPRESS_BUFFER (0x8f4000); else raw",
+    "valid_checkpoint_file": "SaveValidCheckpoint 0x18021a740: BinarySaveData(8, checksum=false) -> 'SGB1', i32 16, u8 valid; path ACTIVE_PROFILE + '.v.sav'",
+    "names": "SAVE_EXTENSION '.sav', SAVE_PATTERN '*.sav', VALID_TEMP_SAVE_EXTENSION '.v.sav', default profile 'Profile1' (ProfileManager::getLastLoaded 0x1802165f0); file = ACTIVE_PROFILE + NEXT_SAVE_NAME + '.sav'; backup = file + '.bak' (PCSaveDevice::BackupPath 0x180374fc0)"
+  },
+  "pipeline": {
+    "SaveCheckpoint": "ScriptAction::SaveCheckpoint 0x180264e00: return if RepeatSaveOnLoad (false). NEXT_DEV_SAVE_NAME=DevSaveName, NEXT_SAVE_NAME=SaveName (default ''). If StartNextMap non-empty: LaunchScreen::s_SaveOnLoad=true and return (no save now). Else reads SuspendNonPersisted (unused), ShowSaveSpinner (default true), LoadOnlyStartNextMap; Save(ACTIVE_PROFILE+NEXT_SAVE_NAME, Local, Remote, LoadOnlyStartNextMap or StartNextMap(empty), &spinner).",
+    "deferred_save": "World::Begin 0x1803186e0: after World::Reset, if s_SaveOnLoad -> Save(ACTIVE_PROFILE+NEXT_SAVE_NAME, ..., the map being begun), s_SaveOnLoad=false, then World::LoadNextMap.",
+    "ValidateCheckpoint": "ScriptAction::Execute case (0x180254615): ConfigOptions::ValidCheckpoint = Bool('Value', true); SaveValidCheckpoint(GetActiveProfile(), valid). RoomManager.lua:4762 passes Valid=true (not Value), so the default true applies.",
+    "Save": "ProgressManager::Save 0x1802182d0: requires a save device and AllowSaveLoad (compiled true); MIN_TIME_BETWEEN_SAVES throttle; SaveInfo from Lua; SAVE_DATA reset; GatherSaveData; PrepareForWrite; SaveToDeviceAsync local+remote; dev save only when UseDevSaves (Defaults sets false).",
+    "GatherLuaState": "0x18021c710: _G.Revision = 36401 (0x8e31); call _G.Save if function (Main.lua:1008 -> _saveData = luabins.save(saveTable)); read _saveData string; LZ4; append u32 size + bytes.",
+    "device_write": "PCSaveDevice::Save 0x1803743d0: path = folder/name; SaveToTempAndMove compiled false; backups enabled (PCSaveDevice::Init sets +8=1): PlatformFile::Copy(path, path+'.bak'); CreateStream(path, write) and BinarySaveData::toStream; result 3 = success.",
+    "continue_selection": "RemoteProfileScreen::ShouldLoadCheckPoint 0x1801d23e0: Profile1.sav or Profile1_Temp.sav exists. GetPreferredSave 0x1801ce750: main if temp strictly older; else temp if Profile1.v.sav missing, valid, or no main; else main.",
+    "load": "LoadAsync/Load + Restore (BootLoad 0x1801b83c0, GameplayScreen::Update) -> LaunchScreen::MapLoad -> World::LoadNextMap 0x180317790 task lambda 0x1803182e0 -> ProgressManager::PreScriptLoad 0x18021d0a0 -> LoadLua: Lua Load(data) (Main.lua:1071 restores every saved global except SaveIgnores), then _G._worldTime = world time (world+0x1c), _G._screenTime = ScreenManager::s_ElapsedTime.",
+    "lua_after_load": "Inferred from scripts: OnPreThingCreation (RoomManager.lua:141; GameState non-nil so StartNewGame is skipped; DoPatches/SetupMap run), then OnAnyLoad (RoomManager.lua:219): RestoreUnlockRoomExits if CurrentRun.CurrentRoom.ExitsUnlocked else StartRoom; then OnLoad."
+  },
+  "native": {
+    "files": ["native/app/save_runtime.hpp", "native/app/save_runtime.cpp", "native/app/lua_save.cpp", "native/app/luabins_lua52_compat.h", "native/host/save_probe.cpp", "native/host/save_probe.hpp"],
+    "approximations": [
+      "MIN_TIME_BETWEEN_SAVES throttle not reconstructed (TimeSpan unit unproven).",
+      "Lua Save() errors or a missing _saveData fail the save; the original ignores the call error and could write a stale or Lua-less save.",
+      "Saves are written synchronously; the original uses SaveToDeviceAsync and a remote (cloud) device.",
+      "Checksums are always verified on load (the Load caller's verify flag was not recovered); legacy saves without the SGB1 magic are rejected.",
+      "Save files that exist but cannot be decoded are treated as absent when choosing between Profile1.sav and Profile1_Temp.sav.",
+      "Only the currently loadable map (RoomOpening) can be restored; other targets fail before Lua Load runs.",
+      "The SaveParams platform metadata and save-spinner UI are not reproduced."
+    ]
+  }
+}

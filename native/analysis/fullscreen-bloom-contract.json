@@ -1,0 +1,298 @@
+{
+  "schema": "hades-original-fullscreen-bloom-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "Original matching PE/PDB bounded static observations and shipped DXBC embedded original named source streams. No original engine/shader execution. Reconstructed host GPU validation is separate.",
+  "reports": {
+    ".local/reports/native-bloom-component-constructor-static.json": "33d96a87e7cd345e2e8913e95714e1e3c3c2e1679b6313b28302713df30eed80",
+    ".local/reports/native-bloom-get-settings-static.json": "5188adbce140e82f4b6be0cc8ff90eef53f0ac88662f502a5403e5ed6286f0a9",
+    ".local/reports/native-bloom-get-name-static.json": "2fc81020938068281067a0438c53fe9ceafd71d0f14ea6bdb36f22e55fd17414",
+    ".local/reports/native-bloom-lerp-settings-static.json": "e55961f120fca6de8e7625454092c20eda6f0cc1743c2e0eeb916e95b3dda4df",
+    ".local/reports/native-bloom-change-settings-static.json": "e797564a9bc0ec3f90bb2787ffe07a83ffe803cf45346ae2c44fb007c6585ed5",
+    ".local/reports/native-bloom-reset-static.json": "0ae157ec82735cbe3038a55bfdd69285596062050e1e58e53f4374d83d47aab7",
+    ".local/reports/native-bloom-update-static.json": "c938686e26cdc27476e74bef526af236f62646047c8de6b4048fab05346e291a",
+    ".local/reports/native-bloom-smoothstep-static.json": "33f02e6fe37949d6b7c07b29caf2ac85ea4b1813f2be54ef95499c874bce8ece",
+    ".local/reports/native-bloom-time-static.json": "fed38066e2cacb196760e7e72270f7e99535ea953057de6def9c6f3af7e3b7b1",
+    ".local/reports/native-bloom-should-do-static.json": "0d721ee2b3173d36430e4ec96ee6571e4f8a79eb044678877239bfe22dac31ab",
+    ".local/reports/native-bloom-world-fullscreen-static.json": "838e0cdd514258854b61cca43d6feb0cd33afed47cc5e966345dcdc6818aa702",
+    ".local/reports/native-bloom-draw-static.json": "3ea4d2ed6c9259514d10df5251c4926acbe0845638e08ccfdafe1ed65db19d80",
+    ".local/reports/native-bloom-blur-parameters-static.json": "f7a03c6e6e402e0925e84f93fe8fecf809eb61ac2af31bdba6126e4ef67d3642",
+    ".local/reports/native-bloom-app-resize-static.json": "4d52511cb0a45ec52ddd4c3107c141f41a353b353b68927f44cc32fa64db0cc5",
+    ".local/reports/native-bloom-render-target-add-static.json": "dcf9dfc0f067fe6ac9673a4953f688e542cffcea7a7cf082595e1a246a81ead0",
+    ".local/reports/native-bloom-forge-target-add-static.json": "f84f3ab30aac87aab96e85366face06956bb2f8a4e760f3acc389a54f09c1572",
+    ".local/reports/native-config-DrawBloom-annotated.json": "283188694b9a34a6687f87fd59c9e0f9bbf5a7ba7a9c2715a884425193865bdf",
+    ".local/reports/native-audio-effect-state-execute-static.json": "21b05d7e3dca59cd9b8ad4945d49fabeba05242729cf297fa1c2aad3455c0b12",
+    ".local/reports/native-lighting-WorldDraw-static.json": "543b54a8b8cc8217c5a8d116544ae7584496950a4e978e047fa573f65c324bbf"
+  },
+  "presets": {
+    "count": 78,
+    "source_sha256": "946252bfb3d8b0e46d2663af75d11058fc8d449581e18641edf139b43f1fb344",
+    "packet_bytes": 3064,
+    "packet_sha256": "add0d79d99305e0df5242457f2973acc5790f8a7595998f9d70cc50cf15742fc",
+    "fields": [
+      "BloomThreshold",
+      "BlurAmount",
+      "BloomIntensity",
+      "BaseIntensity",
+      "BloomSaturation",
+      "BaseSaturation"
+    ]
+  },
+  "observed_native": {
+    "constructor": "3a510 ShowBuffer3/finalcombine,UseWorldTime=true,start/duration0,neutral/null current/previous/target settings. DrawBloom initializer f550 sets true.",
+    "reset": "21f420 GetSettings(Off) into current, previous.isNull=true,target.isNull=true.",
+    "lookup": "2209b0 scans source BloomData names case-insensitively; missing/empty logs and returns neutral isNull=true. Execute252c79 skips null settings.",
+    "action": "Execute252c56 gets first Names entry, shared getDuration, looked-up settings, UseWorldTime defaulttrue; LerpSettings252d2c. No six-field action overrides.",
+    "transition": "220680 EXACT duration0 invokes ChangeSettings; negative durations still retain transition. Nonzero snapshots current\u2192previous, request\u2192target, float duration, selected absolute clock start. Immediate ChangeSettings copies current only and does not clear preexisting target.",
+    "clock": "21f3d0 UseWorldTime selects World+1c float, otherwise ScreenManager elapsed double converted tofloat.",
+    "update": "21f5f0 returns if DrawBloom=false or target.isNull. fraction=(selectedClock-start)/duration float. SmoothStep for six fields; fraction>=1 copies complete target into current and sets target.isNull. Until completion current name remains previous name.",
+    "interpolation": "21efd0 clamps float fraction0..1, exactendpointreturns, double Hermite polynomial with zero tangents, final floatcast.",
+    "query": "269380 GetBloomSettingName returns target.name while transitioning, else current.name; nullsetting emptystring.",
+    "should_draw": "21f170 requires DrawBloom and any exact float difference from neutral vector0,0,0,1,1,1. Includes base/saturation/blur differences even if BloomIntensity0.",
+    "draw_order": "World.Draw31ccaa executes DoFullscreenEffects at configuredgroup boundary;31d090 fallback onlyifnotalreadycalled. DoFullscreenEffects applies colorgrading thenBloom.Draw31d486 then Blur31d579, before subsequent scene groups where configuredgroup matched.",
+    "size": "App.Resize358db/358eb creates targettypes1/2 with unchanged fullwidth/fullheight; AddRenderTarget2446c0 forwards; Forge.AddRenderTarget2315b5/5bc stores same dimensions. No half-resolution bloom inferred.",
+    "kernel": "21f870 fifteen samples, centerindex7, Gaussianweights exp(-n*n/(2*blur*blur)),n0..7 andpairedsamples; normalized sum. Center offset0; paired texture offsets\u00b11.5,\u00b13.5,..\u00b113.5 pixels. Horizontal1/width,vertical1/height. Native common Gaussian prefactor cancels normalization.",
+    "passes": [
+      "Horizontal15tapGaussian with threshold extraction per sampled RGBA value: max((sample-threshold)/(1-threshold),0).",
+      "Vertical15tapGaussian of horizontal texture.",
+      "Saturation adjusts RGB around luma weights(.3,.59,.11). Bloom*=BloomIntensity. Base saturation then *=1-clamp(bloom,0,1) and BaseIntensity. RGB=sum,alpha1."
+    ]
+  },
+  "shipped_shader_sources": [
+    {
+      "shader": "BloomCombine.frag",
+      "shader_sha256": "c7bd284b991a4ff1e0e2bcd699f37afa447a788cc39e00669b7bfc0949ec39ad",
+      "name": "/src/files/d:\\jenkins\\workspace\\minos_pc_latest\\gsge\\engine\\content\\effectsforged3d11\\default2dheader.inc",
+      "stream": 9,
+      "bytes": 331,
+      "sha256": "03b138c5d8ef917e883aa0aad212ca6b390101f9bdb2f51df5d14d3cae408d94",
+      "source_blocks": [
+        {
+          "offset": 7028,
+          "size": 331
+        }
+      ],
+      "output": "03b138c5d8ef917e-default2dheader.inc"
+    },
+    {
+      "shader": "BloomCombine.frag",
+      "shader_sha256": "c7bd284b991a4ff1e0e2bcd699f37afa447a788cc39e00669b7bfc0949ec39ad",
+      "name": "/src/files/d:\\jenkins\\workspace\\minos_pc_latest\\gsge\\engine\\content\\effectsforged3d11\\bloomcombine.frag",
+      "stream": 8,
+      "bytes": 1103,
+      "sha256": "0185f45f3088a7f71f9adbb10ad679de64c73fe3b74fae20e0b59ca6296f1731",
+      "source_blocks": [
+        {
+          "offset": 5492,
+          "size": 512
+        },
+        {
+          "offset": 6004,
+          "size": 512
+        },
+        {
+          "offset": 6516,
+          "size": 79
+        }
+      ],
+      "output": "0185f45f3088a7f7-bloomcombine.frag"
+    },
+    {
+      "shader": "BloomCombine.frag",
+      "shader_sha256": "c7bd284b991a4ff1e0e2bcd699f37afa447a788cc39e00669b7bfc0949ec39ad",
+      "name": "/src/files/d:\\jenkins\\workspace\\minos_pc_latest\\gsge\\engine\\content\\effectsforged3d11\\adjustsaturation.inc",
+      "stream": 10,
+      "bytes": 386,
+      "sha256": "f161bfe4ceec96354225f8dbbfac8b52a69bed6ac2abd135021178ebeea26513",
+      "source_blocks": [
+        {
+          "offset": 7540,
+          "size": 386
+        }
+      ],
+      "output": "f161bfe4ceec9635-adjustsaturation.inc"
+    },
+    {
+      "shader": "GaussianBlurWithBloomExtract.frag",
+      "shader_sha256": "51752f8637d50e05a4ee47083d2217655d0207003f00c2dca3d09e88297a1b93",
+      "name": "/src/files/d:\\jenkins\\workspace\\minos_pc_latest\\gsge\\engine\\content\\effectsforged3d11\\gaussianblurwithbloomextract.frag",
+      "stream": 8,
+      "bytes": 675,
+      "sha256": "f5220b5e760eabbcfa3d373df60f57f93390c3b00f2c84f6488c43f4c07962d4",
+      "source_blocks": [
+        {
+          "offset": 5788,
+          "size": 512
+        },
+        {
+          "offset": 6300,
+          "size": 163
+        }
+      ],
+      "output": "f5220b5e760eabbc-gaussianblurwithbloomextract.frag"
+    },
+    {
+      "shader": "GaussianBlurWithBloomExtract.frag",
+      "shader_sha256": "51752f8637d50e05a4ee47083d2217655d0207003f00c2dca3d09e88297a1b93",
+      "name": "/src/files/d:\\jenkins\\workspace\\minos_pc_latest\\gsge\\engine\\content\\effectsforged3d11\\gaussianblur.inc",
+      "stream": 9,
+      "bytes": 309,
+      "sha256": "cc051a50dc19b8e55c8f228de66378767841da8608c55c285ab8387cd2f66709",
+      "source_blocks": [
+        {
+          "offset": 6812,
+          "size": 309
+        }
+      ],
+      "output": "cc051a50dc19b8e5-gaussianblur.inc"
+    },
+    {
+      "shader": "GaussianBlur.frag",
+      "shader_sha256": "a1a647a24b3f6363349ab892a5d2a20e32e7bc03f317360a838c322cbd0c6590",
+      "name": "/src/files/d:\\jenkins\\workspace\\minos_pc_latest\\gsge\\engine\\content\\effectsforged3d11\\gaussianblur.frag",
+      "stream": 8,
+      "bytes": 572,
+      "sha256": "168ceba4d445cc562227b2d3bb374e1d9faac38633a2151b721909a959e83144",
+      "source_blocks": [
+        {
+          "offset": 5576,
+          "size": 512
+        },
+        {
+          "offset": 6088,
+          "size": 60
+        }
+      ],
+      "output": "168ceba4d445cc56-gaussianblur.frag"
+    },
+    {
+      "shader": "GaussianBlur.frag",
+      "shader_sha256": "a1a647a24b3f6363349ab892a5d2a20e32e7bc03f317360a838c322cbd0c6590",
+      "name": "/src/files/d:\\jenkins\\workspace\\minos_pc_latest\\gsge\\engine\\content\\effectsforged3d11\\gaussianblur.inc",
+      "stream": 9,
+      "bytes": 309,
+      "sha256": "cc051a50dc19b8e55c8f228de66378767841da8608c55c285ab8387cd2f66709",
+      "source_blocks": [
+        {
+          "offset": 6600,
+          "size": 309
+        }
+      ],
+      "output": "cc051a50dc19b8e5-gaussianblur.inc"
+    },
+    {
+      "shader": "GaussianBlur.vert",
+      "shader_sha256": "f890da3dc372fa551cdc3ca1215570389ba01585980671b45921f64cb29dcc75",
+      "name": "/src/files/d:\\jenkins\\workspace\\minos_pc_latest\\gsge\\engine\\content\\effectsforged3d11\\gaussianblur.vert",
+      "stream": 8,
+      "bytes": 839,
+      "sha256": "fc80af83b7d380e15c476a58c02c38f74655b35ddc87f8c06181fca9fa3ed5ae",
+      "source_blocks": [
+        {
+          "offset": 6372,
+          "size": 512
+        },
+        {
+          "offset": 6884,
+          "size": 327
+        }
+      ],
+      "output": "fc80af83b7d380e1-gaussianblur.vert"
+    },
+    {
+      "shader": "GaussianBlur.vert",
+      "shader_sha256": "f890da3dc372fa551cdc3ca1215570389ba01585980671b45921f64cb29dcc75",
+      "name": "/src/files/d:\\jenkins\\workspace\\minos_pc_latest\\gsge\\engine\\content\\effectsforged3d11\\vertexhelpers2d.inc",
+      "stream": 10,
+      "bytes": 849,
+      "sha256": "4e68ae36c9cb1d7d0fcf50b02d0b02fa7371a0d7c680232858ea93eecb0a6026",
+      "source_blocks": [
+        {
+          "offset": 7908,
+          "size": 512
+        },
+        {
+          "offset": 8420,
+          "size": 337
+        }
+      ],
+      "output": "4e68ae36c9cb1d7d-vertexhelpers2d.inc"
+    },
+    {
+      "shader": "GaussianBlur.vert",
+      "shader_sha256": "f890da3dc372fa551cdc3ca1215570389ba01585980671b45921f64cb29dcc75",
+      "name": "/src/files/d:\\jenkins\\workspace\\minos_pc_latest\\gsge\\engine\\content\\effectsforged3d11\\gaussianblur.inc",
+      "stream": 9,
+      "bytes": 309,
+      "sha256": "cc051a50dc19b8e55c8f228de66378767841da8608c55c285ab8387cd2f66709",
+      "source_blocks": [
+        {
+          "offset": 7396,
+          "size": 309
+        }
+      ],
+      "output": "cc051a50dc19b8e5-gaussianblur.inc"
+    },
+    {
+      "shader": "BloomExtract.frag",
+      "shader_sha256": "4093ec847c0932e637b1ca7d2169af2760f15569c6286a403d386d37a23a44f7",
+      "name": "/src/files/d:\\jenkins\\workspace\\minos_pc_latest\\gsge\\engine\\content\\effectsforged3d11\\bloomextract.frag",
+      "stream": 8,
+      "bytes": 535,
+      "sha256": "4b76c13efffb8b6916e6de6f9d7bf7124415c85345068306d643f8db834b4988",
+      "source_blocks": [
+        {
+          "offset": 5020,
+          "size": 512
+        },
+        {
+          "offset": 5532,
+          "size": 23
+        }
+      ],
+      "output": "4b76c13efffb8b69-bloomextract.frag"
+    },
+    {
+      "shader": "BloomExtract.frag",
+      "shader_sha256": "4093ec847c0932e637b1ca7d2169af2760f15569c6286a403d386d37a23a44f7",
+      "name": "/src/files/d:\\jenkins\\workspace\\minos_pc_latest\\gsge\\engine\\content\\effectsforged3d11\\default2dheader.inc",
+      "stream": 9,
+      "bytes": 331,
+      "sha256": "03b138c5d8ef917e883aa0aad212ca6b390101f9bdb2f51df5d14d3cae408d94",
+      "source_blocks": [
+        {
+          "offset": 6044,
+          "size": 331
+        }
+      ],
+      "output": "03b138c5d8ef917e-default2dheader.inc"
+    }
+  ],
+  "implementation": [
+    "native/app/bloom_state.hpp",
+    "native/app/bloom_state.cpp",
+    "native/app/lua_bloom.cpp",
+    "native/app/bloom_renderer.hpp",
+    "native/app/bloom_renderer.cpp",
+    "native/tools/export_bloom_settings.py"
+  ],
+  "adaptations": [
+    "Android GLES3/OpenGL host shader re-expression of original equations; UV offsets computed in fragment shader rather than15 vertex varyings.",
+    "Full-resolution RGBA8 intermediates, bilinear sampling and edgeclamp are portable chosen storage/sampler policy. Original swapchain/D3D color-space/precision parity is not claimed.",
+    "Gaussian normalization removes a shared prefactor; original float roundoff/bitwise shader output not claimed.",
+    "State guards reject nonfinite clocks/settings, active nonpositive blur and threshold1 singularity. All78 retained source presets have positive blur except actual neutral Off.",
+    "Debug ShowBuffer0/1/2 source views are not exposed; source compileddefault3 finalcombined implemented."
+  ],
+  "verification": {
+    "cpu": ".local/reports/native-bloom-source-probe-v1.log ASan+UBSan: real78presetpacket resetOff,case-insensitive lookup,unknownskip,world/screenclocks,SmoothStep,disabled-updatefreeze,negative-duration and immediate-keeps-target semantics.",
+    "gpu": [
+      ".local/reports/native-bloom-gpu-probe-v3.log ASan+UBSan actual Mac offscreenGL Default64x32; independent CPU source-equation reference maxerror1byte.",
+      ".local/reports/native-bloom-gpu-probe-v4.log NewType60x30 exercises nonunit saturation/intensity+threshold; maxerror1byte. Both prove Off byteidentity and restoredscissor/viewport/colorMask."
+    ],
+    "android": "NDK29 AndroidAPI26 -O2 -Wall -Wextra -Werror compilation passed for BloomRenderer. No emulator/Fold runtime validation by this worker."
+  },
+  "limits": [
+    "Full-game visual equivalence and sustained Android performance remain unverified.",
+    "Original fullscreen blur is separate and not implemented by this module.",
+    "GetBloomSettingName standalone accessor exists; ScriptRuntime query binding is parent integration work."
+  ]
+}

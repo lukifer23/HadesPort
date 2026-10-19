@@ -1,0 +1,291 @@
+{
+  "schema": "hades-native-property-mutation-contract-v1",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "evidence_kind": "Bounded original DLL/PDB static evidence; no original execution.",
+  "common_args": {
+    "Property": "String default empty",
+    "ValueChangeType": {
+      "default": "Absolute",
+      "case": "Action ParseEnum passes false => case-insensitive recognized names. Unrecognized returns0 Absolute.",
+      "enum": {
+        "Absolute": 0,
+        "Multiply": 1,
+        "MultiplyBase": 2,
+        "Add": 3,
+        "ReplaceIfNull": 4
+      }
+    },
+    "Value": "LuaTableExtensions::GetValue supplies typed eastl::any from original field. Do not conflate bool false, number0, string false, literal null, absent. Native GetValue implementation still needs exact type coverage.",
+    "Delay": "These are registered Void actions and inherit central delayed admission; immediate handler must bypass second admission."
+  },
+  "SetThingProperty": {
+    "id": 176,
+    "rva": "0x272960",
+    "selectors": "Exact DestinationIds (plural presence suppresses DestinationId) and DestinationNames (plural presence suppresses DestinationName), union active runtime IDs and group membership. No Id/Ids or Thing./Data. aliases.",
+    "DataValue_default": true,
+    "AllProjectiles_default": false,
+    "DataValue_true": "Thing::SetThingProperty atRVA2e66d0: changes per-instance ThingDataDef or MapThingDef, with relevant lifecycle side effects; not a generic key/value bag.",
+    "DataValue_false": "ReflectionHelper::SetProperty<Thing> atRVA280b40: reflected live Thing fields. For selected targets only (not AllProjectiles branch), exact Property AnimFreeze with animation also adds/removes animation TimeFreeze ECS component based on resulting Thing.mAnimFreeze+0x61.",
+    "AllProjectiles_true": "Uses ProjectileManager::PROJECTILES vector instead of selected target set; selectors are still resolved first but unused for application.",
+    "DataValue_true_specials_observed": [
+      "Default value reset fetches matching original base-data reflected property (case-insensitive Default sentinel).",
+      "ParallaxAmount updates MapThingDef and camera/parallax position helpers.",
+      "Ambient, Gravity, SortMode, BounceMultiplier, Graphic, CausesOcclusion, StopsLight have extra postassignment behaviors. Complete branches not all reconstructed."
+    ],
+    "caution": "UnitData/ObstacleData are not ThingDataDef. Applying all setters into one merged dictionary would silently lose native dispatch and side effects."
+  },
+  "SetUnitProperty": {
+    "id": 180,
+    "rva": "0x273850",
+    "selectors": "Special fast path, NOT generic ScriptArgs selection. Convertible numeric DestinationId wins and ignores DestinationIds entirely even if missing target. Otherwise expects Lua table DestinationIds, loops consecutive numeric keys starting1, stops first nil; numeric items convert through Lua integer conversion, nonnumeric items skipped. Repeated IDs can apply repeatedly; no target hash-set dedup. DestinationName, DestinationNames, Id, Ids only diagnostic HasKey probes; no effect on selection.",
+    "type_gate": "Exact active-ID map lookup; nonnull selected Unit flags((~flags)&0x221)==0.",
+    "DataValue": "Not read by complete action body; original LowSpeedThreshold calls DataValue=false do not choose another dispatch path.",
+    "mutation": "Unit::SetUnitProperty RVA2f4e80 first ReflectionHelper::SetProperty<UnitData>(unit.pData+0x3c0,property,value,requestedchange). If property not recognized, tries MoveAIData in current live MoveAI atUnit.mAI+0x418 +0x58 (when mAI nonnull), then UnitData.pMoveAIData atUnitData+0x60. Both MoveAI fallback calls force Absolute0, ignoring requested change.",
+    "limits": [
+      "UnitData property lookup failure and no-op are native distinctions; reconstruction may fail closed for unsupported known state, but that is explicit policy.",
+      "UnitData pMoveAIData ownership/sharing must follow actual instance cloning; do not mutate global source catalog."
+    ],
+    "reflected_minimum": {
+      "CanMove": {
+        "type": "bool",
+        "full_data_offset": 265,
+        "definition_offset": 185,
+        "proof_va": "0x1800f5ab7"
+      },
+      "CanAttack": {
+        "type": "bool",
+        "full_data_offset": 266,
+        "definition_offset": 186,
+        "proof_va": "0x1800f6187"
+      },
+      "Speed": {
+        "type": "float32",
+        "full_data_offset": 268,
+        "definition_offset": 188,
+        "proof_va": "0x1800f5a47"
+      }
+    }
+  },
+  "SetObstacleProperty": {
+    "id": 178,
+    "rva": "0x273230",
+    "selectors": "Same generic Destination helper union as EquipWeapon.",
+    "type_gate": "nonnull flags((~flags)&0x121)==0 plus mHasData atObstacle+0x3b0 true.",
+    "mutation": "ReflectionHelper::SetProperty<ObstacleData> atRVA2c6950 changes embedded per-instance ObstacleData+0x3d8. Then virtual OnPropertiesDirty(+0x118) regardless reflection success. Standard Obstacle vtable inlined path invokes update state at+0x70, sets StopsUnitsDirty+0x3b3 and StopsProjectilesDirty+0x3b5, recalculates stops and LocationChanged(true).",
+    "DataValue": "Not read by complete body.",
+    "owner_fields_proven_by_pdb": {
+      "mHasData": 944,
+      "mStopsUnitsDirty": 947,
+      "mStopsProjectilesDirty": 949,
+      "mData": 984
+    }
+  },
+  "reflection_primitive_observations": {
+    "bool": "SetPropertyValue receives native PropertyInfo destination pointer/type. Bool any writes exact bool. char*/EASTL string accepts case-insensitive true/false; unmatched strings become false. Unsupported any types return false rather than Lua truthiness conversion.",
+    "int": "Numeric any conversion uses native casts, empty any sets0; complete type table is pending detailed follow-up.",
+    "soundcue": "Typed SoundCue branch in ReflectionHelper<UnitData> uses shared normalization, invalid sentinel; see sound-cue-contract.json.",
+    "numeric_changes": "Float Multiply/Add use ConvertAnyToFloat numeric-only; unrecognized typed inputs convert0. Integer Multiply uses float current*float then roundf ties away fromzero; Add converted int with native32-bit wrap. Absolute float does not accept int64 in reviewed SetPropertyValue although native boxed Lua numbers are float32. Absolute int accepts numeric and empty0. Numeric strings never parse in these ConvertAny functions.",
+    "lua_value": "GetValue inspects native LuaTable::Type: number becomes float32 via double->float at180250a78; bool remains bool; string retains char*; table/function retain Lua references. Missing/unsupported native type becomes empty any. Portable source scalar conversion intentionally excludes table/function.",
+    "MultiplyBase": "First calls GameDataManager::GetMultipliedBaseDataValue. That routine uses ProjectileData reflection for category3, GameData(Name/Organization/InheritFrom only) for all others. Numeric base yields (factor-1)*base; integer truncates delta before recursive Add. Unknown base yields empty any -> Add0 for recognized numeric destination. Do not substitute arbitrary source-definition base property."
+  },
+  "related": [
+    "equip-bridge-contract.json",
+    "delayed-actions-contract.json",
+    "sound-cue-contract.json"
+  ],
+  "reports": [
+    {
+      "path": "hades/.local/reports/native-property-unit.json",
+      "sha256": "9bb14e4d693fefd8d39674db74bb941ddc581d186d8821edd6722d2ae0eb9c8a"
+    },
+    {
+      "path": "hades/.local/reports/native-property-unit-mutate.json",
+      "sha256": "083b78485b87b948f095cec19715169ff6d44f0ca5c579b0c212678f35b262b9"
+    },
+    {
+      "path": "hades/.local/reports/native-property-thing.json",
+      "sha256": "9c2514904abb9040b81c41c85637193f6b3c387ab96d1714577dea1bc253313a"
+    },
+    {
+      "path": "hades/.local/reports/native-property-thing-mutate.json",
+      "sha256": "6316c8c83c7d0982c4979438ff5df6c2d6f6d64d3c022bb43f396f03bee53b2b"
+    },
+    {
+      "path": "hades/.local/reports/native-property-obstacle.json",
+      "sha256": "0d1e7d29cca605d67b4049b4c4fcd60fb43c9cb189c27fcc8e1938c8014a7059"
+    },
+    {
+      "path": "hades/.local/reports/native-property-unit-reflect.json",
+      "sha256": "6bc8d1f04067d81ce391f639653b3dd2725b0fd1715aab237cb5923ca91877d0"
+    },
+    {
+      "path": "hades/.local/reports/native-property-value.json",
+      "sha256": "c644e6fc1d9b50ef5529b5e2dbe11ac823b1a751128057b4cd10d5440499e145"
+    },
+    {
+      "path": "hades/.local/reports/native-property-change-enum.json",
+      "sha256": "7b73a03be7d29b96227c758487ae2d7bbe1e3f50b34b62d9689490244cfe142a"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-property-unit.json",
+      "sha256": "bdf133542a5cecd11e90fb0fd335a64ea5c63f858b8c48431fdfc62b5f2dc3c0",
+      "evidence_id": "ev_34137d63f182590ae4a1574b42d0ce2ae3198d398aa0a8a3f85d3efc416be227"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-property-thing.json",
+      "sha256": "eeafb2baf9b040aeb9a48380771c5edb499809e6d7552c4fbdba23216f86046b",
+      "evidence_id": "ev_510897c5a2d9b62ca5a791c5d8387bee76aefb29ae2d8498c854cc85e6c6356a"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-property-obstacle.json",
+      "sha256": "53da4debddacb6c6d8f1777e868392077965fb4bc1516a8136b5ebd2ea881a37",
+      "evidence_id": "ev_449e242883c333d08237d946763d16308b60415703b6b04ea57435e0e3963e47"
+    },
+    {
+      "path": "hades/.local/reports/native-property-unit-info.json",
+      "sha256": "4611246b577c28ef84382a246b1df07ae9de56c8d672645cd95eaede2fc9fec0"
+    },
+    {
+      "path": "hades/.local/reports/native-property-game-data-info.json",
+      "sha256": "9f418fe6b0c52179a170d3136459a7f33287dda42048ae956834ec35f1c8d2b2"
+    },
+    {
+      "path": "hades/.local/reports/native-property-life-data-info.json",
+      "sha256": "281256c4eff86d2e55d9ca99bb96a22200f89885e2d140ed2520d635507c4f7c"
+    },
+    {
+      "path": "hades/.local/reports/native-property-life-live-info.json",
+      "sha256": "8a6f7631f8bff0f44c27ed3d17aa75d1f14d39a9f79b1945424fabbec57ec2a1"
+    },
+    {
+      "path": "hades/.local/reports/native-property-life-action.json",
+      "sha256": "100455b72eb8c78be949a8b6801c08e8273352463418b7873d4729c534687755"
+    },
+    {
+      "path": "hades/.local/reports/native-property-life-set-data.json",
+      "sha256": "84193896bd912d58fff569372399adff2992935a37d4a895d2e9ec073d1ce42a"
+    },
+    {
+      "path": "hades/.local/reports/native-property-life-invulnerable.json",
+      "sha256": "6b45f552cc859bb23f31c8279b0d456ecd26e960b2aeb030cd31ef61bc5ea257"
+    },
+    {
+      "path": "hades/.local/reports/native-property-thing-is-invulnerable.json",
+      "sha256": "ac9a9d7d72d4be162ced8020925476348a614f98af1cf577d7613e81ac509373"
+    },
+    {
+      "path": "hades/.local/reports/native-property-lua-get-value.json",
+      "sha256": "b3be264694cde172130e1e981541a38f0ec3d8188abb2cfae999fcf289c4362a"
+    },
+    {
+      "path": "hades/.local/reports/native-property-convert-float.json",
+      "sha256": "c4d16141f3b791614b78b6bc0816873a1e5cd7fadb26add7860d88ee6251b109"
+    },
+    {
+      "path": "hades/.local/reports/native-property-convert-int.json",
+      "sha256": "9c4131dfab22023d43925809e56e9376b437aa5798f362e92a61db475800b222"
+    },
+    {
+      "path": "hades/.local/reports/native-property-multiply-base.json",
+      "sha256": "8c35ab658488598beb4f46831b79bb1681d519a349f887d8cc8a0bd06cfa1025"
+    },
+    {
+      "path": "hades/.local/reports/native-weapon-owner-unit-init.json",
+      "sha256": "f87d2c4a9d5a958b91ffd17855dbf88dcf3e5dccadee4f2a808e1ddf1c12f7d7"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-property-unit-reflect.json",
+      "sha256": "88cea3acb80a2de2ed1c0491f6bdfdf972d9238c217996967e108138ad1b518f",
+      "evidence_id": "ev_32d5fd1757cfc46795a3a3a73b106965e65d44916acc1112a173069563f72e13"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-property-value.json",
+      "sha256": "51c8c7f06334af5a13d1d391773947e7618a3ee28f30fe3c4caf20896328d3fb",
+      "evidence_id": "ev_dd8a830b2488904d7280c357e9c3eb32ab61d96d17c5acdd1e31c83cc3411f9b"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-property-life-action.json",
+      "sha256": "de8a99c07e19372ad8c9d5d0f4f7c510d00369a5d9657ba720685f476d4322ff",
+      "evidence_id": "ev_380b602696c02d4d9296627bb69da5e4d703e0fc514e52377ca0bfa1ff64aa85"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-property-life-set-data.json",
+      "sha256": "3605be89f3d094bb1edaa8286ab23c301cf24b60d5ce22f139acafcd3b80b739",
+      "evidence_id": "ev_dd4a3685b1ec0aba0e20cfbfc0f52ac619d076952c6c598e748e789d26dd4f69"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-property-lua-get-value.json",
+      "sha256": "cc123d3c2eea039eb2d0d7b1aca1211340d71d261f5d0994463191821a39c09f",
+      "evidence_id": "ev_2a2a0d57ab67e43ce22b843281b683472f47ab7962a09c031929f219a405cff0"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-property-thing-mutate.json",
+      "sha256": "da5c720829edbfe5588a547861c8fe96611d787f2b2607f0c40b9460a545570a",
+      "evidence_id": "ev_8ce8f9d881907b2acd81b7d2bcac6c481a5c9bd223765e086e5a57f2c16d654a"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-property-unit-info.json",
+      "sha256": "9495ab4dc3f474e17c456a736620fdd8bed8abbdf256ffb49ce0181958a64a93",
+      "evidence_id": "ev_0d0356c91d1c56c3934c460f5b1a854e58bea52f2a311fe0d6a50f2b586a9a04"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-property-multiply-base.json",
+      "sha256": "1493ba05fd85558ce31c026f61a74b189b527548d804a8b1b7876eb496839719",
+      "evidence_id": "ev_d1971677c6d9884367cefe470ea8ce18452a1cc6d00c3d7133fb47f2bd6ef467"
+    }
+  ],
+  "remaining_unknowns": [
+    "Native exact enum type9 setters are not in this portable scalar API.",
+    "Thing special-property side effects complete reconstruction and animation/body/collision ownership.",
+    "Table/function/complex native property values require actual component handlers.",
+    "Obstacle initial life assignment and broader dynamic lifecycle are separate proof ranges."
+  ],
+  "implementation_guidance": "Implement only proven typed fields on actual active instance components. A successful lookup with a missing/unsupported native component is not blanket approval to record the key and return success.",
+  "native_namespace": {
+    "property_names": "Case-sensitive exact full strings; no native Thing., Data., Life. path-prefix parser in reviewed lookup routines. Those prefixes in exported SourceValue data represent owner storage only.",
+    "UnitData_unknown": "GetPropertyInfo<UnitData> delegates unknown full name to GetPropertyInfo<GameData>, which recognizes Name, Organization, InheritFrom only, otherwise Unknown type0/null destination. Unit::SetUnitProperty then tries MoveAIData fallback, forced Absolute.",
+    "policy": "Native unknown property produces no mutation and Void action returns normally. Separately identify a recognized field whose native behavior is not ported: silently accepting it into an arbitrary dictionary is not proven behavior."
+  },
+  "SetLifeProperty": {
+    "id": 177,
+    "rva": "0x272da0",
+    "selectors": "Same DestinationId-first special fast path and sequential DestinationIds table behavior as SetUnitProperty. Diagnostic DestinationName/DestinationNames/Id/Ids probes do not choose targets.",
+    "component_gate": "Actual active Thing.pLife +0xd0 nonnull.",
+    "DataValue_default": true,
+    "data_true": "LifeComponent::SetDataProperty RVA2b9610 -> reflected LifeDataDef atpData+0x60; no write to live invulnerability or call to SetInvulnerable. Default sentinel can fetch original base LifeData first.",
+    "data_false": "ReflectionHelper<LifeComponent> writes reflected live field.",
+    "Invulnerable": {
+      "data_property": "Invulnerable",
+      "data_type": "bool",
+      "data_offset": 0,
+      "export_path": "Life.Invulnerable",
+      "live_property": "IsInvulnerable",
+      "live_offset": 49,
+      "initialization": "Unit::Init VA1802f10c1 reads LifeDataDef byte0,1802f10c4 writes actual LifeComponent+0x31; this copy occurs during initialization only.",
+      "consumer": "Thing::IsInvulnerable RVA651a0 checks animation AnimationData+0x8a OR LifeComponent+0x31; does not read data byte0.",
+      "explicit_SetInvulnerable": "RVA2b79c0 sets live flag and world invulnerable set, clears old visual and creates InvulnerableFx; direct live reflection does not perform that whole operation."
+    }
+  },
+  "primitive_api": {
+    "files": [
+      "native/app/primitive_properties.hpp",
+      "native/app/primitive_properties.cpp"
+    ],
+    "purpose": "Typed scalar mutation only after caller resolves actual reflected member and owner. Never strips prefixes or assumes unknown names exist.",
+    "limitations": [
+      "Finite values guard is explicit portable policy; no claim original rejected NaN/Inf.",
+      "MultiplyBase accepts only actual recovered native additive delta; absent delta reports UnsupportedChange.",
+      "Complex values/enums/side-effect setters remain separate."
+    ],
+    "verification": {
+      "kind": "Synthetic portable ASan+UBSan smoke; not original execution",
+      "source": "native/analysis/primitive_properties_smoke.cpp",
+      "result": "passed",
+      "compiler": "clang++ -std=c++20 -Wall -Wextra -Werror -fsanitize=address,undefined"
+    }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "schema": "hades-native-effect-name-id-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "implementation": "native/app/effect_name_hash.hpp",
+  "source": "direct bounded translation of matching native instructions; no upstream/current xxhash version assumed",
+  "function": {
+    "rva": "0xadba0",
+    "bytes": 898,
+    "sha256": "5d5dccb0a640b4f5bea8042d4f21fc174de41b18f3c0f04afe51d2b643b67517",
+    "pdb_name": "XXH_INLINE_XXH3_64bits",
+    "coverage": "UTF8 byte length0..128; longer keys rejected"
+  },
+  "secret": {
+    "rva": "0x4c9e00",
+    "bytes": 128,
+    "sha256": "babb32f01e23041472d9d74147329512de56170e61a06e0fd5e4ed390b319abc"
+  },
+  "primitive_paths": {
+    "0": "nativeXXH64 avalanche(secret64[56] xor secret64[64])",
+    "1..3": "native combined byte positions and secret32 bitflip then XXH64 avalanche",
+    "4..8": "native first32<<32|last32, secret xor, rotate49/24, original9fb21c651e98df25 multiply/shift sequence",
+    "9..16": "native byte swap/folded128 multiplication with exact secret offsets then originalXXH3 avalanche",
+    "17..128": "original length*prime64_1 + ordered folded16-byte mixes/secret offsets then originalXXH3 avalanche"
+  },
+  "field_identity": {
+    "mId": "EffectData+50, computed ONLY on actual Name Read case at1800b11cf..11d4",
+    "refresh": "EffectData+58, only actual RefreshOnExpireWithEffect Read at1800b2582..2587",
+    "refreshAlt": "EffectData+60, only actual Alt Read at1800b260d..2612",
+    "omitted": "ctor zeros all3 header IDs at1800ae30a/30e/312, before source Read; source_fields presence retained in HWA3 JSON",
+    "explicit_empty": "hashed when read; native short hash2d06800538d394c2, distinct from omitted0",
+    "reflection_mutation": "IDs stored separately from live source Name strings; this pass does not silently recompute headers on primitive reflection"
+  },
+  "native_query": {
+    "HasEffect_rva": "0x2fe1c0",
+    "order": [
+      "toDelete matching native dataID masks false",
+      "active first matching dataID true",
+      "pending first matching dataID true",
+      "else false"
+    ],
+    "flags": "no cleared/disposed filtering; no unconditional id0 rejection",
+    "HasRefresh_rva": "0x5d4f0",
+    "logic": "actual current owner lookup; query firstrefreshID, thenaltID iffalse; no multiplier operation in predicate"
+  },
+  "catalog_validation": {
+    "source": "player-weapons-v13",
+    "weapon_effects": 252,
+    "all_actual_loaded_Name_ids_nonzero": true,
+    "expiry": "source SlowCharge omitted refresh IDs0; actual active/pending names have distinct nonzero IDs; exact HasEffect queries returnfalse",
+    "log": ".local/reports/native-self-effect-world-debug-v13-asan.log"
+  },
+  "reports": [
+    ".local/reports/native-self-effect-xxh3-dispatch.json",
+    ".local/reports/native-self-effect-full-default-ctor.json",
+    ".local/reports/native-weapon-effectnorm-effect-read-static.json",
+    ".local/reports/native-self-effect-has-effect-id.json",
+    ".local/reports/native-self-effect-refresh-query.json",
+    ".local/reports/native-self-effect-data-layout.txt"
+  ],
+  "evidence_kind": "matching PDB and bounded LLVM static; not claimed public REA/native execution",
+  "unknowns": [
+    "native XXH3 strings longer128 not ported",
+    "source effects introduced outside copied weapon catalog need same proven ID metadata before admission/query"
+  ]
+}

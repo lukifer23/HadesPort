@@ -1,0 +1,91 @@
+{
+  "schema": "hades-native-projectile-impact-takehit-v1",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "scope": "Bounded ARC Impact/ApplyImpact/Life.TakeHit sequencing using actual ActorWorld/Arsenal, original Lua OnHit, explicit mandatory consumers. Not complete damage/effects/actor lifecycle or observed gameplay.",
+  "source_evidence": {
+    "Impact71880": "ev_a1dda49d9dbbed7869afcbd02f2e0cbcb8f4bbc46089d10c63f88f48b394bd20",
+    "ApplyImpact76590": "ev_40a4c8700f27450b8403d415d29e3ba80e7b1fcf7443ce2f8c596abe5371852f",
+    "CalcDamage6dbd0": "ev_7fbb6fc6748742adfb9d1b5ddf2eaadc6af901ba7d6c14901cffa072a52aa46b",
+    "LifeTakeHit2b7cd0": "ev_65a766c571a851d1589c649081b52d50c349f1752be1c426785301d4f589872a",
+    "CalcImpactLocation76f80": "ev_7ca188a86008fb9ae7732e318dfa7e4903f845a059776d41ba9bbba23403cc36",
+    "GetImpactAngle6e7d0": "ev_c2b385563b54f0c9eb0191b0f865ac8cb349daa27baeef751e973208d5a68b15",
+    "ApplyEffects77630": "ev_0aa253a21b565b8876f8b0bd547f57e7963c636d265830c60e568c3cf703c17b",
+    "UnitStatusAddEffect2fdca0": "ev_c30fcae948edf241693d2ea9b3c545352e09bcba07f52e0de17c7873e026066a"
+  },
+  "static_matching_pdb_reports": {
+    ".local/reports/native-projectile-impactfx-static.json": "2cc1ba5ef5c75e7219a692d84836b969f9149285cbe81efc571578ba4fbe5343",
+    ".local/reports/native-property-life-take-hit.json": "a71ae9d2f288a82075f2f061c59efce7e244a48c0d7769e2944c4d1026b13d52",
+    ".local/reports/native-projectile-world-layout.txt": "a468b886ed916fbec5e6290d398db78dc2d55fa1535a150723b1d1448d9c05e4",
+    ".local/reports/native-projectile-mark-dirty-static.json": "77ba3761d76ff5093fe147f3e313745f187dc8c3ffca9e8067dcbc46f19c0c21",
+    ".local/reports/native-projectile-life-interest-static.json": "ddea73282b1b4478be929f435817cc13a79bdb647b2b74281ce0d0bbc5b53091",
+    ".local/reports/native-projectile-life-update-static.json": "af0bbefc1960a821e231a9c0676f02299236e973a4c43d99344af551a8099d18",
+    ".local/reports/native-projectile-soundcue-compiled-defaults.json": "4008f09fbb210cb1894ad9d6f3472e52fdd059eb75460218de1a958efc3c6e23",
+    ".local/reports/native-status-reset.json": "8aeabca3234b24582fd962d2011a85ab3a12a65214c58b950628a08397b184a0",
+    ".local/reports/native-effect-defaults.json": "a9635819b83c0d52bf939eaeb98247550f194cfa093796d7e76825c8d0342aec",
+    ".local/reports/native-projectile-movement-callback-static.json": "71576c853fe5d9d510c93ed7d52adfe47e6060731e4b0bc7c384f9ea5367f5b1",
+    ".local/reports/native-projectile-victim-on-stun-static.json": "4588d37db507cbec1d875c9bb04dc8c101fe544eadf90377aaf39b41cd7efd8f"
+  },
+  "observations": [
+    "Impact hitByImpact stores actual victim Entity identity BEFORE CalcDamage/RNG, not public map ID. thingsHit records at ApplyImpact tail, separately.",
+    "CalcDamage DisableDamage bypasses random range draw; otherwise DamageLow20/High20 still consume native RandomDouble before returning20.",
+    "Life.IsPlayerControlled is copied once from UnitData.PlayerControlled VA1802f10d7..e2; source mutation later is distinct.",
+    "Exact reflected config names DisableDamage=false, DamageMultiplier=1, DamageTakenMultiplier=1. No PlayerDamageMultiplier alias.",
+    "Life.TakeHit DamageResult initial bytes zero; total multiplier then live Life.DamageTakenMultiplier. Armor/vulnerability multiplier fields remain0 in supported full-coverage baseline, not fabricated1.",
+    "Native source outgoing PlayerControlled and live recipient Life.IsPlayerControlled multiply separate current config values.",
+    "TakeHit reads actual attached attacker EffectMultipliers[weapon][activeVictimEffect], gating TraitName by actual TraitDictionary key presence. Not generated empty tables.",
+    "Native original Lua Combat.lua OnHit/Damage owns Health reduction and Kill; no C++ native HP loop is introduced.",
+    "World+3c8 is exact PDB mDirtyThings. LifeSystem OfInterest/update recovered; dirty membership and timer updates are actual portable state.",
+    "Native volley helper copies original time vectors; temporary update discarded, firstVictimId is actual persistent store. Portable code preserves observed shipped value-return behavior rather than silently repair it.",
+    "ApplyVictimEffects consumes global AllEffectsProcChance draw even for empty effect vector, then per Active effect before requirePerfectCharge/invulnerability/attachedLua/name/admission gates.",
+    "First Sword OnHitStun normalized TypeUNKNOWN12, duration0.5, disable attack/move/rotate true; original Breakable ImmuneToStun rejects this via real native gate.",
+    "UnitStatus.Reset clears BlockAll, BlockEffectId and ImmuneEffects. Added state-backed fields only, existing cancellation policy unchanged.",
+    "Effect.defaults+10 starts attacksMade0; native TakeHit increments every active attacker effect even if ClearAfterNAttacks disabled.",
+    "Original ProjectileData ctor independently proves four omitted SoundCue semantic defaults ownernull/nameempty/validfalse; seven storage padding/stateless bytes per cue remain unknown.",
+    "Projectile RemoveEffects three pointers are zero in constructor temporary RBP608/610/618 via stores89f4/8a03; exporter rejects nonempty source overrides and records only proven-empty closure.",
+    "Exact PDB/compiled field mapping: UnitData full290 BlockAllEffects,293 ImmuneToDoTs,294 ImmuneToCharm. EffectData full1b8 RotationMultiplier,full150 ElapsedTimeMultiplier. ImmuneToStun checks RotationMultiplier!=1; ImmuneToSlow checks SPEED or ElapsedTimeMultiplier<1.",
+    "Actual projectile victim Speed/Tag factory reuses owned effect storage with separate projectile-vector data identity, copied impact angle, selfApplied=false and mandatory real AffectUnit/OnEffectApply before pending status publication. Cross-source reapply replacement remains explicit error.",
+    "Native source GetCritChance2f3ab0 consumes every active attacker CritAddition, then victim stacks+1 times CritVulnerabilityAddition followed by CritVulnerabilityMultiplier in vector order. Real instance stack and primary flags now supplied.",
+    "TakeHit critical multiplier uses projectile CriticalHitMultiplier + direct Unit.CritMultiplierAddition + active victim CritMultiplierVulnerabilityAddition, then adds delta to total multiplier.",
+    "Real ClearAfterNAttacks and ClearOnCritted invoke virtual Clear and enqueue the actual retained status effect into duplicate-preserving mToDelete.",
+    "OnHitWeapon tail now implements owned lookup/null skip, armor/data gate, exact status attack predicate/CanFireWhileDisarmed and actual captured request; no implicit equip."
+  ],
+  "portable_adaptations": [
+    "World dirty hash traversal uses encounter order with lifetime handles, not Windows pointer-hash iteration.",
+    "ActorWorld portable lifetime identities preserve Entity identity domain, not original bit layout.",
+    "Collision broadphase/SAT remain documented portable algorithms; hit sequence does not claim binary instruction equivalence."
+  ],
+  "explicit_barriers": [
+    "Positive source healing/life-steal, spawns, impact forces and charm",
+    "Native HitSound SoundManagerCap-aware valid sound consumer",
+    "Nonempty native ImpactFx resource angle/Z/time consumer",
+    "Valid InvincibleImpactSound branch",
+    "Partial armor/directional invulnerability branches",
+    "Actual victim factories other than Speed0/UNKNOWN12Tag; cross-source duplicate Reapply identity replacement",
+    "Valid native HitSound/ImpactSound manager-aware audio and nonempty native impact animation resources (root consumers pending)",
+    "Actual positive source spawns/heal/life-steal/impactforce/charm/TriggerEffect/RemoveEffects closure beyond proven empty"
+  ],
+  "validation": {
+    "host": "clang++ C++20 -Wall -Wextra -Werror compiles new hit/Life/Lua modules",
+    "arm64": "Latest new Life/hit/collision/effect/status/Lua modules compiled with NDK29 C++20 -Wall -Wextra -Werror (compile-only, no Android gameplay claim).",
+    "asan_replay": {
+      "path": ".local/reports/native-projectile-shot-debug-v16-asan.log",
+      "sha256": "a35e2515add3d7cfc11e201f10e15849066db1eeb4731d18eadea48a1d549472",
+      "scope": "Original v16 catalog initialization, actual ARC state/defense/Polygon query over5frames/removal plus Life timer crossing/keep-before-reset debug; no fake hit callbacks, original OnHit not yet dispatched."
+    }
+  },
+  "catalog": {
+    "path": ".local/native-assets/player-weapons-v16/weapons.bin",
+    "sha256": "7df4e23ccda2d6769aa2d3a3d24094d839b6fcfa25c2f24c6af37a1ba1d6786a",
+    "bytes": 10052065,
+    "format": "HWA3 unchanged; normalized victim effects/cues/RemoveEffects proof"
+  },
+  "sessions": "All three owned public REA sessions were closed successfully; no owned Ghidra/REA process remained. No new session for bounded PDB/LLVM follow-ups.",
+  "limitations": [
+    "LifeSystemRuntime consumes source mDirtyThings only for actual Life memberships; generic World dirty reconciliation remains parent-owned.",
+    "Original-script combat fixture remains gated by actual intro/NotifyOnCollide work in parent; no gameplay claimed."
+  ]
+}

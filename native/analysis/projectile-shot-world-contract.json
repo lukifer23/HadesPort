@@ -1,0 +1,74 @@
+{
+  "schema": "hades-projectile-world-shot-initializer-v1",
+  "status": "actual source catalog construction replay passed; parent callback integration remains required",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "implementation": [
+    "native/app/projectile_world.hpp",
+    "native/app/projectile_world.cpp"
+  ],
+  "api": "ProjectileWorld::initializeShot(request, actual owner Arsenal, ActorWorld, ProjectileShotProviders, lifetimeHandle, error, spawnedDefinition=false)",
+  "observed_debug": {
+    "log": ".local/reports/native-projectile-shot-debug-v13-asan.log",
+    "sha256": "a35e2515add3d7cfc11e201f10e15849066db1eeb4731d18eadea48a1d549472",
+    "asan_ubsan": "passed",
+    "source_weapon": "SwordWeapon",
+    "source_owner_id": 40000,
+    "polygon_vertices": 3,
+    "public_thing_id": -1,
+    "physics": false,
+    "random_draws": 1,
+    "literal_null_startfx_lookups": 2,
+    "actual_pending_queue_flushed": true,
+    "actual_arc_frames": 5,
+    "actual_defense_predicate": true,
+    "actual_polygon_query": true,
+    "activated_actor_scope": "one actual original source Hero; no original obstacle activation in isolated replay",
+    "original_impact_dispatched": false,
+    "android_arm64": "NDK29 C++20 Wall/Wextra/Werror component compilation passed"
+  },
+  "contracts": [
+    "native/analysis/projectile-initialization-contract.json",
+    "native/analysis/projectile-owner-live-fields-contract.json",
+    "native/analysis/projectile-thing-data-contract.json",
+    "native/analysis/arc-projectile-motion-contract.json"
+  ],
+  "parent_consumers": [
+    "real source owner live damageOutputModifier/spawnedBy/statusTraitor",
+    "initial Thing graphics/physics callbacks",
+    "pure preflight and actual synchronous ClearOnAttack/FX/attachment/marker callbacks",
+    "actual group validation when adding groups",
+    "World phase reconciliation and projectile manager update/collision"
+  ],
+  "failure_policy": "sticky explicit fault preserving partial actual storage and RNG consumption; never retry failed Init as a fresh shot",
+  "adaptations": [
+    "portable generation/entity lifetime allocated by parent ActorWorld; no claim of native pointer bit layout",
+    "actual retained ActorWorld/Arsenal storage is portable source-weapon lifetime binding",
+    "diagnostic uses callbacks recording actual empty/status-negative branches, not original Lua dispatch"
+  ],
+  "limits": [
+    "does not prove gameplay, collision, hit delivery or Android performance",
+    "native projectile public ID remains -1; lifetime handle is not a fabricated gameplay ID",
+    "some non-Sword graphics/attachment branches still require missing parent consumers and fail explicitly"
+  ],
+  "arc_manager": {
+    "implementation": "native/app/projectile_world.cpp",
+    "native_order": "pending promotion, actual per-Thing elapsed, ARC delay/pause/defense/primary animation/detonation/fuse/move/impact/end angle, ordered removal, opacity",
+    "body_phase": "World+20 actual speed modifier is ARC time divisor input; parent Body phase runs later, with own elapsed/UndoModifier",
+    "retention": "actual firing-weapon delayed pointer, cross-projectile owner reference and optional parent retention; bounded64 retired scalar history",
+    "state": "real body/polygon/angle/time/pending/active/disposal; real collision callbacks still mandatory"
+  },
+  "nearby_correction": {
+    "source": "Thing.InitThing fullThingData+71=AmbientSound.valid",
+    "incorrect_old_claim": "not ScriptManager registration flag",
+    "implementation": "actual source Thing cue validity read internally, optional provider only crosscheck"
+  },
+  "captured_request": {
+    "fireRequest": "WeaponOutput copies actual original captured request",
+    "shotAngle": "ProjectileInitializationRequest.shotAngle is independent scatter/volley angle"
+  },
+  "opacity": {
+    "source": "native-player-projectile-manager-{create,update}.json",
+    "meaning": "global dirty flag, not per-owner projectile count",
+    "formula": "positive-configured active+pending count N; alpha=1/(1+(N-1)*multiplier), duration.3/smoothStep/initial1"
+  }
+}

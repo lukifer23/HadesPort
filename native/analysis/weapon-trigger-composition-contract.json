@@ -1,0 +1,177 @@
+{
+  "schema": "hades-native-weapon-trigger-composition-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "implementation": [
+    "native/app/weapon_execution.hpp",
+    "native/app/weapon_execution.cpp"
+  ],
+  "evidence": [
+    {
+      "path": ".local/reports/native-player-weapon-trigger-down.json",
+      "sha256": "57efc74c03bbca43c0ac58c514ddf66649773cd30329031e472041808f51200a",
+      "procedure": {
+        "kind": "procedure",
+        "length": 602,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Weapon.obj",
+        "name": "sgg::Weapon::HandleTriggerDown",
+        "rva": 549872,
+        "type_index": 54971
+      },
+      "evidence_type": "matching-PDB bounded LLVM disassembly; static observation"
+    },
+    {
+      "path": ".local/reports/native-player-trigger-release-static.json",
+      "sha256": "08a154c978aae226c0557df17449825dd34c5ae6b60a1ea663b6ecd716ed6748",
+      "procedure": {
+        "kind": "procedure",
+        "length": 1254,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Weapon.obj",
+        "name": "sgg::Weapon::HandleTriggerRelease",
+        "rva": 553296,
+        "type_index": 54976
+      },
+      "evidence_type": "matching-PDB bounded LLVM disassembly; static observation"
+    },
+    {
+      "path": ".local/reports/native-player-show-aim-line.json",
+      "sha256": "a9b7623a5ee3c77ec3bab40b8cc661512409d8c43cf9235aca1eaf038b460de1",
+      "procedure": {
+        "kind": "procedure",
+        "length": 729,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Weapon.obj",
+        "name": "sgg::Weapon::ShowAimLine",
+        "rva": 550480,
+        "type_index": 54973
+      },
+      "evidence_type": "matching-PDB bounded LLVM disassembly; static observation"
+    },
+    {
+      "path": ".local/reports/native-player-check-weapon-input.json",
+      "sha256": "4a5d3a8acac1f15049bac8986adbe07a9efecc67740bece3929509b789db62ff",
+      "procedure": {
+        "kind": "procedure",
+        "length": 423,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\PlayerUnitInput.obj",
+        "name": "sgg::PlayerUnitInput::CheckWeaponInput",
+        "rva": 3077104,
+        "type_index": 110361
+      },
+      "evidence_type": "matching-PDB bounded LLVM disassembly; static observation"
+    },
+    {
+      "path": ".local/reports/native-player-check-weapon-control.json",
+      "sha256": "b18eeb4e384a1e05c61b646c72ce69f7bfb49620fb4b5e566298bbdbd96f4547",
+      "procedure": {
+        "kind": "procedure",
+        "length": 737,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\PlayerUnitInput.obj",
+        "name": "sgg::PlayerUnitInput::CheckWeaponControl",
+        "rva": 3076352,
+        "type_index": 110355
+      },
+      "evidence_type": "matching-PDB bounded LLVM disassembly; static observation"
+    },
+    {
+      "path": ".local/reports/native-player-status-should-lock-trigger.json",
+      "sha256": "2fcc0702f3e8188fb8c9d76928e8639f0963147f084c2f6d77358261ff56e1cc",
+      "procedure": {
+        "kind": "procedure",
+        "length": 189,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\UnitStatus.obj",
+        "name": "sgg::UnitStatus::ShouldLocKTrigger",
+        "rva": 3132992,
+        "type_index": 61120
+      },
+      "evidence_type": "matching-PDB bounded LLVM disassembly; static observation"
+    },
+    {
+      "path": ".local/reports/native-player-script-on-weapon-fired.json",
+      "sha256": "85fb029da038c46183cfa247c9031d3209fe385d234020a780fe02292c1eddc9",
+      "procedure": {
+        "kind": "procedure",
+        "length": 1375,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Script.obj",
+        "name": "sgg::Script::OnWeaponFired",
+        "rva": 2420912,
+        "type_index": 81290
+      },
+      "evidence_type": "matching-PDB bounded LLVM disassembly; static observation"
+    },
+    {
+      "path": ".local/reports/native-player-unit-total-z.json",
+      "sha256": "19b63460ac513264a34b6ea55c782e209e4f6e381951fe7961206d5941ad3a1f",
+      "procedure": {
+        "kind": "procedure",
+        "length": 90,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Unit.obj",
+        "name": "sgg::Unit::GetTotalZ",
+        "rva": 3090912,
+        "type_index": 56796
+      },
+      "evidence_type": "matching-PDB bounded LLVM disassembly; static observation"
+    },
+    {
+      "path": ".local/reports/native-player-unit-airborne-z.json",
+      "sha256": "c9625788bc7f4890898da73dd448fcce5618f873e7eff16f9dc7f90b618270cf",
+      "procedure": {
+        "kind": "procedure",
+        "length": 112,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Unit.obj",
+        "name": "sgg::Unit::GetAirborneZ",
+        "rva": 3090736,
+        "type_index": 56796
+      },
+      "evidence_type": "matching-PDB bounded LLVM disassembly; static observation"
+    }
+  ],
+  "integration": {
+    "trigger_down": "WeaponTriggerExecution(arsenal,name,dt,request).advance(freshOwner,reply,purePreflight,out,error)",
+    "consumer": "Yielded output passed pure preflight only. Parent must complete real operation/callback before resume, supply typed reply only when explicit expects*Reply flag true.",
+    "native_result": "Finished.nativeResult is complete native HandleTriggerDown result. Partial Charge reports false and preserves original request; no shot is claimed.",
+    "composition": [
+      "RootOwnerWhileFiring positive duration explicit unsupported",
+      "Charge complete callback continuation",
+      "incomplete charge or FireOnRelease: actual ShowAimLine source guard; nonempty UI path explicit unsupported",
+      "FireGraphic then common Weapon.Fire then actual GUN fire",
+      "inline FireFx/FireFx2 even when virtual Fire bool false",
+      "PostFire complete",
+      "native true"
+    ],
+    "release": "WeaponTriggerRelease covers FireOnRelease=false with real SwapOnRelease, optional ChargeCancelGraphic/cancelChargeOnUnit, zero-duration status branch, original OnWeaponTriggerRelease. Other paths fail explicitly."
+  },
+  "input": {
+    "observed": "PlayerUnitInput.CheckWeaponInput qualifies new requests from primary/alternate control bit2, secondary required bit2, disallowed excluded bit2. FullyAutomatic=false and not Charging additionally requires primary/alternate bit4. CanPullTriggerWithoutMoving=false requires owner+3ba flag or nonzero LeftStickLocation. Animation DisableOwnerWeapons or failed status CanAttack uses actual ShouldLocKTrigger fallback.",
+    "request_retention": "Weapon.Update retains current request through partial charge. It clears after fired/failed-cooldown-animation/FireOnRelease finalization. Finger-up does not justify unconditional clearFireRequest.",
+    "unknown": "No semantic Down/Pressed enum attribution claimed from bit masks alone. Full PlayerUnitInput target/autolock/alternate arbitration remains a separate consumer. Direct LockTrigger/LockTriggerForCharge/LockTriggerForClip native read semantics not established from source field names.",
+    "ShouldLocKTrigger": {
+      "weapon_gate": "AcceptTriggerLockRequests true and not (IgnoreTriggerLockDuringCooldown and cooldownRemaining>0)",
+      "effect_scan": "pending then active; for every DisableAttack, require RequestTriggerLock(full+1ae); any false returnsfalse; at least one requester returns true. Cancelable is a different adjacent field full+1ad.",
+      "excluded": "No status timer, Cleared/Disposed, SelfApplied, immunity or Cancelable test in this native routine"
+    }
+  },
+  "OnWeaponFired": {
+    "extra_args": {
+      "IsPerfectCharge": "insert true only if chargeDuration>0 and (lockedPerfectCharge or perfectChargeWindowRemaining>0); otherwise absent; not WasLastFirePerfectCharge",
+      "ProjectileName": "only if valid primary projectile, from current per-instance ProjectileData.Name",
+      "Volley": "current weapon volley",
+      "OwnerTable": "actual attached owner Lua table, otherwise nil",
+      "Ammo": "GetAmmo; recursively follows present ShareAmmoWeapon, otherwise local ammo",
+      "MaxAmmo": "current WeaponData.MaxAmmo",
+      "NearbyDangerId": "original ID, not count; default0",
+      "TargetX/TargetY": "only if optional target captured before PostFire clearing is present"
+    },
+    "filter": "weapon name; ScriptPlayerIndex>0 compares actual owner player index+1 only when both owner/player pointers exist"
+  },
+  "Z": {
+    "owner_z": "Thing.GetZLocation (parent recursively + localZOffset if valid parent, else mZLocation). Projectile.Init owner inheritance uses this value only.",
+    "totalZ": "Thing.GetZLocation + Unit.GetAirborneZ; not unconditional Animation.GetZLocation. Airborne contribution requires actual selected slide Airborne and current AnimationData.Z."
+  },
+  "verified": {
+    "command": "clang++ C++20 -Wall -Wextra -Werror -fsanitize=address,undefined; focused native/analysis/player_weapon_debug.cpp",
+    "log": ".local/reports/native-player-weapon-debug-v12-trigger-asan.log",
+    "log_sha256": "15bc1e8282f8048bbc0683c821454e35be444003fcd6b9c3636281b9b668efd4",
+    "observed": "Debug consumers verified original first Sword partial-request retention, one actual-construction barrier, two GUN RNG requests, FX/postfire order, combo swap and release callback. This synthetic consumer harness did not observe gameplay.",
+    "source_packet": ".local/native-assets/player-weapons-v12/weapons.bin"
+  },
+  "owned_REA_sessions": "none; this pass reused retained public Evidence and bounded matching PDB/LLVM reports"
+}

@@ -1,0 +1,149 @@
+{
+  "schema": "hades-sound-cue-contract-v1",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "scope": "Exact original static native/PDB data and portable typed normalization; no audio or original executable execution.",
+  "evidence": {
+    "deserialize": {
+      "path": ".local/reports/native-rea-soundcue-deserialize.json",
+      "sha256": "94ec2cdca1e0b420658294a5d817280e83023907dcd4bbacc382f67df51eb759",
+      "evidence_id": "ev_7ea107afaecc5fedd15fef7001503c82a882d6d66590953ecc9e833393b4003f"
+    },
+    "get_cue": {
+      "path": ".local/reports/native-rea-soundcue-get.json",
+      "sha256": "b8d19756d5ba0e3436f2812171915c68c239ace1e6d09e3dc2b646720c1f1599",
+      "evidence_id": "ev_ca33cb7576a206e4b86dcc2a8b1bd5e7dc761cc6047580ebdf62a0522ff08b54"
+    },
+    "empty_name_initializer": {
+      "path": ".local/reports/native-rea-soundcue-empty-name-init.json",
+      "sha256": "61f410e9ac49f3eeb53982fb60289b90d018df5bc645ef64d0b7f39310affec4",
+      "evidence_id": "ev_305c30e64edcaf5bb05e02de37753d226557ba997ab5bd1950424bb30a887be4"
+    },
+    "invalid_initializer": {
+      "path": ".local/reports/native-rea-soundcue-invalid-init.json",
+      "sha256": "b420d2a2915c6c7f67d74fec82907c36fd49d01949ac64928499a782273fba2c",
+      "evidence_id": "ev_e61091455533ce8b94feef08cebb60adc0092b88dd207991e04df20165a6781b"
+    },
+    "copy_ctor": {
+      "path": ".local/reports/native-soundcue-default-ctor.json",
+      "sha256": "cefae00a8987128ffddb9aca07fd30443d4a948c586158080c5cdcb8e77a3a12"
+    },
+    "compiled_weapon_defaults": {
+      "path": ".local/reports/native-soundcue-compiled-defaults.json",
+      "sha256": "e7908b87529243d6c2c8882e7bf04b144a0b212054f1071783d9b8ebc7efbf11"
+    },
+    "projectile_offset_default": {
+      "path": ".local/reports/native-weapon-projectile-offset-justification.json",
+      "sha256": "01fb619abb261f534e82b4b1c91ef3d1459c50fc3a94315af2fcae9f8f56f02e"
+    },
+    "close": {
+      "path": ".local/reports/native-rea-soundcue-defaults-close.json",
+      "sha256": "052cc72acfb75907e9ff703ebd805df08cd7d770bdebc4c2da17cf9d10cd8447",
+      "evidence_id": null
+    }
+  },
+  "layout": {
+    "size": 40,
+    "pOwner": {
+      "offset": 0,
+      "meaning": "owner pointer; actual pointer lifetime is runtime state"
+    },
+    "mName": {
+      "offset": 8,
+      "type": "EASTL string,24 bytes"
+    },
+    "mHash": {
+      "offset": 32,
+      "type": "eastl::hash<eastl::basic_string<char,eastl::allocator_forge> > functor, not stored numeric hash"
+    },
+    "mValid": {
+      "offset": 33,
+      "type": "bool"
+    },
+    "limits": "Do not fabricate functor or trailing padding bytes to claim a complete memory image."
+  },
+  "constructor_caution": "The named RVA0x43450 SoundCue constructor is a COPY ctor: copies owner/name/valid from source; it does not establish default values. Actual inline stores inside WeaponData ctor establish all six cue semantic defaults.",
+  "compiled_weapon_defaults": {
+    "FireSound": {
+      "definition_offset": "0x308",
+      "owner": null,
+      "name": "",
+      "valid": false
+    },
+    "ReloadSound": {
+      "definition_offset": "0x3b8",
+      "owner": null,
+      "name": "",
+      "valid": false
+    },
+    "ChargeSound": {
+      "definition_offset": "0x528",
+      "owner": null,
+      "name": "",
+      "valid": false
+    },
+    "ChargeFullSound": {
+      "definition_offset": "0x550",
+      "owner": null,
+      "name": "",
+      "valid": false
+    },
+    "OnWeaponChargingSound": {
+      "definition_offset": "0x580",
+      "owner": null,
+      "name": "",
+      "valid": false
+    },
+    "ChargeFinishSound": {
+      "definition_offset": "0x5e0",
+      "owner": null,
+      "name": "",
+      "valid": false
+    }
+  },
+  "source_normalization": {
+    "literal_null": "SGD_DeserializeSoundCue compares exact lowercase bytes null plus terminator (5-byte comparison). It assigns shared INVALID_CUE: owner=null,name=/EmptyCue,valid=false. This is distinct from omitted compiled default name empty.",
+    "ordinary_string": "GetSoundCue retains empty string as empty. Any nonempty source string starting / or { is preserved; otherwise prepend /.",
+    "empty_cue": "EMPTY_CUE_NAME initializer is /EmptyCue. INVALID_CUE initializer sets its event-description cache entry to0 and constructs owner=null,name=/EmptyCue,valid=false. Direct /EmptyCue or normalized EmptyCue use that known-invalid cache entry.",
+    "named_validity": "GetSoundCue looks up normalized name in the event-description cache or calls AudioManager::LookupEventDescription when an AudioManager exists. Returned cue mValid is descriptionPointer!=null; returned owner begins null. Named cue validity cannot be inferred from the string alone.",
+    "cache_hash": "The examined lookup computes a 32-bit multiply-then-XOR FNV-style hash from the normalized byte string. The mHash member is the functor type, not a serialized numeric hash value.",
+    "not_conflated": [
+      "Omitted default: empty name,known valid=false.",
+      "Explicit source empty string: empty name,but lookup validity unresolved without actual cache/bank evidence.",
+      "Literal source string null: /EmptyCue,known invalid.",
+      "Case variants such as Null and absolute /null: ordinary normalized names,not the sentinel.",
+      "JSON null/non-string source: unsupported by portable string normalizer; not silently treated as original literal null."
+    ]
+  },
+  "typed_portable_helpers": {
+    "default_exporter": "native/analysis/recover_sound_cue_defaults.py",
+    "source_normalizer": "native/analysis/sound_cue_normalization.py",
+    "source_function": "normalize_sound_cue_source(str) -> {owner,name,valid,validity_resolution}",
+    "unknown_value": "None validity means unresolved lookup, not false; consumers must preserve that distinction.",
+    "defaults_provenance": "native-soundcue-compiled-defaults.json gives every semantic byte store origin and records the seven unproven storage bytes per cue.",
+    "projection_default": "ProjectileOffsetStart is separate Justification uint8,CENTER2,postassignment byte storeVA1800f7ff7; see dedicated record."
+  },
+  "validation": {
+    "compiled_default_export": "pass,all six cue semantic owner/name/valid values checked against bounded sparse constant stores,not pre-zeroed storage",
+    "source_normalizer": "pass,case-sensitive sentinel,slash/GUID prefix,empty versus default,unresolved named validity,JSON-null rejection",
+    "source_sha256": {
+      "native/analysis/recover_sound_cue_defaults.py": "8acbff4c9ac43d1693d743de6107bf45773ab1ed56d2c841394886c7c02069d4",
+      "native/analysis/sound_cue_normalization.py": "d037da613c1c2f988f491557d00e9e61cb602b9691a231e0ae8d4e64042e31e4"
+    }
+  },
+  "remaining_unknowns": [
+    "Actual FMOD bank loading, Android-compatible event graph playback,instance ownership,voice substitutions and dynamic event-description lifetime.",
+    "Typed default recovery for unrelated Thing/Life cue fields still needs their actual constructor-store evidence; do not generalize solely from the WeaponData inline defaults."
+  ],
+  "session_lifecycle": {
+    "owned_batch": "soundcue-defaults-",
+    "closed": true,
+    "close_report": ".local/reports/native-rea-soundcue-defaults-close.json",
+    "originals_modified": false,
+    "audio_executed": false,
+    "device_operations": false
+  }
+}

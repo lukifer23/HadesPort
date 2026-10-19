@@ -1,0 +1,104 @@
+{
+  "schema": "hades-first-action-execution-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "source_resources": {
+    "path": ".local/native-assets/first-action-effects-v2/manifest.json",
+    "bytes": 92092,
+    "sha256": "41f548e6c55fd87ad3687f78c62f36622c0c86d42f3eb419c2766532a9b17518"
+  },
+  "validation": {
+    "result": "passed",
+    "actual_source_dependencies": 11,
+    "original_attack_frame_events": 2,
+    "original_hmr_marker_lookups": 26,
+    "decoded_original_footstep_audio_events": 2,
+    "pcm_energy": 0.0847313,
+    "peak_live_effects": 16,
+    "uniform_diagnostic_draws": 42,
+    "bounded_diagnostic_draws": 2,
+    "final_live_allocations": 0,
+    "scale_transition_observed": true,
+    "rng_fixture": "midpoint diagnostic, not original game stream",
+    "android_observed": false,
+    "light_and_displacement_gpu_passes_observed": false
+  },
+  "ownership": "Actual shared registry manager0 ManagerCreate; child animations owned by parent; independent CreateAnimations roots retained. LightController actual manager1 allocation withoutManagerAdd, parentFX-owned, separate from Thing.Light.",
+  "phases": "Defined sequential native Android component schedule, then sourceTimeVFX; shared frame cap60 and ManagerCap multiplier4. Source footstepCap1 and real HMR provider. Does not assert Windows worker completion/RNG equivalence.",
+  "source_defaults_corrections": {
+    "AirborneZ": "primary-animation-properties-v3-contract.json",
+    "sound": "CreateAndInit29fbda only Random executes outer2D branch. Actual nonRandom concrete Animation.InitData291c70 gates SoundAllowedAfterFrame(default2) then attached3DWithCap4a770/location4a8a0. Runtime receives actual worldFrame."
+  },
+  "proofs": [
+    {
+      "path": ".local/reports/native-action-animation-deserialize-static.json",
+      "bytes": 561121,
+      "sha256": "74aaf2da4abadaf5c1ca0c02335859d8c2cf3a8bd4f8a1582e32f9984e0af386"
+    },
+    {
+      "path": ".local/reports/native-action-animation-create-list-static.json",
+      "bytes": 15497,
+      "sha256": "1566daf106cea91dfd1d00d11aaadbd7254372efcd47ff37f2419bcc918a4474"
+    },
+    {
+      "path": ".local/reports/native-action-light-add-static.json",
+      "bytes": 16900,
+      "sha256": "3040bfe8d238594636f0c173ec5a910979ccbd9589e3f3059052e260bf9930ea"
+    },
+    {
+      "path": ".local/reports/native-action-light-init-static.json",
+      "bytes": 3794,
+      "sha256": "a351816c6f6b4d633c3c67c6ec83887177b4bc547df128675798cc2cfc14de27"
+    },
+    {
+      "path": ".local/reports/native-action-get-group-name-static.json",
+      "bytes": 7940,
+      "sha256": "d1e8e6878d65938f5b24c1bbabef602fb8d302eefe18137d7f74bddd8650ff4f"
+    },
+    {
+      "path": ".local/reports/native-action-default-group-static.json",
+      "bytes": 4843,
+      "sha256": "d317ec45c8e0bf22911fcb41639136e32d4295b4f4073152ea7373bf99b70141"
+    },
+    {
+      "path": ".local/reports/native-registry-animation-get-location.json",
+      "bytes": 16259,
+      "sha256": "442cb82969ee43aa4ce1b9479311c693a13d1424e71c47536ebeb6f3305d6503"
+    }
+  ],
+  "limitations": [
+    "Footstep customlight lifetime/resources initialized; native light shader/composition not yet observed. Sword displacement original pixels/group retained; displacement GPU shader unsupported.",
+    "Nondefault owner/world ModifiedTime requires explicit clock adapter. No fabricated marker position or acknowledged missing cue.",
+    "Only exact first-sword closure reviewed. Second attack PillarHitDebrisFx remains unsupported until actual closure admitted.",
+    "Diagnostic test RNG usesmidpoint; production usesrecovered engine uniform/PCG providers. Sourceallocation/componentownership tested, noAndroid/gameplay claim."
+  ],
+  "sources": [
+    {
+      "path": "native/app/action_effect.cpp",
+      "bytes": 18629,
+      "sha256": "3c2ed8de70d131e7fda144a73c08fa59cf9f0565c1704675d80df680c472e1ae"
+    },
+    {
+      "path": "native/app/action_effect.hpp",
+      "bytes": 3084,
+      "sha256": "d7b24430a5ce0aff9b19cc870b5cb5ea2cd08557ae08378ecb8c916e7f8a4c40"
+    },
+    {
+      "path": "native/app/lua_action_fx.cpp",
+      "bytes": 3028,
+      "sha256": "56e3892ebc0418568d5aca0e89b45247972e0c7ec09a4e7965c6a70c23dc273a"
+    },
+    {
+      "path": "native/app/lua_actor_animation.cpp",
+      "bytes": 10743,
+      "sha256": "96dfa53f0cd779a1c6f04600cdf4a1bfdca0fbd89046d6eac7c0aa181af2c876"
+    },
+    {
+      "path": "native/app/lua_vfx.cpp",
+      "bytes": 7241,
+      "sha256": "a909e0dd45bc8df05101da907853f269ec3904c733469f7d3114a8b16ce35ed6"
+    }
+  ],
+  "rea_sessions_owned_open": 0,
+  "previous_validation_report": ".local/reports/native-action-effect-world-v1-smoke.json",
+  "marker_following": "Animation.GetLocation296c90 fullData3e8 UseAttachedMarkerLocation calls actual owner primary GetMarkerLocation296d7f, then animation attach offset. Action init/update now track real HMR marker XY, preserving actual Z separately."
+}

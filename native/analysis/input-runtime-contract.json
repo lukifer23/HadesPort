@@ -1,0 +1,124 @@
+{
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "matching_pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "native_api": {
+    "AddInputBlock": {
+      "action": 60,
+      "Execute_case_rva": "0x25199f",
+      "return": "Void",
+      "behavior": "PlayerIndex read as int, default1; subtract1 indexes PlayerManager slots. Non-null player: ScriptArgs::Names first element is inserted into unique case-sensitive eastl string hash set Player.mInputBlocks at0x38. Duplicate Add does not increment a counter."
+    },
+    "RemoveInputBlock": {
+      "action": 61,
+      "Execute_case_rva": "0x2519ed",
+      "return": "Void",
+      "behavior": "Same player/name selection, erases first name from player set. Removing absent name has no effect."
+    },
+    "IsInputAllowed": {
+      "action": 229,
+      "ExecuteBool_case_rva": "0x25521a",
+      "return": "Bool",
+      "behavior": "Default PlayerIndex1. Negative/out-of-range/null player ->false. Otherwise returns mInputBlocks.size()==0 && Player.mAllowInput. Does not test ConfigOptions.AllowUnitInput, active unit, world state, or menu state."
+    },
+    "GetInputBlock": {
+      "registered": false,
+      "boundary": "No such action in complete recovered319-action inventory. C++ hasRecoveredInputBlock is a reconstruction integration helper, not fabricated Lua API."
+    }
+  },
+  "names": {
+    "helper_rva": "0x2817f0",
+    "list_helper_rva": "0x248890",
+    "evidence_id": "ev_ff4081f6698a768e5ab2f4dfbcfa971649c9f729758de03df00a717643d4619f",
+    "selection": "Names key takes precedence over Name; ScriptArgs caches parsed string vector. Add/Remove use first vector element only. String and numeric array carriers implemented.",
+    "limitations": "Native List also contains named/map-key parsing branches not reconstructed. Portable errors for named/map table entries, absent name or empty array rather than unsafe vector dereference. EmbeddedNUL/oversized strings rejected."
+  },
+  "constructor": {
+    "rva": "0x20ef50",
+    "instructions": [
+      "0x18020ef82 writes DWORD0x00010100: mWasAnyInputGiven=false,mAllowInput=true,mIsConnected=true,mPauseRequested=false",
+      "0x18020efcc writes zero to mInputBlocks node count at0x50"
+    ],
+    "default_permission": true,
+    "default_blocks": [],
+    "creation_boundary": "No claim that original pre-map player existence was reconstructed. registerInputRuntime creates zero players. Parent explicitly creates its local input profile1 as reconstruction policy using createRecoveredInputPlayer."
+  },
+  "unit_input_boundary": {
+    "evidence_id": "ev_50f58c88b5d5c67a822294186186c040a3e640a5775dfad66703f87f0f6bc2f9",
+    "rva": "0x211510",
+    "direct_control_gate": "After pause/menu handling, ConfigOptions.AllowUnitInput must be true. Then player block set must be empty and mAllowInput true, active unit nonnull, world running, and gameplay screen permits input before PlayerUnitInput::HandleInput.",
+    "blocked_branch": "When named blocks exist or mAllowInput=false, native Player::HandleInput can follow a nonzero scripted PlayerUnitInput.mMoveTarget using pathfinding and Unit::MoveInput, then clears mLastMouseoverTarget. Therefore named blocks gate direct player control, not all movement, collision, velocity or animation simulation.",
+    "control_masks": "Add/Remove do not read any unit Id or per-control mask. Do not invent bit masks to represent these actions. Other unit/weapon/control gates remain separate contracts."
+  },
+  "portable_implementation": {
+    "files": [
+      "native/app/input_runtime.hpp",
+      "native/app/input_runtime.cpp"
+    ],
+    "integration": [
+      "registerInputRuntime(lua_State*) after generic unsupported-action bindings",
+      "createRecoveredInputPlayer(state,1,error) explicitly before original callback dispatch",
+      "isRecoveredInputAllowed(state,1) gates manual input only",
+      "snapshotInputPlayers/dumpInputRuntime show configured players, permission flag and unique blocks",
+      "setRecoveredPlayerInputPermission is C++ seam for native Player.mAllowInput, not a Lua action"
+    ],
+    "memory": "Lua-registry userdata owns InputState and player name sets; __gc destroys C++ state. Lua bindings capture this userdata, independent of root closure userdata.",
+    "strict_extensions": [
+      "Player mutations outside configured slots error instead of native unchecked vector access. Native IsInputAllowed invalid slots still returnfalse.",
+      "Local profile slot creation sequential1..64 is explicit reconstruction limit, not asserted original engine maximum.",
+      "Unknown action arguments are rejected; native may ignore extra fields.",
+      "Profile creation creates no hero/unit/controller and does not initialize map activation."
+    ]
+  },
+  "focused_debug": {
+    "source": "native/analysis/input_runtime_smoke.cpp",
+    "log": "native-input-runtime-smoke.log",
+    "result": "ORIGINAL_MAPLOAD_STARTROOM_TRANSITIONS_OK",
+    "original_calls": [
+      "DeathLoop.lua79 AddInputBlock MapLoad",
+      "RoomManager.lua225 RemoveInputBlock MapLoad",
+      "RoomManager.lua1906 AddInputBlock StartRoom",
+      "RoomManager.lua2013 RemoveInputBlock StartRoom"
+    ],
+    "checks": [
+      "No player fabricated at registration; queryfalse and nonexistent GetInputBlock remainsnil",
+      "DuplicateMapLoad Add yields1 set entry; one Remove erasesit",
+      "IndependentStartRoom block persists after MapLoad removal",
+      "Independentconfiguredplayers; case-sensitive names; Names precedence and firstonly; scalarNames supported",
+      "Native invalid queryfalse; unsafe mutation errors",
+      "Player permissionfalse keeps input blocked after names cleared; permissionrestoretrue allowsinput",
+      "AbsentMapLoad Remove succeeds"
+    ],
+    "validation": "Compiled clang++ C++20 -Wall -Wextra -fsanitize=address,undefined against exact Lua5.2.2 host library; execution clean. This isolated debugger runs actual original action call lines, not complete map activation."
+  },
+  "evidence_reports": [
+    "native-input-action-contract.json",
+    "native-execute-groups.json",
+    "native-executebool-groups.json",
+    "native-input-player-ctor.json",
+    "native-fields-Player.txt",
+    "native-input-args-list.json",
+    "native-rea-input-player-handle.json",
+    "native-rea-input-args-names.json"
+  ],
+  "reproducible_static_decoder": "python3 native/analysis/extract_input_contract.py",
+  "sessions": {
+    "owned_REA_batch": "input-",
+    "closed": true,
+    "close_report": "native-rea-input-close.json",
+    "confirmed_absent_pids": [
+      45877,
+      45887,
+      45899
+    ],
+    "no_device_operations": true
+  },
+  "source_sha256": {
+    "native/app/input_runtime.hpp": "e917bb3c8b32002bc0627ac7a97486c9d16d54c7a1277114d810a549ad1f12b6",
+    "native/app/input_runtime.cpp": "e1ac5637b8f73cc937e72e346ca0d3bfa1fa96f92902062642c0fcab1d32b21f",
+    "native/analysis/input_runtime_smoke.cpp": "2aab4b59c0a44094a00bb40a063c8ccefb88480e65f3b624c89cf348a24773a7",
+    "native/analysis/extract_input_contract.py": "46e384e949711f31261da426f3d39cf43d15b15aaef5e4c64ec88393d6ea82a1"
+  }
+}

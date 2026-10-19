@@ -1,0 +1,53 @@
+{
+  "schema": "hades-obstacle-location-grid-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "matching DLL/PDB retained static instruction evidence; no original execution",
+  "reports": [
+    "native-thing-obstacle-location-changed-static.json",
+    "native-grid-register-obstacle-static.json",
+    "native-grid-clear-obstacle-static.json",
+    "native-grid-map-load-static.json",
+    "native-grid-mapdata-add-things-static.json",
+    "native-grid-setup-geometry-static.json",
+    "native-grid-types-v1.txt"
+  ],
+  "observed": {
+    "location_changed_rva": "0x2c2230",
+    "order": [
+      "disposed early return",
+      "drawBoundsChanged=true",
+      "integer rectangle coverage changed or force: virtual ClearGridRecord, RegisterObstacle, update previous indices",
+      "DrawGrid entity absent: MarkForUpdate",
+      "interaction allocated: UseableManager queue",
+      "light allocated: LightSystem.MarkForUpdate",
+      "occluder allocated: SetupGeometry",
+      "virtual MarkSortScoreChanged",
+      "both Stops caches dirty=true",
+      "attached animations dirty, Animation.MarkDirty when body exists"
+    ],
+    "register_categories": {
+      "all": "always",
+      "projectiles": "StopsProjectiles()",
+      "movement_reaction": "else if MapThing exists &&AllowMovementReaction &&AttachToID==0",
+      "units": "StopsUnits() independently"
+    },
+    "grid_index": "x*GRID_HEIGHT+y, inclusive rectangle start/end",
+    "map_area": "MapData.AddThings source group addition means; variance over group hash records; integer rectangle mean\u00b12 population standard deviations; union existing nonempty area",
+    "map_grid": "origin=area.xy; shift=clamp(trunc(log2f(max(width,height)*.05f)),7,9); width=max(1,width>>shift),height=max(1,height>>shift)"
+  },
+  "android_adaptations": [
+    "Unbounded sparse512-unit cells instead of clamped Windows map cells avoid discarded outside-map actual geometry. Exact Windows hash/worker/candidate iteration order is not claimed.",
+    "Conservative float AABBs computed from actual transformed collision polygon; real narrowphase still required.",
+    "Nonblocking actors without polygon have 2x2 point proxies; never admitted to StopsUnits/StopsProjectiles categories.",
+    "Lifetime identity separates recycled/public IDs. Queries deduplicate and sort by portable lifetime.",
+    "Draw-bounds index queues plus actual ObjectSnapshot.graphicsDirty feed Android renderer. Mandatory auxiliary provider must inspect real allocated interaction/light/occluder/attached-animation registries; missing provider fails."
+  ],
+  "verification": {
+    "asan_ubsan": "hades/.local/reports/native-actor-spatial-smoke-v1.log",
+    "host_compile": "actor_spatial.cpp and actor_location.cpp -std=c++20 -Wall -Wextra -Werror"
+  },
+  "unknown": [
+    "Exact original group hash iteration summation order and bounds numeric output not substituted with fabricated original values.",
+    "Windows pointer/hash order across distinct colliders not reproduced."
+  ]
+}

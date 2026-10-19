@@ -1,0 +1,109 @@
+{
+  "schema": "hades-unit-retirement-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "Matching PDB bounded static instructions; source lifecycle partial manager reconstruction.",
+  "static_sources": [
+    {
+      "path": ".local/reports/native-unit-destroy-static-v1.json",
+      "sha256": "5d897c38d911249d2387b68e756a5ce7d009c2a5f886d2a0415d81aee3a90819"
+    },
+    {
+      "path": ".local/reports/native-unit-manager-remove-static-v1.json",
+      "sha256": "9a8195790f2609d64aa76d179acc33814455d3e965220b42ceb964e4fb4a12df"
+    },
+    {
+      "path": ".local/reports/native-unit-destructor-static-v1.json",
+      "sha256": "38cbc5eafe2c0c4e064e18d9571128ae8d91e3270e2e6bbb3ad02390fa1d5d6f"
+    },
+    {
+      "path": ".local/reports/native-unit-physics-at-rest-static-v1.json",
+      "sha256": "6f527fe3a85e2c511807bbe48b9c53b50dbe649bc8fdd850fa8ccfbb570237a9"
+    },
+    {
+      "path": ".local/reports/native-unit-status-clear-effects-static-v1.json",
+      "sha256": "8ce2c5b6b931e41014d00169ca3d9b1c7926ee1948497cca1fc7b0a7e214ffa4"
+    },
+    {
+      "path": ".local/reports/native-unit-status-ally-static-v1.json",
+      "sha256": "d3056c234ef23aaa3a07ae2298039adb1aaa43981c3890cf4b003e6a53bae306"
+    },
+    {
+      "path": ".local/reports/native-unit-arsenal-destructor-static-v1.json",
+      "sha256": "01a93ce9b0005360474f45acbb928f5b2fa4ae17ab352aa33f71ac0ded456a03"
+    },
+    {
+      "path": ".local/reports/native-unit-weapon-dispose-static-v1.json",
+      "sha256": "bf0525c1fd2af9c4fdf24492ee304fc24ea4ced003423398d7fa6791a1d6a877"
+    },
+    {
+      "path": ".local/reports/native-player-unit-self-update-order.json",
+      "sha256": "f5ad70b19a8370f01c989ed0de16cf92745387bd3863c29a5d0fe5783706e81e"
+    },
+    {
+      "path": ".local/reports/native-systems-unitmanager-update.json",
+      "sha256": "8a8a2bfb734c135e352fdb19e46ab17d7d53b176747b26436018752564598149"
+    },
+    {
+      "path": ".local/reports/native-active-thing-destroy-static.json",
+      "sha256": "8c49afd9c3c674068439c210960301dd0bf0268778bad6beb26b18586d19fac5"
+    },
+    {
+      "path": ".local/reports/native-dispose-thing-bool-static.json",
+      "sha256": "6e095fafb0c5b5329df9898368ea9fe6ee3273f937ccfe289a1fa38eba8f6563"
+    },
+    {
+      "path": ".local/reports/native-dispose-thing-virtual-static.json",
+      "sha256": "3dad62a6b633a47ccc74acf59cb0876b8a6245b375920aec162e80ef7210f16a"
+    }
+  ],
+  "critical_fields": {
+    "Thing+0x63": "mIsDisposed, NOT marked-dead",
+    "Thing+0x238": "mLifeStatus: ALIVE0, DEAD1",
+    "Thing.Destroy": "Writes LifeStatus1 after real death animation/audio/FX; does not write isDisposed.",
+    "Thing.Dispose(noargs)": "Calls virtual Dispose(true) at2dc358; THEN writes THIS+63 at2dc365. Earlier +63 stores in same routines target ANIMATION pointers, not Thing receiver."
+  },
+  "selected_gate": "After actual DEAD Unit arsenal/movement/status phases: retain while RagDollOnDeath && Physics && !IsAtRest; also retain while FinishAnimOnDeath && nonempty Life.DeathGraphic matches current primary. Otherwise Unit.UpdateSelf returns true ->manager removal.",
+  "physics_is_at_rest": "Native compares XY velocity to immutable mZero, plus upwardVelocity==0 and spin==0. NaN comparisons remain false.",
+  "manager_order": [
+    "Flush queued removals before UpdateBuffer",
+    "Apply pending allegiance switches",
+    "Captured ALL_UNITS vector order UpdateSelf; true stores DEAD+queues",
+    "Flush newly queued removals after loop"
+  ],
+  "removal_order": [
+    "Remove Unit manager iteration/player/enemy/control/type/public registries (portable collection adaptation)",
+    "DrawGrid.Remove",
+    "Shared Thing.Dispose: attached pre-dispose/owner-death animations and virtual component cleanup",
+    "World.OnDisposed/entity clear; then THIS.isDisposed=true",
+    "Unit destructor ClearGridRecord ->UnitStatus.Reset ->Arsenal destructor ->Thing destructor",
+    "Retire actual entity lifetime"
+  ],
+  "does_not_do": [
+    "No Obstacle structural descendant traversal.",
+    "No Lua health subtraction; original Lua OnHit remains health owner.",
+    "No arbitrary fixed death timeout."
+  ],
+  "status_reset": "Timers -1; actual SetAsAlly if traitor ->allegianceTime0 ->ClearEffects active then pending real Clear+queue ->CleanupEffects real Dispose ->block/immunity reset. Traitor restore provider mandatory.",
+  "weapon_retention": {
+    "api": "WeaponArsenal.retireOwner(providers,released,error), re-run after actual projectile/effect collection.",
+    "edges": [
+      "ProjectileWorld.retainsWeapon(arsenalPointer,name) scans all allocated records incl genuinely retained disposed projectiles.",
+      "WeaponSelfEffectWorld.retainsSourceWeapon(sourceOwner,name) scans actual non-disposed effect ownership."
+    ],
+    "last_reference": "Drop pFireFx reference through actual provider; stop impactCue through actual audio; mark disposed/ownerID-1/ownerName empty and release full copied definitions. Keep <=64 scalar records only.",
+    "bounds": "Source copied data retained only while actual graph queries require it; parent resets Arsenal when released=true.",
+    "limits": "No Windows numeric reference count is invented. fireFxLifetime remains0 unless a genuine source writer supplies it; nonzero reference drop requires actual provider."
+  },
+  "integration_prerequisites": [
+    "Parent must provide actual current primary name, never invented empty when unknown.",
+    "queueReadyUnitRetirement is called after genuine Unit phases; it is not a full Unit.UpdateSelf implementation.",
+    "Nonempty persistent effect sound/FX cleanup still requires real providers.",
+    "Parent pumps deferred Arsenal collector after actual projectile/effect phases."
+  ],
+  "verification_scope": {
+    "host_arm64_api29": "All owned changed translation units compile with -Wall -Wextra -Werror.",
+    "focused_debug": ".local/reports/native-weapon-owner-debug-asan.log",
+    "scope": "Original actor/weapon data + explicit diagnostic MirrorGeometry override. Sanitizer replay verifies component behavior, not original Lua combat or Android gameplay."
+  },
+  "owned_rea_sessions": "No new sessions opened in this pass."
+}

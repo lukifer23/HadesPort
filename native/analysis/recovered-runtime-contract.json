@@ -1,0 +1,188 @@
+{
+  "target": {
+    "dll": "EngineWin64s.dll",
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb": "EngineWin64s.pdb",
+    "pdb_sha256": "a75edd9c15ebbd4caa7a89ce2e3197cfb96cecb1e5a750f62a950caff48fcace",
+    "matching_codeview_identity": {
+      "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+      "age": 1
+    },
+    "build_scope": "Supplied base game Windows x64 engine; source build identity is not inferred from archive filename."
+  },
+  "config": {
+    "scope": "Compiled defaults for all20 literal getter names plus2 boot setter names. VM-owned mutable typed override table implements SetConfigOption; GetConfigOptionValue reads overrides. Unknown names/types error; loaded user config and FastForward external engine side effects remain unreconstructed.",
+    "typed_values": {
+      "DebugRNGSeed": 0,
+      "FreeFormSelecSearchFromId": 0,
+      "KioskModeNumLives": 2,
+      "ExclusiveInteractGroup": "",
+      "ShowDamageNumbers": true,
+      "ShowUIAnimations": true,
+      "LogCombatMultipliers": false,
+      "ShowSpeechBubble": true,
+      "EasyMode": false,
+      "HardMode": false,
+      "AllowStripRequirements": false,
+      "DrawBloom": true,
+      "DumpRunStatsOnLoad": false,
+      "EditingMode": false,
+      "EnableConsoleMenus": false,
+      "FastForward": false,
+      "ForceFlipMapThings": false,
+      "KioskMode": false,
+      "ResetRoomData": false,
+      "UseMouse": false,
+      "GamepadCursorControl": false,
+      "FlipMapThings": false
+    },
+    "evidence": "Matching PDB named dynamic initializers, full bounded native disassembly in .local/reports/native-config-<key>-annotated.json (DebugRNGSeed also native-rng-default-annotated.json).",
+    "cache": "RunManager.lua5561 UpdateConfigOptionCache populates6 entries; RoomManager.lua146 calls before RandomInit at OnPreThingCreation."
+  },
+  "rng": {
+    "algorithm": "PCG32 XSH-RR; integer output rotate-right32(uint32((old>>45)^(old>>27)),old>>59)",
+    "multiplier": "0x5851f42d4c957f2d",
+    "increment": "0xb47c73972972b7b7",
+    "native_static_state": "0xea1b84321029ee21",
+    "seed": "state=uint64(int64(int32(seed)))*multiplier-0x03d657cc62bc341e (mod2^64)",
+    "double": "ldexp(unsigned_output,-32), interval[0,1)",
+    "bounded_integer": "Inclusive signedlow/high, bound=uint32(high)-uint32(low)+1. If bound=0 returns low without drawing; otherwise reject PCG values below(-bound mod2^32)%bound, then output low+(value%bound) with int32 wrap.",
+    "native_procedures": {
+      "RandomDouble": "0x54f80",
+      "Seed": "0x201660",
+      "random": "0x287b10",
+      "randomint": "0x287b60",
+      "randomseed": "0x287bd0",
+      "randomgaussian": "0x287be0",
+      "pcg32_boundedrand_r": "0x327dd0"
+    },
+    "limits": [
+      "Reconstructed stream0 is reserved with native static initializer; exact engine boot reseed time has not been recovered. Script stream1 is exact after explicit Random.lua seeding.",
+      "randomgaussian observed uses separate Gaussian array and polar Box-Muller; native Seed only writes Rngs array. Not registered in reconstructed bindings yet.",
+      "Lua argument coercion is stricter for malformed inputs than native wrapper; valid original-script integer arguments are supported."
+    ],
+    "implemented": "native/app/recovered_runtime.cpp",
+    "host_debug_smoke": {
+      "reproducer": "native/analysis/smoke_recovered_runtime.py",
+      "log": ".local/reports/native-runtime-smoke.log",
+      "result": "Pass actual Random.lua import, explicit seed123 stream1 outputs353602019/2^32 and2452673855/2^32, inclusive integer result10 in1..10, boolean type preservation and unknown config failure. Harness isolates DebugScripts import only; production importer is unchanged."
+    }
+  },
+  "language": {
+    "GetLanguage_action": 281,
+    "dispatch": "ExecuteString RVA0x2556a0 selector RVA0x255a18 and table RVA0x2559f0 route281 to0x25584f, copies Localization::UiLang code string at globalRVA0x1ca33c0.",
+    "compiled_Language_default": "Empty string, initializerRVA0x12f80. This differs from a selected locale.",
+    "native_selection": "Localization::Init RVA0x1fd220: first obtain platform language, override by nonempty ConfigOptions.Language, otherwise ConfigOptions.UiLanguage, then SetLang.",
+    "reconstruction": "Explicit configureRecoveredLanguage(state,\"en\") selects English; unset getter errors. No implicit assertion English was compiled default.",
+    "reports": [
+      ".local/reports/native-language-owner-255861.json",
+      ".local/reports/native-localization-init-annotated.json",
+      ".local/reports/native-config-Language-annotated.json",
+      ".local/reports/native-supported-ui-languages.json"
+    ]
+  },
+  "movement": {
+    "data_source": "Content/Game/Units/PlayerUnits.sjson _PlayerUnit",
+    "data_values": {
+      "Speed": 540,
+      "Acceleration": 2000,
+      "Thing.Grip": 1000,
+      "BackpedalSpeedModifier": 0.34,
+      "LowSpeedThreshold": 0.5,
+      "LowSpeedFraction": 0.2,
+      "FullControlVelocityThreshold": 400,
+      "HighSpeedThreshold": 700,
+      "RotationSpeed": 216000,
+      "CosmeticRotationSpeed": 1340
+    },
+    "native_behavior": [
+      "DirectMovement computes angle atan2(-inputY,inputX). Low stick compares input length\u00b2 against LowSpeedThreshold; picks LowSpeedFraction or1.",
+      "MoveInput normally directly sets vx=cos(angle)*maxSpeed*fraction, vy=-sin(angle)*maxSpeed*fraction. Acceleration applied as force*dt while PhysicsComponent.mFootingLostTime>0. Additional over-speed force branch exists.",
+      "Max speed=(UnitDataDef.mSpeed +unit.mSpeedAddition)*unit.mSpeedModifier, multiplied by global player speed modifier for controlled unit.",
+      "UpdateMovement uses physics mMoveShift times time-adjusted dt then ApplyFullShift collision. Move started/stopped emit corresponding ScriptManager triggers."
+    ],
+    "evidence_reports": [
+      ".local/reports/native-direct-movement-pdb-pseudocode.txt",
+      ".local/reports/native-unit-move-input-pdb-pseudocode.txt",
+      ".local/reports/native-unit-update-movement-pdb-pseudocode.txt",
+      ".local/reports/native-fields-PhysicsComponent.txt",
+      ".local/reports/native-fields-UnitDataDef.txt"
+    ],
+    "limits": "No claim full physics/collision reconstructed. Original Win64 member offsets are evidence, not Android ABI prescriptions."
+  },
+  "scene": {
+    "implementation": [
+      "native/app/scene_runtime.hpp",
+      "native/app/scene_runtime.cpp"
+    ],
+    "native_evidence": {
+      "GroupManagerInit": "0x30c030",
+      "AddGroup": "0x30c140",
+      "Insert": "0x30c440",
+      "AddName": "0x30c9d0",
+      "Reset": "0x30c250",
+      "CreateGroupAction84": "Execute RVA0x251910 selector0x254cc8 table0x254a1c ->0x251fc9",
+      "HasGroupAction85": "ExecuteBool0x254e10 selector0x2555b8 table0x255548 ->0x2554af"
+    },
+    "observed_behaviors": [
+      "Init traverses root map definitions in metadata order; child arrays reverse-recursed, parent appended after descendants; add Overlay(-1), ScreenOverlay(-2) with overlay flag.",
+      "Native dynamic groups use highId=INT32_MIN then preincrement. Add existingName returns existing group. CreateGroup always replaces blend mode, defaultAlpha0.",
+      "Insert moves source contiguous subtree, removes old parent edge, places subtree immediately before/after destination; inherits destination parent.",
+      "PDB blend enum Alpha0 Opaque1 Additive2 Multiplicative2x3 Screen4 AdditiveMerge5 Multiplicative2xMerge6 ScreenMerge7 ColorBurn8 Overlay9 DarkerColor10 LighterColor11 Displacement12 DisplacementMerge13 Undefined255."
+    ],
+    "delivery": "Root confirms actual original SetupMap completed on host with69groups.",
+    "SGP1": "Bounded map metadata loader preserves group IDs+names (ID210001 duplicated across two names in supplied map). Snapshot/dump exposes actual registry.",
+    "limits": [
+      "Undefined missing destination/self/descendant moves explicitly error instead of mimicking native fallback/destructive behavior.",
+      "No claim all blend equations rendered; registry stores exact native enum for renderer."
+    ]
+  },
+  "objects": {
+    "implementation": [
+      "native/app/object_runtime.hpp",
+      "native/app/object_runtime.cpp"
+    ],
+    "source_first_call": "RoomManager5831 CreateVignette ->UIScripts2354 CreateScreenObstacle ->SpawnObstacle BlankObstacle at screen center, groupVignette, TriggerOnSpawnfalse, SortByIdtrue, UseScreenLocationtrue; SetAnimationVignetteOverlay follows.",
+    "source_definitions": [
+      "1_DevObstacles.sjson520 BlankObstacle inheritsInvisibleTarget252; GraphicBlank, Invisiblefalse, NeedsLifefalse, StopsUnitsfalse, StopsProjectilesfalse, MaterialUnlit.",
+      "1_DevAnimations.sjson5 Blank fileDev\\blank_invisible,ConstantNoUpdate,frame1of1.",
+      "GUIAnimations.sjson4323 VignetteOverlay fileFx\\Vignette\\VignetteOverlay,Constant,duration1,looptrue,frame1of1."
+    ],
+    "native_evidence": {
+      "SpawnObstacle": "0x26f4a0",
+      "GetLocation": "0x26c690",
+      "GetIdsByType": "0x26bb40",
+      "SetAnimation": "0x261a10",
+      "ThingDefaults": "0x2dbbb0",
+      "ObstacleHandleAcquire": "0x2cd050"
+    },
+    "implemented": [
+      "VM-owned native registry; actual positive object IDs and lifetime, source definition/animation catalog, native state snapshots.",
+      "SpawnObstacle existing-destination meanXY or LocationX/Y plus offsets, Zoffset, actual group, screenSpace/sortById state.",
+      "Destroy deactivates registered IDs; GetLocation meanXY of loaded active targets; GetIdsByType queries seeded original map/runtime type names; no empty fabricated map registry.",
+      "SetAnimation selects only loaded single-frame original animation metadata; immediate scale/alpha changes update native state."
+    ],
+    "limits": [
+      "Reconstructed ThingID allocator starts at explicitly configured positive1000000, skips seeded map IDs, never reuses retired IDs. Native handle generation bytes partly decoded but full public ThingID allocator is not reconstructed.",
+      "Unsupported collision placement, attachment, spawn event dispatch, timed property interpolation and multiframe object animation fail explicitly.",
+      "Snapshot records animation metadata for renderer; implementation does not itself render UI images.",
+      "Seed original map transforms before global type queries; original Active and DoCreate fields preserved separately."
+    ],
+    "phase_audit": {
+      "report": ".local/reports/native-boot-phase-comparison.json",
+      "reproducer": "native/analysis/audit_boot_phase.cpp",
+      "result": "Identical complete canonical GameState/CurrentRun for current original Active flags vs all original map metadata Active=false. Only2SpawnObstacle calls; no type/map/location/ID lookup APIs called during seed0 OnPreThingCreation.",
+      "limits": [
+        "Observed deterministic current startup clock/RNG seed0 only. RandomSwaps GetMapThings branch was not taken.",
+        "Preloading Active map objects remains phase approximation; native event precedes mapThing creation. Other seeds/callbacks and later OnAnyLoad remain unproven.",
+        "Lua states compared recursively with sorted keys; cyclic references marked cycle; no gameplay comparison implied."
+      ]
+    },
+    "native_rea": {
+      "SpawnObstacle": "ev_8477c9cf483946c8e7ed7541efe149a799a011d00ec01a44f68b003b1795ab8e",
+      "GetLocation": "ev_eeb122b6b89603dd65bfde12ef3462574ae776d5531e386cc385f26bef43f564",
+      "ObstacleHandleAcquire": "ev_cf31e139237f58e07250b88966249fdc0d088a762f4ce46f394e9276ee62bb4f",
+      "ObstacleCreate": "ev_b0c08d6bde089774b2fcc9180e93da45ed8d9bf58e8531cfa45196b9d78b0752"
+    }
+  }
+}

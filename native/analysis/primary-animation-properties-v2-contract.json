@@ -1,0 +1,110 @@
+{
+  "schema": "hades-primary-animation-properties-v2-contract",
+  "packet": {
+    "path": ".local/native-assets/hero-properties-v2/actor-properties.bin",
+    "bytes": 7608,
+    "sha256": "d1a188188e93f43a162966e8cbf4b4cd72def9e7f0b402aaea00ca515ce82372"
+  },
+  "bank": {
+    "path": ".local/native-assets/hero-actions-v3/actor-animations.bin",
+    "bytes": 220277751,
+    "sha256": "3e8c4db297499b8485f63780ee08861206dc7a1ed1cbc745b39ab598ba65a567"
+  },
+  "format": "HAP2 + raw32 HAA SHA + u32 clipCount; per clip u32 knownMask/valueMask/slideCount; float AirborneZ; per slide u32 originalFrame1/u32 airborne(0 unknown,1 false,2 true). Property mask OwnerImmobile=1,BlockNewOwnerAnims=2,AirborneZ-known=4.",
+  "API": [
+    "exactOwnerImmobile(clip)->optional<bool>",
+    "exactBlockNewOwnerAnims(clip)->optional<bool>",
+    "exactAirborne(clip,slide)->optional<bool>",
+    "exactAnimationZ(clip)->optional<float>, native AirborneZ only"
+  ],
+  "field_offsets": {
+    "OwnerImmobile": {
+      "def": 54,
+      "full": 142
+    },
+    "BlockNewOwnerAnims": {
+      "def": 88,
+      "full": 176
+    },
+    "AirborneZ": {
+      "def": 592,
+      "full": 680
+    },
+    "SlideData.Airborne": 48
+  },
+  "source_defaults": {
+    "primary": "AnimationData ctor 180093d7a..180093d85 zeros template rsp+0x38 for 0x2e0 bytes; 180093eae selects template, 180093eba selects mDef+0x58; operator= call 1800940b5. No subsequent writes to full offsets 0x8e/0xb0.",
+    "slide": "SlideData fill 18009e3b0 zeros eax, 18009e492 zeros temporary rsp+0x50 (template+0x30); 18009e501 copies default via SlideDataDef::operator=. Assignment 1800e930a/e copies byte+0x30. PDB mAirborne offset48, SlideData.mDef offset0; stride0x110."
+  },
+  "validation": {
+    "result": "passed",
+    "clips": 29,
+    "source_frame_bindings": 888,
+    "book_clips": 3,
+    "absent_companion_unknown_preserved": true,
+    "native_world_execution_observed": false
+  },
+  "arm64": "NDK29 API26 C++20 -Wall -Wextra -Werror passed",
+  "evidence": [
+    {
+      "path": ".local/reports/native-active-animation-data-ctor-static.json",
+      "bytes": 31333,
+      "sha256": "50386e8891b12647403a13217834ebaf1d3e0ce610100dd0bf6db5c034485f0d"
+    },
+    {
+      "path": ".local/reports/native-fields-AnimationDataDef.txt",
+      "bytes": 40025,
+      "sha256": "8694d388317a3b622ff2e5a37809d9aaed9ca41adc3c83757935ef8d8d9b02f3"
+    },
+    {
+      "path": ".local/reports/native-primary-slide-fields.json",
+      "bytes": 54416,
+      "sha256": "304cbc6f2d6e3d2e2641e782a55d3137e8c61be19c5361972f0b4d4e9d247272"
+    },
+    {
+      "path": ".local/reports/native-primary-slide-fill-default-static.json",
+      "bytes": 8675,
+      "sha256": "293b6bb617b32121bde651b513cf477cf2aa1dd2a95e906a76159bce827ddf63"
+    },
+    {
+      "path": ".local/reports/native-primary-slide-assign-static.json",
+      "bytes": 9716,
+      "sha256": "5887d6a395c8aace5ddfe62c5a67ca41a29201514d65481a1723cb9747ad4f13"
+    },
+    {
+      "path": ".local/reports/native-active-unit-airborne-static.json",
+      "bytes": 2772,
+      "sha256": "2af4201c5fef3ea2fb9c585581ec875088d7659fe0c66afed7cfd25606c98ae9"
+    }
+  ],
+  "sources": [
+    {
+      "path": "native/app/actor_animation.hpp",
+      "bytes": 5404,
+      "sha256": "abe3b84e4d145bfac8d31a5f043c1f1068b5a6f11edef85494c185209b5db1c7"
+    },
+    {
+      "path": "native/app/actor_animation.cpp",
+      "bytes": 15791,
+      "sha256": "7823af68281a29dc6c4d530b3c454dbf130720fd39c2ffc4311b6434209de583"
+    },
+    {
+      "path": "native/tools/export_actor_properties.py",
+      "bytes": 6842,
+      "sha256": "e8bfca31e70deb26d0c03f1df239418f2610f1ca7065720610615f03e5a79a0d"
+    },
+    {
+      "path": "native/analysis/actor_properties_smoke.cpp",
+      "bytes": 2297,
+      "sha256": "181b158bb5ad3b4d15d81a4ef2fe45a47faefb33ed7d7c220de22fafef1e3aed"
+    }
+  ],
+  "compatibility": "HAP1 remains accepted; exactAnimationZ remains unknown under HAP1 or missing companion. HAA1/HAF1 original bytes unchanged.",
+  "limits": [
+    "Book airborne false by native type gate, independent actual actorZ.",
+    "AirborneZ contributes to Unit.GetTotalZ only on actual Slide/currentSlide.Airborne. It is not added to Thing.GetZLocation generically."
+  ],
+  "sessions": "Reused retained evidence; no owned session opened.",
+  "superseded_by": "native/analysis/primary-animation-properties-v3-contract.json",
+  "correction": "Historical v2 packet incorrectly used zero for absent AirborneZ. Exact ctor180094273 explicitly stores100 at fullData2a8 after zero-template copy. v2 retained as historical; do not stage."
+}

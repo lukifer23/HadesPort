@@ -1,0 +1,10 @@
+#include "bloom_state.hpp"
+#include <cassert>
+#include <cstring>
+#include <cmath>
+#include <fstream>
+#include <iostream>
+#include <vector>
+class File final:public hades::AssetFile{std::vector<char> bytes_;size_t p_=0;public:explicit File(const char*path){std::ifstream f(path,std::ios::binary);bytes_={std::istreambuf_iterator<char>(f),{}};}size_t size()const override{return bytes_.size();}size_t remaining()const override{return bytes_.size()-p_;}size_t read(void*out,size_t n)override{n=std::min(n,remaining());std::memcpy(out,bytes_.data()+p_,n);p_+=n;return n;}};
+class Store final:public hades::AssetStore{const char*path_;public:explicit Store(const char*p):path_(p){}std::unique_ptr<hades::AssetFile>open(std::string_view n)override{assert(n=="bloom-settings.bin");return std::make_unique<File>(path_);}};
+int main(int argc,char**argv){assert(argc==2);Store store(argv[1]);hades::FullscreenBloom b;b.load(store);std::string e;assert(b.snapshot().name=="Off"&&!b.shouldDraw(true));assert(b.adjust("DEFAULT",2,true,10,90,e));assert(b.advance(10.5,100,true,e));assert(std::abs(b.snapshot().threshold-.0390625f)<1e-7f);assert(b.shouldDraw(true)&&!b.shouldDraw(false));const float held=b.snapshot().threshold;assert(b.advance(11.9,100,false,e)&&b.snapshot().threshold==held);assert(b.advance(12,100,true,e)&&!b.transitioning()&&b.snapshot().name=="Default");assert(b.adjust("Off",2,false,20,200,e));assert(b.advance(200,201,true,e)&&std::abs(b.snapshot().threshold-.125f)<1e-7f);assert(b.adjust("Off",0,true,200,201,e)&&b.snapshot().threshold==0&&b.transitioning());assert(b.advance(200,201,true,e)&&b.snapshot().threshold==.125f);assert(b.adjust("not-a-setting",4,true,200,201,e)&&e.empty()&&b.transitioning());assert(b.resetOff(e)&&!b.transitioning());assert(b.adjust("Default",-2,true,5,7,e));assert(b.advance(6,50,true,e)&&b.snapshot().threshold==0&&b.transitioning());assert(b.resetOff(e));std::cout<<"source-presets=78 reset=Off smoothstep=true world/screen-clocks=true disabled-update-freeze=true immediate-keeps-existing-target=true unknown-skips=true negative-duration-preserved=true\n";}

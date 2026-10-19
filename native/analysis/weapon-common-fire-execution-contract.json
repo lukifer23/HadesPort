@@ -1,0 +1,107 @@
+{
+  "schema": "hades-weapon-common-fire-cursor-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "module": "native/app/weapon_execution.cpp",
+  "class": "WeaponFirePrefix",
+  "api": "advance(fresh owner frame,pure support preflight,step,error)",
+  "phase_boundary": "HandleTriggerDown ready GUN FireGraphic + common Weapon::Fire only. CommonFireFinished requires Gun body/HandleTriggerDown FireFx/PostFire; not a fired-shot or projectile claim.",
+  "evidence": [
+    {
+      "path": "hades/.local/reports/native-player-trigger-down.json",
+      "sha256": "57efc74c03bbca43c0ac58c514ddf66649773cd30329031e472041808f51200a",
+      "rea_evidence": null,
+      "procedure": {
+        "kind": "procedure",
+        "length": 602,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Weapon.obj",
+        "name": "sgg::Weapon::HandleTriggerDown",
+        "rva": 549872,
+        "type_index": 54971
+      }
+    },
+    {
+      "path": "hades/.local/reports/native-player-fire-rea-base-fire.json",
+      "sha256": "9ccda0d35ffb12e1d32135334f240b2804cf908da8a50becf90826174a6700fa",
+      "rea_evidence": "ev_e056fd8a462f648de739b43618ea8d17a911d258d6dc1cdf04ee3afb2732e30f",
+      "procedure": null
+    },
+    {
+      "path": "hades/.local/reports/native-player-apply-physics.json",
+      "sha256": "6c43eaaee4bd78ec031c08f4591689383db4fcadd326004e13c32f74227b20ff",
+      "rea_evidence": null,
+      "procedure": {
+        "kind": "procedure",
+        "length": 770,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Weapon.obj",
+        "name": "sgg::Weapon::ApplyPhysics",
+        "rva": 552512,
+        "type_index": 54930
+      }
+    },
+    {
+      "path": "hades/.local/reports/native-player-arsenal-is-strafing.json",
+      "sha256": "2f8be2fd5b6e476cc64821a2eccbd1967caea08eda21188ecd28003e8b56d9e7",
+      "rea_evidence": null,
+      "procedure": {
+        "kind": "procedure",
+        "length": 147,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\WeaponArsenal.obj",
+        "name": "sgg::WeaponArsenal::IsStrafing",
+        "rva": 3139552,
+        "type_index": 54557
+      }
+    },
+    {
+      "path": "hades/.local/reports/native-effect-thing-set-animation.json",
+      "sha256": "44292ec71c2827d2d97cf7dbd6c945a049ba08ba019d02ee08e094ba0386b988",
+      "rea_evidence": null,
+      "procedure": {
+        "kind": "procedure",
+        "length": 1151,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Thing.obj",
+        "name": "sgg::Thing::SetAnimation",
+        "rva": 3009712,
+        "type_index": 55136
+      }
+    }
+  ],
+  "order": [
+    "HandleTriggerDown FireGraphic (GUN before virtual Fire; Blink differs and is rejected)",
+    "FireRequest.GetFromLocation retained local origin",
+    "common Fire PreFireAnimation",
+    "LastFireTime from actual World clock",
+    "if request applySelfEffects: synchronous ApplySelfEffects Fire1, preserving callback writes",
+    "actual Weapon.ApplyPhysics with fresh owner body angle, even zero force",
+    "SpendAmmo (shared recursion branch explicit unsupported here), synchronous OnOutOfAmmo when finite ammo reaches0",
+    "if initial clip count matches ClipSize, ClipStartFx at retained origin",
+    "FireSound playback only if native valid cue; bounded path invalid source cues only",
+    "CancelMovement if current data flag",
+    "SetCompleteAngleOnFire only when no other qualifying Arsenal.IsStrafing weapon",
+    "target obstacle destruction/search actual World branch unsupported unless source names empty"
+  ],
+  "is_strafing": "Arsenal RVA2fe7e0: exclude supplied weapon; any owned weapon with Strafe=true, currentFireRequest, HasAmmo, reloadRemaining<=0. No controllable-list filter.",
+  "unsupported": [
+    "non-GUN virtual subclass",
+    "trigger-release firing path",
+    "RandomFireAngle",
+    "ammo-per-projectile and shared recursive callbacks",
+    "target entity/from-location/obstacle World branches",
+    "valid or unresolved FireSound playback",
+    "Gun/projectile creation and PostFire continuation (separate work)"
+  ],
+  "transaction": "one yielded operation passed pure preflight before its stage mutation. Caller must consume synchronously before resuming. Earlier real stages are not rolled back over callbacks.",
+  "verification": {
+    "compiler": "clang++ c++20 -Wall -Wextra -Werror ASAN+UBSAN",
+    "harness": "native/analysis/player_weapon_debug.cpp",
+    "v6_log": ".local/reports/native-player-weapon-debug-v6-asan.log",
+    "bounded_cast_sequence": [
+      "ZagreusRangedWeapon_Fire",
+      "ApplySelfEffects Fire1",
+      "Weapon.ApplyPhysics",
+      "OnOutOfAmmo",
+      "CancelMovement",
+      "SetCompleteAngle"
+    ],
+    "no_original_binary_execution": true
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "schema": "hades-native-weapon-request-control-v1",
+  "target_dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence": [
+    {
+      "path": "hades/.local/reports/native-player-fire-rea-request-fire.json",
+      "sha256": "7366403efd3c991f19be443ab770786f840409f8f2fc98645f6ede110a6e08a2",
+      "procedure": null,
+      "rea_evidence": "ev_8ed300ffecf216d679501b23ac441557c96f8cf3f3c54375f5a13bd4367d8d62"
+    },
+    {
+      "path": "hades/.local/reports/native-player-arsenal-swap.json",
+      "sha256": "08d9292f5efe3ce4196d8c1b8ee43b2df1b4ab044b897765d0a5e34d626b1664",
+      "procedure": {
+        "kind": "procedure",
+        "length": 609,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\WeaponArsenal.obj",
+        "name": "sgg::WeaponArsenal::SwapWeaponControl",
+        "rva": 3140880,
+        "type_index": 54563
+      },
+      "rea_evidence": null
+    },
+    {
+      "path": "hades/.local/reports/native-player-must-release.json",
+      "sha256": "55377f87fbcb50f4731aa4b1fef67990a9bb233a3b44637ab15c16ad1ddbaf6c",
+      "procedure": {
+        "kind": "procedure",
+        "length": 63,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Weapon.obj",
+        "name": "sgg::Weapon::MustReleaseTrigger",
+        "rva": 536864,
+        "type_index": 54917
+      },
+      "rea_evidence": null
+    },
+    {
+      "path": "hades/.local/reports/native-player-arsenal-update.json",
+      "sha256": "03b601302c833789a0e2a86970597bc3e65834c40c628c97c7c14194de91cb06",
+      "procedure": {
+        "kind": "procedure",
+        "length": 700,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\WeaponArsenal.obj",
+        "name": "sgg::WeaponArsenal::Update",
+        "rva": 3138848,
+        "type_index": 54554
+      },
+      "rea_evidence": null
+    },
+    {
+      "path": "hades/.local/reports/native-player-fire-rea-update.json",
+      "sha256": "9037c373425960fc8ccd929d8b0c57de6b17943cb844f8961f8fad5e7e0897b1",
+      "procedure": null,
+      "rea_evidence": "ev_d9566dddbab96b57298cffe298ef86803ac4d0ffa8fee3856c721c4ccf0dd07d"
+    },
+    {
+      "path": "hades/.local/reports/native-player-fire-request-type.txt",
+      "sha256": "a700d91310dd33aada20f84cba843319f77c0a13029020ccc3e16156dc325820"
+    }
+  ],
+  "interfaces": [
+    "requestFire(name,WeaponFireRequest,WeaponOwnerFrame,error)",
+    "swapWeaponControl(from,to,WeaponOwnerFrame,error)",
+    "controllableWeapons() actual ordered list",
+    "finishFireRequestFrame(name,fired,failedCooldownAnimation,error) native Update tail only"
+  ],
+  "request_fields": {
+    "native_size": 40,
+    "mTarget": 0,
+    "mFromLocation": 16,
+    "mTargetLocation": 24,
+    "mAngle": 32,
+    "mApplySelfEffects": 36,
+    "optional_size": 48,
+    "weapon_current_offset": "0xa8",
+    "weapon_previous_offset": "0xd8",
+    "portable_target_boundary": "only no target targetId=-1; native EntityLinkedObject generation/identity must be supplied before non-null targets"
+  },
+  "request_gate_order": [
+    "owner UnitManager lookup",
+    "owner live mAllowAnyFire",
+    "copied WeaponData.Enabled",
+    "MustReleaseTrigger",
+    "no ammo AND FailedToFireCooldownAnimation nonempty",
+    "nonzero ClipSize with remaining0",
+    "IgnoreTriggerLockDuringCooldown && cooldown>0",
+    "FireFromObstacle/FireToObstacle actual World searches; unsupported if nonempty",
+    "new non-Priority/non-AllowMulti blocked by any existing Priority&&!AllowMulti request",
+    "negative angle uses owner body angle, populate current request"
+  ],
+  "MustReleaseTrigger": "mRequireControlRelease OR (!FullyAutomatic && fractionCharged<=0 && chargeRemaining<=0)",
+  "swap_order": [
+    "lookup target owned weapon; empty/missing returns null",
+    "erase all old controllable pointers, append target if absent",
+    "old request && LockTriggerTransferFromOnSwap -> target.RequestFire(old target, old targetLocation, old angle, applyEffects=true, fromLocation zero); ignore ordinary gate failure; clear old current request",
+    "ClearFireRequestOnSwap optionally clears old current request",
+    "target.pGainedControlFrom=old chain root if non-null else old",
+    "positive target ControlWindow resets ControlTime",
+    "old/target ForceReleaseOnSwap sets respective mRequireControlRelease"
+  ],
+  "frame_tail": "previous=current; reset current iff fired || failed-cooldown-animation || FireOnRelease",
+  "phase_limits": [
+    "No normal control arbitration/trigger release implemented.",
+    "No shot/physics/projectile/effect execution through these methods.",
+    "No metadata query proxy promoted to target.",
+    "Arsenal priority-first then preserved creation vector may update transferred target later in SAME frame.",
+    "Control-window expiry and gained-control-source reclamation remain unresolved."
+  ],
+  "verification": "focused actual54-weapon/46-projectile source ASAN+UBSAN: Sword1 request transfers to Sword2 with origin cleared, angle/target preserved, control order, chain and release flags; no device/original binary execution"
+}

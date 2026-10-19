@@ -1,0 +1,302 @@
+{
+  "schema": "hades-native-self-effect-admission-v1",
+  "status": "bounded original static/REA evidence; portable admission and argument construction implemented, native side effects remain parent callbacks",
+  "observations": {
+    "weapon_self_path": {
+      "function": "Weapon::ApplySelfEffects RVA0x86930",
+      "order": [
+        "Always stream0 RandomDouble once for WeaponData.EffectsProcChance, including empty vector; equality passes",
+        "Capture begin/end vector of 0x418-byte EffectData records",
+        "Each item: Active && Trigger match, then stream0 RandomDouble <= ProcChance, then RequirePerfectCharge query",
+        "UnitStatus::GetEffect exact name lookup",
+        "New: EffectFactory(data,weapon,0), SelfApplied=true, virtual AffectUnit(actual status owner) synchronously, append to pending only after return",
+        "Existing: virtual Reapply(data,weapon,&float(-1)), preserving existing SelfApplied"
+      ],
+      "bypasses": "UnitStatus::AddEffect owner liveness/immunity/block/duration admission gates; do not import them into self effects"
+    },
+    "general_add_effect": {
+      "rva": "0x2fdca0",
+      "gates": [
+        "owner exists/alive",
+        "!status.BlockAllEffects and !UnitData.BlockAllEffects",
+        "incoming data mId differs from blocked EffectId",
+        "Duration > 0",
+        "Charm/Stun/Slow/DoT immunity conditions",
+        "DelayedKnockback requires positive source projectile impact velocity when valid projectile",
+        "Exact effect-name immunity list"
+      ],
+      "not_implemented_by_self_effect_module": true
+    },
+    "factory": {
+      "rva": "0x5e200",
+      "mapping": {
+        "0": "SpeedEffect",
+        "4": "DamageOverTimeEffect",
+        "5": "DamageOverDistanceEffect",
+        "6": "DelayedKnockbackEffect",
+        "7": "CharmEffect",
+        "8": "WeaponFireEffect",
+        "9": "ProjectileDefenseEffect",
+        "11": "InvulnerableEffect",
+        "default including UNKNOWN12": "TagEffect"
+      }
+    },
+    "base_affect_unit": {
+      "rva": "0x5cb40",
+      "sequence": [
+        "Set UnitId actual owner and TimeRemaining from EffectData.Duration",
+        "HaltOnStart physics; DestroyProjectileOnStart selection and mark; EnableWeaponForDuration flag",
+        "Apply elapsed multiplier to unit and attached animation",
+        "ScriptManager::OnEffectApply(effect,unit,false) callback barrier",
+        "Flash/StartAnimation/StartFx; persistent overhead FX(+70,data+f8), back(+78,data+110), front(+40,data+128), in that order with one outer cleared check",
+        "Scale front/back FX to actual source projectile radius; capture original UnitProperty then actual Unit.SetUnitProperty Absolute",
+        "DisableAttack and !ImmuneToStun -> actual Unit::OnStun(Duration)",
+        "Play actual SoundCue and retain sound handle"
+      ],
+      "caution": "Callback occurs before remaining effects, before pending publication, and can mutate source data or clear effect. Full side effects are not replaced by status flags."
+    },
+    "tag_affect_unit": {
+      "factory_rva": "0x60f00",
+      "affect_rva": "0x61100",
+      "observations": [
+        "Runs full base Effect::AffectUnit",
+        "Cooldown copied to TagEffect+0x8c; Rate >0 sets periodic state",
+        "Cooldown ==0 sets active tick flag; otherwise add Cooldown to TimeRemaining"
+      ]
+    },
+    "apply_callback": {
+      "rva": "0x28dc70",
+      "filter": "Loop real OnEffectApply registrations, Script::isSourceThing(owner), fresh args for each",
+      "fields": {
+        "EffectType": "actual enum ToString; unknown/out of range -> UNKNOWN",
+        "EffectName": "actual EffectData.Name",
+        "Reapplied": "passed native bool",
+        "Stacks": "Effect.NumStacks +1 (int32)",
+        "Modifier": "EffectData.Modifier float",
+        "Duration": "EffectData.Duration float, not override remaining",
+        "IsVulnerabilityEffect": "EffectData boolean",
+        "ElapsedTimeMultiplier": "Effect.AppliedElapsedTimeMultiplier float",
+        "UnitElapsedTimeMultiplier": "current actual owner elapsed multiplier",
+        "name": "owner virtual name/common Script::run",
+        "triggeredById": "actual owner runtime ID",
+        "TriggeredByTable": "actual owner attached alias or absent/nil"
+      },
+      "absent_fields": [
+        "SourceWeapon",
+        "AttackerTable",
+        "BlockedEffect",
+        "Exists"
+      ],
+      "owner_alias": "Affected unit, not source weapon owner",
+      "native_source": "Combat.lua3462 original unfiltered registration retains same fresh table"
+    },
+    "lookup": {
+      "rva": "0x2fdf60",
+      "order": [
+        "toDelete exact matching name -> null immediately",
+        "First exact active match",
+        "First exact pending match"
+      ],
+      "flags": "No cleared/disposed filtering; native textual name comparison"
+    },
+    "empty_guards": {
+      "Thing_SetAnimation": "Empty name returns null at1802ded10..1802ded13 before data lookup",
+      "FX_attached_Create": "Empty name returns null at18029e385..18029e396 before data lookup",
+      "FX_world_Create": "Empty or exact literal null returns null before data lookup (18029e45b and18029e4a2)",
+      "Sound_Play3D": "Empty cue name branches180049d8d->180049e7f returns0",
+      "Sound_Play2D": "Empty cue name branches180049cd5->180049d28 returns0"
+    },
+    "unit_on_stun": {
+      "rva": "0x2f3b80",
+      "gate": "Duration >0",
+      "sequence": [
+        "Thing::SetAnimation(UnitData.StunAnimation full1d8,false,true,false)",
+        "Arsenal.GetWeapon(UnitData.StunWeapon full1c0)",
+        "If found, Weapon.RequestFire(-1,zero vectors,true,null)"
+      ],
+      "no_status_timer_assignment_in_function": true
+    },
+    "postread_duration_frames": {
+      "report": ".local/reports/native-weapon-effectnorm-effect-read-static.json",
+      "addresses": "1800b297c..1800b2995",
+      "formula": "if DurationFrames(int32)>0: Duration=float32(DurationFrames)/float32(60.0)",
+      "constant": {
+        "va": "0x180611054",
+        "bytes": "00007042",
+        "value": 60.0
+      },
+      "source_override": "This postread rewrites explicit source Duration when positive frames present"
+    },
+    "reapply": {
+      "data_overload_rva": "0x5d910",
+      "noarg_overload_rva": "0x5d350",
+      "data_overload": [
+        "Checks EXISTING data ExtendDurationOnReapply full144",
+        "If true, timeRemaining reset to incoming Duration if incoming nonnull else existing Duration",
+        "Tail calls virtual noarg Reapply slot28"
+      ],
+      "noarg": [
+        "Owner active lookup by effect.UnitId; if absent return",
+        "DisableAttack and !ImmuneToStun -> Unit::OnStun before callback",
+        "Conditional elapsed-multiplier stack update",
+        "OnEffectApply(reapplied=true)",
+        "Actual ReapplyFx at current owner location"
+      ],
+      "limits": "Self admission calls virtual slot20 with data/weapon/duration; derived overrides and their duration/ref semantics must remain actual callbacks, not generic timer refresh"
+    }
+  },
+  "implemented": {
+    "admission": "native/app/self_effects.hpp/.cpp",
+    "callback_arguments": "native/app/effect_arguments.hpp/.cpp",
+    "tests": [
+      "native/analysis/self_effects_smoke.cpp ASan+UBSan passed",
+      "native/analysis/effect_arguments_smoke.cpp linked original Lua5.2 source ASan+UBSan passed",
+      "native/analysis/effect_affect_smoke.cpp ASan+UBSan passed"
+    ],
+    "failure_policy": "Callback failure stops with partial prior effects retained; caller must stop progression, not retry RNG/admission.",
+    "affect": "native/app/effect_affect.hpp/.cpp"
+  },
+  "defaults": {
+    "generator": "native/analysis/recover_effect_defaults.py",
+    "report": ".local/reports/native-effect-compiled-defaults.json",
+    "known_fields": 105,
+    "unknown_complex_fields": 0,
+    "important": {
+      "Type": 12,
+      "Trigger": 0,
+      "m_changeType": 1,
+      "Duration": 0,
+      "Active": true,
+      "Cancelable": false,
+      "ProcChance": 1,
+      "Sound": {
+        "owner": null,
+        "name": "",
+        "valid": false
+      },
+      "ClearSound": {
+        "owner": null,
+        "name": "",
+        "valid": false
+      }
+    },
+    "limits": [
+      "105 field projections does not prove every padding byte in 904-byte definition",
+      "SoundCue hash functor/padding bytes remain unknown",
+      "Defaults precede source deserialization and Weapon Effects trigger normalization/postread"
+    ]
+  },
+  "unknowns": [
+    "Full base/derived effect updates, exact lifetime expiry and all Clear/Dispose side effects are not implemented by admission",
+    "Parent must supply actual stream0 RNG and virtual callbacks; no audio executed",
+    "No original binary execution, no device/emulator validation"
+  ],
+  "evidence": [
+    {
+      "report": ".local/reports/native-rea-effect-weapon-self.json",
+      "sha256": "dbfeb5b8477b77219334efaa2717c659b3fc8a75664591bf8915fb1be1c3b897",
+      "evidence_id": "ev_d25e08cde8ff49a625487a0ad596a117480abb7459366e6422177e0af7f1591a",
+      "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "report": ".local/reports/native-rea-effect-status-add.json",
+      "sha256": "94237807cc591e2340fd8e50c7039a9862e1abf7a26a099bb957628105ed40a5",
+      "evidence_id": "ev_c30fcae948edf241693d2ea9b3c545352e09bcba07f52e0de17c7873e026066a",
+      "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "report": ".local/reports/native-rea-effect-factory-create.json",
+      "sha256": "3b4176533a93976860eddee9e9eb5f426d9b670cb2565a2d9f367b7b3829b6ad",
+      "evidence_id": "ev_cd6920689a8f1671106dc6bf534270357626fc2b4e639e10361eba05d7ad7736",
+      "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "report": ".local/reports/native-rea-effect-affect-unit.json",
+      "sha256": "5cc10bdfd4e2c90930eb77cab84bc38a777da47868e165635521c0dfae458b2e",
+      "evidence_id": "ev_5918df53e03c2ba0f8d4f9e5d0fe12cf34b9a4cede5ad70039bfedda54b2db4c",
+      "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "report": ".local/reports/native-rea-effect-defaults.json",
+      "sha256": "6b9591278055f127568f29c59815d3acb94ec1432315d4a0a5e19f2ca7c406f8",
+      "evidence_id": "ev_6dea2b1aa2b33313a3b8bcc57f0ac8f275c15266ba7cb1ec0e793b1506990fdb",
+      "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "report": ".local/reports/native-rea-effect-reapply.json",
+      "sha256": "e8dc0dbad5864c432cf90173b4e09b57ef135caa4011b08662f237aadea26483",
+      "evidence_id": "ev_8d8d903d0385bcb6d501c5a550c2c78e6647302ad1cd2cc98734d5d90598baca",
+      "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "report": ".local/reports/native-rea-effect-on-apply.json",
+      "sha256": "21da9cb6ea130e482aaa11a318ec33917afc3bbd394c9efa76b3332c27e804af",
+      "evidence_id": "ev_9710c248d6822c839e01c1636f55b3842b4fc26bb3ebb816b183d6c049d5d133",
+      "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "report": ".local/reports/native-effect-type-to-string.json",
+      "sha256": "a4ead11a79275ae3bb31ba38f90c4afbf208ccec544c9cb6e8a8797b3565145f"
+    },
+    {
+      "report": ".local/reports/native-effect-compiled-defaults.json",
+      "sha256": "e7bdf887bb1e2f124223639df51512092f463708f251ac4875d47775ec1a70c4"
+    },
+    {
+      "report": ".local/reports/native-effect-change-type-pdb.json",
+      "sha256": "82fb0ca257c5bed5b6a9105401b3fd63c7b03185d33669ba8ed866b1999762a5"
+    },
+    {
+      "report": ".local/reports/native-rea-effect-admission-close.json",
+      "sha256": "052cc72acfb75907e9ff703ebd805df08cd7d770bdebc4c2da17cf9d10cd8447"
+    },
+    {
+      "report": ".local/reports/native-effect-tag-create.json",
+      "sha256": "341388c162863d14f265b028cbe68405a8d78d2a0e2b19902de5032730fdec3b"
+    },
+    {
+      "report": ".local/reports/native-effect-tag-affect.json",
+      "sha256": "72d893ebfddcfb4247f19e58adf55b57d317db15472b8d1e9aa027466a20b796"
+    },
+    {
+      "report": ".local/reports/native-effect-reapply-wrapper.json",
+      "sha256": "92c978c458ea0b835325d225d752441fb95b1521184fbaeddc2c0e012a66dfe5"
+    },
+    {
+      "report": ".local/reports/native-effect-get-effect.json",
+      "sha256": "5e9bb2653fb633336d59c8bf082f7acf30a2d1bdbc04f6f7a1800522046c67d8"
+    },
+    {
+      "report": ".local/reports/native-effect-unit-on-stun.json",
+      "sha256": "4588d37db507cbec1d875c9bb04dc8c101fe544eadf90377aaf39b41cd7efd8f"
+    },
+    {
+      "report": ".local/reports/native-effect-thing-set-animation.json",
+      "sha256": "44292ec71c2827d2d97cf7dbd6c945a049ba08ba019d02ee08e094ba0386b988"
+    },
+    {
+      "report": ".local/reports/native-effect-fx-create-attached.json",
+      "sha256": "bf68e544b4533d4255288a5cdfddba36594b422569e582a3cbf44aae47e44331"
+    },
+    {
+      "report": ".local/reports/native-effect-fx-create-start.json",
+      "sha256": "51f23774fcee5e697e73fc6fc079ef5843f7943e0f5cda3ce314f012a4221d22"
+    },
+    {
+      "report": ".local/reports/native-effect-sound-cue-play.json",
+      "sha256": "ae4d139f2a0340d95de5508a6b4080b4638ef739044bcf73f906733efd826944"
+    },
+    {
+      "report": ".local/reports/native-effect-sound-play3d.json",
+      "sha256": "71cb3cb9a5c1a06a604f2af616afa690be3e901e5e8bc395e178c09b15d68503"
+    },
+    {
+      "report": ".local/reports/native-effect-sound-play2d.json",
+      "sha256": "d0b3eab549a8e5cdbd7f44fceb3234563cd028d40faf12819de10ce56ac369bc"
+    },
+    {
+      "report": ".local/reports/native-weapon-effectnorm-effect-read-static.json",
+      "sha256": "7f853f023e99d7f619f65726a0319b463dd09b487207a325645b74bab1750d0e"
+    }
+  ]
+}

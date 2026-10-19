@@ -1,0 +1,79 @@
+{
+  "schema": "hades-native-arc-projectile-motion-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence": [
+    {
+      "path": ".local/reports/native-player-arc-init.json",
+      "sha256": "c87fcbf02866e9027cc9861b1ccae44d83e985c407e1331bafffd008ea48d570",
+      "kind": "matching PDB and bounded LLVM disassembly, static"
+    },
+    {
+      "path": ".local/reports/native-player-arc-move.json",
+      "sha256": "954d9c80c0ef991c170fe2b5950d2b427d39682363ed1c83002186fecb4f8001",
+      "kind": "matching PDB and bounded LLVM disassembly, static"
+    },
+    {
+      "path": ".local/reports/native-player-arc-update.json",
+      "sha256": "5c3217d6453eca7aac4cc5181f908e5b52f8ada5e4a56b43735230841fc84a22",
+      "kind": "matching PDB and bounded LLVM disassembly, static"
+    },
+    {
+      "path": ".local/reports/native-player-arc-check-defense.json",
+      "sha256": "c9a6ea8342c4e221dacee5049fe3810511d91b0166a5c1da25a3cac4749d68fc",
+      "kind": "matching PDB and bounded LLVM disassembly, static"
+    },
+    {
+      "path": ".local/reports/native-player-projectile-manager-update.json",
+      "sha256": "e80bdec1bb385811b7fe7b6a615036717b217f4a6c2d33d10c47002ee1c5d9f4",
+      "kind": "matching PDB and bounded LLVM disassembly, static"
+    },
+    {
+      "path": ".local/reports/native-player-projectile-motion-pdb.txt",
+      "sha256": "3b73d1a17bf0f1c8b5dc8bf59bd305962a9f10b39528e58941ecdbfb63454485",
+      "kind": "matching PDB and bounded LLVM disassembly, static"
+    },
+    {
+      "path": ".local/reports/native-player-projectile-thing-clock-pdb.txt",
+      "sha256": "5d7c05152397a0d28aff67ac8c3721152b8033fe0643a4e437b3e3425cf101ca",
+      "kind": "matching PDB and bounded LLVM disassembly, static"
+    }
+  ],
+  "implementation": "native/app/projectile_runtime.hpp/.cpp initialArcProjectileAngle + planArcProjectileMove",
+  "phase_contract": "After full base Projectile.Init (including real pending queue setup), native derived ArcProjectile.Init copies ArcStart to mAngleOffset(+510). Pure Move planning does not establish initialization, registration, collision or active simulation.",
+  "move_order": [
+    "if World.time > Thing.spawnTime, advance mAngleOffset towards ArcEnd by float32(float64(abs(float32(Data.Speed)))*pi/180)*dt, clamped to endpoint",
+    "AttachToOwner true: resolve actual owner; missing owner => native removal true; else real SetLocation(owner.GetLocation,false), SetAngle(ownerBodyAngle or0 + angleOffset)",
+    "AttachToOwner false: real SetLocation(spawnLocation + Range*[cos(angleOffset+spawnAngle),-sin(angleOffset+spawnAngle)],false), SetAngle(normalized atan2(-(newY-spawnY),newX-spawnX))"
+  ],
+  "native_fields": {
+    "Thing.mTimeModifierFraction": "0x7c",
+    "Thing.mElapsedTimeMultiplier": "0x80",
+    "Thing.mSpawnTime": "0x84",
+    "Thing.mSpawnLocation": "0x90",
+    "Projectile.mRange": "0x3d0",
+    "Projectile.mSpawnAngle": "0x3f0",
+    "ArcProjectile.mAngleOffset": "0x510"
+  },
+  "manager_order": [
+    "flush captured PROJECTILES_TO_ADD order to entity-hash/PROJECTILES and conditional reflected/effector lists",
+    "clear pending before active updates",
+    "active insertion-vector loop virtual UpdateSelf(dt*Thing.ElapsedTimeMultiplier), reread active length each iteration",
+    "native true => mark disposed, hash erase, Thing.Dispose, auxiliary erases, Release; false => stable survivors compaction",
+    "new pending during active updates waits next frame; Unit-created shots are promoted and updated later in SAME World frame"
+  ],
+  "arc_update_boundaries": [
+    "time-modifier scaling; startDelay/hasStarted/CreateStartFx; pause/unpause",
+    "virtual CheckProjectileDefense BEFORE animation/movement",
+    "virtual UpdateAnimation",
+    "detonated/blast/death or fuse/multidetonation handling",
+    "virtual Move",
+    "virtual CheckForImpact and final angle endpoint handling"
+  ],
+  "critical_first_sword": "SwordWeapon source ProjectileDefenseRadius=235 despite DeflectProjectiles=false; defense scan cannot be replaced by testing DeflectProjectiles alone. Original polygon becomes sweep geometry at native positions; Move alone does not execute hit/damage callbacks.",
+  "verification": {
+    "log": ".local/reports/native-player-weapon-debug-v12-arc-asan.log",
+    "sha256": "15bc1e8282f8048bbc0683c821454e35be444003fcd6b9c3636281b9b668efd4",
+    "result": "ASan+UBSan, -Wall -Wextra -Werror; exact creation-time hold, original speed2700 degree sweep, endpoint clamp; no gameplay observation"
+  },
+  "owned_REA_sessions": "none"
+}

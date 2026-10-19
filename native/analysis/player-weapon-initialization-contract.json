@@ -1,0 +1,107 @@
+{
+  "schema": "hades-player-weapon-initialization-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "phase": "Portable staged typed-unit Arsenal; caller may attach to an actual initialized Unit. Module creates no World actor/query proxy. ownerId is caller-supplied actual Unit.mId; map-backed IDs may equal source IDs.",
+  "catalog": {
+    "schema": "hades-player-weapons-runtime-v2",
+    "catalog_sha256": "c24cf03eef87de8a0875d2e94105bb0848ea28c94345ca02d8583feb1b545dd5",
+    "packet_sha256": "4204f753df9a28db10d59aa7fffff1d4d2db810b4504a0343ff72232dceda558",
+    "packet_bytes": 4114910,
+    "weapon_count": 12,
+    "projectile_count": 11,
+    "names": [
+      "HeroTouchdown",
+      "ArmorBreakAttack",
+      "RushWeapon",
+      "AreaSlowWeapon",
+      "RushAreaSlowWeapon",
+      "RushRuptureWeapon",
+      "RangedWeapon",
+      "SwordWeapon",
+      "SwordWeapon2",
+      "SwordWeapon3",
+      "SwordWeaponSpinExplosiveChargeWeapon",
+      "SwordParry"
+    ],
+    "limits": [
+      "Initialization and source catalog only. No firing, effects, projectile actor simulation or live unit creation.",
+      "Seven native startup slots are identified; omitted UnitData strings are not promoted without default provenance.",
+      "Full typed effective properties retain source/compiled provenance; complex unknown defaults remain explicit.",
+      "Effect order follows source inheritance replacement; no effect execution or omitted effect defaults claimed."
+    ]
+  },
+  "integration": {
+    "header": "native/app/weapon_catalog.hpp",
+    "load": "loadWeaponCatalog(span,WeaponCatalog&,error), shared_ptr<const WeaponCatalog> bound to WeaponArsenal(ownerId,originalUnitDataName,catalog)",
+    "startup": "unitLoadouts.explicitInitialSlots currently contains original OnTouchdownWeapon=HeroTouchdown. Omitted native UnitData string defaults are not fabricated.",
+    "equip": "equip(name,error) or equip(definition,error), duplicates before validation, entire dependency graph transactional",
+    "compatibility": "HWA1 vector overload and original no-catalog ArmorBreakAttack branch preserved"
+  },
+  "proven_contracts": [
+    {
+      "contract": "Fresh common Weapon initialization, copies and validity",
+      "source": ".local/reports/native-weapon-init.json",
+      "va": "0x180088b60"
+    },
+    {
+      "contract": "Ordered append-before-recursion, seven bundles, control predicate, inactive WEAPON_FIRE dependency creation",
+      "source": ".local/reports/native-weapon-arsenal-add.json",
+      "va": "0x1802fe900"
+    },
+    {
+      "contract": "Frames >=0 converted at float32 /60",
+      "source": ".local/reports/native-player-weapon-postread.json",
+      "va": "0x1800fc2d0"
+    },
+    {
+      "contract": "Zero reload-time reset; empty SwapOnReloadFinish skips control change",
+      "source": ".local/reports/native-weapon-reload-finished.json",
+      "va": "0x180087640"
+    },
+    {
+      "contract": "Empty ReloadGraphic SetAnimation exits before animation lookup/state",
+      "source": ".local/reports/native-player-empty-animation-name.json",
+      "va": "0x1802ded10..0x1802ded13"
+    },
+    {
+      "contract": "Attack1=21 Attack2=22 Attack3=23 Rush=25 symbolic control indices",
+      "source": ".local/reports/native-player-control-add.json",
+      "va": "0x18018f059,0x18018f0d0,0x18018f147,0x18018f235"
+    },
+    {
+      "contract": "Compiled projectile scalar/string defaults:245 known,12 unknown",
+      "source": ".local/reports/native-player-projectile-compiled-defaults.json",
+      "script": "native/analysis/recover_projectile_defaults.py"
+    }
+  ],
+  "evidence_reuse": [
+    "weapon-defaults-contract.json",
+    "weapon-effect-normalization-contract.json: ev_5a2ea3b119144699ae17b19edbe3790d73126e68a9c9bcf6e039a9bd7cbef5c5 and ev_295f3c04c5424ad145a8b4f5b4f27bb3aea079c45782a85842b7a61fd9f263f8"
+  ],
+  "debug": {
+    "compiler": "clang++ -std=c++20 -Wall -Wextra -Werror",
+    "original_source_log": ".local/reports/native-player-weapon-debug.log",
+    "backward_log": ".local/reports/native-player-weapon-hwa1-compat.log",
+    "passed": [
+      "12 source weapons and11 projectile DTOs",
+      "native dependency order",
+      "charge frame conversion",
+      "finite/unlimited starting ammo",
+      "four controllable native root controls",
+      "idempotent duplicate",
+      "failed dependency rollback",
+      "independent owners",
+      "HWA1 original initializer regression"
+    ]
+  },
+  "unsupported": [
+    "Firing, timer ticking, spawning projectile actors, collision/damage/effect execution",
+    "RNG reload/cooldown ranges",
+    "Nonempty reload-animation/control-change side effects",
+    "Unknown control names conservatively reject instead of assuming absent global mapping",
+    "Nested ThingData and remaining complex projectile defaults unresolved; copied DTO is not complete native memory image",
+    "Effect defaults beyond source fields/normalized type and trigger unresolved; no execution",
+    "Finite SpendAmmo refuses before missing OnOutOfAmmo callback"
+  ],
+  "sessions": "No new native session opened in this pass; no owned session remains."
+}

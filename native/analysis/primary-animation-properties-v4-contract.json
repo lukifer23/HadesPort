@@ -1,0 +1,77 @@
+{
+  "schema": "hades-primary-properties-HAP3-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "packet": {
+    "path": ".local/native-assets/hero-properties-v6/actor-properties.bin",
+    "bytes": 9400,
+    "sha256": "0ee1398b2e40b48c4873ac8cbf61aef78c24d5a88567969604815f13bbfda6ee"
+  },
+  "bank": {
+    "path": ".local/native-assets/hero-actions-v4/actor-animations.bin",
+    "bytes": 279860188,
+    "sha256": "5ca3c8dcf0c7c145b7bc7140bca61e36bbeff25b1ca1510edad73525ecbd9489"
+  },
+  "source_manifest": {
+    "path": ".local/native-assets/hero-properties-v6/manifest.json",
+    "bytes": 398437,
+    "sha256": "f4f7a8259bb1dbaa8a3ed06345b3bc1dce25b5848798145fa0ed1479ed803946"
+  },
+  "format": "HAP3 retains HAP2 layout and source-bankSHA; known/value bits:1OwnerImmobile,2BlockNewOwnerAnims,4AirborneZ(float),8OwnerInvulnerable,16OwnerNoArmorCoverage,32OwnerNoInvulnerableCoverage; per-sourceSlide Airborne vector unchanged. No HAA1/HAF1 changes.",
+  "native_flags": {
+    "OwnerInvulnerable": {
+      "AnimationDataDef": 50,
+      "fullData": 138
+    },
+    "OwnerNoArmorCoverage": {
+      "AnimationDataDef": 51,
+      "fullData": 139
+    },
+    "OwnerNoInvulnerableCoverage": {
+      "AnimationDataDef": 52,
+      "fullData": 140
+    }
+  },
+  "compiled_default_proof": "AnimationData constructor copies zero template1800940b5; complete later stores do not overlap8a..8c. AirborneZ explicit180094273 writes100 atfullData2a8, notzero. Source overrides always retained separately.",
+  "validation": {
+    "result": "passed",
+    "clips": 34,
+    "source_frame_bindings": 1102,
+    "book_clips": 3,
+    "absent_companion_unknown_preserved": true,
+    "native_world_execution_observed": false
+  },
+  "proofs": [
+    {
+      "path": ".local/reports/native-active-animation-data-ctor-static.json",
+      "bytes": 31333,
+      "sha256": "50386e8891b12647403a13217834ebaf1d3e0ce610100dd0bf6db5c034485f0d"
+    }
+  ],
+  "source": [
+    {
+      "path": "native/app/actor_animation.cpp",
+      "bytes": 17123,
+      "sha256": "24ec46c1a792242cb8aad844fb244e0f23e27ba50a44c189bb037666f1b7c1c1"
+    },
+    {
+      "path": "native/app/actor_animation.hpp",
+      "bytes": 5980,
+      "sha256": "ed296ebe280c25cc31e22bed18dcd52178ede0956249cccc06c783674a250097"
+    },
+    {
+      "path": "native/tools/export_actor_properties.py",
+      "bytes": 7891,
+      "sha256": "b4a0d62ca307f22b40e62ff73f13179a92718c94ed8c2a0bf157a06ad3fe4fb1"
+    },
+    {
+      "path": "native/analysis/actor_properties_smoke.cpp",
+      "bytes": 2791,
+      "sha256": "55b89c61ecf4e4c5308a5333cd3a4f220a1d1a0fa47e0c1179c14be9d6e27c8c"
+    }
+  ],
+  "limits": [
+    "Static ctor and portable runtime validation only; no Android gameplay claim.",
+    "Missing companion/known mask remains optional unknown; no defaultfalse coercion."
+  ],
+  "rea_sessions_owned_open": 0
+}

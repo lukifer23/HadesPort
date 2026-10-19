@@ -1,0 +1,77 @@
+{
+  "schema": "hades-source-parallax-contract-v1",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "evidence_kind": "Shipped shader source plus exact matching-PDB native disassembly and public REA; no supplied native binary executed.",
+  "originals": [
+    {
+      "path": ".local/native-assets/opening-fx-v5/scene-affine.bin",
+      "bytes": 111675996,
+      "sha256": "35faae7b545bf314063b3b7f0a30877398e55ec09bbbb02bf754264d31aa1799"
+    },
+    {
+      "path": ".local/native-assets/opening-fx-v5-animation/animations.bin",
+      "bytes": 245755555,
+      "sha256": "77c2d92cdadb9c7b88caed5a071110a99d18b3a25d45941a5ea98d6b1da41a6a"
+    }
+  ],
+  "packet": {
+    "path": ".local/native-assets/opening-parallax-v1/parallax.bin",
+    "bytes": 9592,
+    "sha256": "2a928599f2a920acabe3731e4e9d6137d72a35c7d1b0badb5be23baa2119d77b"
+  },
+  "exporter": "native/tools/export_scene_parallax.py",
+  "derived_manifest": ".local/native-assets/opening-parallax-v1/manifest.json",
+  "layout": {
+    "header": "HPP1 + 32 raw scene SHA256 bytes + u32 spriteCount",
+    "records": "spriteCount * (float32 groundOriginX, groundOriginY, parallax)",
+    "endianness": "little",
+    "bytes": 9592
+  },
+  "recovered": {
+    "affected_sprites": 53,
+    "shader": ".local/native-assets/shader-sources-v2/6e8e7d399dab4cdf-vertexhelpers.inc::calcPosition",
+    "native_origin": "RenderMesh::Set passes Drawable.mLocation XYZ to SetFlatOrVertical. Origin fields use x,2*y (Flat) or x,2*y+2*YOffset (Vertical); shader projects originZ=0. All selected nativeYOffset=0. RotateAndScale does not alter origin fields.",
+    "factor_chain": "Animation own parallax * attached Thing own parallax * original map parallax when UseAttachedParallax. Native fresh defaults: animation1, Thing1, UseAttachedParallax=true; selected animation definitions have no overrides.",
+    "orthographic_reduction": "each corner += (groundOriginXY - SceneView.centerXY) * (1/parallax - 1)",
+    "ground_origin_export": "draw_anchor + (0, OffsetZ*sqrt(3)/2); preserves Thing.Offset and removes height projection only."
+  },
+  "native_reports": [
+    ".local/reports/native-graphics-parallax-set-static.json",
+    ".local/reports/native-graphics-parallax-mesh-static.json",
+    ".local/reports/native-graphics-parallax-rotate-static.json",
+    ".local/reports/native-graphics-parallax-animation-get-static.json",
+    ".local/reports/native-graphics-parallax-thing-get-static.json",
+    ".local/reports/native-lighting-AnimationCtor-static.json"
+  ],
+  "evidence": [
+    {
+      "path": ".local/reports/native-rea-graphics-parallax-mesh-set.json",
+      "evidence_id": "ev_11b29c126c9b8c68a1188f1aa2c72632d518679f2c4625e11f73ce8a45b58e4f"
+    },
+    {
+      "path": ".local/reports/native-rea-graphics-parallax-animation-get.json",
+      "evidence_id": "ev_6557fc2407fe395b3308f499ca73ef28cb042f84a1bb332c686b7afab4ad198b"
+    }
+  ],
+  "reused_mesh_evidence": "ev_50eed93550dc7ad7cd1fa898745390cf90a3cbca396ddb581d241e2fff9e630a",
+  "validation": {
+    "before": ".local/reports/renderer-parallax-before.png",
+    "after": ".local/reports/renderer-parallax-after.png",
+    "same_view_time": true,
+    "changed_pixels": 695292,
+    "total_pixels": 1600000
+  },
+  "limits": [
+    "Positive parallax only, selected orthographic world camera; screen-space alternate matrix path unsupported.",
+    "Future actor transforms must update both corners and ground origin.",
+    "Source sort graph, full native camera, procedural world effects and official pixel equivalence remain unproven."
+  ],
+  "session_lifecycle": {
+    "owned_sessions_remaining": 0,
+    "close_report": ".local/reports/native-rea-graphics-parallax-close.json"
+  }
+}

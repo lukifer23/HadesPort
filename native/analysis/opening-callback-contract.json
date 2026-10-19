@@ -1,0 +1,211 @@
+{
+  "schema": "hades-roomopening-callback-identity-contract-v1",
+  "target": {
+    "dll": "EngineWin64s.dll",
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "scope": "Static original binary/PDB and original source. No allocation, actor activation or original runtime observations are claimed by this report.",
+  "evidence": {
+    "spawn": {
+      "path": ".local/reports/native-rea-lifecycle-on-spawn.json",
+      "sha256": "1be74de4fa532cd6d628e94087b2f80617e6663691ef1cee206e31f3959d8573",
+      "kind": "retained-static-analysis",
+      "evidence_id": "ev_438a59527ed803c8a61627df5216486f70762c950015cb7cec67500ed01d5ba5"
+    },
+    "map_begin": {
+      "path": ".local/reports/native-lifecycle-Map-Begin.json",
+      "sha256": "234cd7c50239f0484229e8bbc8cc382a00cc1e5c987b87992b8e96a397cdcb31",
+      "kind": "retained-static-analysis"
+    },
+    "world_start": {
+      "path": ".local/reports/native-lifecycle-World-Start.json",
+      "sha256": "f39235234cfa947f088ecca0d91b5d8b332ee422437ba8a246466ba11d30525f",
+      "kind": "retained-static-analysis"
+    },
+    "script_source_filter": {
+      "path": ".local/reports/native-scheduler-Script-isSourceThing.json",
+      "sha256": "fe28da07e5e948def3d36844e4b19e651ed945267d2b2e9ab997a34a0808f1f7",
+      "kind": "retained-static-analysis"
+    },
+    "script_run": {
+      "path": ".local/reports/native-scheduler-Script-run.json",
+      "sha256": "cd3ad9182c8a1bf846dcc649cc68c6f99b5c7e40fd9b87c89144fa6c14c6797b",
+      "kind": "retained-static-analysis"
+    },
+    "set_table": {
+      "path": ".local/reports/native-scheduler-LuaTable-SetTable.json",
+      "sha256": "49be3023870b55620b660700f3b242bdec3f671dd424f988688f0f8fa2fd52a1",
+      "kind": "retained-static-analysis"
+    },
+    "map_init": {
+      "path": ".local/reports/native-actor-InitMapThing-static.json",
+      "sha256": "04757235fca09fc241912bdb6c2da1ecd96bfcef63eeaffaee003e85662df7f3",
+      "kind": "retained-static-analysis"
+    },
+    "unit_init": {
+      "path": ".local/reports/native-weapon-owner-unit-init.json",
+      "sha256": "f87d2c4a9d5a958b91ffd17855dbf88dcf3e5dccadee4f2a808e1ddf1c12f7d7",
+      "kind": "retained-static-analysis"
+    },
+    "obstacle_init": {
+      "path": ".local/reports/native-scheduler-Obstacle-Init.json",
+      "sha256": "1cdc4d5e2569e5214934e5602e8d0e2c6e873abd7f5f1639ed4b06267ec121be",
+      "kind": "retained-static-analysis"
+    },
+    "world_reset": {
+      "path": ".local/reports/native-scheduler-World-Reset.json",
+      "sha256": "df85cf24f3a52904d50397cac28b82afb43d626b0afb00f07ea995dfb458a062",
+      "kind": "retained-static-analysis"
+    },
+    "world_ctor": {
+      "path": ".local/reports/native-scheduler-World-ctor.json",
+      "sha256": "1cf7f6d0efb7356284b81af94154ad9fb762e3d130ed566bc7ec1b3cc9d2e2b2",
+      "kind": "retained-static-analysis"
+    },
+    "world_create": {
+      "path": ".local/reports/native-scheduler-World-CreateThing.json",
+      "sha256": "0f28dd1fc0a132d01b298e2ff91dcdf182c4464fe427356b6204123669f34e03",
+      "kind": "retained-static-analysis"
+    },
+    "enemy_create": {
+      "path": ".local/reports/native-scheduler-UnitManager-CreateEnemy.json",
+      "sha256": "09d50eed25d364df75ff41d457d68246cd8edeea04fb5aae133cbb4b34983e24",
+      "kind": "retained-static-analysis"
+    },
+    "player_create": {
+      "path": ".local/reports/native-scheduler-UnitManager-CreatePlayer.json",
+      "sha256": "e89a95dd2c1649a5cdfc300724a8efe0dcf93dc0236149c5fdffd1fc4f7b8b4b",
+      "kind": "retained-static-analysis"
+    },
+    "unit_add": {
+      "path": ".local/reports/native-scheduler-UnitManager-Add.json",
+      "sha256": "18acb82cfd4bad3205fa598d7531358a91c4716ecfb8f0962c908510af1d74fd",
+      "kind": "retained-static-analysis"
+    },
+    "id_range_types": {
+      "path": ".local/reports/native-scheduler-world-id-ranges.json",
+      "sha256": "575155c608cb7c9c67dfff45fd3b1d47576140506f45130eb1e2079ea736ba64",
+      "kind": "matching-PDB-type-declarations"
+    },
+    "source_run_manager": {
+      "path": "Content/Scripts/RunManager.lua",
+      "sha256": "d6d57fb54cbfcaa8b5c4ef8b68424af834c15b47d531ffc4c92b5ff5c82c81cf",
+      "lines": [
+        2389,
+        2413
+      ]
+    },
+    "source_room_manager": {
+      "path": "Content/Scripts/RoomManager.lua",
+      "sha256": "38f0ba1b4eb3a910850f3004403a1ab514ef4e6ed21036730b3bc464359f3d2f",
+      "lines": [
+        219,
+        242
+      ]
+    }
+  },
+  "on_spawn_registration": {
+    "bounded_source_search": "All 99 original Content/Scripts/*.lua regular files, exact OnSpawn identifier.",
+    "registrations_found": [
+      {
+        "file": "RunManager.lua",
+        "line": 2389,
+        "text_kind": "direct unfiltered registration"
+      }
+    ],
+    "matching": "The directly registered RunManager callback has no source string or ID filter, so it applies to every native OnSpawn dispatched after the original definition/caller gates.",
+    "obstacle_branch": "If ObstacleData[name] exists, wait(0.01) yields BEFORE setup, then DeepCopyTable and SetupObstacle(obstacle,true) use triggeredById. This scheduling is intentional in the original source.",
+    "enemy_branch": "Only when no obstacleData and NeedsLuaInitialization is true and EnemyData[name] exists: copy enemy data, set ObjectId, SetupEnemyObject, optionally associate SpawnedById.",
+    "OnLoad_source_search": "No exact OnLoad identifier found in the same source directory; native support/order remains reconstructed because registrations can be introduced by additional script content."
+  },
+  "source_filter_native": {
+    "address": "0x18024ea10",
+    "empty": "No numeric source IDs and no names => true.",
+    "numeric": "A numeric source filter compares against Thing.pMapThing->mDef.Id (Thing+0x240 points to MapThing, ID at+0x28). Dynamic mapless actors have no map source ID for this check.",
+    "names": "OR membership across exact group membership, category _UNIT for virtual category2, category _OBSTACLE for virtual category1, or exact virtual GetName string.",
+    "case": "String equality is case-sensitive in the examined byte comparisons.",
+    "sourceVsRuntime": "Map source identity, runtime Thing.mId, type-name and native category are distinct concepts even where map-backed mId equals source ID."
+  },
+  "trigger_args": {
+    "allocation": "Fresh Lua::NewTable(Script::TRIGGER_ARGS_TABLE_NAME/global_triggerArgs) for each matching OnSpawn callback at0x1802893a8. Keep that actual table alive across coroutine yield; later replacing the global must not overwrite its contents.",
+    "all_spawn_callbacks": {
+      "NeedsLuaInitialization": "Caller boolean, Lua boolean, at0x1802894a8/4bc.",
+      "name": "Thing virtual GetName atvtable+0x88, passed through Script::run.",
+      "triggeredById": "Thing.mId+0x6c, sign-extended int64, set by Script::run.",
+      "TriggeredByTable": "Actual attached Thing Lua table at+0x150; LuaTable::Set<LuaTable> pushes nil for an invalid table, otherwise retains original registry table identity. Do not fabricate a new table or copy owner values."
+    },
+    "units_only": {
+      "SpawnedById": "Unit.mSpawnedBy+0x3c8 always written for a unit, including default0.",
+      "PlayerIndex": "Only if Unit.pPlayer+0x3b0 exists; value from Player+8. Do not infer player ownership from PlayerControlled alone before association actually exists."
+    },
+    "load_callbacks": "Source Thing is null. Fresh args contains nonempty map name as name. No triggeredById/TriggeredByTable or spawn-only fields."
+  },
+  "initial_map_unit_flags": {
+    "player": "UnitManager::CreatePlayerUnit invokes Add(unit,false) at0x1802fa7ab..7b0.",
+    "enemy": "World::CreateThing sets the seventh CreateEnemyUnit argument false at0x1803130f3; CreateEnemyUnit reads it at0x1802fa4de and passes to Add. Thus this map-backed enemy path also sets NeedsLuaInitialization=false.",
+    "flag_caution": "World::CreateThing R9 fourth argument is retained to a DIFFERENT CreateEnemyUnit argument used by Unit::Init/start graphics. Do not equate it with NeedsLuaInitialization.",
+    "order": "UnitManager::Add registers the Thing with World::AddActiveMapThing at0x1802f9510 BEFORE tailcalling OnSpawn at0x1802f9524.",
+    "obstacles": "Previously recovered ObstacleManager::Add caller gate suppresses optional dispatch; when invoked it passes NeedsLuaInitialization=false."
+  },
+  "world_start_order": {
+    "order": [
+      "GroupManager::Init",
+      "OnPreThingCreation callbacks in registration order",
+      "incremental CreateMapThings including allowed OnSpawn initial resumes",
+      "animation texture caching",
+      "World::Start invokes Map::Begin",
+      "all matching OnAnyLoad initial resumes",
+      "all matching OnLoad initial resumes",
+      "World.mRunning=true then World.mFrame=1",
+      "subsequent world frames may resume yielded callbacks"
+    ],
+    "MapBegin_source_filter": "No mTriggerNames runs; otherwise exact map name must be in names list. Numeric source ID vector is not checked by Map::Begin.",
+    "world_activation": "World::Start calls Map::Begin at0x18031112d; only success path0x1803114ab sets mRunning,0x1803114ae sets mFrame=1.",
+    "async_boundary": "A successful callback initial resume or Map::Begin return does not mean waited work has completed. RunManager obstacle setup expressly resumes on a later world clock deadline.",
+    "failure": "OnAnyLoad ProtectedRun failure aborts Map::Begin; native World::Start chooses error flow. Script::run also has HAS_CRASHED guard."
+  },
+  "identity_allocation": {
+    "map_backed": "Thing::InitMapThing writes original MapThing ID+0x28 into Thing.mId+0x6c at0x1802dd3de/e1. Both Unit and Obstacle Init skip dynamic allocation when mId!=-1.",
+    "mapless": "InitMapThing(null) sets mId=-1. Unit::Init allocates only on that sentinel (CMP/JNE0x1802f0fd7/db), then ++World.mNextUnitId and writes mId0x1802f1006..100c. Obstacle mirrors this at0x1802c2e40/4a/75/7f.",
+    "ctorVsReset": "World constructor initially zeros both counters. Gameplay World::Reset sets unit counter1,000,000 at0x180315fac and obstacle counter2,000,000 at0x180315fb3; constructor zero is not the proper post-reset allocation baseline.",
+    "pdb_ranges": {
+      "MinUnitId": 1000000,
+      "UnitRange": 1000000,
+      "MaxUnitId": 2000000,
+      "MinObstacleId": 2000000,
+      "ObstacleRange": 1000000,
+      "MaxObstacleId": 3000000
+    },
+    "first_dynamic_after_reset": {
+      "unit": 1000001,
+      "obstacle": 2000001
+    },
+    "current_room_metadata": {
+      "path": ".local/native-assets/opening-creation-v2/creation.json",
+      "sha256": "fc7af6b87224a91f557c616442359dbad65b5865b6172465f96c30d61ba8ba21",
+      "records": 1037,
+      "minimum_id": 40000,
+      "maximum_id": 553377,
+      "player_map_id": 40000,
+      "mapIdsBelowDynamicRanges": true
+    },
+    "limits": [
+      "These bounded allocator branches increment without a recovered wrap/collision repair check. PDB range constants do not establish overflow behavior.",
+      "Engine Entity generation/index handles remain separate from Thing.mId.",
+      "First generated ID assumes no earlier mapless allocation since the same reset; real callback creation order determines the next ID."
+    ]
+  },
+  "unknowns": [
+    "Native overflow/exhaustion handling for dynamic ID ranges beyond the examined branch.",
+    "Full lifecycle code must preserve incremental creation/query visibility and component prerequisites; these static findings do not make the existing query proxies active actors.",
+    "Owner Lua table association timing for every player/enemy activation path must follow actual component association, not metadata alone."
+  ],
+  "session_lifecycle": {
+    "new_REA_session_opened": false,
+    "retained_REA_evidence_reused": true,
+    "originals_modified": false,
+    "device_or_emulator_operations": false
+  }
+}

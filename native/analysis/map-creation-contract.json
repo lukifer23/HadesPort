@@ -1,0 +1,150 @@
+{
+  "target": {
+    "path": ".local/game/base/x64/EngineWin64s.dll",
+    "bytes": 7145984,
+    "sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+  },
+  "scope": "Pure portable native creation planner. It mutates no Lua state, live entities, runtime object registry, attachment transforms or physics.",
+  "api": {
+    "header": "native/app/map_creation.hpp",
+    "implementation": "native/app/map_creation.cpp",
+    "entrypoint": "bool planMapCreation(const vector<MapCreationRecord>&, const MapCreationContext&, MapCreationPlan&, string& error)",
+    "input": "Resolved original payload identity/name, source Active, separate DoCreate presence, range flag/range/location, parent and ordered child IDs, original DataType, resolved optional PlayerControlled and Thing.TriggerOnSpawn.",
+    "context": "EditingMode, world frame and optional first non-null PlayerManager player active-unit location, all explicit. No player/frame is invented.",
+    "output": "Creation entries retain source ordinal, parent/depth, creation kind and definition TriggerOnSpawn gate. Deferred entries distinguish root source-inactive, root range-deferred and descendants waiting for deferred ancestor. Only root entries claim native inactive/range registration. Output is committed only after full validation/planning succeeds."
+  },
+  "proven_native_rules": {
+    "top_level": {
+      "source": "native-lifecycle-CreateMapThings.json",
+      "evidence_id": "ev_9446e729a5d0aaa1a47b99e7b46bfce03243f7b9b3732a628a8131bb5953cd33",
+      "rules": [
+        "AttachToID>0 records skipped in top-level loop",
+        "Source Active=false outside EditingMode -> inactive root",
+        "Otherwise ActivateAtRange=false creates immediately",
+        "Range-enabled root needs first nonnull player with usable active-unit location, worldFrame>1, float squared distance<=ActivationRange squared; otherwise inactive/range root",
+        "Top-level DataType1 selects ObstacleManager, DataType2 gets original unit data and PlayerControlled selects player/non-player unit path"
+      ]
+    },
+    "children": {
+      "source": "native-creation-children-rea.json",
+      "evidence_id": "ev_92816af134504b5a00a1094e6395c1c35572d1cf3e4dcebe90ba048fc3b9c823",
+      "rva": "0x313200",
+      "rules": [
+        "Pushes AttachedIDs in reverse, pops from back; original sibling order depth-first, parent before child",
+        "Child path directly uses ObstacleManager::Create; does not inspect child Active, ActivateAtRange or DataType",
+        "Then RemoveInactiveThing, parent AddChild and child OnParentAdded, before grandchildren",
+        "Planner rejects attached unit data explicitly because native unit-as-obstacle component initialization is not reconstructed"
+      ],
+      "callback_gate_boundary": "Sibling bounded static join: native-creation-obstacle-create-disassembly.txt VA0x1802c7f37 setsr8b=1 before Add VA0x1802c7f3f; child Create does not suppress Add OnSpawn request. Definition TriggerOnSpawn still applies. Planner records definition gate only; it executes no callbacks."
+    },
+    "payload_presence": {
+      "rule": "DoCreate false means no serialized payload fields; native loader still allocates/defaults a MapThing. It is not Active=false and does not mean skip/delete.",
+      "planner_boundary": "Absent payload cannot provide validated ID/name/type here, so planner fails explicitly for DoCreate=false instead of silently omitting or declaring inactive. No default-payload entity creation is claimed."
+    },
+    "unit_default": {
+      "UnitDataDef.PlayerControlled": {
+        "value": false,
+        "kind": "compiled_native_default",
+        "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+        "member": "sgg::UnitDataDef::mPlayerControlled",
+        "member_offset": "0x19",
+        "full_UnitData_offset": "0x69",
+        "constructor_zero_store_va": "0x1800f13e7",
+        "assignment_call_va": "0x1800f1631",
+        "assignment_read_va": "0x1800f1c56",
+        "assignment_write_va": "0x1800f1c5a",
+        "report": "hades/.local/reports/native-player-controlled-default-recovery.json"
+      }
+    }
+  },
+  "validation": [
+    "Positive unique IDs and nonempty bounded identity names",
+    "Supported DataType and explicit resolved PlayerControlled for units",
+    "Finite original positions/ranges; negative finite range squared as native comparison does",
+    "Every ordered AttachedID exists exactly once and reciprocates AttachToID",
+    "Every AttachToID exists and its parent list includes the record",
+    "No duplicate child references, self-links or cycles (iterative coloring)",
+    "Every source record appears exactly once as creation or deferred accounting"
+  ],
+  "ordering_boundary": "Top-level order is explicitly caller source vector order. Native GroupManager::GetAllThings hash/enumeration order has not been equated to serialized source order; no native allocation/callback ordering fidelity claim. Ordered child DFS is recovered.",
+  "original_metadata": {
+    "path": ".local/native-assets/opening-creation-v2/creation.json",
+    "sha256": "fc7af6b87224a91f557c616442359dbad65b5865b6172465f96c30d61ba8ba21",
+    "schema": "hades-room-creation-v1",
+    "map_source": {
+      "path": ".local/game/base/Content/Win/Maps/RoomOpening.thing_bin",
+      "bytes": 169425,
+      "sha256": "38a04cb62434c9e902e1d9c68129fc0633183fa91a289fb0c619930b5beb780b"
+    },
+    "counts": {
+      "records": 1037,
+      "do_create_true": 1037,
+      "do_create_false": 0,
+      "active": 1033,
+      "inactive": 4,
+      "activate_at_range": 0,
+      "attached_records": 182,
+      "attachment_parent_lists": 131,
+      "attachment_edges": 182,
+      "attachment_depths": {
+        "0": 855,
+        "3": 13,
+        "1": 124,
+        "4": 6,
+        "2": 39
+      },
+      "classification": {
+        "direct_top_level": 851,
+        "attached_child": 182,
+        "inactive": 4
+      },
+      "identity": {
+        "unit": 22,
+        "obstacle": 1015
+      },
+      "player_controlled_units": {
+        "true": 1,
+        "false": 21
+      },
+      "trigger_on_spawn": {
+        "true": 943,
+        "false": 94
+      },
+      "resolved_definitions_including_ancestors_and_anchors": 119
+    },
+    "correction": "v2 resolves21 omitted Breakable PlayerControlled valuesfalse using native compiled constructor/assignment proof and retains separate source omission/provenance."
+  },
+  "observed_debug_result": {
+    "records": 1037,
+    "planned_creation": 1033,
+    "planned_obstacles": 1011,
+    "planned_player_units": 1,
+    "planned_nonplayer_units": 21,
+    "attached_obstacles": 182,
+    "inactive_roots": 4,
+    "maximum_source_attachment_depth": 4,
+    "validation": "ASan/UBSan build and focused original-source metadata run clean. Checks parent-before-child, original child gate ignoring source inactive/range flags, malformed reciprocal edge, reciprocal cycle, absent payload and native range-frame/inclusive distance boundary.",
+    "log": "native-map-creation-smoke.log",
+    "reproduce": "python3 native/analysis/run_map_creation_debug.py",
+    "debug_report": "native-map-creation-smoke.json"
+  },
+  "not_reconstructed": [
+    "Actual entity allocations/component initialization",
+    "Final native parent/child transforms and OnParentAdded effects",
+    "Live Active/inactive registry mutation or range activation update loop",
+    "Lua callback dispatch, yield handling or callback-driven changes to graph",
+    "UnitManager callback flags and exact OnSpawn arguments, owned by root investigation",
+    "Name overrides or other live map changes beyond explicit input metadata"
+  ],
+  "sessions": {
+    "new_REA_session_opened": false,
+    "evidence_reused_from_parent_and_sibling": true,
+    "no_owned_sessions_remaining": true,
+    "no_device_operations": true
+  },
+  "source_sha256": {
+    "native/app/map_creation.hpp": "152108676315c554dcdc4692924e2c5257aa0567daf7eaafc44b555a382d6ebd",
+    "native/app/map_creation.cpp": "c9da651aed07f41d4d56d6932096368c3ccf30ff870076199f05b248a53b3e12",
+    "native/analysis/map_creation_smoke.cpp": "3f984c2d8fd2f0284e92f6f542e711eeb8031640e03315facda94315c9810a6a"
+  }
+}

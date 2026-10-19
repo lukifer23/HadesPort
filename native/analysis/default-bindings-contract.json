@@ -1,0 +1,1269 @@
+{
+ "target": {
+  "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "matching_pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+  "pdb_age": 1
+ },
+ "summary": "Original default bindings for the 29 sgg::Controls RemappableControl globals, recovered from static instructions. Values are sgg::GamepadButtonId / sgg::KeyboardButtonId / sgg::MouseButtons enumerators read from the matching PDB type records (not from upstream gainput headers).",
+ "enum_source": {
+  "method": "PDB TPI enumeration records dumped with the pdb 0.8.0 crate (same crate as native/analysis/pdb_contract) from .local/game/base/x64/EngineWin64s.pdb; raw dump .local/reports/bindings/pdb-binding-enums.json",
+  "note": "sgg::KeyboardButtonId matches gainput::Key values here (gainput fork bundled with The Forge: KeySpace=32, KeyA=65, KeyLeft=97, KeyBackSpace=125, KeyReturn=127, KeyShiftL=129). sgg::GamepadButtonId matches gainput::PadButton (Start=44, Select=45, Left=46, Right=47, Up=48, Down=49, A=50, B=51, X=52, Y=53, L1=54, R1=55, L2=56, R2=57, L3=58, R3=59). sgg::MouseButtons: Left=0, Right=1, Middle=2, XButton1=3, XButton2=4, WheelUp=5, WheelDown=6."
+ },
+ "remappable_control_layout": {
+  "source": "PDB field list of sgg::RemappableControl (size 184)",
+  "fields": {
+   "0x10": "Enabled",
+   "0x12": "UseGamepadButton",
+   "0x13": "DefaultUseGamepadButton",
+   "0x15": "AllowGamepadDoubleMapping",
+   "0x16": "DefaultGamepadButtonUnmapped",
+   "0x18": "TextSymbol",
+   "0x30": "ControlName",
+   "0x60": "KeyName",
+   "0x78": "OrKeys vector<KeyboardButtonId>",
+   "0x90": "DefaultOrKeys",
+   "0xa8": "GamepadButton",
+   "0xac": "DefaultGamepadButton",
+   "0xb0": "MouseButton",
+   "0xb4": "DefaultMouseButton"
+  }
+ },
+ "setup_order": {
+  "chain": [
+   "sgg::App::Initialize 0x180035e78 call InitializeControls 0x180189d80",
+   "InitializeControls 0x180189d89 call SetupControlScheme 0x18018c030",
+   "SetupControlScheme 0x18018d6a3 call AddControls 0x18018e240 (inserts all 29 into Controls::Scheme)",
+   "SetupControlScheme 0x18018d6c1 tail jmp SetKeyboardMoveDefaults 0x18018df30",
+   "SetKeyboardMoveDefaults 0x18018df3a call SetCommonDefaults 0x18018d6d0",
+   "SetKeyboardMoveDefaults 0x18018e1c0..0x18018e220 copies OrKeys->DefaultOrKeys and MouseButton->DefaultMouseButton for every Scheme control",
+   "App::Initialize 0x180035ed8 LoadControls (profile overrides; not defaults)"
+  ],
+  "restore_defaults": "KeyMappingScreen RestoreDefaults lambda: 0x1801b5a0c KeyMappingScreen::RestoreDefaults (calls RemappableControl::RestoreDefaults 0x1801b487d) then 0x1801b5a11 SetKeyboardMoveDefaults.",
+  "SetupScheme_overloads": {
+   "0x180199d20": "(name,int) -> GamepadButton=arg, UseGamepadButton=1",
+   "0x180199dd0": "(name,int) -> MouseButton=arg",
+   "0x180199e80": "(name,int mouse,int pad) -> MouseButton, GamepadButton, UseGamepadButton=1"
+  },
+  "SetCommonDefaults_reset": "0x18018d720..0x18018d76f: for each Scheme control OrKeys.end=OrKeys.begin and MouseButton=-1 before keys/mouse are re-added; GamepadButton untouched.",
+  "branches": "SetupControlScheme, SetCommonDefaults and SetKeyboardMoveDefaults contain no platform/config conditional branches other than hash-map iteration loops.",
+  "cross_check": "REA Ghidra decompile of 0x18018d6d0 (evidence ev_67e645a8017f656c4a0031344d1f6b079fa2f7663281f2bc6b1a2a686dbd0039, .local/reports/bindings/rea-decompile-SetCommonDefaults.json) shows the same reset loop and the AddKey immediates 0,0x43,0x45,0x47,0x54."
+ },
+ "weapon_semantics": {
+  "source": "Content/Game/Weapons/PlayerWeapons.sjson Control fields",
+  "Attack1": "RangedWeapon (Cast)",
+  "Attack2": "base weapon attack (SwordWeapon etc.)",
+  "Attack3": "weapon special (SwordParry etc.)",
+  "Rush": "RushWeapon (Dash)"
+ },
+ "controls": {
+  "AdvancedTooltip": {
+   "controlName": "AdvancedTooltip",
+   "gamepad": {
+    "button": 45,
+    "buttonName": "PadButtonSelect",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 66,
+     "name": "KeyB"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018d1c3",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 45,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018da88",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 66
+    }
+   ]
+  },
+  "Assist": {
+   "controlName": "Assist",
+   "gamepad": {
+    "button": 56,
+    "buttonName": "PadButtonL2",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 49,
+     "name": "Key1"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018d133",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 56,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018dec8",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 49
+    }
+   ]
+  },
+  "Attack1": {
+   "controlName": "Attack1",
+   "gamepad": {
+    "button": 51,
+    "buttonName": "PadButtonB",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [],
+   "mouse": {
+    "value": 1,
+    "name": "Right"
+   },
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018c7f7",
+     "instruction": "movl $0x1, 0x1b14dbf(%rip)",
+     "field": "MouseButton",
+     "value": 1
+    },
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018c801",
+     "instruction": "movl $0x33, 0x1b14dad(%rip)",
+     "field": "GamepadButton",
+     "value": 51
+    },
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018c80b",
+     "instruction": "movb $0x1, 0x1b14d10(%rip)",
+     "field": "UseGamepadButton",
+     "value": 1
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018d95d",
+     "instruction": "movl $0x1, 0x1b13c59(%rip)",
+     "field": "MouseButton",
+     "value": 1
+    }
+   ]
+  },
+  "Attack2": {
+   "controlName": "Attack2",
+   "gamepad": {
+    "button": 52,
+    "buttonName": "PadButtonX",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [],
+   "mouse": {
+    "value": 0,
+    "name": "Left"
+   },
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018c958",
+     "instruction": "callq 0x180199e80 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,MouseButton,GamepadButton)",
+     "value": {
+      "r8d": 1,
+      "r9d": 52
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018d967",
+     "instruction": "movl %ebx, 0x1b14933(%rip)",
+     "field": "MouseButton",
+     "value": 0
+    }
+   ]
+  },
+  "Attack3": {
+   "controlName": "Attack3",
+   "gamepad": {
+    "button": 53,
+    "buttonName": "PadButtonY",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 81,
+     "name": "KeyQ"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018c9e3",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 53,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018d974",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 81
+    }
+   ]
+  },
+  "AutoLock": {
+   "controlName": "AutoLock",
+   "gamepad": {
+    "button": 56,
+    "buttonName": "PadButtonL2",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 129,
+     "name": "KeyShiftL"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018cb03",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 56,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018da28",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 129
+    }
+   ]
+  },
+  "Cancel": {
+   "controlName": "Cancel",
+   "gamepad": {
+    "button": 51,
+    "buttonName": "PadButtonB",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 125,
+     "name": "KeyBackSpace"
+    },
+    {
+     "value": 0,
+     "name": "KeyEscape"
+    }
+   ],
+   "mouse": {
+    "value": 3,
+    "name": "XButton1"
+   },
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018cd47",
+     "instruction": "callq 0x180199e80 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,MouseButton,GamepadButton)",
+     "value": {
+      "r8d": 3,
+      "r9d": 51
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018dba8",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 125
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018dc04",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 0
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018dc57",
+     "instruction": "movl $0x3, 0x1b1427f(%rip)",
+     "field": "MouseButton",
+     "value": 3
+    }
+   ]
+  },
+  "Codex": {
+   "controlName": "Codex",
+   "gamepad": {
+    "button": 54,
+    "buttonName": "PadButtonL1",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 67,
+     "name": "KeyC"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018d523",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 54,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018d7db",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 67
+    }
+   ]
+  },
+  "Confirm": {
+   "controlName": "Confirm",
+   "gamepad": {
+    "button": 52,
+    "buttonName": "PadButtonX",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 127,
+     "name": "KeyReturn"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018cc23",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 52,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018db4e",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 127
+    }
+   ]
+  },
+  "ContinueText": {
+   "controlName": "ContinueText",
+   "gamepad": {
+    "button": 52,
+    "buttonName": "PadButtonX",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 32,
+     "name": "KeySpace"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018ccb3",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 52,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018dda8",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 32
+    }
+   ]
+  },
+  "Down": {
+   "controlName": "MoveDown",
+   "gamepad": {
+    "button": 49,
+    "buttonName": "PadButtonDown",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 83,
+     "name": "KeyS"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018c317",
+     "instruction": "movl $0x31, 0x1b15977(%rip)",
+     "field": "GamepadButton",
+     "value": 49
+    },
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018c321",
+     "instruction": "movb $0x1, 0x1b158da(%rip)",
+     "field": "UseGamepadButton",
+     "value": 1
+    },
+    {
+     "function": "sgg::Controls::SetKeyboardMoveDefaults",
+     "address": "0x18018e00d",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 83
+    }
+   ]
+  },
+  "Emote": {
+   "controlName": "Emote",
+   "gamepad": {
+    "button": 58,
+    "buttonName": "PadButtonL3",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 84,
+     "name": "KeyT"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018d403",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 58,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018d8f8",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 84
+    }
+   ]
+  },
+  "Gift": {
+   "controlName": "Gift",
+   "gamepad": {
+    "button": 57,
+    "buttonName": "PadButtonR2",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": true
+   },
+   "keyboard": [
+    {
+     "value": 71,
+     "name": "KeyG"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018d2e3",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 57,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018d302",
+     "instruction": "movb $0x1, 0x1b1409c(%rip)",
+     "field": "AllowGamepadDoubleMapping",
+     "value": 1
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018d898",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 71
+    }
+   ]
+  },
+  "Left": {
+   "controlName": "MoveLeft",
+   "gamepad": {
+    "button": 46,
+    "buttonName": "PadButtonLeft",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 65,
+     "name": "KeyA"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018c4b7",
+     "instruction": "movl $0x2e, 0x1b15037(%rip)",
+     "field": "GamepadButton",
+     "value": 46
+    },
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018c4c1",
+     "instruction": "movb $0x1, 0x1b14f9a(%rip)",
+     "field": "UseGamepadButton",
+     "value": 1
+    },
+    {
+     "function": "sgg::Controls::SetKeyboardMoveDefaults",
+     "address": "0x18018e06b",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 65
+    }
+   ]
+  },
+  "MenuDown": {
+   "controlName": "MenuDown",
+   "gamepad": {
+    "button": null,
+    "buttonName": null,
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [],
+   "mouse": {
+    "value": 6,
+    "name": "WheelDown"
+   },
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018cf83",
+     "instruction": "callq 0x180199dd0 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,MouseButton)",
+     "value": {
+      "r8d": 6,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018dd37",
+     "instruction": "movl $0x6, 0x1b1479f(%rip)",
+     "field": "MouseButton",
+     "value": 6
+    }
+   ]
+  },
+  "MenuInfo": {
+   "controlName": "MenuInfo",
+   "gamepad": {
+    "button": 45,
+    "buttonName": "PadButtonSelect",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 66,
+     "name": "KeyB"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018d013",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 45,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018dd48",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 66
+    }
+   ]
+  },
+  "MenuLeft": {
+   "controlName": "MenuLeft",
+   "gamepad": {
+    "button": 54,
+    "buttonName": "PadButtonL1",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 97,
+     "name": "KeyLeft"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018cdd3",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 54,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018dc68",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 97
+    }
+   ]
+  },
+  "MenuRight": {
+   "controlName": "MenuRight",
+   "gamepad": {
+    "button": 55,
+    "buttonName": "PadButtonR1",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 98,
+     "name": "KeyRight"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018ce63",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 55,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018dcc8",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 98
+    }
+   ]
+  },
+  "MenuUp": {
+   "controlName": "MenuUp",
+   "gamepad": {
+    "button": null,
+    "buttonName": null,
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [],
+   "mouse": {
+    "value": 5,
+    "name": "WheelUp"
+   },
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018cef3",
+     "instruction": "callq 0x180199dd0 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,MouseButton)",
+     "value": {
+      "r8d": 5,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018dd2d",
+     "instruction": "movl $0x5, 0x1b14929(%rip)",
+     "field": "MouseButton",
+     "value": 5
+    }
+   ]
+  },
+  "Pause": {
+   "controlName": "Start",
+   "gamepad": {
+    "button": 44,
+    "buttonName": "PadButtonStart",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 0,
+     "name": "KeyEscape"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018d493",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 44,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018d781",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 0
+    }
+   ]
+  },
+  "Reload": {
+   "controlName": "Reload",
+   "gamepad": {
+    "button": 59,
+    "buttonName": "PadButtonR3",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 82,
+     "name": "KeyR"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018d373",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 59,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetKeyboardMoveDefaults",
+     "address": "0x18018df53",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 82
+    }
+   ]
+  },
+  "ReportFeedback": {
+   "controlName": "ReportFeedback",
+   "gamepad": {
+    "button": null,
+    "buttonName": null,
+    "setupButtonIfUnmapped": {
+     "value": 59,
+     "name": "PadButtonR3"
+    },
+    "defaultGamepadButtonUnmapped": true,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 10,
+     "name": "KeyF10"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018d5b3",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 59,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018d600",
+     "instruction": "movb $0x1, 0x1b1513f(%rip)",
+     "field": "DefaultGamepadButtonUnmapped",
+     "value": 1
+    },
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018d616",
+     "instruction": "movb %sil, 0x1b15125(%rip)",
+     "field": "UseGamepadButton",
+     "value": 0
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018de08",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 10
+    }
+   ]
+  },
+  "Right": {
+   "controlName": "MoveRight",
+   "gamepad": {
+    "button": 47,
+    "buttonName": "PadButtonRight",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 68,
+     "name": "KeyD"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018c657",
+     "instruction": "movl $0x2f, 0x1b156f7(%rip)",
+     "field": "GamepadButton",
+     "value": 47
+    },
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018c661",
+     "instruction": "movb $0x1, 0x1b1565a(%rip)",
+     "field": "UseGamepadButton",
+     "value": 1
+    },
+    {
+     "function": "sgg::Controls::SetKeyboardMoveDefaults",
+     "address": "0x18018e0cb",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 68
+    }
+   ]
+  },
+  "Rush": {
+   "controlName": "Rush",
+   "gamepad": {
+    "button": 50,
+    "buttonName": "PadButtonA",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 32,
+     "name": "KeySpace"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018ca73",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 50,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetKeyboardMoveDefaults",
+     "address": "0x18018e12b",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 32
+    }
+   ]
+  },
+  "Select": {
+   "controlName": "Select",
+   "gamepad": {
+    "button": 50,
+    "buttonName": "PadButtonA",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 32,
+     "name": "KeySpace"
+    }
+   ],
+   "mouse": {
+    "value": 0,
+    "name": "Left"
+   },
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018cb96",
+     "instruction": "callq 0x180199e80 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,MouseButton,GamepadButton)",
+     "value": {
+      "r8d": 0,
+      "r9d": 50
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018dae7",
+     "instruction": "movl %ebx, 0x1b14db3(%rip)",
+     "field": "MouseButton",
+     "value": 0
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018daf4",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 32
+    }
+   ]
+  },
+  "Shout": {
+   "controlName": "Shout",
+   "gamepad": {
+    "button": 57,
+    "buttonName": "PadButtonR2",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 70,
+     "name": "KeyF"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018d0a3",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 57,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018d9ce",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 70
+    }
+   ]
+  },
+  "TakeScreenshot": {
+   "controlName": "TakeScreenshot",
+   "gamepad": {
+    "button": null,
+    "buttonName": null,
+    "setupButtonIfUnmapped": {
+     "value": 45,
+     "name": "PadButtonSelect"
+    },
+    "defaultGamepadButtonUnmapped": true,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 11,
+     "name": "KeyF11"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018d651",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 45,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018d695",
+     "instruction": "movb $0x1, 0x1b1522a(%rip)",
+     "field": "DefaultGamepadButtonUnmapped",
+     "value": 1
+    },
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018d69c",
+     "instruction": "movb %sil, 0x1b1521f(%rip)",
+     "field": "UseGamepadButton",
+     "value": 0
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018de68",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 11
+    }
+   ]
+  },
+  "Up": {
+   "controlName": "MoveUp",
+   "gamepad": {
+    "button": 48,
+    "buttonName": "PadButtonUp",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 87,
+     "name": "KeyW"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018c179",
+     "instruction": "movl $0x30, 0x1b16295(%rip)",
+     "field": "GamepadButton",
+     "value": 48
+    },
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018c183",
+     "instruction": "movb $0x1, 0x1b161f8(%rip)",
+     "field": "UseGamepadButton",
+     "value": 1
+    },
+    {
+     "function": "sgg::Controls::SetKeyboardMoveDefaults",
+     "address": "0x18018dfb0",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 87
+    }
+   ]
+  },
+  "Use": {
+   "controlName": "Use",
+   "gamepad": {
+    "button": 55,
+    "buttonName": "PadButtonR1",
+    "setupButtonIfUnmapped": null,
+    "defaultGamepadButtonUnmapped": false,
+    "allowGamepadDoubleMapping": false
+   },
+   "keyboard": [
+    {
+     "value": 69,
+     "name": "KeyE"
+    }
+   ],
+   "mouse": null,
+   "provenance": [
+    {
+     "function": "sgg::Controls::SetupControlScheme",
+     "address": "0x18018d253",
+     "instruction": "callq 0x180199d20 RemappableControl::SetupScheme",
+     "field": "SetupScheme(name,GamepadButton)",
+     "value": {
+      "r8d": 55,
+      "r9d": null
+     }
+    },
+    {
+     "function": "sgg::Controls::SetCommonDefaults",
+     "address": "0x18018d838",
+     "instruction": "callq 0x18004f210 eastl::vector<KeyboardButtonId>::push_back",
+     "field": "OrKeys.push_back(AddKey)",
+     "value": 69
+    }
+   ]
+  }
+ },
+ "gamepad_hardware": {
+  "source": "gainput::InputDevicePadImplWin::Update 0x180368780 (XInput XINPUT_GAMEPAD wButtons bit -> PadButton)",
+  "buttons": {
+   "bit0 DPAD_UP": 48,
+   "bit1 DPAD_DOWN": 49,
+   "bit2 DPAD_LEFT": 46,
+   "bit3 DPAD_RIGHT": 47,
+   "bit4 START": 44,
+   "bit5 BACK": 45,
+   "bit6 LEFT_THUMB": 58,
+   "bit7 RIGHT_THUMB": 59,
+   "bit8 LEFT_SHOULDER": 54,
+   "bit9 RIGHT_SHOULDER": 55,
+   "bit12 A": 50,
+   "bit13 B": 51,
+   "bit14 X": 52,
+   "bit15 Y": 53,
+   "bLeftTrigger != 0": 56,
+   "bRightTrigger != 0": 57
+  },
+  "axes": {
+   "sThumbLX": 0,
+   "sThumbLY": 1,
+   "sThumbRX": 2,
+   "sThumbRY": 3,
+   "bLeftTrigger/255": 4,
+   "bRightTrigger/255": 5
+  },
+  "axis_sign": "XInput thumb Y is positive up; the engine consumes it unchanged (InputHandler::GetDirection adds +1 to y for Up).",
+  "conclusion": "PadButtonA/B/X/Y are the Xbox face buttons by position name (A bottom, B right, X left, Y top). L2/R2 digital = any nonzero trigger byte."
+ },
+ "stick": {
+  "DeadZone": {
+   "value": 0.225,
+   "bits": "0x3e666666",
+   "source": "dynamic initializer for 'sgg::ConfigOptions::DeadZone' 0x18000b8db/0x18000b91c movl $0x3e666666"
+  },
+  "ApplyDeadZone": {
+   "value": true,
+   "source": "0x180008aa0 movb $0x1"
+  },
+  "MouseDeadZone": {
+   "value": 0.0,
+   "source": "0x18000ed89"
+  },
+  "AllowStrafe": {
+   "value": true,
+   "source": "0x18000cea5 movb $0x1",
+   "meaning": "HelpText MiscSettingsScreen_AllowStrafeLabel \"Attack at Cursor\": always attack toward the mouse cursor (M&K)."
+  },
+  "DefaultControlsChosen": {
+   "value": false,
+   "source": "0x18000a444 movb $0x0"
+  },
+  "GetStickValue": {
+   "va": "0x180194120",
+   "behavior": "Reads axis pair (r8d,r9d). Optional per-handler radial check when flag arg is set and ApplyDeadZone. Then if x*x+y*y < DeadZone*DeadZone returns VecZero (0x180194308..0x18019431d), else returns raw (x,y) unscaled."
+  },
+  "left_stick": "InputHandler::HandleInput 0x180194e1d GetStickValue(axes 0,1) stored to InputHandler+0x58; PlayerUnitInput::DirectMovement 0x1802ee023..0x1802ee04e adds that stick vector to InputHandler::GetDirection (digital Up/Down/Left/Right control states, normalized) as movement input.",
+  "right_stick": "GetStickValue(axes 2,3) is called only by InputHandler::FreeFormSelect 0x180194f88 (gamepad menu cursor/free-form selection) and Player::HandleInput 0x180211bd6 (any-input-given detection). PlayerUnitInput CalcTargetInfo/ReticleMovement/DirectMovement reference only InputHandler::GetDirection; no right-stick aim was found.",
+  "not_recovered": "GamePadHandler::CheckDirectionsAndApplyDeadZone 0x180194340 (stick-as-digital menu directions) thresholds were not decoded."
+ },
+ "android_adaptation": {
+  "gamepad": "Standard Android Xbox-layout correspondence: AKEYCODE_BUTTON_A(96)->PadButtonA, B(97)->B, X(99)->X, Y(100)->Y, L1(102)->L1, R1(103)->R1, L2(104)->L2, R2(105)->R2, THUMBL(106)->L3, THUMBR(107)->R3, START(108)->Start, SELECT(109)->Select, DPAD_UP/DOWN/LEFT/RIGHT(19/20/21/22)->Up/Down/Left/Right. AXIS_X/Y->axes 0/1 (Y negated to engine positive-up), AXIS_Z/RZ->axes 2/3 (Y negated), LTRIGGER/RTRIGGER->axes 4/5 and digital L2/R2 when >= 1/255 (the original nonzero-byte test), HAT_X/HAT_Y->D-pad at |value|>=0.5 (adaptation threshold).",
+  "keyboard": "AKEYCODE_A..Z, 0..9, SPACE, ENTER, DEL(backspace), ESCAPE, SHIFT_LEFT, F10, F11, and arrow keys (delivered as AKEYCODE_DPAD_* from keyboard sources) mapped to the corresponding KeyboardButtonId. Callers must use the event source (keyboard vs gamepad) because DPAD keycodes are shared.",
+  "mouse": "Android delivers mouse buttons through AMotionEvent button state (BUTTON_PRIMARY=1, SECONDARY=2, TERTIARY=4, BACK=8, FORWARD=16) and wheel through AXIS_VSCROLL; mapped to MouseButtons Left/Right/Middle/XButton1/XButton2/WheelUp/WheelDown. XButton1->BUTTON_BACK is an adaptation assumption. Some devices convert unconsumed secondary clicks to AKEYCODE_BACK."
+ },
+ "module": {
+  "files": [
+   "native/app/input_bindings.hpp",
+   "native/app/input_bindings.cpp"
+  ],
+  "smoke": "native/analysis/input_bindings_smoke.cpp"
+ }
+}

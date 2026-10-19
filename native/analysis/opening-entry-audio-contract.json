@@ -1,0 +1,114 @@
+{
+  "schema": "hades-opening-entry-audio-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "source_identities": {
+    "Scripts/RoomPresentation.lua": {
+      "sha256": "e686ec7a3d3b67c692754d69dfe2e7bd9057856285477129023723563994d4d4",
+      "bytes": 271595
+    },
+    "Scripts/RoomDataTartarus.lua": {
+      "sha256": "5fec91dc20a06d52bac3fff818e664101a18fec853eeed7825ada39b69eda311",
+      "bytes": 74127
+    },
+    "Scripts/AudioData.lua": {
+      "sha256": "cc21109b5d0db95151e540543d5150081aa4e8318ef51e5784e51486994bdc20",
+      "bytes": 361421
+    },
+    "Scripts/AudioScripts.lua": {
+      "sha256": "b454e629f26479af4fe8de27a4ef8227b6754a217c74c6f982b9a8520edfcc74",
+      "bytes": 33730
+    },
+    "Game/Audio.sjson": {
+      "sha256": "216f1600a03733d50c80752fff4185f80125f7fb1ebf46a74e0f3bff6c5bbeb0",
+      "bytes": 6788
+    }
+  },
+  "observed_source": {
+    "RoomOpening": {
+      "source": "Scripts/RoomDataTartarus.lua:2083",
+      "music": "/Music/MusicExploration4_MC",
+      "section": 1,
+      "stems": [
+        "Keys",
+        "Drums"
+      ],
+      "music_start_delay": 2.75,
+      "music_requirement": "RequiredMaxCompletedRuns=0",
+      "ambience": "/Leftovers/Ambience/MatchSiteIPoolAmbience",
+      "first_run_voice_lines": [
+        {
+          "cue": "/VO/ZagreusField_0011",
+          "required_completed_runs": 0,
+          "pre_line_wait": 3.0
+        },
+        {
+          "cue": "/VO/ZagreusScratch_0004",
+          "required_completed_runs": 0,
+          "pre_line_wait": 6.0,
+          "break_if_played": true
+        }
+      ]
+    },
+    "biome_default": {
+      "source": "Scripts/AudioData.lua:395",
+      "Tartarus": "/Leftovers/Object Ambiences/EvilLairAmbienceMatchSiteE",
+      "ReverbValue": 2,
+      "selection": "GetCompletedRuns()%trackCount +1",
+      "override": "StartRoomAmbience uses Encounter.Ambience then Room.Ambience before biome defaults. Selected RoomOpening explicit ambience bypasses default biome ReverbValue branch."
+    },
+    "entrance": {
+      "RoomEntranceOpening": "PlaySound /Leftovers/World Sounds/MapZoomInShortHigh then WindowDropEntrance",
+      "WindowDropEntrance": "Wait0.03, original camera/fade/hero drop threads; after1.2 wait thread original currentRoom.EnterVoiceLines. No substituted fixed voice timing.",
+      "DropHeroToRoomPosition": "After actual drop preparation PlaySound /SFX/Player Sounds/ZagreusWhooshDropIn Id=hero Delay=.5; delayed channel real admission/start."
+    },
+    "voice_template": {
+      "GetActorEvent_rva": "0x49140",
+      "rule": "Lowercase configured source actor keys, choose substring match in original native hash traversal; if none configured Default. Portable exporter rejects multiple matching distinct actor keys rather than guessing hash order.",
+      "Scratch": "Default original template /VO/AnnouncerVO",
+      "Zagreus": "Unique source Zagreus substring, GUID c26f9be9-f103-4b87-a666-8f77751f72bf original template /VO/Zagreus Template",
+      "captions": "Exact distinct original English caption rows retained privately with source hashes. Voice header index must agree with actual original FSB sample name. Public contract does not publish original spoken text."
+    }
+  },
+  "event_packet": ".local/native-assets/audio-events-opening-v13/receipt.json",
+  "compressed_additions": [
+    ".local/native-assets/audio-streams-opening-room-ambience-v1/manifest.json",
+    ".local/native-assets/audio-streams-opening-hero-voices-v1/manifest.json"
+  ],
+  "SetAudioEffectState": {
+    "evidence": ".local/reports/native-audio-effect-state-execute-static.json",
+    "source_branch": "ScriptAction.Execute VA180252a06..180252adf",
+    "inputs": "Value float default0, Names/Name all entries",
+    "operation": "For each name call actual persistent /Control/MixingControl EventInstance.setParameterByName(name,value,ignoreSeekSpeed=false), IAT VA1804a59b0. AudioManager+2c8 initialized to Control channel+58 atVA180047c7a..7e. Manager-wide mixing control through source event/snapshot graph, not a Studio.System global parameter call.",
+    "global_Reverb": {
+      "guid": "704580e3-c15b-4051-98d6-18440a8055e1",
+      "source": "MasterBank.bank PRMB offset199690 bytes56",
+      "minimum": -1,
+      "maximum": 2,
+      "default": -1,
+      "seek_speed": 0,
+      "seek_speed_down": 0
+    },
+    "status": "Reverb source target closure recovered; bounded consumer in progress. Selected RoomOpening explicit ambience does not request biome reverb."
+  },
+  "verification": {
+    "host_logs": [
+      ".local/reports/native-audio-world-entry-room-ambience-v1.log",
+      ".local/reports/native-audio-world-entry-hero-place-32k-v1.log",
+      ".local/reports/native-audio-world-entry-hero-goodbye-final-v1.log",
+      ".local/reports/native-audio-world-entry-narrator-regression-v1.log"
+    ],
+    "resampler": [
+      ".local/reports/native-audio-entry-resampler-32k-v1.log",
+      ".local/reports/native-audio-entry-resampler-441k-v1.log"
+    ],
+    "observed": "Actual reconstructed host mixer ASan+UBSan; both entry hero voices +room ambience nonzero, narrator lifetime regression passed. Original encoded sample decoder fullPCM identity +randomseek identity and independent32tap rational sinc comparison at phases/cacheboundaries/backwardsseek passed. No original FMOD execution or hardware playback.",
+    "android_compile": "audio_sample_stream.cpp NDK29 API26 arm64 -O2 -Wall -Wextra -Werror passed.",
+    "rate_adaptation": "Original ZagreusScratch_0004 stereo32000Hz requires exact2/3-source-frame phases; existing44.1k147/160,48kdirect. Original sample clocks and complete-bank bytes retained; no PCM staging."
+  },
+  "limits": [
+    "English captions only in current catalog.",
+    "Native overlapping actor-template key hash order remains unsupported by exporter.",
+    "Selected entry audio closure does not claim all first-room combat/reward/random speech coverage.",
+    "Global FMOD parameter automation requires a separate source graph consumer before SetAudioEffectState can be acknowledged."
+  ]
+}

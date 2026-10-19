@@ -1,0 +1,12 @@
+{
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_type": "Matching PDB and source DLL LLVM disassembly; not Windows execution",
+  "constructor_evidence": {
+    "path": "hades/.local/reports/native-control-defaults-v2/manifest.json",
+    "sha256": "8d21241fe423fad37503a77b34a2cb3554b167a8ddc5ed7435953198655ef12d"
+  },
+  "ToggleControl203": "Execute.case254161..2541cb iterates ScriptArgs.Names, finds global RemappableControl by exact string, skips unknown, writes Enabled bool defaultfalse at+0x10. No PlayerIndex selection or named-block mutation.",
+  "implementation": "native/app/input_runtime.cpp + generated native/analysis/control_names.hpp",
+  "coverage": "29 statically declared original native RemappableControl globals; every enabled initializer verified true; later extension/custom control namespace not reconstructed",
+  "input_consumer": "isRecoveredControlEnabled resolves actual global control state; complete Android control-edge/notify/game action scheduling still separate."
+}

@@ -1,0 +1,49 @@
+{
+  "schema": "hades-native-projectile-defense-v1",
+  "source_dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "implementation": [
+    "native/app/projectile_collision.cpp",
+    "native/app/projectile_world.hpp"
+  ],
+  "evidence": {
+    "defense_predicate": "ev_4e235b44cf54b6b8734a56776a644054c22b4ddc1f8a05cba1744be9b9f6a51d",
+    "affects_unit": "ev_99a091bbf158418b8938d42d335a3fa2cce74f3c86654203f37c5d9ca562163f",
+    "impact_check": "ev_32488bbd7f5cf0d62ca8207cf948f933a4d72ef15615da163f82425933429d47",
+    "impact": "ev_a1dda49d9dbbed7869afcbd02f2e0cbcb8f4bbc46089d10c63f88f48b394bd20",
+    "session_closed": ".local/reports/native-rea-arc-live-close.json",
+    "static_matching_pdb": [
+      "native-projectile-arc-defense-static.json",
+      "native-projectile-unit-has-same-team.json",
+      "native-projectile-defense-polygon-circle.json",
+      "native-projectile-thing-is-alive-static.json"
+    ]
+  },
+  "proven": {
+    "manager": "CanBeReflected captured during pending promotion; native ordered erase on removal",
+    "source_gate": "actual defending owner Thing.StopsProjectiles",
+    "predicate": [
+      "candidate ALIVE0 (not expired flag)",
+      "start/pause invulnerability",
+      "destroy eligibility or exact defending projectile definition name",
+      "LOB vertical branch unsupported until actual Lob state",
+      "nonLOB CheckUnitImpact",
+      "actual Unit.HasSameTeam, flipped AffectsFriends/Enemies",
+      "actual Entity identity thingsHit vector",
+      "coverage angles and IgnoreCoverageAngles",
+      "optional actual IsInBlast then inclusive circle vs actual polygon"
+    ],
+    "callback": "actual Reflect(owner,true,direction) or OnProjectileBlock(owner,defending weapon name), then mExpired=true on destruction path",
+    "team": "NoAllegiance false, actual pPlayer pointers compared after FriendlyToPlayer\u2192PlayerManager firstPlayer remap, either statusTraitor false. Both null pointers compare equal. Source groups do not define this query."
+  },
+  "portable_adaptations": [
+    "Player pointer identity represented by explicit parent-owned tokens",
+    "actual Entity identity represented by ActorWorld generation/lifetime handles",
+    "owned vectors preserve insertion order; no Windows address claim"
+  ],
+  "unresolved": [
+    "native LOB vertical-distance gate",
+    "actual reflection consumer and OnProjectileBlock original Lua dispatch supplied by parent",
+    "firstPlayer/Unit.pPlayer association must come from actual Player allocation, not guessed group names"
+  ],
+  "session_status": "closed confirmed"
+}

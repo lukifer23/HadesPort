@@ -1,0 +1,3674 @@
+{
+ "contract": "hades-config-file-v1",
+ "target": {
+  "dll": ".local/game/base/x64/EngineWin64s.dll",
+  "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+  "pdb_age": 1,
+  "image_base": "0x180000000"
+ },
+ "evidence": [
+  ".local/reports/config-file/*.json (native/analysis/inspect_engine.py disassembly of every procedure cited)",
+  ".local/reports/config-file/field-registry-extracted.json (stack-store emulation of all 352 ConfigOptions dynamic initializers; tools/extract.py)",
+  ".local/reports/config-file/options.json, key-mapping-tables.json, get-property-info-props.json",
+  ".local/reports/config-file/tools/ (pe.py, show.py, xref.py, extract.py, gen.py, keymap.py; run against a full llvm-objdump of the DLL)"
+ ],
+ "module": {
+  "files": [
+   "native/app/config_file.hpp",
+   "native/app/config_file.cpp"
+  ],
+  "smoke": "native/analysis/config_file_smoke.cpp",
+  "host_target": "hades-config-file-smoke"
+ },
+ "files": {
+  "profile_settings": {
+   "name": "<ACTIVE_PROFILE>.sjson, default Profile1.sjson",
+   "provenance": [
+    "ProfileManager::getLastLoaded 0x1802165f0 default 'Profile1' (PROFILE_BASE_NAME 'Profile' 0x18068eca0 + '%s%d')",
+    "SaveProfile 0x1802158c0 -> SaveToDeviceAsync 0x180215180 -> worker lambda_b38b6a 0x180215330: PathReplaceExtension(profile,'.sjson') 0x1802154b9, writer lambda_b2fde993 Invoker 0x1802176b0 -> jmp SGD_Serialize<ConfigOptions> 0x18010aa50",
+    "ProfileManager::Load 0x1802161a0: ChangeRelativePathExtension(.sjson) 0x1802162f8, ConfigOptions::Defaults 0x18021636e, reader lambda_099d4baa Invoker 0x180217540 -> jmp SGD_Deserialize<ConfigOptions>(FileStream) 0x18010d2d0, then SetConfigOptions(ConfigFileName) 0x18021653d and ParseCommandLineOptions"
+   ],
+   "location": "Local (and optional remote) platform save device; the 'Profiles' string is passed as the container name (0x1802163a6, 0x18021561a). The PC directory mapping lives in the save-device implementation and was not reconstructed. Android: app-private storage with the same file names.",
+   "written_when": "ProfileManager::SaveProfile callers include KeyMappingScreen::OnExit 0x1801b4dd7, MiscSettingsScreen, CloudSettingsScreen, App::Resize, AnnouncementScreen::ExitScreen."
+  },
+  "controls": {
+   "name": "<ACTIVE_PROFILE>.ctrls, default Profile1.ctrls",
+   "provenance": [
+    "Controls::ControlsExtension initializer 0x1800174f0 = '.ctrls'",
+    "Controls::SaveControls 0x18018f3b0: name = profile + ControlsExtension (0x18018f501), BinarySaveData(0x800, checksum=false) 0x18018f5de",
+    "Controls::LoadControls 0x18018fed0 -> worker lambda_f1d07ba4 0x180190010: ChangeRelativePathExtension(profile,'.ctrls') 0x180190060",
+    "ProfileManager::Load 0x180214bb0 calls LoadControls (0x180214ca3) after the profile .sjson"
+   ]
+  },
+  "other_config_sources": "ConfigOptions::SetConfigOptions 0x180105f60: LoadConfig(ConfigFileName with .sjson, resource 0x1a) else 'ConfigOptions/<name>.sjson' (resource 0x18), then always 'Game/UpdateInfo.sjson'; LoadConfig 0x180105e60 follows ConfigInclude recursively. ConfigFileName defaults to empty (initializer 0x180013040) and is not a registered field. These are content/preset files, not user settings."
+ },
+ "sjson_syntax": {
+  "writer": "SGD_Serialize<ConfigOptions> 0x18010aa50: '{\\n'; for each node of the Field map (case-insensitive string_hash_map iteration order): skip if Field.flags&1 (0x18010ab06) or IsDefaultValue (0x18010ab14); else append_sprintf('  %s = ') + ToString(field) + '\\n'; then '}\\n'. Written with one stream write.",
+  "value_text": {
+   "bool": "true | false",
+   "int": "%d",
+   "long": "%d",
+   "float": "%f (6 decimals) under setlocale(LC_ALL,'C') (ToString 0x180103fe0)",
+   "string": "\"%s\" without escaping; an empty string produces no text after '= '",
+   "other(enum DebugOverlay::Category flags)": "quoted ', '-joined category names (GetStringForCategory); kept raw by the port"
+  },
+  "reader": "SGD_Deserialize<ConfigOptions> 0x18010d2d0: strips UTF-8/UTF-16/UTF-32 BOMs, nfjp_parse_with_settings 0x180325ed0 (nflibs nf_json_parser) with settings int[9] = {1,1,0,1,1,1,1,1,1}; root must be '{' (settings[2]=0 -> parse_value, 0x180325f79); '//' and '/* */' comments (settings[1]) and commas (settings[3]) are whitespace (skip_whitespace 0x180327700); keys may be unquoted (parse_key); '=' or ':' separators (0x180326fa2/0x180326fad); JSON escapes incl. \\uXXXX and Python \"\"\" strings (parse_string 0x180326350, settings[5]).",
+  "key_matching": "Field map uses sgg::HashAsciiIgnoreCase/PredicateAsciiIgnoreCase: keys are case-insensitive.",
+  "unknown_keys": "Ignored on load (DoFindNode miss -> next member, 0x18010af11) and never written. The port preserves them verbatim (round trip) as an explicit addition.",
+  "load_order": "ConfigOptions::Defaults 0x180105830 (RestoreDefault on every field) runs before the file is applied, so absent keys mean default.",
+  "type_conversion_on_load": {
+   "bool": "false/true literals only; other values leave the current value (0x18010af36)",
+   "int": "number -> cvttsd2si; any non-number -> 0 (0x18010af98)",
+   "long": "SGD_Deserialize<long> 0x18010d4e0: number trunc, false 0, true 1, object -> its first value, else unchanged",
+   "float": "number -> float32; any non-number -> 0 (0x18010b005)",
+   "string": "SGD_Deserialize 0x18003f130: null -> '', number -> '%f', string -> text, object -> first value, else unchanged; then sgg::Unescape replaces every '\\\\\\\\' with '\\\\' (0x18010b25c)",
+   "other": "string then sgg::FromString 0x180104370"
+  },
+  "is_default": "sgg::IsDefaultValue 0x180103e00: exact for bool/int/long/string; float equal if |a-b| <= 2^-146 (0x00000008) or |a-b| <= 1e-4 * max(|a|,|b|) (0x38d1b717)."
+ },
+ "field_registry": {
+  "source": "352 `dynamic initializer for 'sgg::ConfigOptions::*'` procedures; 346 register an sgg::Field {i32 type, i32 flags, void* value, eastl::any default @+0x10} via string_hash_map<Field>::insert 0x18010d860 or registerField<string> 0x18010d1a0.",
+  "type_tags": {
+   "0": "bool",
+   "1": "int",
+   "2": "long",
+   "3": "float",
+   "4": "string",
+   "5": "other (enum)"
+  },
+  "flags": {
+   "1": "not saved to the profile (SGD_Serialize skip); still accepted on load",
+   "2": "machine-wide: ConfigOptions::GetOptionsByType 0x180105a70 collects them so App::Reset/RemoteProfileScreen keep them across a profile reload",
+   "4": "set only on window/display options (DisplayIndex, FullScreen, NoBorder, WindowX/Y, X, Y, ScreenshotCount); consumer not recovered"
+  },
+  "counts": {
+   "registered": 346,
+   "persisted_flag_bit0_clear": 87,
+   "unregistered_initializers": [
+    "DevSavePath",
+    "AutoDownloadSavePath",
+    "ConfigFileName",
+    "MachineName",
+    "ConfigOptionSet",
+    "OptionArgs"
+   ]
+  },
+  "lua_only_not_in_registry": [
+   "CameraEdgePanSpeed",
+   "SpeedMultiplier",
+   "CameraEdgePanThreshold",
+   "MachineName",
+   "DamageMultiplier",
+   "CameraFollowCursor",
+   "ConfigFileName",
+   "DebugDraw",
+   "DisableDamage",
+   "SkipCollisionCheck",
+   "DynamicZoomBufferX",
+   "DynamicZoomBufferY",
+   "DamageTakenMultiplier",
+   "CameraMinZoom",
+   "CameraMaxZoom",
+   "DrawCamera",
+   "LoadingSkipRenderFrames"
+  ],
+  "lua_only_note": "These are reachable through ScriptAction::SetConfigOption/GetPropertyInfo 0x1801065d0 but not through the .sjson reader/writer."
+ },
+ "android_options": [
+  {
+   "name": "Brightness",
+   "type": "float",
+   "flags": 0,
+   "default": 0.5,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000d7e0",
+   "note": "Android uses a different UI scale; map to the original 0..1 value"
+  },
+  {
+   "name": "MasterVolume",
+   "type": "float",
+   "flags": 2,
+   "default": 1.0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x18000d2c0"
+  },
+  {
+   "name": "MusicVolume",
+   "type": "float",
+   "flags": 0,
+   "default": 1.0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000d0c0"
+  },
+  {
+   "name": "FxVolume",
+   "type": "float",
+   "flags": 0,
+   "default": 1.0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000d140"
+  },
+  {
+   "name": "DialogueVolume",
+   "type": "float",
+   "flags": 0,
+   "default": 1.0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000d240"
+  },
+  {
+   "name": "DrawBloom",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f4e0"
+  },
+  {
+   "name": "DrawLights",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000eb00"
+  },
+  {
+   "name": "SwapInterval",
+   "type": "int",
+   "flags": 0,
+   "default": 1,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x180008e40"
+  },
+  {
+   "name": "Letterbox",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x180008f40"
+  },
+  {
+   "name": "EasyMode",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000d860"
+  },
+  {
+   "name": "ShowDamageNumbers",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000c730"
+  },
+  {
+   "name": "ShowUIAnimations",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000c6b0"
+  },
+  {
+   "name": "ShowSpeechBubble",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000d1c0"
+  },
+  {
+   "name": "Subtitles",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000cc40"
+  },
+  {
+   "name": "DeadZone",
+   "type": "float",
+   "flags": 0,
+   "default": 0.22499999403953552,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000b8b0"
+  },
+  {
+   "name": "Rumble",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000cfc0"
+  },
+  {
+   "name": "AllowAutoLock",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000cd40"
+  },
+  {
+   "name": "AllowStrafe",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000ce40"
+  },
+  {
+   "name": "UseGamepadGlyphs",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000a160"
+  },
+  {
+   "name": "Language",
+   "type": "string",
+   "flags": 2,
+   "default": "",
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x180012f80"
+  },
+  {
+   "name": "UiLanguage",
+   "type": "string",
+   "flags": 2,
+   "default": "",
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x180012fe0"
+  },
+  {
+   "name": "CameraShake",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000d040"
+  },
+  {
+   "name": "UseOcclusion",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ba30"
+  },
+  {
+   "name": "ShowGameplayTimer",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000c7b0"
+  },
+  {
+   "name": "ShowOffscreenIndicators",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000c830"
+  },
+  {
+   "name": "UseLowResAssets",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010c90"
+  },
+  {
+   "name": "DrawColorGrading",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f670"
+  },
+  {
+   "name": "UseMouse",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000a0e0"
+  },
+  {
+   "name": "DefaultControlsChosen",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000a3e0"
+  },
+  {
+   "name": "LoadSavedControls",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000aef0"
+  },
+  {
+   "name": "ControlsResetRevision",
+   "type": "int",
+   "flags": 1,
+   "default": 16755,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000b390"
+  },
+  {
+   "name": "ControlsResetRevisionViewed",
+   "type": "int",
+   "flags": 0,
+   "default": 0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000b420"
+  },
+  {
+   "name": "GamepadSlot",
+   "type": "int",
+   "flags": 0,
+   "default": 1,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000b4a0"
+  },
+  {
+   "name": "NonPS4GamepadRumbleMultiplier",
+   "type": "float",
+   "flags": 0,
+   "default": 0.800000011920929,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000b830"
+  },
+  {
+   "name": "PS4GamepadRumbleMultiplier",
+   "type": "float",
+   "flags": 0,
+   "default": 1.0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000b7b0"
+  },
+  {
+   "name": "GamepadLightBrightness",
+   "type": "float",
+   "flags": 0,
+   "default": 1.0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000aa00"
+  },
+  {
+   "name": "HardMode",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000d8e0"
+  },
+  {
+   "name": "AllowPlaySpeech",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000b930"
+  },
+  {
+   "name": "VfxManagerCapMultiplier",
+   "type": "float",
+   "flags": 1,
+   "default": 4.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f2b0"
+  }
+ ],
+ "android_notes": {
+  "not_saved_on_pc": [
+   "DrawBloom",
+   "DrawLights",
+   "ShowUIAnimations",
+   "ShowSpeechBubble",
+   "UseOcclusion",
+   "ShowOffscreenIndicators",
+   "UseLowResAssets",
+   "DrawColorGrading",
+   "LoadSavedControls",
+   "ControlsResetRevision",
+   "AllowPlaySpeech",
+   "VfxManagerCapMultiplier"
+  ],
+  "explanation": "DrawBloom, DrawLights, ShowUIAnimations, ShowSpeechBubble, UseOcclusion, ShowOffscreenIndicators, UseLowResAssets and others are flag-1 fields: the PC game never writes them to Profile1.sjson. ConfigFile::WriteOptions::includeNotSavedOptions=true writes non-default values anyway (Android adaptation); the original reader accepts them because SGD_Deserialize does not test flags.",
+  "profile_save_file": "EasyMode is also copied into the .sav header (save-contract.json payload_v16 u8 SaveInfo+0x70)."
+ },
+ "controls_format": {
+  "container": "BinarySaveData without checksum: 'SGB1' magic (0x31424753) only, 4-byte header (ctor 0x180189c10, PrepareForWrite 0x1802043a0). Reader BinaryLoadData::fromStream 0x180204130: magic sets cppCompat; without magic the legacy 7-bit-length string path is used (not supported by the port).",
+  "layout": [
+   "u32 'SGB1'",
+   "i32 count = Controls::Scheme element count (0x18018f5e4)",
+   "count x record in Scheme hash-map iteration order (the loader is order-independent)"
+  ],
+  "record": [
+   "i32 version = 1 (RemappableControl::Save 0x18019a899)",
+   "string ControlName (+0x30): u32 length + bytes (BinarySaveData::saveString 0x180199a50)",
+   "i32 OrKeys count, then each key as i32 GetMappedKeyFromGaInputKey(KeyboardButtonId) (0x18019a9ec)",
+   "i32 gamepad mask from GamepadButton (+0xa8) (0x18019ab18)",
+   "i32 mouse value from MouseButton (+0xb0) (0x18019acb2)",
+   "u8 UseGamepadButton (+0x12)",
+   "u8 RequiresShift (+0x11)"
+  ],
+  "the 'OrKeys'/'GamepadButton'/'MouseButton' strings": "built and discarded around each write; binary mode stores no field names",
+  "gamepad_mask": {
+   "44 Start": "0x10",
+   "45 Select": "0x20",
+   "46 Left": "0x4",
+   "47 Right": "0x8",
+   "48 Up": "0x1",
+   "49 Down": "0x2",
+   "50 A": "0x1000",
+   "51 B": "0x2000",
+   "52 X": "0x4000",
+   "53 Y": "0x8000",
+   "54 L1": "0x100",
+   "55 R1": "0x200",
+   "56 L2": "0x800000",
+   "57 R2": "0x400000",
+   "58 L3": "0x40",
+   "59 R3": "0x80",
+   "61 PadButton17": "0x800",
+   "other incl. 60 Home, 76 PadButtonMax_": "0xffffffff"
+  },
+  "gamepad_read": "RemappableControl::Load 0x18019b05f: inverse of the table; any other value leaves PadButtonMax_ (76).",
+  "mouse_value": {
+   "-1 None": "0",
+   "0 Left": "0x100000",
+   "1 Right": "0x200000",
+   "2 Middle": "0x400000",
+   "3 XButton1": "0x800000",
+   "4 XButton2": "0x1000000",
+   "5 WheelUp": "0x3000000",
+   "6 WheelDown": "0x5000000",
+   "other": "raw"
+  },
+  "mouse_read": "0x18019b1a5: inverse; 0 and -1 -> None (-1); unknown -> raw",
+  "keys": "Windows virtual-key codes via GetMappedKeyFromGaInputKey 0x18019bf90; read back with GetCorrectlyMappedKey 0x18019bac0. Non-identity pairs in key-mapping-tables.json / config_file.cpp. Not a perfect inverse: KeyPlus 158 -> 187 reads back as 187.",
+  "record_version_mismatch": "Load 0x18019ae73: version != 1 returns a disabled control after reading only the version.",
+  "apply": "Worker 0x180190307..0x180190472: for each enabled record, FNV-1a bucket lookup + memcmp on ControlName in Controls::Scheme; copies OrKeys, GamepadButton, MouseButton, UseGamepadButton, RequiresShift. Unknown names ignored.",
+  "gate": "Applied only if the file loaded (status 3), ConfigOptions::LoadSavedControls (flag 1, default true) and ControlsResetRevision (flag 1, default 16755) <= ControlsResetRevisionViewed (persisted, default 0) (0x18019028f..0x1801902a8).",
+  "when_saved": "KeyMappingScreen ctor sets ControlsResetRevisionViewed = atoi(\"36401\") (0x1801b1656); KeyMappingScreen::OnExit 0x1801b4dc0: SaveProfile, ConfigOptions::Apply, DefaultControlsChosen = true, SaveControls(profile).",
+  "control_names": "ControlName differs from the input_bindings control id for Up/Down/Left/Right (MoveUp/MoveDown/MoveLeft/MoveRight) and Pause (Start); see default-bindings-contract.json controlName.",
+  "defaults": "input_bindings defaultBindings(); UseGamepadButton=1 where SetupScheme(name,pad) ran; ReportFeedback/TakeScreenshot keep R3/Select with UseGamepadButton=0; RequiresShift false (no non-copy store found in Controls/RemappableControl code)."
+ },
+ "uncertainties": [
+  "Profile directory on PC (save-device container 'Profiles') was not reconstructed; only file names are proven.",
+  "nfjp settings[0], [4..8] semantics are inferred from nflibs field order plus observed checks; settings[1],[2],[3],[5] and '='/':' handling are observed.",
+  "SGD_Serialize writes in Field hash-map iteration order; the port writes registry (alphabetical) order. The reader is order-independent.",
+  ".ctrls records are written in Controls::Scheme hash order in the original; the port writes the caller's order. The loader is order-independent.",
+  "Type 5 (DebugOverlay::Category) FromString/ToString are not reconstructed; the port keeps the raw text.",
+  "Flag 4 consumer unknown.",
+  "An nfjp parse error makes the port apply nothing (values stay at defaults); the engine's behaviour after its longjmp error path was not traced further.",
+  "Legacy (pre-SGB1) .ctrls files are rejected."
+ ],
+ "options": [
+  {
+   "name": "AllowAutoLock",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000cd40"
+  },
+  {
+   "name": "AllowControlHotSwap",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180009fe0"
+  },
+  {
+   "name": "AllowEditFlippedMaps",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800114b0"
+  },
+  {
+   "name": "AllowHardQuit",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000e7e0"
+  },
+  {
+   "name": "AllowOversizeWindows",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000fbb0"
+  },
+  {
+   "name": "AllowPause",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000e4a0"
+  },
+  {
+   "name": "AllowPlaySpeech",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000b930"
+  },
+  {
+   "name": "AllowSaveLoad",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000daf0"
+  },
+  {
+   "name": "AllowStrafe",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000ce40"
+  },
+  {
+   "name": "AllowStripRequirements",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010930"
+  },
+  {
+   "name": "AllowUnitInput",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000bab0"
+  },
+  {
+   "name": "AllowVoiceBankStreaming",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000d700"
+  },
+  {
+   "name": "AmbienceDistanceMax",
+   "type": "float",
+   "flags": 1,
+   "default": 1600.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f3d0"
+  },
+  {
+   "name": "ApplyDeadZone",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180008a30"
+  },
+  {
+   "name": "AskAboutCloudSaves",
+   "type": "bool",
+   "flags": 2,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x1800132e0"
+  },
+  {
+   "name": "AssetErrorAsserts",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010400"
+  },
+  {
+   "name": "AssetSwatchPreviewSize",
+   "type": "int",
+   "flags": 1,
+   "default": 64,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000be50"
+  },
+  {
+   "name": "AttachDxDiagToBugReports",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012a70"
+  },
+  {
+   "name": "AttachmentMode",
+   "type": "bool",
+   "flags": 3,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x18000bcb0"
+  },
+  {
+   "name": "AttemptHighDPI",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180009040"
+  },
+  {
+   "name": "AudioMaxAudibleVoices",
+   "type": "int",
+   "flags": 1,
+   "default": 64,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000d570"
+  },
+  {
+   "name": "AudioMaxVirtualVoices",
+   "type": "int",
+   "flags": 1,
+   "default": 128,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000d4e0"
+  },
+  {
+   "name": "AudioStreamBufferSize",
+   "type": "int",
+   "flags": 1,
+   "default": 65536,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000d450"
+  },
+  {
+   "name": "AuthBasecampOnStartup",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800123a0"
+  },
+  {
+   "name": "AuthTwitchOnStartup",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180011630"
+  },
+  {
+   "name": "AutoDeleteExtraDevSaves",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ded0"
+  },
+  {
+   "name": "AutoDetectLowResAssets",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010c10"
+  },
+  {
+   "name": "AutoDownloadSavePathStr",
+   "type": "string",
+   "flags": 1,
+   "default": "\\\\AQUARIUS\\share\\Minos\\LatestSaves",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000de50"
+  },
+  {
+   "name": "AutoHotLoad",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f770"
+  },
+  {
+   "name": "AutoPlaySaveQueueDeleteOnLoad",
+   "type": "bool",
+   "flags": 3,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x180009d60"
+  },
+  {
+   "name": "AutoPlaySaveQueueFolderStr",
+   "type": "string",
+   "flags": 3,
+   "default": "\\\\aquarius\\share\\minos\\LatestSaves",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x180009de0"
+  },
+  {
+   "name": "AutoPlaySaveQueueLoadInterval",
+   "type": "float",
+   "flags": 3,
+   "default": 360.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x180009cd0"
+  },
+  {
+   "name": "AutoReportAsserts",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800128f0"
+  },
+  {
+   "name": "AutoSubmitBugs",
+   "type": "bool",
+   "flags": 3,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x1800129f0"
+  },
+  {
+   "name": "BackgroundAudioThread",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000cbc0"
+  },
+  {
+   "name": "BasecampMaxLogSize",
+   "type": "int",
+   "flags": 1,
+   "default": 4194304,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012500"
+  },
+  {
+   "name": "BasecampProject",
+   "type": "string",
+   "flags": 1,
+   "default": "Minos  Bugs & Polish",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012320"
+  },
+  {
+   "name": "BinkStreamCacheSize",
+   "type": "int",
+   "flags": 1,
+   "default": 587202560,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180011b60"
+  },
+  {
+   "name": "BinkWeaponStreamCacheSize",
+   "type": "int",
+   "flags": 1,
+   "default": 157286400,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180011bf0"
+  },
+  {
+   "name": "BlinkKeyboardAim",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000cdc0"
+  },
+  {
+   "name": "Brightness",
+   "type": "float",
+   "flags": 0,
+   "default": 0.5,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000d7e0"
+  },
+  {
+   "name": "BugReportSendTo",
+   "type": "string",
+   "flags": 1,
+   "default": "",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012790"
+  },
+  {
+   "name": "BugReportVideoPath",
+   "type": "string",
+   "flags": 1,
+   "default": "C:\\Fraps\\Movies\\",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012610"
+  },
+  {
+   "name": "CameraShake",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000d040"
+  },
+  {
+   "name": "CatchExceptions",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180011a50"
+  },
+  {
+   "name": "ClearDebugLogOnDevLoad",
+   "type": "bool",
+   "flags": 3,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x180009e60"
+  },
+  {
+   "name": "ColorGradingScreenshot",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f6f0"
+  },
+  {
+   "name": "ConfigInclude",
+   "type": "string",
+   "flags": 1,
+   "default": "",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800133e0"
+  },
+  {
+   "name": "ControllerPropelSpeed",
+   "type": "float",
+   "flags": 1,
+   "default": 300.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000eec0"
+  },
+  {
+   "name": "ControllerReturnPropelSpeed",
+   "type": "float",
+   "flags": 1,
+   "default": 500.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ef50"
+  },
+  {
+   "name": "ControlsResetRevision",
+   "type": "int",
+   "flags": 1,
+   "default": 16755,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000b390"
+  },
+  {
+   "name": "ControlsResetRevisionViewed",
+   "type": "int",
+   "flags": 0,
+   "default": 0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000b420"
+  },
+  {
+   "name": "CopyDragAndDroppedSaves",
+   "type": "bool",
+   "flags": 3,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x1800127f0"
+  },
+  {
+   "name": "CycleSelectWrap",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000a360"
+  },
+  {
+   "name": "DeadZone",
+   "type": "float",
+   "flags": 0,
+   "default": 0.22499999403953552,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000b8b0"
+  },
+  {
+   "name": "DebugBinkMask",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800119d0"
+  },
+  {
+   "name": "DebugCameraZoom",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180009140"
+  },
+  {
+   "name": "DebugDisplay",
+   "type": "other",
+   "flags": 0,
+   "default": 1,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x1800091c0"
+  },
+  {
+   "name": "DebugDof",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180011950"
+  },
+  {
+   "name": "DebugDrawAllCursors",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800112b0"
+  },
+  {
+   "name": "DebugDrawBounds",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ff00"
+  },
+  {
+   "name": "DebugDrawGridManager",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000fe00"
+  },
+  {
+   "name": "DebugDrawLiveEditorQuadTree",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ff80"
+  },
+  {
+   "name": "DebugDrawMouseCoordinates",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010000"
+  },
+  {
+   "name": "DebugDrawPathfinding",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800099d0"
+  },
+  {
+   "name": "DebugDrawScissorRects",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010080"
+  },
+  {
+   "name": "DebugGridManager",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000fe80"
+  },
+  {
+   "name": "DebugKeyScreenFilter",
+   "type": "string",
+   "flags": 0,
+   "default": "",
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000e300"
+  },
+  {
+   "name": "DebugLog",
+   "type": "string",
+   "flags": 1,
+   "default": "DebugLog.txt",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180009450"
+  },
+  {
+   "name": "DebugLogSounds",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800092d0"
+  },
+  {
+   "name": "DebugMessages",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800090c0"
+  },
+  {
+   "name": "DebugOverlayFilterEdit",
+   "type": "bool",
+   "flags": 3,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x18000bbb0"
+  },
+  {
+   "name": "DebugPrintAnimations",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010180"
+  },
+  {
+   "name": "DebugPrintBinkWarnings",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010380"
+  },
+  {
+   "name": "DebugPrintCollisions",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010280"
+  },
+  {
+   "name": "DebugPrintInteractTarget",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010200"
+  },
+  {
+   "name": "DebugPrintSpeed",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010100"
+  },
+  {
+   "name": "DebugPrintWeapons",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010300"
+  },
+  {
+   "name": "DebugRNGSeed",
+   "type": "int",
+   "flags": 1,
+   "default": 0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010580"
+  },
+  {
+   "name": "DebugSortGroupName",
+   "type": "string",
+   "flags": 1,
+   "default": "Standing",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000e420"
+  },
+  {
+   "name": "DefaultAssignee",
+   "type": "string",
+   "flags": 1,
+   "default": "",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800124a0"
+  },
+  {
+   "name": "DefaultControlsChosen",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000a3e0"
+  },
+  {
+   "name": "DefaultProfileName",
+   "type": "string",
+   "flags": 1,
+   "default": "",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000af70"
+  },
+  {
+   "name": "DefaultTodoList",
+   "type": "string",
+   "flags": 1,
+   "default": "Bugs",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012420"
+  },
+  {
+   "name": "DevSaveCustomName",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000dcf0"
+  },
+  {
+   "name": "DevSavePathStr",
+   "type": "string",
+   "flags": 1,
+   "default": "",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ddf0"
+  },
+  {
+   "name": "DialogueVolume",
+   "type": "float",
+   "flags": 0,
+   "default": 1.0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000d240"
+  },
+  {
+   "name": "DirectControl",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000a2e0"
+  },
+  {
+   "name": "DirectLoad",
+   "type": "string",
+   "flags": 0,
+   "default": "RoomOpening",
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000e620"
+  },
+  {
+   "name": "DirectLoadCheckpoint",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000e700"
+  },
+  {
+   "name": "DirectLoadSave",
+   "type": "string",
+   "flags": 0,
+   "default": "",
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000e6a0"
+  },
+  {
+   "name": "DirectLoadShell",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000e5a0"
+  },
+  {
+   "name": "DisableAnalyticsInDebug",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800111a0"
+  },
+  {
+   "name": "DisableAudio",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012020"
+  },
+  {
+   "name": "DisableManifestLogging",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000ca30"
+  },
+  {
+   "name": "DisablePoolLogging",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000c9b0"
+  },
+  {
+   "name": "DisablePreDrawThread",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000cab0"
+  },
+  {
+   "name": "DisableScreenSaver",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800089b0"
+  },
+  {
+   "name": "DisplayIndex",
+   "type": "int",
+   "flags": 6,
+   "default": -1,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x18000fc30"
+  },
+  {
+   "name": "DrawBlendMax",
+   "type": "int",
+   "flags": 1,
+   "default": 99,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f5e0"
+  },
+  {
+   "name": "DrawBloom",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f4e0"
+  },
+  {
+   "name": "DrawBuildNumber",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f8f0"
+  },
+  {
+   "name": "DrawColorGrading",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f670"
+  },
+  {
+   "name": "DrawDof",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f560"
+  },
+  {
+   "name": "DrawExtents",
+   "type": "bool",
+   "flags": 3,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x1800098d0"
+  },
+  {
+   "name": "DrawGround",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f460"
+  },
+  {
+   "name": "DrawHealthFX",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ea80"
+  },
+  {
+   "name": "DrawIds",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f870"
+  },
+  {
+   "name": "DrawLights",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000eb00"
+  },
+  {
+   "name": "DrawLightsWithExtents",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180009950"
+  },
+  {
+   "name": "DumpRunStatsOnLoad",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180009b50"
+  },
+  {
+   "name": "EasyMode",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000d860"
+  },
+  {
+   "name": "EditingMode",
+   "type": "bool",
+   "flags": 3,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x18000bb30"
+  },
+  {
+   "name": "EditorAngleSnapping",
+   "type": "float",
+   "flags": 1,
+   "default": 0.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000bdc0"
+  },
+  {
+   "name": "EditorAutoOpenRecent",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000c510"
+  },
+  {
+   "name": "EditorAutoSaveBackups",
+   "type": "int",
+   "flags": 1,
+   "default": 20,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000c620"
+  },
+  {
+   "name": "EditorAutoSaveInterval",
+   "type": "float",
+   "flags": 1,
+   "default": 120.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000c590"
+  },
+  {
+   "name": "EditorCameraScrollSpeed",
+   "type": "float",
+   "flags": 1,
+   "default": 0.25,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000c2e0"
+  },
+  {
+   "name": "EditorDrawGridBeforeGroup",
+   "type": "string",
+   "flags": 0,
+   "default": "",
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000bf60"
+  },
+  {
+   "name": "EditorGridSize",
+   "type": "int",
+   "flags": 1,
+   "default": 256,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000bd30"
+  },
+  {
+   "name": "EditorOutlineThickness",
+   "type": "float",
+   "flags": 1,
+   "default": 1.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000c040"
+  },
+  {
+   "name": "EditorOutlineThreshold",
+   "type": "float",
+   "flags": 1,
+   "default": 0.5,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000c0d0"
+  },
+  {
+   "name": "EditorPreviewNameAndId",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000c160"
+  },
+  {
+   "name": "EditorSelectionAsHighlight",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000bfc0"
+  },
+  {
+   "name": "EditorTimeLapseInterval",
+   "type": "float",
+   "flags": 1,
+   "default": 120.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010710"
+  },
+  {
+   "name": "EditorWindowsStayOnTop",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000bee0"
+  },
+  {
+   "name": "EmptyScriptActionAsserts",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012870"
+  },
+  {
+   "name": "EnableAudioDeviceChangeCallBack",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800121a0"
+  },
+  {
+   "name": "EnableCloudSaves",
+   "type": "bool",
+   "flags": 2,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x180013160"
+  },
+  {
+   "name": "EnableConsoleMenus",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012af0"
+  },
+  {
+   "name": "EnabledDebugDisplays",
+   "type": "other",
+   "flags": 1,
+   "default": 111,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180009240"
+  },
+  {
+   "name": "EnableEditorTimeLapse",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010690"
+  },
+  {
+   "name": "EnableEpicOverlay",
+   "type": "bool",
+   "flags": 2,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x180013360"
+  },
+  {
+   "name": "EnableHulls",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x180010fa0"
+  },
+  {
+   "name": "EnableLuaMessageHook",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800095d0"
+  },
+  {
+   "name": "EnableOutOfMemoryAsserts",
+   "type": "bool",
+   "flags": 3,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x180012970"
+  },
+  {
+   "name": "EnableSimulateCloudConflicts",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800131e0"
+  },
+  {
+   "name": "EnableStreamingIntegration",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180011530"
+  },
+  {
+   "name": "EnableTestLoadTask",
+   "type": "bool",
+   "flags": 7,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x1800085a0"
+  },
+  {
+   "name": "EnableTestLogs",
+   "type": "bool",
+   "flags": 7,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x180008520"
+  },
+  {
+   "name": "EnableTwitch",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800115b0"
+  },
+  {
+   "name": "EnableWin32DebugHelpLogging",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010610"
+  },
+  {
+   "name": "ExclusiveInteractGroup",
+   "type": "string",
+   "flags": 1,
+   "default": "",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000a880"
+  },
+  {
+   "name": "FastForward",
+   "type": "bool",
+   "flags": 3,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x180009bd0"
+  },
+  {
+   "name": "FastForwardSpeed",
+   "type": "float",
+   "flags": 0,
+   "default": 3.0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x180009ad0"
+  },
+  {
+   "name": "FlipMapThings",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180011330"
+  },
+  {
+   "name": "ForceFlipMapThings",
+   "type": "bool",
+   "flags": 3,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x1800113b0"
+  },
+  {
+   "name": "ForceVoiceBankStreaming",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000d680"
+  },
+  {
+   "name": "FreeFormSelecSearchFromId",
+   "type": "int",
+   "flags": 1,
+   "default": 0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012e70"
+  },
+  {
+   "name": "FreeFormSelectGridLock",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012cd0"
+  },
+  {
+   "name": "FreeFormSelectRepeatDelay",
+   "type": "float",
+   "flags": 1,
+   "default": 0.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012d50"
+  },
+  {
+   "name": "FreeFormSelectRepeatInterval",
+   "type": "float",
+   "flags": 1,
+   "default": 0.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012de0"
+  },
+  {
+   "name": "FreeFormSelectStepDistance",
+   "type": "float",
+   "flags": 1,
+   "default": 16.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000a760"
+  },
+  {
+   "name": "FreeFormSelectSuccessDistanceStep",
+   "type": "float",
+   "flags": 1,
+   "default": 8.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000a7f0"
+  },
+  {
+   "name": "FreeFormSelectWrapX",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000a660"
+  },
+  {
+   "name": "FreeFormSelectWrapY",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000a6e0"
+  },
+  {
+   "name": "FullScreen",
+   "type": "bool",
+   "flags": 6,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x180008d40"
+  },
+  {
+   "name": "FullscreenEffectGroup",
+   "type": "string",
+   "flags": 1,
+   "default": "Vignette",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000cf40"
+  },
+  {
+   "name": "FxVolume",
+   "type": "float",
+   "flags": 0,
+   "default": 1.0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000d140"
+  },
+  {
+   "name": "GamepadCursorControl",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000a560"
+  },
+  {
+   "name": "GamepadCursorFreeFormSelect",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000a5e0"
+  },
+  {
+   "name": "GamepadCursorInteractScale",
+   "type": "float",
+   "flags": 1,
+   "default": 0.949999988079071,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ab10"
+  },
+  {
+   "name": "GamepadCursorScaleSpeed",
+   "type": "float",
+   "flags": 1,
+   "default": 2.75,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000aba0"
+  },
+  {
+   "name": "GamepadCursorSlowSpeed",
+   "type": "float",
+   "flags": 1,
+   "default": 625.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000a970"
+  },
+  {
+   "name": "GamepadCursorSpeed",
+   "type": "float",
+   "flags": 1,
+   "default": 1250.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000a8e0"
+  },
+  {
+   "name": "GamepadCursorTextOpacity",
+   "type": "float",
+   "flags": 1,
+   "default": 0.30000001192092896,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000aa80"
+  },
+  {
+   "name": "GamepadLightBrightness",
+   "type": "float",
+   "flags": 0,
+   "default": 1.0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000aa00"
+  },
+  {
+   "name": "GamepadSlot",
+   "type": "int",
+   "flags": 0,
+   "default": 1,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000b4a0"
+  },
+  {
+   "name": "GpuIndex",
+   "type": "int",
+   "flags": 7,
+   "default": 0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x180008cb0"
+  },
+  {
+   "name": "HardMode",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000d8e0"
+  },
+  {
+   "name": "HotLoadScripts",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f7f0"
+  },
+  {
+   "name": "IgnoreGamepads",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000a060"
+  },
+  {
+   "name": "IsometricMovement",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000a460"
+  },
+  {
+   "name": "KioskMode",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000d960"
+  },
+  {
+   "name": "KioskModeNumLives",
+   "type": "int",
+   "flags": 1,
+   "default": 2,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000d9e0"
+  },
+  {
+   "name": "Language",
+   "type": "string",
+   "flags": 2,
+   "default": "",
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x180012f80"
+  },
+  {
+   "name": "LastManualLoadName",
+   "type": "string",
+   "flags": 0,
+   "default": "",
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000e1e0"
+  },
+  {
+   "name": "LastPatchNoteRevisionViewed",
+   "type": "int",
+   "flags": 0,
+   "default": 0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000b0f0"
+  },
+  {
+   "name": "LastRoadmapRevisionViewed",
+   "type": "int",
+   "flags": 0,
+   "default": 0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000b200"
+  },
+  {
+   "name": "LastUpdateDate",
+   "type": "string",
+   "flags": 1,
+   "default": "03-12-2020",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000e860"
+  },
+  {
+   "name": "Letterbox",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x180008f40"
+  },
+  {
+   "name": "LiveCreateTextures",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010820"
+  },
+  {
+   "name": "LiveCreateTexturesRetryAttempts",
+   "type": "int",
+   "flags": 1,
+   "default": 10,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800108a0"
+  },
+  {
+   "name": "LoadMapScreenFilter",
+   "type": "string",
+   "flags": 0,
+   "default": "",
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000e240"
+  },
+  {
+   "name": "LoadMapScreenSortReverse",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000e160"
+  },
+  {
+   "name": "LoadMapScreenSortType",
+   "type": "string",
+   "flags": 0,
+   "default": "Chronological",
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000e0e0"
+  },
+  {
+   "name": "LoadSavedControls",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000aef0"
+  },
+  {
+   "name": "LoadSaveScreenFilter",
+   "type": "string",
+   "flags": 0,
+   "default": "",
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000e2a0"
+  },
+  {
+   "name": "LoadSaveScreenSortReverse",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000e060"
+  },
+  {
+   "name": "LoadSaveScreenSortType",
+   "type": "string",
+   "flags": 0,
+   "default": "Chronological",
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000dfe0"
+  },
+  {
+   "name": "LoadScreenHints",
+   "type": "string",
+   "flags": 1,
+   "default": "",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010bb0"
+  },
+  {
+   "name": "LoadScreenMinTime",
+   "type": "float",
+   "flags": 1,
+   "default": 0.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010b20"
+  },
+  {
+   "name": "LoadScreenShowComponentsDelay",
+   "type": "float",
+   "flags": 1,
+   "default": 0.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010a90"
+  },
+  {
+   "name": "LockInputToWindow",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000a1e0"
+  },
+  {
+   "name": "LogCombatMultipliers",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180009650"
+  },
+  {
+   "name": "LogFrameNumber",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800096d0"
+  },
+  {
+   "name": "Logging",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800093d0"
+  },
+  {
+   "name": "LogLuaMemoryDump",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800097d0"
+  },
+  {
+   "name": "LogPlayTime",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800107a0"
+  },
+  {
+   "name": "LogRandomDebug",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180009750"
+  },
+  {
+   "name": "LogTelemetry",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180009850"
+  },
+  {
+   "name": "LuaBreakpointEdit",
+   "type": "bool",
+   "flags": 3,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x18000bc30"
+  },
+  {
+   "name": "LuaDataBreakpoint",
+   "type": "string",
+   "flags": 1,
+   "default": "",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000fd20"
+  },
+  {
+   "name": "LuaGCStepSize",
+   "type": "int",
+   "flags": 0,
+   "default": 4,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x180011020"
+  },
+  {
+   "name": "LuaIgnoreListFileStr",
+   "type": "string",
+   "flags": 1,
+   "default": "_saveData",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000fd80"
+  },
+  {
+   "name": "LuaSpikeWarningMs",
+   "type": "float",
+   "flags": 1,
+   "default": 0.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180011ad0"
+  },
+  {
+   "name": "LuaWatchListFileStr",
+   "type": "string",
+   "flags": 1,
+   "default": "",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000fcc0"
+  },
+  {
+   "name": "MasterVolume",
+   "type": "float",
+   "flags": 2,
+   "default": 1.0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x18000d2c0"
+  },
+  {
+   "name": "MaxDevSaves",
+   "type": "int",
+   "flags": 1,
+   "default": 2000,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000df50"
+  },
+  {
+   "name": "MaxPerCmdDraws",
+   "type": "int",
+   "flags": 7,
+   "default": 256,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x180008920"
+  },
+  {
+   "name": "MaxWorkerThreads",
+   "type": "int",
+   "flags": 1,
+   "default": 6,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000cb30"
+  },
+  {
+   "name": "MissingCue",
+   "type": "string",
+   "flags": 1,
+   "default": "",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000d780"
+  },
+  {
+   "name": "MouseDeadZone",
+   "type": "float",
+   "flags": 1,
+   "default": 0.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ed10"
+  },
+  {
+   "name": "MousePropelSpeed",
+   "type": "float",
+   "flags": 1,
+   "default": 1000.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ee30"
+  },
+  {
+   "name": "MouseTetherEnabled",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ec00"
+  },
+  {
+   "name": "MouseTetherWeight",
+   "type": "float",
+   "flags": 1,
+   "default": 1.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ec80"
+  },
+  {
+   "name": "MouseTetherZone",
+   "type": "float",
+   "flags": 1,
+   "default": 800.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000eda0"
+  },
+  {
+   "name": "MouseXDistanceMultiplier",
+   "type": "float",
+   "flags": 1,
+   "default": 1.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f070"
+  },
+  {
+   "name": "MouseYDistanceMultiplier",
+   "type": "float",
+   "flags": 1,
+   "default": 0.6499999761581421,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000efe0"
+  },
+  {
+   "name": "MultiThreadMeshFromDrawable",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000db70"
+  },
+  {
+   "name": "MusicVolume",
+   "type": "float",
+   "flags": 0,
+   "default": 1.0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000d0c0"
+  },
+  {
+   "name": "NewUpdateSoundRevision",
+   "type": "int",
+   "flags": 1,
+   "default": 31591,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000b280"
+  },
+  {
+   "name": "NewUpdateSoundRevisionViewed",
+   "type": "int",
+   "flags": 0,
+   "default": 0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000b310"
+  },
+  {
+   "name": "NextUpdateDate",
+   "type": "string",
+   "flags": 1,
+   "default": "",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000e8e0"
+  },
+  {
+   "name": "NoBorder",
+   "type": "bool",
+   "flags": 6,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x180008dc0"
+  },
+  {
+   "name": "NoDiscard",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010e90"
+  },
+  {
+   "name": "NoFixedStep",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180008ec0"
+  },
+  {
+   "name": "NonPS4GamepadRumbleMultiplier",
+   "type": "float",
+   "flags": 0,
+   "default": 0.800000011920929,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000b830"
+  },
+  {
+   "name": "OffscreenIndicatorMargin",
+   "type": "float",
+   "flags": 0,
+   "default": 250.0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000c8b0"
+  },
+  {
+   "name": "OldestAllowedSave",
+   "type": "string",
+   "flags": 1,
+   "default": "",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000e780"
+  },
+  {
+   "name": "OnlyFancyText",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010e10"
+  },
+  {
+   "name": "OutputWindowLogging",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800094d0"
+  },
+  {
+   "name": "ParseTextMarkup",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000c370"
+  },
+  {
+   "name": "PatchNoteRevision",
+   "type": "int",
+   "flags": 1,
+   "default": 36368,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000b060"
+  },
+  {
+   "name": "PauseSoundsWhenPaused",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180009350"
+  },
+  {
+   "name": "PerfDash",
+   "type": "bool",
+   "flags": 3,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x1800117d0"
+  },
+  {
+   "name": "PerfDashFpsOnly",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800118d0"
+  },
+  {
+   "name": "PerfDashWarnings",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180011850"
+  },
+  {
+   "name": "PermanentVfxCap",
+   "type": "int",
+   "flags": 1,
+   "default": 80,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f190"
+  },
+  {
+   "name": "PlatformAudioAlloc",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000d600"
+  },
+  {
+   "name": "PlayerInputDebug",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180013440"
+  },
+  {
+   "name": "PlayerOptInToCloudSaves",
+   "type": "bool",
+   "flags": 2,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x180013260"
+  },
+  {
+   "name": "ProfileAudio",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000d3d0"
+  },
+  {
+   "name": "ProfileZoneUsecThreshold",
+   "type": "long",
+   "flags": 1,
+   "default": 500,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180011220"
+  },
+  {
+   "name": "PS4Gamepad",
+   "type": "bool",
+   "flags": 3,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x18000b520"
+  },
+  {
+   "name": "PS4GamepadRumbleMultiplier",
+   "type": "float",
+   "flags": 0,
+   "default": 1.0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000b7b0"
+  },
+  {
+   "name": "RallyPointAnimation",
+   "type": "string",
+   "flags": 1,
+   "default": "MoveHint",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ae70"
+  },
+  {
+   "name": "RepeatSaveOnLoad",
+   "type": "bool",
+   "flags": 3,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x180009ee0"
+  },
+  {
+   "name": "RequireFocusToUpdate",
+   "type": "bool",
+   "flags": 2,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x180009a50"
+  },
+  {
+   "name": "ResetProgress",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000b9b0"
+  },
+  {
+   "name": "ResetRoomData",
+   "type": "bool",
+   "flags": 2,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x180011430"
+  },
+  {
+   "name": "RoadmapRevision",
+   "type": "int",
+   "flags": 1,
+   "default": 32900,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000b170"
+  },
+  {
+   "name": "RotatedIsometricMovement",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000a4e0"
+  },
+  {
+   "name": "Rumble",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000cfc0"
+  },
+  {
+   "name": "SafeFrameCompliant",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000c930"
+  },
+  {
+   "name": "SaveCollectionBeginDate",
+   "type": "string",
+   "flags": 1,
+   "default": "",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000e9c0"
+  },
+  {
+   "name": "SaveCollectionEndDate",
+   "type": "string",
+   "flags": 1,
+   "default": "",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ea20"
+  },
+  {
+   "name": "SaveNotableLuaInfo",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000dd70"
+  },
+  {
+   "name": "SaveToTempAndMove",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x180012b70"
+  },
+  {
+   "name": "ScreenshotCount",
+   "type": "int",
+   "flags": 6,
+   "default": 0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x18000afd0"
+  },
+  {
+   "name": "ScriptDebugFilter",
+   "type": "string",
+   "flags": 0,
+   "default": "",
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000e360"
+  },
+  {
+   "name": "ScriptErrorAsserts",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010480"
+  },
+  {
+   "name": "SelectionRelativeEditing",
+   "type": "bool",
+   "flags": 3,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x18000c1e0"
+  },
+  {
+   "name": "SfxFrameCap",
+   "type": "int",
+   "flags": 1,
+   "default": 16,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f340"
+  },
+  {
+   "name": "ShowDamageNumbers",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000c730"
+  },
+  {
+   "name": "ShowDocumentsPathError",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800122a0"
+  },
+  {
+   "name": "ShowGameplayTimer",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000c7b0"
+  },
+  {
+   "name": "ShowLogFileError",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012220"
+  },
+  {
+   "name": "ShowMissingSubtitles",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ccc0"
+  },
+  {
+   "name": "ShowOffscreenIndicators",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000c830"
+  },
+  {
+   "name": "ShowSaveErrors",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010500"
+  },
+  {
+   "name": "ShowSocialLinks",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000da70"
+  },
+  {
+   "name": "ShowSpeechBubble",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000d1c0"
+  },
+  {
+   "name": "ShowUIAnimations",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000c6b0"
+  },
+  {
+   "name": "SingleThread",
+   "type": "bool",
+   "flags": 7,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x180008620"
+  },
+  {
+   "name": "SkipVideoCardTest",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x180010d90"
+  },
+  {
+   "name": "SteamAccessToken",
+   "type": "string",
+   "flags": 2,
+   "default": "",
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x180011770"
+  },
+  {
+   "name": "SteamGamepadCount",
+   "type": "int",
+   "flags": 3,
+   "default": 0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x18000b6a0"
+  },
+  {
+   "name": "SteamTrackpadMultiplier",
+   "type": "float",
+   "flags": 0,
+   "default": 15.0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000b730"
+  },
+  {
+   "name": "StepFrameRepeatInterval",
+   "type": "int",
+   "flags": 0,
+   "default": 0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x180009f60"
+  },
+  {
+   "name": "SubmitBugsToJira",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012710"
+  },
+  {
+   "name": "Subtitles",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000cc40"
+  },
+  {
+   "name": "SwapInterval",
+   "type": "int",
+   "flags": 0,
+   "default": 1,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x180008e40"
+  },
+  {
+   "name": "SwitchGamepad",
+   "type": "bool",
+   "flags": 3,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x18000b620"
+  },
+  {
+   "name": "TelemetryServer",
+   "type": "string",
+   "flags": 1,
+   "default": "file",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010a10"
+  },
+  {
+   "name": "TerrainFxGroup",
+   "type": "string",
+   "flags": 1,
+   "default": "Shadows",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000cec0"
+  },
+  {
+   "name": "TextDebugShowIds",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012f00"
+  },
+  {
+   "name": "TextInputRepeatDelay",
+   "type": "float",
+   "flags": 1,
+   "default": 0.30000001192092896,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000c3f0"
+  },
+  {
+   "name": "TextInputRepeatInterval",
+   "type": "float",
+   "flags": 1,
+   "default": 0.05000000074505806,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000c480"
+  },
+  {
+   "name": "ThingDebugFilter",
+   "type": "string",
+   "flags": 0,
+   "default": "",
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000e3c0"
+  },
+  {
+   "name": "TooltipHideDelay",
+   "type": "float",
+   "flags": 1,
+   "default": 0.5,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ade0"
+  },
+  {
+   "name": "TooltipShowDelay",
+   "type": "float",
+   "flags": 1,
+   "default": 0.5,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ad50"
+  },
+  {
+   "name": "TooltipsOnPlayerRadius",
+   "type": "int",
+   "flags": 1,
+   "default": 0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ac30"
+  },
+  {
+   "name": "TooltipSwitchBlockFrames",
+   "type": "int",
+   "flags": 1,
+   "default": 5,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000acc0"
+  },
+  {
+   "name": "TwitchChatChannel",
+   "type": "string",
+   "flags": 1,
+   "default": "",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800116b0"
+  },
+  {
+   "name": "TwitchRefreshToken",
+   "type": "string",
+   "flags": 2,
+   "default": "",
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x180011710"
+  },
+  {
+   "name": "UiLanguage",
+   "type": "string",
+   "flags": 2,
+   "default": "",
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x180012fe0"
+  },
+  {
+   "name": "UpdateWarningDate",
+   "type": "string",
+   "flags": 1,
+   "default": "09-04-2020",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000e940"
+  },
+  {
+   "name": "UseAltCursor",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000a260"
+  },
+  {
+   "name": "UseAnalytics",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x180011120"
+  },
+  {
+   "name": "UseAudioDriver",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000d350"
+  },
+  {
+   "name": "UseAutoPlaySaveQueue",
+   "type": "bool",
+   "flags": 3,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x180009c50"
+  },
+  {
+   "name": "UseBc3Assets",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010d10"
+  },
+  {
+   "name": "UseBugReportVideo",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012590"
+  },
+  {
+   "name": "UseCpuBoost",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180008c30"
+  },
+  {
+   "name": "UseDefaultGpu",
+   "type": "bool",
+   "flags": 7,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x180008720"
+  },
+  {
+   "name": "UseDeferredResourceCreation",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180008b30"
+  },
+  {
+   "name": "UseDevSaves",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000dbf0"
+  },
+  {
+   "name": "UseDx10",
+   "type": "bool",
+   "flags": 7,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x1800086a0"
+  },
+  {
+   "name": "UseDXGI12SwapChain",
+   "type": "bool",
+   "flags": 7,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x180008820"
+  },
+  {
+   "name": "UseGamepadGlyphs",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000a160"
+  },
+  {
+   "name": "UseInternalBugReporter",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012690"
+  },
+  {
+   "name": "UseLowResAssets",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180010c90"
+  },
+  {
+   "name": "UseMouse",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000a0e0"
+  },
+  {
+   "name": "UseNativeAnalytics",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180011e00"
+  },
+  {
+   "name": "UseNativeAudio",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180011fa0"
+  },
+  {
+   "name": "UseNativeGaInput",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800120a0"
+  },
+  {
+   "name": "UseNativeGaInputNoControllers",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180012120"
+  },
+  {
+   "name": "UseNativeOpenGLRenderer",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180011c80"
+  },
+  {
+   "name": "UseNativeOS",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180011d00"
+  },
+  {
+   "name": "UseOcclusion",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000ba30"
+  },
+  {
+   "name": "UseOverlayHardware",
+   "type": "bool",
+   "flags": 3,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x180008bb0"
+  },
+  {
+   "name": "UseRenderMeshCache",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180008ab0"
+  },
+  {
+   "name": "UseResourceLoaderSingleThread",
+   "type": "bool",
+   "flags": 7,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x1800088a0"
+  },
+  {
+   "name": "UserName",
+   "type": "string",
+   "flags": 1,
+   "default": "",
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800109b0"
+  },
+  {
+   "name": "UseSideBarArt",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x180008fc0"
+  },
+  {
+   "name": "UseSwapEffectDiscard",
+   "type": "bool",
+   "flags": 7,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x1800087a0"
+  },
+  {
+   "name": "UseTelemetry",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x1800110a0"
+  },
+  {
+   "name": "UseTheForgeRenderer",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180011d80"
+  },
+  {
+   "name": "ValidateSaves",
+   "type": "bool",
+   "flags": 0,
+   "default": false,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x180012bf0"
+  },
+  {
+   "name": "ValidCheckpoint",
+   "type": "bool",
+   "flags": 0,
+   "default": true,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x18000dc70"
+  },
+  {
+   "name": "ValueRelativeEditing",
+   "type": "bool",
+   "flags": 3,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x18000c260"
+  },
+  {
+   "name": "VerboseScriptLogging",
+   "type": "bool",
+   "flags": 1,
+   "default": true,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x180009550"
+  },
+  {
+   "name": "VfxFrameCap",
+   "type": "int",
+   "flags": 1,
+   "default": 60,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f220"
+  },
+  {
+   "name": "VfxManagerCapMultiplier",
+   "type": "float",
+   "flags": 1,
+   "default": 4.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f2b0"
+  },
+  {
+   "name": "VfxScalarDamage",
+   "type": "float",
+   "flags": 1,
+   "default": 200.0,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000f100"
+  },
+  {
+   "name": "WindowHeight",
+   "type": "int",
+   "flags": 2,
+   "default": 0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x180011e80"
+  },
+  {
+   "name": "WindowWidth",
+   "type": "int",
+   "flags": 2,
+   "default": 0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x180011f10"
+  },
+  {
+   "name": "WindowX",
+   "type": "int",
+   "flags": 6,
+   "default": -1,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x18000fa90"
+  },
+  {
+   "name": "WindowY",
+   "type": "int",
+   "flags": 6,
+   "default": -1,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x18000fb20"
+  },
+  {
+   "name": "X",
+   "type": "int",
+   "flags": 6,
+   "default": 0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x18000f970"
+  },
+  {
+   "name": "XboxOneGamepad",
+   "type": "bool",
+   "flags": 3,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": true,
+   "initializer_va": "0x18000b5a0"
+  },
+  {
+   "name": "Y",
+   "type": "int",
+   "flags": 6,
+   "default": 0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": true,
+   "initializer_va": "0x18000fa00"
+  },
+  {
+   "name": "ZeroMouseTether",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000eb80"
+  },
+  {
+   "name": "ZPassCullRadius",
+   "type": "float",
+   "flags": 0,
+   "default": 40.0,
+   "persisted_by_SGD_Serialize": true,
+   "machine_wide": false,
+   "initializer_va": "0x180010f10"
+  },
+  {
+   "name": "ZTesting",
+   "type": "bool",
+   "flags": 1,
+   "default": false,
+   "persisted_by_SGD_Serialize": false,
+   "machine_wide": false,
+   "initializer_va": "0x18000e520"
+  }
+ ]
+}

@@ -1,0 +1,128 @@
+{
+  "schema": "hades-native-audio-action-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "Static original DLL plus matching Engine PDB; no original execution.",
+  "reports": [
+    {
+      "path": "hades/.local/reports/native-audio-script-play-sound-static.json",
+      "sha256": "97374c50e47dbc6cb35c1150b9649393323dae288f9e462687f0cbafa81247d1",
+      "evidence_id": null
+    },
+    {
+      "path": "hades/.local/reports/native-audio-set-cue-value-static.json",
+      "sha256": "f54e7a5cec983131e2280ba68c2ff0fa835e87bacbcf09efc19345bcb828d1a4",
+      "evidence_id": null
+    },
+    {
+      "path": "hades/.local/reports/native-active-pause-sound-static.json",
+      "sha256": "df0545ef7e91f4772f668820339d227aa26c304d5a14f4554059e5a3a2778065",
+      "evidence_id": null
+    },
+    {
+      "path": "hades/.local/reports/native-audio-action-resumesound-static.json",
+      "sha256": "28115da6296859a88897e2ef3a2271ffa7d3acacb93f2a453f3b64c8c07ee2f4",
+      "evidence_id": null
+    },
+    {
+      "path": "hades/.local/reports/native-audio-action-stopsound-static.json",
+      "sha256": "f68c948a7946e16025785d4cd8c18cd43aaa6f5bdb1c5e4588ca97245814a3c2",
+      "evidence_id": null
+    },
+    {
+      "path": "hades/.local/reports/native-audio-action-setvolume-static.json",
+      "sha256": "76b608b4424c18b0b5f5c6c61ab5b8b153f469fef8dfabc4f38074791ed9ff72",
+      "evidence_id": null
+    },
+    {
+      "path": "hades/.local/reports/native-rea-soundcue-get.json",
+      "sha256": "b8d19756d5ba0e3436f2812171915c68c239ace1e6d09e3dc2b646720c1f1599",
+      "evidence_id": "ev_ca33cb7576a206e4b86dcc2a8b1bd5e7dc761cc6047580ebdf62a0522ff08b54"
+    },
+    {
+      "path": "hades/.local/reports/native-audio-play-cue3d-location-static.json",
+      "evidence_id": null
+    }
+  ],
+  "play_sound": {
+    "rva": "0x26fd20",
+    "arguments": {
+      "Name": "Cue string normalized by GetSoundCue: empty preserved, leading / or { preserved, otherwise prepend /. This direct action is not SGD literal-null deserialization.",
+      "Id": "Source Thing ID; default-1, destination/object selectors are not used here.",
+      "Delay": "Delay overrides DelaySeconds when nonnil; Min/Max aliases same existing ScriptArgs helper.",
+      "ManagerCap": "Default0; only immediate path invokes native PlayCue3DWithCap.",
+      "AddCallbacks": "Boolean; after actual immediate/delayed admission branch."
+    },
+    "rng": "Only if (min>0 OR max>0) AND base>0 AND max>min invokes Deterministic.RandomFloat(min,max).",
+    "positive_delay": "Creates actual AudioChannel/ID NOW, queues Play(id) only via World.AddDelayedGameEvent, returns actual channelID.",
+    "channel_ids": "Shared nextID starts1 and increments after successful Create2D/3D.",
+    "source_mode": "Absent source or source==listener routes2D; other resolved source routes3D."
+  },
+  "set_sound_cue_value": {
+    "rva": "0x25ce80",
+    "ids": "ScriptArgs Id/Ids are audio channel IDs.",
+    "names": "ScriptArgs Name/Names are PARAMETER names. No names => early return.",
+    "defaults": "Value0; Duration via getDuration.",
+    "operation": "Each parameter name over each selected channelID. Duration>0 creates parameter target rate1/duration; otherwise immediate setParameterByName(ignoreSeekSpeed=false), status ignored.",
+    "native_absent": "Guitar/Bass absent on opening music are real missing parameters and immediate errors ignored, no invented controls."
+  },
+  "pause_sound": {
+    "rva": "0x25d470",
+    "duration_default": 0,
+    "ids": "Duration<=0 pauses immediately; positive duration compares actual current volume to ZERO. If already0, pauses immediately; otherwise SetVolumeTarget(0,duration,false,true).",
+    "names": "GetSoundCue returns pOwner=null in examined build; direct named-owner branch therefore cannot resolve a channel. No native scan over all matching live channels was found.",
+    "empty": "Empty Ids and Names perform no channel operations."
+  },
+  "resume_sound": {
+    "rva": "0x25d860",
+    "duration_default": 0,
+    "ids": "Duration<=0 ResumeCue. Positive duration reads actual current volume, ResumeCue always occurs first, then queues target1 only if current volume<1 (strict comparison at25d9d3..d6).",
+    "resume_cue": "If channel.mStarted=false virtualPlay, preserving existing pause flag; otherwise setPaused(false).",
+    "names": "Same GetSoundCue.pOwner caveat; name branch alone does not establish channel-name matching."
+  },
+  "stop_sound": {
+    "rva": "0x275a30",
+    "duration_default": 0,
+    "ids": "Duration<=0 calls FMOD.stop(mode0 allowfadeout). Positive Duration: if actual current volume>0 queue target0 with stopOnEnd=true,pauseOnEnd=false; otherwise if paused ResumeCue, then FMOD.stop(mode0).",
+    "names": "Nonpositive branch uses GetSoundCue owner null caveat. PositiveDuration code iterates IDs; no positive-duration Name lookup callsite."
+  },
+  "set_volume": {
+    "rva": "0x275d60",
+    "defaults": "Value0,Duration0.",
+    "nonpositive_duration_ids": "Calls SetVolumeTarget(value,1/60,false,false), THEN immediate setVolume(value).",
+    "positive_duration_ids": "Calls SetVolumeTarget(value,duration,false,false).",
+    "names": "Nonpositive branch GetSoundCue owner null caveat. PositiveDuration branch has no Name lookup callsite."
+  },
+  "named_owner_proof": {
+    "get_cue": "GetSoundCue VA180054a47 unconditionally stores returned SoundCue.pOwner=0; name/valid assigned separately.",
+    "pause": "Name path GetSoundCue25d7a1, reads returned owner25d7c3 then tests25d7c7.",
+    "resume": "Name path GetSoundCue25db54 then reads owner25db77 and tests25db7b.",
+    "caution": "channelIds(exactName) is a portable metadata query, not proof that native Name-based script controls select all matching live instances."
+  },
+  "music_marker": {
+    "script_callback_rva": "0x24ee50",
+    "fresh_args": "OnMusicMarker constructs TriggerArgs then inserts Position integer using original FMOD milliseconds; generic Script.run(0,markerName,args) supplies common dispatch fields. No channelID inserted here.",
+    "automatic": "AudioChannelBase Init attaches marker callback for source name beginning /Music/ even without AddCallbacks; ScriptPlaySound AddCallbacks can install all callback mask after admission."
+  },
+  "manager_cap": {
+    "default_sfx_frame_cap": 16,
+    "initializer_rva": "0xf340",
+    "counter": "AudioManager+3a0 starts0; Play49fd0 increments after virtualPlay at18004a015; Update resets0 at18004c44b.",
+    "source_bypass": "ThingData.HighPrioritySfx full+78; compiled defaultfalse.",
+    "ordinary_3d": "Non-VO rejected only when per-frame count>=SfxFrameCap. ManagerCap compares total manager channel-vector size, not same cue count, but does not independently reject while framecount below cap.",
+    "2d": "PlayCue3DWithCap wrapper routes absent/listener source directlyPlay2D; no3Dcapcheck.",
+    "fx": "Random5 CreateAndInit29fcb6 branch uses PlayCue4a460\u21922D. Book/Slide bypass this branch; InitData291c70 uses attachedowner PlayCue3DWithCap4a770 (nonlistener\u2192source3D, listener/null\u21922D), or noowner location PlayCue3D4a8a0 (XYzero/listenerXY\u21922D; other\u2192location3D). SoundAllowedAfterFrame gate applies before call.",
+    "supplied_zero": "No0\u219216 remap. Suppliedcap0 totalcount comparison fails but framebelowcap fallback still admits regular cues. Exact original branch retained, not a percuecap.",
+    "location_3d": "Exact49ea0: frameAllowed evaluated first. Only when frameAllowed and totalCount<uint64(int64(suppliedCap)) skips VO lookup; otherwise VO admits, then frameAllowed decides regularSFX. Supplied cap never bypasses frame cap for regular location SFX, and no Thing.HighPriority field participates. Location wrapper4aa90 uses exactXY equality againstzero/listener for2D."
+  },
+  "completion_callbacks": {
+    "source_registration": "SetupVOCallback49700 appends ScriptManager.OnSoundComplete only when GetVoIndex>=0. Create2D/3D calls it before AddSubtitle; Play later appends caller actions.",
+    "PlaySound_AddCallbacks": "Installs MarkerCallbackInternal0x4d000 (FMOD mask0x800) only; does not make ordinarySFX emit completion script callbacks.",
+    "order_for_speech": "VO scriptcallbacks/notifyExistingWaiters first, then configuredsubtitle HideA/B, then SpeechComponent own completion/PlayNext/globalbuffer.",
+    "reports": [
+      ".local/reports/native-audio-setup-vo-callback-static.json",
+      ".local/reports/native-audio-vo-script-callback-static.json",
+      ".local/reports/native-audio-create2d-static.json",
+      ".local/reports/native-audio-play-count-static.json"
+    ]
+  }
+}

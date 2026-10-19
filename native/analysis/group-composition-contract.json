@@ -1,0 +1,210 @@
+{
+  "schema": "hades-original-group-composition-contract-v1",
+  "scope": "Original static RoomOpening Overlay and LighterColor software group route; source HDS3/HDA1 unchanged.",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "packet": {
+    "path": ".local/native-assets/opening-composition-v1/composition.bin",
+    "bytes": 3224,
+    "sha256": "b02a352fbfd8b0cd6c0d08f5f1ed27a2eb2f119c0b1b393252aeefe7e02deb11"
+  },
+  "packet_contract": {
+    "name": "composition.bin",
+    "magic": "HGC1",
+    "endianness": "little",
+    "header": "4byte magic,32byte sceneSHA256,u32spriteCount",
+    "records": "u32 originalGroupIndex",
+    "bytes": "40+4*spriteCount",
+    "validation": [
+      "scene-sha256.bin binding",
+      "exact count/length",
+      "bounded monotonically contiguous group IDs",
+      "same blend within group",
+      "native ordering key matches group when HDO1 is present"
+    ],
+    "absence": "Preserves old per-sprite fallback exactly."
+  },
+  "source_scene": {
+    "path": ".local/native-assets/opening-fx-v5/scene-affine.bin",
+    "bytes": 111675996,
+    "sha256": "35faae7b545bf314063b3b7f0a30877398e55ec09bbbb02bf754264d31aa1799"
+  },
+  "source_animations": {
+    "path": ".local/native-assets/opening-fx-v5-animation/animations.bin",
+    "bytes": 245755555,
+    "sha256": "77c2d92cdadb9c7b88caed5a071110a99d18b3a25d45941a5ea98d6b1da41a6a"
+  },
+  "native_evidence": {
+    "World::Draw": {
+      "va": "0x18031ac10",
+      "evidence_id": "ev_e88660beb15ba0e1b4269aee297985210fbb33eab2f830d08f30262ec2c77419",
+      "report": {
+        "path": ".local/reports/native-rea-composition-world-draw-bundle.json",
+        "bytes": 5503480,
+        "sha256": "28c4845a4223e9deb28dce0d24f7fae025282556475001573f76b3376fb35233"
+      },
+      "clear_switch_va": "0x18031c69a..0x18031c6b6",
+      "inside_group_begin_va": "0x18031c75e..0x18031c765",
+      "draw_layer_va": "0x18031c8a4",
+      "final_blend_va": "0x18031c8e0",
+      "shader_selection_va": "0x18031c903..0x18031c92a",
+      "base_sampler_va": "0x18031ca11",
+      "restore_target_va": "0x18031ca42",
+      "fullscreen_draw_va": "0x18031cb32"
+    },
+    "GetBlendState": {
+      "va": "0x180226b50",
+      "evidence_id": "ev_38c07b2eb05aefd6d998d2a164a85d1775101cd9218cd4b47f7ae89ea174b745",
+      "report": {
+        "path": ".local/reports/native-rea-composition-blend-state.json",
+        "bytes": 157892,
+        "sha256": "d9dc8d8194ee5981f59f3bc7f3eef923c9a1c809f8cb98201b83b60a6c8b4730"
+      },
+      "result": "Modes9 and11 both return5."
+    },
+    "createAllDepthAndBlendStates": {
+      "va": "0x18022cde0",
+      "report": {
+        "path": ".local/reports/native-composition-CreateBlendStates-static.json",
+        "bytes": 13049,
+        "sha256": "a100a44c2a311f6fc44a625645410b6a9bd45c152acc585dce58be21bd5eaf0b"
+      },
+      "source_over_va": "0x18022ce57..0x18022ce7f",
+      "opaque_va": "0x18022cf1f..0x18022cf3f",
+      "result": "State1 sourceONE/destONE_MINUS_SRC_ALPHA; state5 sourceONE/destZERO."
+    },
+    "shaders": [
+      {
+        "path": ".local/native-assets/shader-sources-v2/88aab4c4527da666-overlay2d.frag",
+        "bytes": 710,
+        "sha256": "88aab4c4527da66692080fed1b53817b30fcca16aa562c1b9eddf18d29f6c360"
+      },
+      {
+        "path": ".local/native-assets/shader-sources-v2/969127a39f8313ef-lightercolor2d.frag",
+        "bytes": 574,
+        "sha256": "969127a39f8313ef4e1c6578ed86819e93fc1b4e77379362bfd2bb57fae32e20"
+      }
+    ]
+  },
+  "recovered_route": {
+    "9": {
+      "clear_rgba8": [
+        128,
+        128,
+        128,
+        128
+      ],
+      "inside_group": "premultiplied source-over",
+      "final": "Overlay2D,opaque"
+    },
+    "11": {
+      "clear_rgba8": [
+        0,
+        0,
+        0,
+        255
+      ],
+      "inside_group": "premultiplied source-over",
+      "final": "LighterColor2D,opaque"
+    }
+  },
+  "order": {
+    "source_sprite_count": 796,
+    "composed_runs": [
+      {
+        "start": 412,
+        "count": 3,
+        "group_index": 7,
+        "group_name": "BlendLighterColor_01",
+        "blend_mode": 11
+      },
+      {
+        "start": 733,
+        "count": 4,
+        "group_index": 14,
+        "group_name": "Overlay_01",
+        "blend_mode": 9
+      }
+    ],
+    "hero": {
+      "existing_insertion_group": 10,
+      "name": "Standing",
+      "can_split_composed_group": false
+    },
+    "runtime": "Composed run ends determined after hero insertion from retained native group IDs; hero is Standing10, between groups7 and14."
+  },
+  "resources": {
+    "surface_target": "One RGBA8 group texture/FBO, resized on demand",
+    "final": "GL_BLEND disabled; shader writes allRGBA",
+    "restore": "Draw framebuffer restored after each group; read framebuffer restored at render exit",
+    "failure": "initialize catch invokes shutdown; standalone shader cleaned on compile failure",
+    "shutdown": "Deletes group texture/FBO, clears dimensions and other scene state; repeated shutdown and new-context initialize validated."
+  },
+  "validation": {
+    "Mac": "Apple M3 Pro OpenGL4.1; real shared renderer under AddressSanitizer and UndefinedBehaviorSanitizer; no GL errors.",
+    "diagnostic": "Three overlapping translucent1x1 diagnostic textures (not game assets), transparent backdrop; native group clear, source-over, allRGBA and opaque-final operations independently calculated.",
+    "pixels": {
+      "Overlay9": {
+        "expected": [
+          24,
+          80,
+          24,
+          224
+        ],
+        "actual": [
+          24,
+          80,
+          24,
+          224
+        ]
+      },
+      "LighterColor11": {
+        "expected": [
+          64,
+          128,
+          0,
+          255
+        ],
+        "actual": [
+          64,
+          128,
+          0,
+          255
+        ]
+      }
+    },
+    "actual_room": "796 source sprites plus original hero; binding rejection/partial cleanup/retry; source grouping; framebuffer restoration; resize with exposure; double shutdown; new CGL context reinitialize.",
+    "legacy_absent_packet_identical_to_prior_ambient_capture": true,
+    "changed_pixels": 23585,
+    "capture_total_pixels": 1600000,
+    "mean_absolute_channel_difference_0_255": 0.01322125,
+    "log": {
+      "path": ".local/reports/native-composition-gpu-final.log",
+      "bytes": 1863,
+      "sha256": "e839f3dd0f488f582fc3687cccae98da8a8b16648b9626a462d880621b45976d"
+    },
+    "harness": {
+      "path": "native/analysis/composition_gpu_check.cpp",
+      "bytes": 7764,
+      "sha256": "4073bc6ab9239c5f38994092a43300a865036df1835172a2121d9cd8c9087677"
+    },
+    "ARM64": "scene_renderer.cpp compiled with Android NDK29 aarch64-linux-android29-clang++, GLES3, C++20, Wall/Wextra/Wpedantic; full Mac shared render executable compiled."
+  },
+  "REA_session": {
+    "close_report": {
+      "path": ".local/reports/native-rea-composition-close.json",
+      "bytes": 250,
+      "sha256": "052cc72acfb75907e9ff703ebd805df08cd7d770bdebc4c2da17cf9d10cd8447"
+    },
+    "result": "Public close_binary result null, helper exited0. No owned active session remains."
+  },
+  "limits": [
+    "Selects the recovered original software composition route; original UseOverlayHardware default is not asserted.",
+    "Applies only to verified static source group ordering; future dynamic draw-group mutations need runtime integration.",
+    "Original scene and animation bytes remain unchanged.",
+    "Pixel difference is modest; major visible red channels and black holes/edges remain unresolved.",
+    "Source software composition route chosen; UseOverlayHardware original default not claimed.",
+    "RGBA8 target selected for portable renderer; official renderer target precision/pixel equality not asserted.",
+    "World shadows, procedural masks and missing native lighting/composition are not supplied by this correction.",
+    "No emulator/device operation performed by this worker."
+  ]
+}

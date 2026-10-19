@@ -1,0 +1,81 @@
+{
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "matching PDB/LLVM static and retained REA; no supplied game execution",
+  "session": {
+    "closed": true,
+    "report": ".local/reports/native-rea-effect-leaf-close.json",
+    "gap": "first leaf import timed out; no new decompilation claimed"
+  },
+  "schema": "hades-original-cinder-particle-contract-v1",
+  "status": "selected Laurel leaf native typed initialization + explicit phases, shared real allocation/manager adapter implemented",
+  "packet": {
+    "path": ".local/native-assets/cinder-frames-v1/cinder-frames.bin",
+    "bytes": 46585,
+    "sha256": "aa34bae5615a1cec3239138c4622d98d18c241ada48eb49f9e6f9800ea810350"
+  },
+  "manifest": ".local/native-assets/cinder-frames-v1/manifest.json",
+  "format": "native/tools/EFFECT_PARTICLE_FORMAT.md",
+  "sources": [
+    {
+      "path": "native/app/effect_particle.cpp",
+      "bytes": 17715,
+      "sha256": "3efa310a3d21a305d991c27d42a32e529328a13c491f73effd80ffb7582aeb4f"
+    },
+    {
+      "path": "native/app/effect_particle.hpp",
+      "bytes": 4504,
+      "sha256": "719b85050fd63b3ebd184e0ac318a6ee9f70d5a208bebf906fc357d80799e7f4"
+    },
+    {
+      "path": "native/app/animation_registry.cpp",
+      "bytes": 3754,
+      "sha256": "43141bf086c112235be90a6806d1db99103bfd0157cfaf9587c8497f1597b963"
+    },
+    {
+      "path": "native/app/animation_registry.hpp",
+      "bytes": 2101,
+      "sha256": "20ded7e104617b92e177002f82ba9d358487717df41085ebf8894702a52a3278"
+    }
+  ],
+  "validation": ".local/reports/native-effect-particle-validation.json",
+  "catalog": {
+    "path": ".local/native-assets/laurel-effects-v2/effects.lua",
+    "bytes": 34856,
+    "sha256": "b56d96ce5826bc17ff9b66372e70ebf4320dfaa988f20d6fddf36a820ff59317"
+  },
+  "native_reports": [
+    "native-effect-leaf-create-init-static.json",
+    "native-effect-setup-spawned.json",
+    "native-effect-SetValuesFromOwner.json",
+    "native-effect-AddAngle.json",
+    "native-effect-angle-deserialize.json",
+    "native-effect-random-int.json",
+    "native-effect-book-setup-frame.json",
+    "native-effect-slide-setup-index.json",
+    "native-effect-slide-update-internal.json",
+    "native-effect-book-update-internal.json",
+    "native-effect-y-shift.json",
+    "native-effect-interpolate.json",
+    "native-effect-manager-add.json",
+    "native-effect-config-PermanentVfxCap.json",
+    "native-registry-spawn-time.json",
+    "native-registry-spawn-distance.json",
+    "native-animation-type-enum.json"
+  ],
+  "limits": [
+    "Selected Laurel source leaves only; Room Dust/Bat/Ember remain unsupported before mutation.",
+    "Non-default entity time components require native per-entity time-system adapter before phase mutation.",
+    "Separate explicit phases do not assert unsupported total ECS completion order.",
+    "Original sort/bounds/flasher/visibility and renderer multi-actor routing remain separate genuine integration dependencies.",
+    "All retained validation is diagnostic native reconstruction, not original game execution."
+  ],
+  "registry": {
+    "api": [
+      "setRegistry(shared EffectAnimationWorld.registry())",
+      "permanentRegistryCovered(manager)",
+      "actual ManagerAdd before SetupSpawnedVfx",
+      "disposeDone only actual manager-disposal phase"
+    ],
+    "limits": "Checks actual current admitted vector; root caller still must prove all source manager-creation paths covered. Does not certify unimplemented world paths."
+  }
+}

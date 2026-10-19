@@ -1,0 +1,43 @@
+{
+  "schema": "hades-combat-config-defaults-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "matching PDB, exact PE virtual section semantics and bounded LLVM static disassembly; no runtime observation",
+  "fields": {
+    "DisableDamage": {
+      "type": "bool",
+      "value": false,
+      "rva": "0x6a7eff",
+      "registration": "ConfigOptions.GetPropertyInfo109233 strcmp DisableDamage, pointer10924a, Bool2 common branch10aa27",
+      "default": {
+        "kind": "PE-loader-zero-filled virtual section tail",
+        "section_rva": "0x684000",
+        "raw_bytes": 109568,
+        "virtual_bytes": 25589400,
+        "offset": 147199,
+        "note": "offset exceeds raw section bytes. No file bytes at that virtual address are interpreted as initialized data."
+      },
+      "initialization_search": "ConfigOptionsInit inspected, no direct alternate write; mutable actual Config map records later SetConfigOption overrides"
+    },
+    "DamageMultiplier": {
+      "type": "float32",
+      "value": 1,
+      "rva": "0x6a7f10",
+      "registration": "GetPropertyInfo107b09 strcmp DamageMultiplier, Float4 store107b20, pointer107b27",
+      "default": "ConfigOptions.Defaults explicit mov1 VA1801058f6"
+    },
+    "DamageTakenMultiplier": {
+      "type": "float32",
+      "value": 1,
+      "rva": "0x6a7f30",
+      "registration": "GetPropertyInfo109768 strcmp DamageTakenMultiplier, Float4 store10977f, pointer109786",
+      "default": "ConfigOptions.Defaults explicit mov1 VA180105900"
+    }
+  },
+  "reports": [
+    ".local/reports/native-config-defaults-static.json",
+    ".local/reports/native-config-combat-property-info-static.json",
+    ".local/reports/native-config-combat-init-static.json"
+  ],
+  "runtime": "recovered_runtime.cpp known typed defaults, current overrides still VM-owned SetConfigOption/GetConfigOptionValue state",
+  "naming_correction": "No native PlayerDamageMultiplier symbol; exact names DamageMultiplier and DamageTakenMultiplier."
+}

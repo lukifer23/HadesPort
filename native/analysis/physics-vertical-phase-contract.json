@@ -1,0 +1,211 @@
+{
+  "schema": "hades-physics-vertical-phase-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "Original static LLVM and retained matching REA Ghidra; no original execution",
+  "rea_update_thing": {
+    "path": ".local/reports/native-rea-active-physics-update-thing-exact.json",
+    "evidence_id": "ev_15c39903e0288cbdf4ba3045f564b1236332560e2df2812131ad204ba11949e2"
+  },
+  "static": [
+    {
+      "path": ".local/reports/native-physics-of-interest-static.json",
+      "sha256": "3250ff9ac13f712bd5f4806c57f5aff43f7dbef54b2f1608cce4d1f00f3fcd00",
+      "procedure": {
+        "kind": "procedure",
+        "length": 112,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\PhysicsSystem.obj",
+        "name": "sgg::PhysicsSystem::OfInterest",
+        "rva": 2969648,
+        "type_index": 185241
+      }
+    },
+    {
+      "path": ".local/reports/native-physics-thing-add-component-static.json",
+      "sha256": "452c74f95f9673b9b1a85aad677ba31cdd2726d5720ff574799334b840ee0490",
+      "procedure": {
+        "kind": "procedure",
+        "length": 389,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Thing.obj",
+        "name": "sgg::Thing::AddComponent",
+        "rva": 3005536,
+        "type_index": 55125
+      }
+    },
+    {
+      "path": ".local/reports/native-physics-resting-z-static.json",
+      "sha256": "4341b7f86125527f3ed3e53b380c90468d846195a35aa039f2666d35fc0d9a9b",
+      "procedure": {
+        "kind": "procedure",
+        "length": 165,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\PhysicsComponent.obj",
+        "name": "sgg::PhysicsComponent::RestingZ",
+        "rva": 2872784,
+        "type_index": 56743
+      }
+    },
+    {
+      "path": ".local/reports/native-physics-thing-shift-z-static.json",
+      "sha256": "c4e478aa54169fe93cb32305b2ca57ed8665f16d53ca10cf00136821b31368af",
+      "procedure": {
+        "kind": "procedure",
+        "length": 134,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Thing.obj",
+        "name": "sgg::Thing::ShiftZLocation",
+        "rva": 3017440,
+        "type_index": 55121
+      }
+    },
+    {
+      "path": ".local/reports/native-physics-unit-shift-z-static.json",
+      "sha256": "eb5f3eeddc3446991a91789f0b3ee04aea7a7755d66fafe8f9e0b84195736e04",
+      "procedure": {
+        "kind": "procedure",
+        "length": 29,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Unit.obj",
+        "name": "sgg::Unit::ShiftZLocation",
+        "rva": 3092032,
+        "type_index": 56818
+      }
+    },
+    {
+      "path": ".local/reports/native-physics-on-takeoff-static.json",
+      "sha256": "25ee6f1f4791b185e8d773e15af2151dfa5d6c65fe86dd7b2adc062fcd5d93c1",
+      "procedure": {
+        "kind": "procedure",
+        "length": 449,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptManager.obj",
+        "name": "sgg::ScriptManager::OnTakeoff",
+        "rva": 2659824,
+        "type_index": 54801
+      }
+    },
+    {
+      "path": ".local/reports/native-physics-on-touchdown-static.json",
+      "sha256": "dfcb2e3705b57cf31e9e3a772cfaf9bebb9c5f58f99b3dadb88928f320dbae60",
+      "procedure": {
+        "kind": "procedure",
+        "length": 449,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptManager.obj",
+        "name": "sgg::ScriptManager::OnTouchdown",
+        "rva": 2661216,
+        "type_index": 54801
+      }
+    },
+    {
+      "path": ".local/reports/native-active-thing-touchdown-static.json",
+      "sha256": "baaae2d5ae37a8791e5b65738bfb70bed6f214cdc7ebbd6b179ea1c8ecaf4431",
+      "procedure": {
+        "kind": "procedure",
+        "length": 465,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Thing.obj",
+        "name": "sgg::Thing::OnTouchdown",
+        "rva": 3013408,
+        "type_index": 55145
+      }
+    },
+    {
+      "path": ".local/reports/native-active-unit-touchdown-static.json",
+      "sha256": "524de494b76d183a9cafb238bd9084ef20455d5b4ab167d9a6d7a7511565b9c3",
+      "procedure": {
+        "kind": "procedure",
+        "length": 591,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\UnitLocomotors.obj",
+        "name": "sgg::Unit::OnTouchdown",
+        "rva": 3107472,
+        "type_index": 56850
+      }
+    },
+    {
+      "path": ".local/reports/native-physics-update-spin-static.json",
+      "sha256": "edaab175ce0ab9d5fe285e721d7638f847139c0d5971a2df2e303d776cfdc918",
+      "procedure": {
+        "kind": "procedure",
+        "length": 551,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\PhysicsSystem.obj",
+        "name": "sgg::PhysicsSystem::UpdateSpin",
+        "rva": 2971184,
+        "type_index": 185240
+      }
+    },
+    {
+      "path": ".local/reports/native-physics-update-tethers-static.json",
+      "sha256": "bcd2f1c89fb20785bd50e19bb6d770f4de34ed41fb48c083d73a1a58e6b9baf6",
+      "procedure": {
+        "kind": "procedure",
+        "length": 2440,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\PhysicsSystem.obj",
+        "name": "sgg::PhysicsSystem::UpdateTethers",
+        "rva": 2971744,
+        "type_index": 185240
+      }
+    }
+  ],
+  "observations": [
+    "World dirty reconciliation only admits absent Things when required component exists and virtual OfInterest returns true. Physics.OfInterest is tether-nonempty OR planarvelocity-nonzero OR upvelocity-nonzero OR spin-nonzero OR ownrawZ>ThingData.OffsetZ. Stationary initial allocation does not imply a rest callback.",
+    "PhysicsSystem.UpdateThing elapsed=(worldElapsed/((1-worldSpeedModifier)*Thing.TimeModifierFraction+worldSpeedModifier))*Thing.TimeMultiplier; matching compiled World speedModifier=1.",
+    "UpdateThing sequence: ApplyFriction; gravity/vertical integration and callbacks; UpdateSpin; UpdateTethers; rest test then OnComeToRest and false return removes system membership.",
+    "Gravity applies unless IgnoreGravity, when upvelocity>0 or actual GetZLocation>RestingZ. Subtract componentElapsed*gravity; clamp lower bound to -ThingData.TerminalVelocity.",
+    "Positive vertical delta: if abs(actualZ)<delta call OnTakeoff, then ShiftZLocation(delta,true), then OnRising. All subsequent reads see synchronous callback mutation.",
+    "Negative delta: capture RestingZ and before actualZ; ShiftZLocation(delta,true); OnFalling; read actualZ again. If actualZ<=capturedRest, capture CURRENT upvelocity after Falling. Bounce requires current BounceMultiplier>.0001, abs(impact)>.0001 and beforeZ>capturedRest. Re-read current owner BounceUpwardForce and force-immunity/grip/cap AFTER Falling, zero upvelocity then ApplyUpwardForce(abs(bounce*impact)+BounceUpwardForce,false,maxFloat). Otherwise zero upvelocity. Virtual OnTouchdown receives impact velocity and current rebound velocity.",
+    "RestingZ starts ThingData.OffsetZ; if actual attached parent lifetime is alive adds parent actualGetZLocation plus own attachOffsetZ. ShiftZLocation adds rawZ and clamps upper bound ThingData.MaxZ; Unit then MarkSortScoreChanged.",
+    "Thing.OnTouchdown first sets ownrawZ=ThingData.OffsetZ. If attached lifetime invalid and rebound<=0, executes TouchdownGraphic\u2192OnTouchdownFxAnim standalone\u2192TouchdownSound with cap28\u2192rumble intensity/duration. Then conditional DieOnTouchdown Kill, then ScriptManager.OnTouchdown. Common TriggerArgs only; no extra impact/rebound Lua fields observed.",
+    "Unit.OnTouchdown tail occurs after base Lua callback: conditional alive,!EditingMode,CanAttack(false) OnTouchdownWeapon request; then all creation-order weapons CancelOnTouchdown ClearFireRequest, planarvelocity retention, squared-magnitude epsilon reset, acceleration zero. Parent owns real weapon continuation.",
+    "At final rest test use current post-callback data: tethersempty && planarvelocity==zeroVector && upvelocity==0 && spin==0 && ownrawZ<=currentThingData.OffsetZ. OnComeToRest dispatch precedes membership removal; component allocation survives.",
+    "Empty tether vector is an actual UpdateTethers early return. Zero spin leaves angle/state unchanged, including native friction sign branches.",
+    "PDB confirms Unit2f6cc5 clears mMoveShift+0x68, not mAcceleration+0x78."
+  ],
+  "implementation": {
+    "files": [
+      "native/app/physics_runtime.hpp",
+      "native/app/physics_runtime.cpp",
+      "native/app/lua_physics.cpp"
+    ],
+    "parent_integration": "Parent owns World phase placement, CMake and Android haptic output. lua_physics contains concrete Unit touchdown weapon/status/cancellation/velocity continuation and live self-effect Grip. No source Lua changes.",
+    "provided": [
+      "active/pending Physics admission",
+      "actual source friction and vertical equations",
+      "original Takeoff/Rising/Falling/Touchdown/ComeToRest Lua dispatch",
+      "actual primary graphic and source audio validity/playback path",
+      "sticky failure preserving partial mutations",
+      "Active CURRENT EffectData.Type1 HALT Grip contribution; SPEED0/Tag12 skipped",
+      "Actual touchdown Arsenal request, CancelOnTouchdown ClearFireRequest, velocity retention, MoveShift reset"
+    ],
+    "bounds": [
+      "Nonzero spin/tether fail before their missing phase. Moving Obstacle ShiftZ requires actual draw-bounds provider.",
+      "Standalone nonempty OnTouchdownFxAnim and DieOnTouchdown Kill require their real providers.",
+      "Native default SoundCue semantic structs must be normalized when reached; absent fields do not become empty strings.",
+      "Bounce with effects requires actual force-immunity projection.",
+      "Android physical haptics remain mandatory when requested; Mac host has no controller output device."
+    ],
+    "adaptations": [
+      "Android sequential actor registration order is explicit; original Windows worker/hash pointer completion order is not reproduced. The selected opening airborne hero has one active Physics owner.",
+      "Actual Android draw snapshot dirty flag consumes Unit Z change, alongside native sort dirty query; no unused native DrawGrid cache is fabricated."
+    ],
+    "validation": {
+      "helper": "native/analysis/physics_vertical_smoke.cpp",
+      "log": ".local/reports/native-physics-vertical-smoke-v3.log",
+      "result": "passed",
+      "sanitizers": [
+        "AddressSanitizer",
+        "UndefinedBehaviorSanitizer"
+      ],
+      "cases": 9,
+      "checks": [
+        "strict takeoff equality",
+        "gravity and terminal clamp",
+        "ignore gravity",
+        "zero elapsed",
+        "Falling mutates impact and owner bounce force",
+        "bounce ordering",
+        "beforeZ resting guard",
+        "Takeoff mutates owner Z",
+        "partial provider failure"
+      ],
+      "compilation": [
+        "Mac clang++ -Wall -Wextra -Werror",
+        "NDK29 arm64 Android API26 -O2 -Wall -Wextra -Werror"
+      ],
+      "limits": "Helper boundary tests and compilation do not establish actual complete world gameplay execution."
+    }
+  }
+}

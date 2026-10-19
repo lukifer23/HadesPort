@@ -1,0 +1,105 @@
+{
+  "schema": "hades-native-equip-bridge-contract-v1",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "evidence_kind": "Original DLL/PDB bounded static evidence; no original execution or Android gameplay evidence.",
+  "action": {
+    "id": 4,
+    "return": "Void",
+    "rva": "0x25c5e0",
+    "names": "Names when nonnil, otherwise Name; LuaTableExtensions string List. Ordered requested names; no invented default weapon.",
+    "destination_ids": "DestinationIds when nonnil, otherwise DestinationId; LuaTableExtensions IntList. Only these exact destination field spellings.",
+    "destination_names": "DestinationNames when nonnil, otherwise DestinationName; string List. These select GroupManager identities/membership, not a scan of source data-definition names.",
+    "precedence": "Plural presence suppresses singular even when plural table is empty. Helpers reuse nonempty cached lists in the individual ScriptArgs.",
+    "selection": "Resolve runtime IDs through World active-ID map +0x398 and names through GroupManager/GetIndex/world membership +0x320; union into pointer hash set, deduplicate. Missing selections contribute nothing; all empty means empty target set. Hash iteration does not establish stable target order.",
+    "ordering": "Resolve target set once, then Names once, loop names outside targets. For each name request package first if enabled; then loop selected target set.",
+    "type_gate": "Live nonnull Thing whose flags satisfy ((~flags)&0x221)==0; metadata proxy is not an active Unit.",
+    "load_packages": {
+      "field": "LoadPackages",
+      "default": false,
+      "true_behavior": "GameAssetManager::LoadPackageAsync(requested weapon name,false,nullptr), once per name before target/type/duplicate checks. No unit-package-name rewrite. It synchronously invokes LoadManifest(name,false), enqueues work, returns immediately.",
+      "waits_for_assets": false,
+      "lua_callback": "None supplied by EquipWeapon."
+    },
+    "equip": "Selected Unit arsenal+0x428; HasWeapon(name) skips duplicates. Weapon::Create(name,arsenal.pOwner) absent data/null returns skip. AddWeapon(instance,false). If instance WeaponData+0x8bc ReloadOnEquip true, call reload then cooldown(-1).",
+    "callbacks": "No direct Script::Run/notify/OnPackageLoaded/Lua callback call in complete action body; downstream delegated weapon/arsenal behavior is separate.",
+    "delay": "Original Void action registration centrally admits Delay; immediate equip handler does not repeat delay admission."
+  },
+  "observations": [
+    {
+      "claim": "Requested names and target groups are distinct selector roles.",
+      "locations": [
+        "18025c694",
+        "18025c69f",
+        "18025c6b2",
+        "18025c6ba"
+      ]
+    },
+    {
+      "claim": "Package admission precedes checking targets and duplicates.",
+      "locations": [
+        "18025c6f0..18025c727",
+        "18025c760..18025c788"
+      ]
+    },
+    {
+      "claim": "No fabricated return value; native return is Void.",
+      "source": "native/analysis/lua-bridge-contract.json"
+    }
+  ],
+  "related": [
+    "weapon-equip-contract.json",
+    "weapon-component-contract.json",
+    "delayed-actions-contract.json"
+  ],
+  "reports": [
+    {
+      "path": "hades/.local/reports/native-weapon-equip-action.json",
+      "sha256": "8d0ac688954c1d7402e48227cf3b1c181dbbd1702fa5003073a656dcad5f5e82"
+    },
+    {
+      "path": "hades/.local/reports/native-equip-select-ids.json",
+      "sha256": "9656fc3d169b5ddee618ecebb21f58d613c2e5fc4785dbeca0e06c71134e94ec"
+    },
+    {
+      "path": "hades/.local/reports/native-equip-select-destination-names.json",
+      "sha256": "dbe49a8148214aa2fb3ddee35a20602ca91a6d3531c4ff0e8ffefb8f6d3d5938"
+    },
+    {
+      "path": "hades/.local/reports/native-equip-select-names.json",
+      "sha256": "dd07b8359549fc35742c0df0869d04b98cee76927383734985e6dee2b302144d"
+    },
+    {
+      "path": "hades/.local/reports/native-equip-select-active.json",
+      "sha256": "e16f7d3081af425572a37980d97032285da1eaa068b97ba415f7d09a81f7a897"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-equip-select-ids.json",
+      "sha256": "76db2f51c0b6d7de339f013a164d9510f6a029a8d3ff7180082f90b597cba642",
+      "evidence_id": "ev_22953451ee330bfaf0876571c7e9a37e5f9d5fda01463f49ed26932d5fa29470"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-equip-select-destination-names.json",
+      "sha256": "6a96583a702b822115f106365ddc0d0b30c94b5a3ffcb949320d2f411677fbe4",
+      "evidence_id": "ev_fe018ad95c573046951bc2380d50e819fabafd68fb685922bb9bcdd5a6e1651b"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-equip-select-names.json",
+      "sha256": "ce9b4c93a1d533d881cc272c496b5d3088529d975b0b78451409ab6319dfb3b1",
+      "evidence_id": "ev_ff4081f6698a768e5ab2f4dfbcfa971649c9f729758de03df00a717643d4619f"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-equip-select-active.json",
+      "sha256": "464f9c934968745c5c77ef2b8419a6df4d91662778e0860126a05752dade8950",
+      "evidence_id": "ev_a76ae78a4c80ad703f61c6cf12a7d5d6047992fe2d13afedf8a82513c1998742"
+    }
+  ],
+  "unknowns": [
+    "Malformed input numeric/string list conversion needs exact List/IntList branch review when reconstructing beyond ordinary original inputs.",
+    "Native pointer hash target order is not portable map iteration order.",
+    "Weapon runtime needs delegated initialization and update/fire contracts independently."
+  ]
+}

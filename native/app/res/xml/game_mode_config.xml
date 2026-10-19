@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android GameManager game modes (Samsung Game Booster / Game Launcher).
+     The native engine owns resolution (Settings > Graphics > Render
+     Resolution), so OS downscaling and FPS overrides stay disabled. -->
+<game-mode-config xmlns:android="http://schemas.android.com/apk/res/android"
+    android:supportsPerformanceGameMode="true"
+    android:supportsBatteryGameMode="true"
+    android:allowGameDownscaling="false"
+    android:allowGameFpsOverride="false" />

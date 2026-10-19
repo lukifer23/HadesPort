@@ -1,0 +1,30 @@
+{
+  "schema": "hades-source-spatial-queries-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence": {
+    "GetClosest": {
+      "path": ".local/reports/native-rea-script-get-closest-v1.json",
+      "sha256": "c08a6530ee36732c28943c1c408effee347cf09235a3f227923740e9c8b0bcd1",
+      "evidence_id": "ev_3e6bfa1d69323519c90956cfc39741037060b8bf7871b614602603c1c5e5afb8"
+    },
+    "GetAngleBetween": {
+      "path": ".local/reports/native-rea-script-get-angle-between-v1.json",
+      "sha256": "bf4a6251b0d387aa7b72f4ebacf3da349ad8c21db80e1b1ca5cbd295787b9b19",
+      "evidence_id": "ev_99767f89fb3379cabe19e4e85a56035387edf06f75ad14a2c4ad19b3d7fdb1b3"
+    }
+  },
+  "implementation": [
+    "GetClosest resolves real active Thing IDs/groups, averages source XY, uses float squared-distance comparisons and native0 no-match result. Distance0 is uncapped; strict best-distance update.",
+    "GetAngleBetween selected singular source/destination IDs uses actual attachment-aware XY, negativeY atan2f, native floatTau normalization and source double radians-to-degrees.",
+    "No canned entrance marker IDs or fixed return values."
+  ],
+  "limits": [
+    "GetClosest tie order is portable sorted-ID selection; native pointer hash order not claimed. Multi-origin IgnoreSelf explicit error.",
+    "Native StopsUnits/StopsProjectiles/Homing/Invulnerable/Unblocked filters require further real providers and explicitly error when requested.",
+    "GetAngleBetween array/group path explicitly unsupported until native cache/denominator semantics fully reconstructed."
+  ],
+  "runtime": {
+    "report": ".local/reports/native-active-room-53.json",
+    "result": "Genuine room entrance marker selection advanced through source camera weights/clamps/lock. Next actual stop Teleport at RoomPresentation.lua34."
+  }
+}

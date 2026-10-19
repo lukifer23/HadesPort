@@ -1,0 +1,37 @@
+{
+  "schema": "hades-multi-actor-renderer-contract-v1",
+  "validation": "native/analysis/renderer_multi_actor_gpu.cpp",
+  "report": ".local/reports/native-multi-actor-gpu-v2.json",
+  "gpu": "Apple M3 Pro",
+  "frames": 360,
+  "gpu_median_ms": 1.59977,
+  "cpu_median_ms": 2.8954,
+  "original_animation_frames_visited": 1069,
+  "diagnostic_image_bindings": 81,
+  "gpu_cache_bytes": 7907548,
+  "last_frame_uploads": 0,
+  "native_gameplay_observed": false,
+  "source_files": [
+    {
+      "path": "native/app/scene_renderer.cpp",
+      "bytes": 31980,
+      "sha256": "bd8b7b5b143a839bfc8558d4ede3878a066c3778e605cfbd6d99544cd6349b41"
+    },
+    {
+      "path": "native/app/scene_renderer.hpp",
+      "bytes": 4358,
+      "sha256": "b391d8dea88650cce0dbb4db7d0a9c82c6508c6e4624e17c0016ccba453c767c"
+    },
+    {
+      "path": "native/app/effect_particle_visual.hpp",
+      "bytes": 1720,
+      "sha256": "45b1daa89885d3aa6f6480d3fa0d7c645c11fb84a180eab113d7829eaf7a5e10"
+    }
+  ],
+  "limits": [
+    "Diagnostic original image fixtures validate caching/streaming and draw admission, not native particle gameplay.",
+    "Ordering uses stable Group/SortIndex/Y merge; exact native full graph SCC draw sorting remains unresolved.",
+    "GPU timings from Apple M3 Pro are not Android performance proof.",
+    "No speedup claim from earlier timing runs with different workloads."
+  ]
+}

@@ -1,0 +1,520 @@
+{
+  "schema": "HadesOriginalEntranceFxContract1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "status": "Original HAA CreateAnimation/CreateAnimations genuine allocation and source frames; broader HAA child semantics pending",
+  "packet": {
+    "path": ".local/native-assets/action-effects-v5/action-effect-frames.bin",
+    "bytes": 4850877,
+    "sha256": "485ff00076e5643236c606f078b9db4ce83c2ad466c86a29d4e3fe37d3154ec3"
+  },
+  "catalog": {
+    "path": ".local/native-assets/action-effects-v5/catalog.json",
+    "bytes": 625882,
+    "sha256": "3e912160917eac2c0b87a55809b2d15309728dd8c8f37b92f1aa4a6f4d6f12fe"
+  },
+  "lua": {
+    "path": ".local/native-assets/action-effects-v5/action-effects.lua",
+    "bytes": 282136,
+    "sha256": "8cac707460780402e46d32efaa962a0bd3ed208ab303dfcde17fec36a0bb4851"
+  },
+  "statistics": {
+    "definitions": 40,
+    "unique_original_images": 410,
+    "source_image_bindings": 477,
+    "raw_rgba_bytes": 50368584
+  },
+  "source_records": {
+    "ZagreusHeroLanding_Air_Streak": {
+      "path": ".local/game/base/Content/Game/Animations/CharacterAnimationsHero.sjson",
+      "file_sha256": "70f322846978b7f6b777b6e54ce38afc2f0f7dee472455fcf2a4b65786754275",
+      "range": [
+        325059,
+        934
+      ],
+      "range_sha256": "ba4035d9e0bf9ef5bfe89f1e1c6fb0513b19ad015f3223a8ea29470e254f98b8",
+      "inherit_from": null,
+      "source": {
+        "Name": "ZagreusHeroLanding_Air_Streak",
+        "FilePath": "Fx\\RubbleFallStreak\\RubbleFallStreak",
+        "Type": "Slide",
+        "EndFrame": 8,
+        "NumFrames": 8,
+        "StartFrame": 1,
+        "RandomFlipHorizontal": true,
+        "OriginX": 164.0,
+        "OriginY": 934.0,
+        "OffsetY": -180,
+        "ScaleX": 1.5,
+        "ScaleFromOwner": "Take",
+        "AngleFromOwner": "Ignore",
+        "GroupName": "Standing",
+        "SortMode": "FromParent",
+        "DrawBehindOwner": true,
+        "Ambient": 0.0,
+        "AddColor": true,
+        "StartRed": 0.2,
+        "StartGreen": 0.025,
+        "StartBlue": 0.005,
+        "EndRed": 0,
+        "EndGreen": 0,
+        "EndBlue": 0,
+        "Slides": [
+          {
+            "DurationFrames": 100
+          },
+          {
+            "DurationFrames": 1
+          },
+          {
+            "DurationFrames": 1
+          },
+          {
+            "DurationFrames": 1
+          },
+          {
+            "DurationFrames": 1
+          },
+          {
+            "DurationFrames": 1
+          },
+          {
+            "DurationFrames": 1
+          },
+          {
+            "DurationFrames": 1
+          }
+        ]
+      }
+    },
+    "DustPuffA": {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "file_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+      "range": [
+        806906,
+        332
+      ],
+      "range_sha256": "8d9990f0959370969464f64e652f7617fa5651fe5b839ef54a948b1b279da944",
+      "inherit_from": null,
+      "source": {
+        "Name": "DustPuffA",
+        "FilePath": "Fx\\DustPuffA\\DustPuffA",
+        "Type": "Book",
+        "ColorFromOwner": "Ignore",
+        "EndFrame": 40,
+        "NumFrames": 40,
+        "RandomPlaySpeedMax": 60.0,
+        "RandomPlaySpeedMin": 30.0,
+        "StartFrame": 1,
+        "RandomFlipHorizontal": true,
+        "UseAttachedAddColor": false
+      }
+    },
+    "DustPuffB": {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "file_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+      "range": [
+        807246,
+        318
+      ],
+      "range_sha256": "4718ed7a2e969469a6707f2f7daf08b0cbfef54d4941b7a3b0aeb484fc7ecf50",
+      "inherit_from": "DustPuffA",
+      "source": {
+        "Name": "DustPuffB",
+        "InheritFrom": "DustPuffA",
+        "ScaleFromOwner": "Ignore",
+        "Material": "Unlit",
+        "Scale": 1,
+        "OffsetZ": 60,
+        "AngleFromOwner": "Ignore",
+        "LocationFromOwner": "Ignore",
+        "CreateAnimation": "RubbleFallImpactDecal",
+        "GroupName": "FX_Standing_Add"
+      }
+    },
+    "DustRingFront": {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "file_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+      "range": [
+        499318,
+        443
+      ],
+      "range_sha256": "2dcb7799bccb377d729853570aa290a7e8f7a748f984a758be5136f960c6eaf1",
+      "inherit_from": null,
+      "source": {
+        "Name": "DustRingFront",
+        "FilePath": "Fx\\DustRingFront\\DustRingFront",
+        "Type": "Book",
+        "StartAlpha": 1.0,
+        "EndFrame": 56,
+        "NumFrames": 56,
+        "PlaySpeed": 30.0,
+        "StartFrame": 1,
+        "RandomFlipHorizontal": true,
+        "SortMode": "FromParent",
+        "ScaleFromOwner": "Ignore",
+        "Ambient": 0.3,
+        "AngleFromOwner": "Ignore",
+        "UseAttachedFlasher": false,
+        "ColorFromOwner": "Ignore"
+      }
+    },
+    "DustRingFrontMinotaurLand": {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "file_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+      "range": [
+        1632926,
+        278
+      ],
+      "range_sha256": "9933911907c1a9948282f7e148050512adcfc83a65abf8e2fa54746912f303a7",
+      "inherit_from": "DustRingFront",
+      "source": {
+        "Name": "DustRingFrontMinotaurLand",
+        "InheritFrom": "DustRingFront",
+        "AngleFromOwner": "Ignore",
+        "PlaySpeed": 45.0,
+        "LocationFromOwner": "Ignore",
+        "LocationZFromOwner": "Ignore",
+        "SortMode": "FromParent",
+        "GroupName": "Standing"
+      }
+    },
+    "DustRingBack": {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "file_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+      "range": [
+        499769,
+        401
+      ],
+      "range_sha256": "21d2bd91bea77b284b2260383b9fee9720a4a0de8fa2f925fa1c21ddf6a6e34d",
+      "inherit_from": "DustRingFront",
+      "source": {
+        "Name": "DustRingBack",
+        "InheritFrom": "DustRingFront",
+        "FilePath": "Fx\\DustRingBack\\DustRingBack",
+        "EndFrame": 54,
+        "NumFrames": 54,
+        "StartFrame": 1,
+        "OffsetY": -400.0,
+        "OffsetZ": -50.0,
+        "LocationFromOwner": "Ignore",
+        "SortMode": "Isometric",
+        "AngleFromOwner": "Ignore",
+        "UseAttachedFlasher": false,
+        "ColorFromOwner": "Ignore"
+      }
+    },
+    "DustRingBackMinotaurLand": {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "file_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+      "range": [
+        1633212,
+        312
+      ],
+      "range_sha256": "ae88d955cd7397c820abab7aae062f33f9fe011c7a2f2117fc44d57e471f8eed",
+      "inherit_from": "DustRingBack",
+      "source": {
+        "Name": "DustRingBackMinotaurLand",
+        "InheritFrom": "DustRingBack",
+        "AngleFromOwner": "Ignore",
+        "StartAlpha": 0.5,
+        "PlaySpeed": 45.0,
+        "OffsetY": 0.0,
+        "OffsetZ": 30.0,
+        "LocationFromOwner": "Ignore",
+        "LocationZFromOwner": "Ignore",
+        "GroupName": "Standing"
+      }
+    },
+    "RubbleFallImpactDebris": {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "file_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+      "range": [
+        819416,
+        375
+      ],
+      "range_sha256": "79863a334e26d283233ccabfdd0373c85c125eb44d86c530ab2463de48ab710e",
+      "inherit_from": null,
+      "source": {
+        "Name": "RubbleFallImpactDebris",
+        "FilePath": "Animations\\RubbleFallImpactDebris\\RubbleFallImpactDebris",
+        "Type": "Random",
+        "EndFrame": 1,
+        "NumFrames": 1,
+        "StartFrame": 1,
+        "Random": [
+          {
+            "Name": "RubbleFallImpactDebrisA"
+          },
+          {
+            "Name": "RubbleFallImpactDebrisB"
+          },
+          {
+            "Name": "RubbleFallImpactDebrisC"
+          }
+        ]
+      }
+    },
+    "RubbleFallImpactDecal": {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "file_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+      "range": [
+        816739,
+        366
+      ],
+      "range_sha256": "bb85808977e9a293cd2ddd98343510db22779592832ce695ddba688049a6b42a",
+      "inherit_from": null,
+      "source": {
+        "Name": "RubbleFallImpactDecal",
+        "FilePath": "Dev\\blank_invisible",
+        "Type": "Random",
+        "GroupName": "FX_Terrain",
+        "EndFrame": 1,
+        "NumFrames": 1,
+        "StartFrame": 1,
+        "Random": [
+          {
+            "Name": "RubbleFallImpactDecalA"
+          },
+          {
+            "Name": "RubbleFallImpactDecalB"
+          },
+          {
+            "Name": "RubbleFallImpactDecalC"
+          }
+        ]
+      }
+    },
+    "RubbleFallImpactDebrisA": {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "file_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+      "range": [
+        819799,
+        528
+      ],
+      "range_sha256": "1eb05d7a12de0c241d8dd2ff5d1ec29a500faaf8b94bbb75627eba281f923095",
+      "inherit_from": null,
+      "source": {
+        "Name": "RubbleFallImpactDebrisA",
+        "FilePath": "Fx\\RubbleFallImpactDebrisA\\RubbleFallImpactDebrisA",
+        "GroupName": "Standing",
+        "Type": "Book",
+        "AngleFromOwner": "Ignore",
+        "EndFrame": 43,
+        "NumFrames": 43,
+        "RandomPlaySpeedMax": 60.0,
+        "RandomPlaySpeedMin": 50.0,
+        "StartFrame": 1,
+        "RandomFlipHorizontal": true,
+        "ScaleMax": 1.3,
+        "ScaleMin": 0.8,
+        "Slides": [
+          {
+            "DurationFrames": 1,
+            "RandomDurationFramesMax": 5,
+            "RandomDurationFramesMin": 1
+          }
+        ]
+      }
+    },
+    "RubbleFallImpactDebrisB": {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "file_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+      "range": [
+        820335,
+        231
+      ],
+      "range_sha256": "f01048a521382a36ddcad4a81a33a7b9839ad921d8d98a7f8e53c09a5ece6b2d",
+      "inherit_from": "RubbleFallImpactDebrisA",
+      "source": {
+        "Name": "RubbleFallImpactDebrisB",
+        "InheritFrom": "RubbleFallImpactDebrisA",
+        "FilePath": "Fx\\RubbleFallImpactDebrisB\\RubbleFallImpactDebrisB",
+        "EndFrame": 39,
+        "NumFrames": 39,
+        "StartFrame": 1
+      }
+    },
+    "RubbleFallImpactDebrisC": {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "file_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+      "range": [
+        820574,
+        166
+      ],
+      "range_sha256": "6459a3381e502027b2c58d3db275ae369f68c461eb0c54add43ed0da4f7f7b49",
+      "inherit_from": "RubbleFallImpactDebrisA",
+      "source": {
+        "Name": "RubbleFallImpactDebrisC",
+        "InheritFrom": "RubbleFallImpactDebrisA",
+        "FilePath": "Fx\\RubbleFallImpactDebrisC\\RubbleFallImpactDebrisC"
+      }
+    },
+    "RubbleFallImpactDecalA": {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "file_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+      "range": [
+        817113,
+        632
+      ],
+      "range_sha256": "62e85f2059ac48e101994a38c828e2d9652f10455a4d08617aa13dbdc6a14703",
+      "inherit_from": null,
+      "source": {
+        "Name": "RubbleFallImpactDecalA",
+        "ChainTo": "RubbleFallImpactDecalA-Fade",
+        "FilePath": "Fx\\RubbleImpactDecal\\RubbleImpactDecalA",
+        "GroupName": "FX_Terrain",
+        "Type": "Constant",
+        "AngleFromOwner": "Ignore",
+        "AngleMax": 360.0,
+        "EndFrame": 1,
+        "NumFrames": 1,
+        "StartFrame": 1,
+        "RandomFlipHorizontal": true,
+        "LocationFromOwner": "Ignore",
+        "LocationZFromOwner": "Ignore",
+        "ColorFromOwner": "Ignore",
+        "SortMode": "Id",
+        "PostRotateScaleY": 0.5,
+        "ScaleMax": 1.1,
+        "ScaleMin": 0.5,
+        "CancelOverCap": true,
+        "UseAttachedFlasher": false
+      }
+    },
+    "RubbleFallImpactDecalB": {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "file_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+      "range": [
+        817753,
+        200
+      ],
+      "range_sha256": "879894852e9fb1ad2f15851491da9b2bad5a6ce1bc3ed578170e170e779201b3",
+      "inherit_from": "RubbleFallImpactDecalA",
+      "source": {
+        "Name": "RubbleFallImpactDecalB",
+        "InheritFrom": "RubbleFallImpactDecalA",
+        "ChainTo": "RubbleFallImpactDecalB-Fade",
+        "FilePath": "Fx\\RubbleImpactDecal\\RubbleImpactDecalB"
+      }
+    },
+    "RubbleFallImpactDecalC": {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "file_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+      "range": [
+        817961,
+        200
+      ],
+      "range_sha256": "35cae858fc0a3dfec2dcd8caabfd5c63ac6f8a782495249950106843daf3ad14",
+      "inherit_from": "RubbleFallImpactDecalA",
+      "source": {
+        "Name": "RubbleFallImpactDecalC",
+        "InheritFrom": "RubbleFallImpactDecalA",
+        "ChainTo": "RubbleFallImpactDecalC-Fade",
+        "FilePath": "Fx\\RubbleImpactDecal\\RubbleImpactDecalC"
+      }
+    },
+    "RubbleFallImpactDecalA-Fade": {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "file_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+      "range": [
+        818444,
+        475
+      ],
+      "range_sha256": "c1d4b2a5c0bf24ba627cd1cd36f292f4c1c6e588e439b7e87188475f6dac4663",
+      "inherit_from": null,
+      "source": {
+        "Name": "RubbleFallImpactDecalA-Fade",
+        "FilePath": "Fx\\RubbleImpactDecal\\RubbleImpactDecalA",
+        "Type": "Constant",
+        "StartAlpha": 1.0,
+        "PostRotateScaleY": 0.5,
+        "Duration": 2.0,
+        "EndFrame": 1,
+        "NumFrames": 1,
+        "StartFrame": 1,
+        "TransferAngle": true,
+        "TransferChildren": true,
+        "TransferFrameToThis": true,
+        "LocationZFromOwner": "Ignore",
+        "LocationFromOwner": "Ignore",
+        "AngleFromOwner": "Ignore"
+      }
+    },
+    "RubbleFallImpactDecalB-Fade": {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "file_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+      "range": [
+        819074,
+        163
+      ],
+      "range_sha256": "b274f1d0d79eb57517198818728fa9496ff5806747f983fefac0ce98a6ed6968",
+      "inherit_from": "RubbleFallImpactDecalA-Fade",
+      "source": {
+        "Name": "RubbleFallImpactDecalB-Fade",
+        "InheritFrom": "RubbleFallImpactDecalA-Fade",
+        "FilePath": "Fx\\RubbleImpactDecal\\RubbleImpactDecalB"
+      }
+    },
+    "RubbleFallImpactDecalC-Fade": {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "file_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+      "range": [
+        819245,
+        163
+      ],
+      "range_sha256": "73fc4ba4b104ba3c950180013c64d69f3b0f856a7aafa2c5f51c017d52dea4de",
+      "inherit_from": "RubbleFallImpactDecalA-Fade",
+      "source": {
+        "Name": "RubbleFallImpactDecalC-Fade",
+        "InheritFrom": "RubbleFallImpactDecalA-Fade",
+        "FilePath": "Fx\\RubbleImpactDecal\\RubbleImpactDecalC"
+      }
+    }
+  },
+  "observed_native": {
+    "InitData": {
+      "path": ".local/reports/native-rea-active-animation-init-data.json",
+      "evidence_id": "ev_11ce0b2685363d0de85b45c89b935f43723e6cc9d37833664bdce8d57e7e1133",
+      "procedure": "0x180291c70",
+      "behavior": "When actual init-create flag true, calls AnimationManager.Create29e410 for single Data+4d8 then ordered Data+5f8 vector, with attached Thing and current animation GetLocation (otherwise own XY). Returns are independent manager-created allocations and recorded in native mCreatedAnimations refs."
+    },
+    "ordering": {
+      "path": ".local/reports/native-actor-animation-slide-init.json",
+      "procedure": "0x1802b43d0",
+      "behavior": "Actual Slide.Init calls Animation.Init291b80 (which calls InitData) before tail SetupSlideFx2b5010."
+    },
+    "offset": {
+      "path": ".local/reports/native-actor-animation-draw-location.json",
+      "procedure": "0x180297d60",
+      "addresses": "180297e31..e8a reads Animation.mOffset;180297e8f..eb6 adds owner offsets;180297ebb..efa multiplies attached Body.Scale and its current fraction before adding draw anchor. Book.PrepDraw2af800 invokes this with scale argument1.0.",
+      "behavior": "Selected action source uses default ParallaxAmount1, no shake/extra attached animation offset. OffsetX/Y multiplied by attached actual body scale including fraction; own animation Scale/ScaleFromOwner does not multiply it again. Detached body has scale1 for this draw offset."
+    }
+  },
+  "implemented": {
+    "HAA": "setActorAnimation preflights nonempty single and additive init creates; after actual primary registry allocation, independently creates each original source FX through ActionEffectWorld before initial Slide event/playback. Same-name Restart does not repeat InitData creates.",
+    "streak": "8 original atlas frames with source Slide ticks100+7, RandomFlipHorizontal actual bounded RNG, source explicit pivot(164,934), owner-scaled OffsetY -180, ScaleX1.5, Take owner scale, Ignore angle, AddColor and red-to-black transition.",
+    "return": "8 original ordered source creates: DustPuffB, front/back MinotaurLand rings, 5 repeated random Rubble debris roots. DustPuff creates real random persistent impact decal. All 3 debris alternatives and original source pixels exported."
+  },
+  "validation": {
+    "asan_ubsan": ".local/reports/native-action-entrance-v2-smoke.json",
+    "host_syntax": "passed",
+    "arm64_api26_syntax": "passed",
+    "full_room_execution": "Parent-owned replay pending",
+    "android_observed": false
+  },
+  "limits": [
+    "Diagnostic fixture RNG enumerates branches; not proof of game stream sequence.",
+    "Full source HAA ChildAnimation branches (dash) are not implemented by this independent CreateAnimation helper.",
+    "Native mCreatedAnimations reference vector callbacks are not modeled as a separate HAA vector; created animations have actual shared registry and ActionEffectWorld ownership/lifetime, and actual owner pre-dispose handles attachments.",
+    "Source DrawBehindOwner/SortMode FromParent/Id and per-effect Ambient lighting remain caller presentation responsibilities.",
+    "General nondefault parallax/shake/attached offset accumulation and generic CopyState transfer combinations are not claimed complete.",
+    "Full-room GPU presentation and real-device gameplay remain separate verification."
+  ],
+  "files": {
+    "native/app/action_effect.cpp": "663af1345ea02729932d4e8b32635d9e7121269f7eaececaa6913bb5a83d54b1",
+    "native/app/lua_actor_animation.cpp": "b3dea2980d997a6e3d8743ede001745f6f14b58083c294c7195379fe81b79f5b",
+    "native/tools/export_action_effects.py": "8d040766670d4997ca0e38cd931ebfe28c7ce732154c648ecdba0ae8dfa55fe9",
+    "native/analysis/action_entrance_smoke.cpp": "e14327f3b4b4ad04ab8a1d483405f62b8632e76547beb0c0037d9380afbc46a4"
+  },
+  "owned_sessions_open": false
+}

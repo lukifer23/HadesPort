@@ -1,0 +1,156 @@
+{
+  "schema": "hades-source-speech-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence": {
+    "action": {
+      "evidence_id": "ev_ce0ea432803cab9de5e842e605f6637e1476decedbe60f156735b3deee784c5c",
+      "report": ".local/reports/native-audio-speech-rea-action.json"
+    },
+    "neverqueue": {
+      "evidence_id": "ev_598a0cc84db8d0fb4e293700a819d4835da2a1e7eeb7d64e38b1a5837da44aeb",
+      "report": ".local/reports/native-audio-speech-rea-neverqueue.json"
+    },
+    "playnow": {
+      "evidence_id": "ev_ba74398a1dee9ac4f93a063d22929b731d0155932ca25d1744e1b6e0132ead7d",
+      "report": ".local/reports/native-audio-speech-rea-playnow.json"
+    },
+    "playnext": {
+      "evidence_id": "ev_a173f4e01155d7dcc1f3d67bee1763b67a20c353e5faa36c28343b587a5b2547",
+      "report": ".local/reports/native-audio-speech-rea-playnext.json"
+    },
+    "update": {
+      "evidence_id": "ev_69ec96b073969229124cc1eb8b5440428b6dc358390e5c4b782f1e37a117f04a",
+      "report": ".local/reports/native-audio-speech-rea-update.json"
+    },
+    "get-actor-event": {
+      "evidence_id": "ev_6221c4a4e8d673bdb28b13c345805e61394a5f82598f2bb8499b71c0bd764f09",
+      "report": ".local/reports/native-audio-speech-rea-get-actor-event.json"
+    },
+    "load-voice-bank": {
+      "evidence_id": "ev_0fad80a6c27aa32c62e764a32a0674de266372fce3ea1ecefcc091bbf07fad01",
+      "report": ".local/reports/native-audio-speech-rea-load-voice-bank.json"
+    },
+    "sound-complete": {
+      "evidence_id": "ev_e2cc15506d0da443ff5eb94c73b0957e0e788bd378847de738d6bb30fa8b7d3d",
+      "report": ".local/reports/native-audio-speech-rea-sound-complete.json"
+    },
+    "tryqueue": {
+      "evidence_id": "ev_87901c52409c2c5fb73447495bbc7652ca72aa61ae246069cc06f3d99ea049f4",
+      "report": ".local/reports/native-audio-speech-rea-tryqueue.json"
+    },
+    "queuecue": {
+      "evidence_id": "ev_2dc1e6fc8989d29e11840a3fb946f0d3e0f2bcc543322e3c01ea0414e33f6643",
+      "report": ".local/reports/native-audio-speech-rea-queuecue.json"
+    },
+    "interrupt": {
+      "evidence_id": "ev_4b9229ba2d4d22a47b28b8ec3737d30e181316a1f8a37d19b272c1b417328f5d",
+      "report": ".local/reports/native-audio-speech-rea-interrupt.json"
+    },
+    "callback": {
+      "evidence_id": "ev_f069869d1faf08a31eb925cddafcf5b481ddf7e30adeb4375f5e184b701f9918",
+      "report": ".local/reports/native-audio-speech-rea-callback.json"
+    },
+    "constructor": {
+      "evidence_id": "ev_0d70a8095401a2db8314756f3729bc91640469e677c2e729e521f2399dbded7b",
+      "report": ".local/reports/native-audio-speech-rea-constructor.json"
+    },
+    "completion_registration": {
+      "reports": [
+        ".local/reports/native-audio-setup-vo-callback-static.json",
+        ".local/reports/native-audio-vo-script-callback-static.json",
+        ".local/reports/native-audio-create2d-static.json",
+        ".local/reports/native-audio-play-count-static.json",
+        ".local/reports/native-audio-release-channel-static.json"
+      ],
+      "observed": "Native matching DLL instructions verify callback append phases; no original execution"
+    }
+  },
+  "observed": {
+    "actual_lua_request": {
+      "report": ".local/reports/native-active-room-40.log",
+      "Name": "/VO/Scratch_0002_A",
+      "Id": null,
+      "Queue": null,
+      "Actor": null,
+      "UseSubtitles": true,
+      "SubtitleColor": "source table preserved"
+    },
+    "allow_play_speech_default": "true; dynamic initializer RVA0xb930/VA18000b9a0 writes1 to config global",
+    "queue_modes": {
+      "default_unknown_NeverQueue": 3,
+      "TRUE_SOMETIMES": 0,
+      "FALSE_NEVER": 1,
+      "ALWAYS": 2,
+      "INTERRUPT": 4,
+      "NEVERQUEUE": 3
+    },
+    "Lua_boolean_Queue": "lua_isstring rejects Boolean, so absent/true/false Boolean uses default3; names compared case-insensitively",
+    "selected_component": "No positive Id selects global SpeechComponent::PLAYER_SPEECH. Positive Id with actual SpeechComponent uses it. Missing target or missing SpeechCapable takes early direct-audio branch.",
+    "default_admission": "NeverQueue requires Always queue empty, Sometimes invalid, tracked vector empty, !paused and buffer<=0; rejects with0, never fake handle.",
+    "play_now": "If !paused, stop existing active queued channel(false), resolve current Thing, register completion callback, actual PlayCue3D(...useSubtitles,SubtitleColor,Actor), save returned active ID and push actual valid cue.",
+    "completion": "Clear active ID; erase first valid tracked matching cue name; PlayNext first Sometimes else Always FIFO (skip failed invalid cues); then global PLAYER_SPEECH buffer=.25f. Buffer decremented by SpeechComponent.Update elapsed, including belowzero.",
+    "queue_return": "Sometimes replacement or Always enqueued returns0, no allocated channel until actual PlayNext; actual caller treats0 as not immediately played.",
+    "queued_subtitles": "PlayNext forces UseSubtitles=true for queued starts (QueueItem does not retain initial bool).",
+    "script_completion": "Only GetVoIndex>=0 registers ScriptManager.OnSoundComplete via AudioManager.SetupVOCallback49700/Invoker53a30. Ordinary SFX never emits completion script/notify merely by retiring. PlaySound.AddCallbacks installs marker callback only.",
+    "speech_record": "Accepted common path writes SpeechRecord[cue]=cue string, original Lua source subsequently writes true.",
+    "original_sample": {
+      "bank": "VO.fsb",
+      "sha256": "a40b0d89d21a8d5832976c85aac7b4a4745f62b73689447b6029ed6d827a8739",
+      "VO_h_index": 8424,
+      "vgmstream_subsong": 8425,
+      "channels": 1,
+      "sample_rate": 44100,
+      "frames": 402432,
+      "encoded_bytes": 79552
+    },
+    "actor_template": "Scratch matches no configured Actors name; actual Default GUID2b30dcc5-4cf8-4a92-97e7-77dd73c4097a maps /VO/AnnouncerVO in Sounds.bank. PRIB trigger at0/length4651; source encoded voice plays to own full length.",
+    "captions": "Actual English ExtraLines.csv row17 exact cue ID Scratch_0002_A; text retained privately in hash-pinned catalog.",
+    "second_intro_source": "UIData.lua1643 requests /VO/Scratch_0002_B; original VO.fsb second exact sample and ExtraLines.csv exact matching row exported, not inferred concatenation.",
+    "completion_callback_order": [
+      "SetupVOCallback script OnSoundComplete then notifyExistingWaiters(cue)",
+      "AddSubtitle HideA/B when actual config + request enabled",
+      "SpeechComponent own completion clears active/tracked, runs PlayNext, then globalbuffer=.25"
+    ],
+    "pause_resume_stop": "Native reports native-audio-{pause-speech,speech-pause-component,speech-resume-component,stop-speech,stop-cue-duration}-static.json. Empty selector Pause/Resume global + actual Speech components; Stop only global. Current AudioData Focus pitch shift scale/entry/exit compiled0 and omitted source, so default PitchTransition=true takes immediate channel pause/resume path; nonzero dynamic AudioData mutation unsupported.",
+    "stop_duration_rng": "ScriptArgs.getDuration281bc0: only BOTH MinDuration and MaxDuration nonzero consume real stream0; converts double draw\u2192float, float multiply span thenfloat add min. Otherwise Duration(default0), including a single nonzero bound. Called per actual selected SpeechComponent even if no active channel."
+  },
+  "implementation": {
+    "modules": [
+      "app/speech_world.hpp",
+      "app/speech_world.cpp",
+      "app/lua_speech.cpp"
+    ],
+    "resource_catalog": ".local/native-assets/audio-events-opening-v9",
+    "compressed_voice": ".local/native-assets/audio-streams-speech-v3",
+    "input_source_immutable": true,
+    "no_pcm_packaging": true,
+    "no_original_execution": true,
+    "subtitle_seam": "drainSpeechPresentation includes actual begin/end channel IDs, source text/color/actor/owner; parent connects native text renderer."
+  },
+  "bounds_and_unknowns": [
+    "Only requested Scratch programmer voice has complete source actor-template/audio/subtitle export; valid unexported VO fails explicitly.",
+    "Nonempty Actor override still requires its selected template provider; no silent fallback.",
+    "Speech pause/pitch-transition action integration not claimed.",
+    "Direct Never/non-SpeechCapable audio path does not yet publish subtitle presentation; selected opening uses real global NeverQueue.",
+    "Exact Windows/FM0D post-DSP PCM equivalence not claimed; Android source graph processors/resampler are measured portable adaptations.",
+    "No original FMOD or hardware audio executed.",
+    "OnSoundComplete Lua Name/Id DTO follows source SoundCue identity; a complete arbitrary registered callback argument-schema audit remains outside selected original scripts (selected scripts use waitUntil notification)."
+  ],
+  "validation": {
+    "full_source_sample_boundary_and_queue": ".local/reports/native-audio-world-speech-lifetime-v2.log",
+    "second_original_intro_segment": ".local/reports/native-audio-world-speech-second-v1.log",
+    "Mac_Werror": true,
+    "Android_NDK29_arm64_API26_Werror": true,
+    "hardware_audio_observed": false
+  },
+  "entry_hero_extension": {
+    "contract": "opening-entry-audio-contract.json",
+    "cues": [
+      "/VO/ZagreusField_0011",
+      "/VO/ZagreusScratch_0004"
+    ],
+    "actor": "Original Audio.sjson Zagreus unique substring\u2192/VO/Zagreus Template",
+    "source_rates": "mono44.1k andstereo32k; no PCM packaging",
+    "catalog": ".local/native-assets/audio-events-opening-v13/receipt.json"
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "schema": "hades-local-player-input-movement-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "api": {
+    "setLocalInput": "bounded actual worldXY vector and original control string names; per-frame down states preserve edges",
+    "advanceLocalPlayerInput": "before actual Arsenal update; source control gates, source MoveInput/ApplyForce and real requestFire",
+    "advanceLocalPlayerMovement": "after source Physics phase; consumes real Physics.moveShift, live source obstacle grid/polygons and real ActorWorld body",
+    "updateLocalMoveAnimation": "source Start/Move/LowSpeed/MaxSpeed/Stop/Idle names; actual original bank resources"
+  },
+  "source_numeric": {
+    "MoveInputRVA": "0x2f6220",
+    "speed": "(Unit.Speed+SpeedAddition)*SpeedModifier*playerConfigSpeedMultiplier",
+    "low_input": "magnitudeSquared < sourceLowSpeedThreshold selects sourceLowSpeedFraction",
+    "normal_ground": "actual velocity set, lastForceSelfApplied true and real Physics component admission",
+    "lost_footing": "actual velocity threshold branch or sourceAcceleration*elapsed ApplyForce",
+    "angle": "shortest signed arc; actual source rotation speed, effects/timers/primary DisableOwnerRotation gates"
+  },
+  "resources": {
+    "hero_bank": {
+      "path": ".local/native-assets/hero-actions-v4/actor-animations.bin",
+      "bytes": 279860188,
+      "sha256": "5ca3c8dcf0c7c145b7bc7140bca61e36bbeff25b1ca1510edad73525ecbd9489"
+    },
+    "properties": {
+      "path": ".local/native-assets/hero-properties-v6/actor-properties.bin",
+      "bytes": 9400,
+      "sha256": "0ee1398b2e40b48c4873ac8cbf61aef78c24d5a88567969604815f13bbfda6ee"
+    },
+    "markers": {
+      "path": ".local/native-assets/hero-markers-v4/actor-markers.bin",
+      "bytes": 1512287,
+      "sha256": "3ddc806bbcbc5d12d7acb392f035a435f114d4f901246a38416e19280fc94363"
+    }
+  },
+  "focused_validation": {
+    "result": "passed",
+    "source_ground_velocity": 540,
+    "source_low_stick_velocity": 108,
+    "live_modifier_velocity": 270,
+    "footing_lost_acceleration_observed": true,
+    "can_move_gate_preserved": true,
+    "actual_on_force_calls": 4,
+    "collision_algorithm_adaptation": true,
+    "live_room_input_execution_observed": false
+  },
+  "proofs": [
+    {
+      "path": ".local/reports/native-unit-move-input-pseudocode.txt",
+      "bytes": 585306,
+      "sha256": "c0eef706541c38825ed3449c280e0e7e53ab9fabc3b84292a7d330d18b0a7b7f"
+    },
+    {
+      "path": ".local/reports/native-unit-move-input-pdb-pseudocode.txt",
+      "bytes": 3905,
+      "sha256": "3abbde0afd2669bf4ddbc66b6f423a121820285d7a0f1912285c2866fa8ed0b6"
+    },
+    {
+      "path": ".local/reports/native-unit-update-movement-pdb-pseudocode.txt",
+      "bytes": 5033,
+      "sha256": "b39d60fbed12c521650c91314d291cfa38a1b6fd718192c337ed433a6598240e"
+    },
+    {
+      "path": ".local/reports/native-direct-movement-pdb-pseudocode.txt",
+      "bytes": 3906,
+      "sha256": "c6832ae9194dbc0d316b971135b6e3ebcc990bac3b09fe183c84b9d5d6a6a691"
+    },
+    {
+      "path": ".local/reports/native-player-unit-can-move.json",
+      "bytes": 4427,
+      "sha256": "20335d6031c33979633362ad1833f96d701349f74797eda70dce2d122a3a72ec"
+    }
+  ],
+  "source": [
+    {
+      "path": "native/app/unit_movement.hpp",
+      "bytes": 1103,
+      "sha256": "c985c38105333e1756d1f38188949a47d6043a19534783b9ca8065404aecc5f6"
+    },
+    {
+      "path": "native/app/unit_movement.cpp",
+      "bytes": 2305,
+      "sha256": "62bf945dcae4605dff656798a955a2e917bb8442bd3686960fff903fc9ee1148"
+    },
+    {
+      "path": "native/app/lua_player_input.cpp",
+      "bytes": 16322,
+      "sha256": "c1272c35a5f7867dd6826fe2e5c8e4b0037f0bd143333cda4396a1326278c8ad"
+    }
+  ],
+  "limits": [
+    "Live room execution is parent integrated host replay, not established by numeric fixture.",
+    "Conservative Android collision adaptation uses original transformed polygons,<=4world-unit substeps, edge/inside tests and axis sliding unlessStopShiftOnCollision. Original Windows collision reactions/height/flow and unit-unit collision are not complete.",
+    "Normal local manual facing branch implemented; full lock/reticle and CheckAlternateWeapon arbitration remain separate.",
+    "Nonzero source angle clamps and attached local player relative movement remain explicit unsupported.",
+    "SwordRunStop source events require actual stopFX closure; never suppress those callbacks."
+  ],
+  "rea_sessions_owned_open": 0
+}

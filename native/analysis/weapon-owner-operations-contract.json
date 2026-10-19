@@ -1,0 +1,89 @@
+{
+  "schema": "hades-weapon-owner-operations-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "Matching PDB bounded LLVM static instruction evidence; no native Windows runtime observation. Existing REA Weapon.Charge evidence reused.",
+  "retained_rea_evidence": [
+    "ev_fd634f86d733699906e102efacfc3053a26b4d809a2194c032f83de7cf4ec6d6"
+  ],
+  "static_sources": [
+    {
+      "path": ".local/reports/native-weapon-stop-moving-static-v1.json",
+      "sha256": "cc6e13f5515435a42f7c9cdcf1fd665898fba977b41e5a3721d7882dcda27b5f"
+    },
+    {
+      "path": ".local/reports/native-weapon-owner-complete-angle-static-v1.json",
+      "sha256": "bf3692d3949857eb2f49eb59852afd7cd7df49d37e3e89ae8a5885854e65a4fe"
+    },
+    {
+      "path": ".local/reports/native-weapon-owner-goal-angle.json",
+      "sha256": "3510dd5b340a6c669b6e3211bd214b1d75476483f9bcd13c76df89d361790f12"
+    },
+    {
+      "path": ".local/reports/native-weapon-thing-set-angle-static-v1.json",
+      "sha256": "a6c98b28353798b2a8d5b3e6255c6e2175cc679aef896b8a572621bcdffdc28d"
+    },
+    {
+      "path": ".local/reports/native-weapon-cancel-rotate-static-v1.json",
+      "sha256": "3901b9e0034a261839d1501ba0022ff23028401f812fb966e8263497f0b8d893"
+    },
+    {
+      "path": ".local/reports/native-weapon-remove-control-static-v1.json",
+      "sha256": "716b4f313d69432c8331d774f63212c48f21916c9ed61201d69113008ba0fea6"
+    },
+    {
+      "path": ".local/reports/native-weapon-effect-canceled-static-v1.json",
+      "sha256": "6e981799e9117e6fa78fffa13ede9d8e7518e9f029d2ca9e9f953d8ab756b541"
+    },
+    {
+      "path": ".local/reports/native-weapon-polygon-flip-static-v1.json",
+      "sha256": "5ae2c1d5a77d19af26c7c4e1961badd8c2b09409b37c4bd6ea6ef863d78abcbf"
+    },
+    {
+      "path": ".local/reports/native-weapon-velocity-multiplier-static-v1.json",
+      "sha256": "319327624dd27444b83523ee154a971cd4d71978ab6e240043e45e755dbe2fad"
+    },
+    {
+      "path": ".local/reports/native-player-apply-physics.json",
+      "sha256": "6c43eaaee4bd78ec031c08f4591689383db4fcadd326004e13c32f74227b20ff"
+    },
+    {
+      "path": ".local/reports/native-active-thing-on-force-static.json",
+      "sha256": "1cd7ad46046eb2d08cbef48561a52cd1c4c71a8cb9c7191ffa1a175e80614306"
+    },
+    {
+      "path": ".local/reports/native-active-thing-on-up-force-static.json",
+      "sha256": "cd8b71efdbf54a27be90cbe83162f5b8492b0639cd402763ba97f3c00d205dde"
+    },
+    {
+      "path": ".local/reports/native-projectile-thing-compiled-defaults.json",
+      "sha256": "d1083b366bd9c4f65f94cada982a02e44ab99681a5ed3a3ac743d32ed591a06a"
+    }
+  ],
+  "operations": {
+    "CancelOwnerMovement": "Unit virtual+188 resolves StopMoving2ebd00; set only current speedFraction0, retain velocity/shift.",
+    "SetOwnerCompleteAngle": "Thing.SetAngle first updates Body angle with two modulo passes and geometry/sort; then raw goalAngle/cosmeticAngle/cosmeticAngleTarget.",
+    "CancelOwnerDisables": "Actual UnitStatus.cancelDisables, all cancelable timers; active/pending own-name asymmetry retained; real virtual Clear then deletion queue.",
+    "CancelOwnerRotateDisables": "Only active effects, Cancelable && DisableRotate && !DisableAttack; preserve own names unless CanCancelOwnDisables. Only rotate-cancelable timer reset.",
+    "OnEffectCanceled": "Nonempty cancellation names only; source filter owner Unit, run name=weapon, EffectNames 1-based array plus standard triggered actor table. No PlayerIndex filter in native routine.",
+    "RemoveWeaponControl": "Stable erase all selected weapon pointers; current fire request valid cleared; actual CancelCharge child cursor when source flag true. Missing selected weapon ->null pointer return.",
+    "ApplyPhysics": "Actual SelfVelocity/SelfVelocityCap/SelfUpwardVelocity/SelfUpwardVelocityCap/SelfUpwardVelocityOnGround; upward before planar, charge fraction then CalcVelocityMultiplier, perfect bonus current UnitData.PerfectChargeBonus.",
+    "OnForce": "DirectForce passes false,false independently of LastForceSelfApplied. Actual LifeStatus0 and ImpulsedFxCooldown gate SetAnimation/ImpulsedFx and timestamp. Source empty-invalid ImpulsingSound default; source overrides preserved."
+  },
+  "geometry": {
+    "mirror": "Source SetupGeometry ignores MirrorGeometry. Fresh parity false; SetAngle strict pi/2<rawangle<3pi/2 half-plane transition toggles actual persistent mirror parity, reverses winding. RotateGeometry takes precedence.",
+    "integration": "ActorWorld.setAngle reused by complete-angle and player turning; parity survives source geometry rebuild.",
+    "limits": [
+      "Dynamic toggling between RotateGeometry/MirrorGeometry modes after previous mutations has not been independently replayed. Native float incremental rotation order is represented by source-geometry reconstruction, not bit-exact accumulated Windows rounding."
+    ]
+  },
+  "remaining_gates": [
+    "Positive OutOfRangeSelfVelocity still requires native target/range consumer.",
+    "Nonempty animation/FX/audio requests require actual original resources; provider failures remain errors."
+  ],
+  "verification": {
+    "host_arm64_api29": "All owned changed translation units compile with -Wall -Wextra -Werror.",
+    "focused_debug": ".local/reports/native-weapon-owner-debug-asan.log",
+    "scope": "Original actor/weapon data + explicit diagnostic MirrorGeometry override. Sanitizer replay verifies component behavior, not original Lua combat or Android gameplay."
+  },
+  "owned_rea_sessions": "No new sessions opened in this pass."
+}

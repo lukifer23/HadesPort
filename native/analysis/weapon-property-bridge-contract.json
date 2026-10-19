@@ -1,0 +1,426 @@
+{
+  "schema": "hades-weapon-property-bridge-v1",
+  "target_dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+  "pdb_age": 1,
+  "evidence": [
+    {
+      "path": "hades/.local/reports/native-player-action-set-weapon-property.json",
+      "sha256": "ae8ab65129f58448f067bf8c7147fd476388b2fe7a992ead1fc3693201f42914",
+      "procedure": {
+        "kind": "procedure",
+        "length": 1250,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptAction.obj",
+        "name": "sgg::ScriptAction::SetWeaponProperty",
+        "rva": 2562880,
+        "type_index": 176948
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly",
+      "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": "hades/.local/reports/native-player-action-get-weapon-data.json",
+      "sha256": "1f51bf583ee8637120028a9e6580d78583cd5a4803f0e333dba6f5af226b9c98",
+      "procedure": {
+        "kind": "procedure",
+        "length": 791,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptAction.obj",
+        "name": "sgg::ScriptAction::GetWeaponDataValue",
+        "rva": 2522112,
+        "type_index": 176968
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly",
+      "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": "hades/.local/reports/native-player-action-get-weapon-state.json",
+      "sha256": "9daf38105942c8cc6f9f5b32563e3baeba762bc95e6143133813d561999d6d7a",
+      "procedure": {
+        "kind": "procedure",
+        "length": 711,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptAction.obj",
+        "name": "sgg::ScriptAction::GetWeaponProperty",
+        "rva": 2518224,
+        "type_index": 176968
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly",
+      "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": "hades/.local/reports/native-player-selector-destination-ids.json",
+      "sha256": "9656fc3d169b5ddee618ecebb21f58d613c2e5fc4785dbeca0e06c71134e94ec",
+      "procedure": {
+        "kind": "procedure",
+        "length": 221,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptArgs.obj",
+        "name": "sgg::ScriptArgs::DestinationIDs",
+        "rva": 2628320,
+        "type_index": 59163
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly",
+      "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": "hades/.local/reports/native-player-selector-destination-names.json",
+      "sha256": "dbe49a8148214aa2fb3ddee35a20602ca91a6d3531c4ff0e8ffefb8f6d3d5938",
+      "procedure": {
+        "kind": "procedure",
+        "length": 265,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptArgs.obj",
+        "name": "sgg::ScriptArgs::DestinationNames",
+        "rva": 2628048,
+        "type_index": 59164
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly",
+      "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": "hades/.local/reports/native-player-selector-ids.json",
+      "sha256": "fea9efeaa0b4ae130425400fc304273411b608d73af178c59634e8b06265d339",
+      "procedure": {
+        "kind": "procedure",
+        "length": 221,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptArgs.obj",
+        "name": "sgg::ScriptArgs::Ids",
+        "rva": 2627824,
+        "type_index": 59163
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly",
+      "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": "hades/.local/reports/native-player-selector-names.json",
+      "sha256": "dd07b8359549fc35742c0df0869d04b98cee76927383734985e6dee2b302144d",
+      "procedure": {
+        "kind": "procedure",
+        "length": 249,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptArgs.obj",
+        "name": "sgg::ScriptArgs::Names",
+        "rva": 2627568,
+        "type_index": 59158
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly",
+      "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": "hades/.local/reports/native-player-weapon-reflection-set-data.json",
+      "sha256": "e88a445faadf18aa624caee582924e598f05a20f64902341121287e3c78de3b4",
+      "procedure": {
+        "kind": "procedure",
+        "length": 2276,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Weapon.obj",
+        "name": "sgg::ReflectionHelper::SetProperty<sgg::WeaponData>",
+        "rva": 568144,
+        "type_index": 96423
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly",
+      "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": "hades/.local/reports/native-player-property-change-type.json",
+      "sha256": "7b73a03be7d29b96227c758487ae2d7bbe1e3f50b34b62d9689490244cfe142a",
+      "procedure": {
+        "kind": "procedure",
+        "length": 435,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ReflectionHelper.obj",
+        "name": "sgg::ReflectionHelper::ParseEnum<enum sgg::ReflectionHelper::ValueChangeType>",
+        "rva": 2109488,
+        "type_index": 89816
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly",
+      "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": "hades/.local/reports/native-player-property-set-value.json",
+      "sha256": "c644e6fc1d9b50ef5529b5e2dbe11ac823b1a751128057b4cd10d5440499e145",
+      "procedure": {
+        "kind": "procedure",
+        "length": 1788,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ReflectionHelper.obj",
+        "name": "sgg::ReflectionHelper::SetPropertyValue",
+        "rva": 2107696,
+        "type_index": 61618
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly",
+      "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": "hades/.local/reports/native-player-property-convert-float.json",
+      "sha256": "c4d16141f3b791614b78b6bc0816873a1e5cd7fadb26add7860d88ee6251b109",
+      "procedure": {
+        "kind": "procedure",
+        "length": 251,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ReflectionHelper.obj",
+        "name": "sgg::ReflectionHelper::ConvertAnyToFloat",
+        "rva": 2105568,
+        "type_index": 61611
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly",
+      "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": "hades/.local/reports/native-player-property-convert-int.json",
+      "sha256": "9c4131dfab22023d43925809e56e9376b437aa5798f362e92a61db475800b222",
+      "procedure": {
+        "kind": "procedure",
+        "length": 238,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ReflectionHelper.obj",
+        "name": "sgg::ReflectionHelper::ConvertAnyToInt",
+        "rva": 2106080,
+        "type_index": 61612
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly",
+      "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": "hades/.local/reports/native-player-property-base-multiply.json",
+      "sha256": "8c35ab658488598beb4f46831b79bb1681d519a349f887d8cc8a0bd06cfa1025",
+      "procedure": {
+        "kind": "procedure",
+        "length": 851,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\GameDataManager.obj",
+        "name": "sgg::GameDataManager::GetMultipliedBaseDataValue",
+        "rva": 765776,
+        "type_index": 54753
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly",
+      "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": "hades/.local/reports/native-player-property-live-info.json",
+      "sha256": "febf3defdc44a87f0985dffd1964b261e39e5b1f9f633a84002629b020e1fad2",
+      "procedure": {
+        "kind": "procedure",
+        "length": 1845,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Weapon.obj",
+        "name": "sgg::ReflectionHelper::GetPropertyInfo<sgg::Weapon>",
+        "rva": 566144,
+        "type_index": 75515
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly",
+      "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": "hades/.local/reports/native-player-property-live-set.json",
+      "sha256": "94f7c0d67e3ef7089efbe6a7937ac8b1f8244ef4f59ddd542df50175527cf2a6",
+      "procedure": {
+        "kind": "procedure",
+        "length": 2092,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptAction.obj",
+        "name": "sgg::ReflectionHelper::SetProperty<sgg::Weapon>",
+        "rva": 2622224,
+        "type_index": 176995
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly",
+      "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": "hades/.local/reports/native-player-action-set-effect-property.json",
+      "sha256": "b920f5b18fd784c7ce2a0fb93389483b3d54bf44a97ee056fdabc9d4579e8588",
+      "procedure": {
+        "kind": "procedure",
+        "length": 957,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptAction.obj",
+        "name": "sgg::ScriptAction::SetEffectProperty",
+        "rva": 2565536,
+        "type_index": 176948
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly",
+      "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": "hades/.local/reports/native-player-action-get-effect-data.json",
+      "sha256": "bd1b987801072d1d9bdc0cc38a5f2caadb9fa293cb5aded2769756939afea3a4",
+      "procedure": {
+        "kind": "procedure",
+        "length": 416,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptAction.obj",
+        "name": "sgg::ScriptAction::GetEffectDataValue",
+        "rva": 2522912,
+        "type_index": 176968
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly",
+      "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    }
+  ],
+  "actions": {
+    "SetWeaponProperty": {
+      "rva": "0x271b40",
+      "selector_keys": {
+        "ids": [
+          "DestinationIds",
+          "DestinationId"
+        ],
+        "names": [
+          "DestinationNames",
+          "DestinationName"
+        ],
+        "precedence": "plural key present overrides singular key"
+      },
+      "fields": {
+        "WeaponName": {
+          "default": ""
+        },
+        "Property": {
+          "default": ""
+        },
+        "ValueChangeType": {
+          "default": "Absolute"
+        },
+        "DataValue": {
+          "default": true
+        },
+        "Value": {
+          "default": "empty eastl::any"
+        }
+      },
+      "target": "World.GetActiveMapThings -> native Unit mask0x221 -> owned WeaponName; skip unmatched/missing targets",
+      "data_true": "per-owned-weapon copied WeaponData; literal const-char* Value exactly null becomes empty any",
+      "data_false": "live Weapon reflection; rereads original Value, so literal null is NOT normalized",
+      "EffectName": "not read; belongs to separate SetEffectProperty",
+      "side_effects": {
+        "MaxAmmo": "sets current Ammo to modified MaxAmmo",
+        "ClipSize": "sets current ClipShotsRemaining to modified ClipSize",
+        "controls": "refreshes four control pointers, does not modify controllable-vector membership",
+        "other_fields": "no automatic timer reset or PostRead/frame reprocessing"
+      }
+    },
+    "GetWeaponDataValue": {
+      "rva": "0x267c00",
+      "selector_keys": {
+        "ids": [
+          "Ids",
+          "Id"
+        ],
+        "names": [
+          "Names",
+          "Name"
+        ]
+      },
+      "fields": [
+        "WeaponName",
+        "Property"
+      ],
+      "target": "actual active Units and owned weapon; first qualifying native selection entry only",
+      "missing": "Lua nil",
+      "property": "per-instance WeaponData reflection"
+    },
+    "GetWeaponProperty": {
+      "rva": "0x266cd0",
+      "selector_keys": {
+        "ids": [
+          "Ids",
+          "Id"
+        ],
+        "names": [
+          "Names",
+          "Name"
+        ]
+      },
+      "fields": [
+        "WeaponName",
+        "Property"
+      ],
+      "target": "same first qualifying live unit/weapon selection",
+      "missing": "Lua nil",
+      "property": "live Weapon reflection"
+    },
+    "SetEffectProperty": {
+      "rva": "0x2725b0",
+      "selector_keys": {
+        "ids": [
+          "DestinationIds",
+          "DestinationId"
+        ],
+        "names": [
+          "DestinationNames",
+          "DestinationName"
+        ]
+      },
+      "fields": [
+        "WeaponName",
+        "EffectName",
+        "Property",
+        "Value",
+        "ValueChangeType"
+      ],
+      "target": "owned weapon selected through active Unit",
+      "normalization": "literal null -> empty any",
+      "delegate": "Weapon.SetEffectProperty; complete effect mutation not implemented in weapon module"
+    },
+    "GetEffectDataValue": {
+      "rva": "0x267f20",
+      "fields": [
+        "WeaponName",
+        "EffectName",
+        "Property"
+      ],
+      "target": "GLOBAL source GameData WeaponName lookup, WeaponData.GetEffectData(EffectName); if absent, source weapon Projectile lookup then first projectile effect same name",
+      "not_used": [
+        "Id",
+        "Ids",
+        "DestinationId",
+        "DataValue"
+      ],
+      "missing": "Lua nil"
+    }
+  },
+  "value_change": {
+    "enum": {
+      "Absolute": 0,
+      "Multiply": 1,
+      "MultiplyBase": 2,
+      "Add": 3,
+      "ReplaceIfNull": 4
+    },
+    "parse": "native parser can be case-insensitive; unknown spelling falls back Absolute0",
+    "float32": {
+      "Absolute": "round source numeric to float32; missing any ->0",
+      "Multiply": "float32(current*ConvertAnyToFloat(value))",
+      "Add": "float32(current+ConvertAnyToFloat(value))",
+      "ReplaceIfNull": "native returns false, unchanged"
+    },
+    "int32": {
+      "Absolute": "source floating numeric truncated toward zero; missing ->0",
+      "Multiply": "roundf(float32(current)*ConvertAnyToFloat(value)), ties away from zero",
+      "Add": "current+ConvertAnyToInt(value), conversion truncates float/double toward zero",
+      "ReplaceIfNull": "native returns false, unchanged"
+    },
+    "bool": "bool any or const-char*/string case-insensitive true/false; other strings become false; numeric/missing any unsupported unchanged",
+    "string": "empty any clears string; existing text replaces it irrespective relative mode except MultiplyBase special path",
+    "numeric_wrong_type_relative": "ConvertAnyToFloat/Int returns0 for nonnumeric/missing values",
+    "MultiplyBase_weapon_numeric": "WeaponData mode resolves base Weapon by name, shared helper reflects NON-PROJECTILE base through generic GameData info ONLY(Name,Organization,InheritFrom). Numeric WeaponData property not found => empty delta => recursive Add0. Do not use source catalog numeric base!",
+    "safety_boundary": "portable module rejects nonfinite/overflow and unrepresented complex types; native may assert or overflow"
+  },
+  "portable_api": {
+    "method": "WeaponArsenal::setScriptProperty(weapon,property,optional<WeaponScalar>,WeaponValueChange,bool dataValue,string& error)",
+    "old_api": "setProperty remains strict typed low-level setter",
+    "supported_live_fields": [
+      "Ammo",
+      "Volley",
+      "ClipShotsRemaining",
+      "Charging",
+      "ReloadPaused",
+      "ChargeTimeRemaining",
+      "CooldownTimeRemaining",
+      "ReloadTimeRemaining",
+      "NextClipRegenTime",
+      "LastFireTime",
+      "Scatter"
+    ],
+    "unsupported": [
+      "complex fields",
+      "weapon subtype mutation",
+      "Projectile copy mutation",
+      "unrepresented live fields",
+      "live MultiplyBase category",
+      "effect execution"
+    ]
+  },
+  "ordering_limits": [
+    "Native active-map selection uses pointer/hash containers; exact enumeration is not reconstructed. Parent must document its deterministic live selection order.",
+    "No metadata query proxy qualifies as a native live unit.",
+    "A getter stops on first qualifying weapon even if property lookup fails; do not continue to find another owner property."
+  ],
+  "checks": "focused actual-source ASAN/UBSAN harness covers per-instance changes, bool strings, literal-null asymmetry, integer absolute truncation/multiply roundf/add truncation, numeric MultiplyBase empty-base behavior, live writes and rejected-value rollback; no original binary execution."
+}

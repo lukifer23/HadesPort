@@ -1,0 +1,211 @@
+{
+  "schema": "hades-audio-swap-owner-lifetime-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "method": "Retained original PE instructions joined to matching PDB symbols. No original executable or DLL execution. Portable host mixer evidence is explicitly separate.",
+  "source_reports": {
+    ".local/reports/native-audio-swap-sound-static.json": {
+      "sha256": "75c6ddee1e22c8cd05499a9f91958224114379d00983d110107bb0929a95c40e",
+      "procedure": {
+        "kind": "procedure",
+        "length": 419,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\ScriptAction.obj",
+        "name": "sgg::ScriptAction::SwapSound",
+        "rva": 2477264,
+        "type_index": 176948
+      }
+    },
+    ".local/reports/native-audio-swap-map-insert-static.json": {
+      "sha256": "4f6bd5a4ef5c76823d9f1938f668fff37cd520d4d7d4d76a5b65385ff727c474",
+      "procedure": {
+        "kind": "procedure",
+        "length": 622,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\AudioManager.obj",
+        "name": "eastl::hashtable<eastl::basic_string<char,eastl::allocator_forge>,eastl::pair<eastl::basic_string<char,eastl::allocator_forge> const ,sgg::SoundCue>,eastl::allocator_forge,eastl::use_first<eastl::pair<eastl::basic_string<char,eastl::allocator_forge> const ,sgg::SoundCue> >,eastl::equal_to<eastl::basic_string<char,eastl::allocator_forge> >,eastl::hash<eastl::basic_string<char,eastl::allocator_forge> >,eastl::mod_range_hashing,eastl::default_ranged_hash,eastl::prime_rehash_policy,0,1,1>::DoInsertKey",
+        "rva": 331776,
+        "type_index": 69857
+      }
+    },
+    ".local/reports/native-audio-swap-consumer-static.json": {
+      "sha256": "d0b3eab549a8e5cdbd7f44fceb3234563cd028d40faf12819de10ce56ac369bc",
+      "procedure": {
+        "kind": "procedure",
+        "length": 173,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\AudioManager.obj",
+        "name": "sgg::AudioManager::Play2D",
+        "rva": 302224,
+        "type_index": 61671
+      }
+    },
+    ".local/reports/native-audio-swap-consumer-49d40-static.json": {
+      "sha256": "71cb3cb9a5c1a06a604f2af616afa690be3e901e5e8bc395e178c09b15d68503",
+      "procedure": {
+        "kind": "procedure",
+        "length": 348,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\AudioManager.obj",
+        "name": "sgg::AudioManager::Play3D",
+        "rva": 302400,
+        "type_index": 61675
+      }
+    },
+    ".local/reports/native-audio-swap-consumer-49ea0-static.json": {
+      "sha256": "cbd201c86072c8ae400e868b6cf23c179cc9ec6fdcc6f4521d56d87aead2c83e",
+      "procedure": {
+        "kind": "procedure",
+        "length": 292,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\AudioManager.obj",
+        "name": "sgg::AudioManager::Play3D",
+        "rva": 302752,
+        "type_index": 61673
+      }
+    },
+    ".local/reports/native-audio-owner-death-static.json": {
+      "sha256": "49c568a1d5beaa48a04212ca598fc74e01d288c1b6163def0b58c7fe046acabc",
+      "procedure": {
+        "kind": "procedure",
+        "length": 196,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\AudioManager.obj",
+        "name": "sgg::AudioManager::OnOwnerDeath",
+        "rva": 308288,
+        "type_index": 61693
+      }
+    },
+    ".local/reports/native-audio-stop-ambient-static.json": {
+      "sha256": "e25785b61ed0c0499eb8227de6600b224ecf770d0509f8edac014221aa513c9d",
+      "procedure": {
+        "kind": "procedure",
+        "length": 90,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Thing.obj",
+        "name": "sgg::Thing::StopAmbientSound",
+        "rva": 2998512,
+        "type_index": 55116
+      }
+    },
+    ".local/reports/native-audio-play-ambient-static.json": {
+      "sha256": "db0a62fc62ca4fa6f85202f3e1ec880f6f77b296cea70bdcc073302518930c97",
+      "procedure": {
+        "kind": "procedure",
+        "length": 133,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Thing.obj",
+        "name": "sgg::Thing::PlayAmbientSound",
+        "rva": 2998608,
+        "type_index": 55119
+      }
+    },
+    ".local/reports/native-audio-thing-defaults-static.json": {
+      "sha256": "949dc5b07f83a4a46f027ba38d0fa877ad95dd191fce9cafbf08abafdb3c3c51",
+      "procedure": {
+        "kind": "procedure",
+        "length": 739,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Thing.obj",
+        "name": "sgg::Thing::Defaults",
+        "rva": 2997168,
+        "type_index": 55116
+      }
+    },
+    ".local/reports/native-audio-source-location-static.json": {
+      "sha256": "7243e4acbd2d134eb39452d7a4b98179ebff74f8ac27a84289590a7cea755ac8",
+      "procedure": {
+        "kind": "procedure",
+        "length": 197,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\AudioChannel3D.obj",
+        "name": "sgg::AudioChannel3D::GetSourceLocation",
+        "rva": 257552,
+        "type_index": 66843
+      }
+    },
+    ".local/reports/native-audio-channel3d-update-static.json": {
+      "sha256": "eef88f460f3503414f25f82f0ff87cb4829aa736e38c25034f1ff72514074ce9",
+      "procedure": {
+        "kind": "procedure",
+        "length": 203,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\AudioChannel3D.obj",
+        "name": "sgg::AudioChannel3D::Update",
+        "rva": 257840,
+        "type_index": 66844
+      }
+    },
+    ".local/reports/native-audio-channel3d-attributes-static.json": {
+      "sha256": "5f671caf6960043e98a9bb5837dc7d8639383ae1206d14e5ec5a9c55d0a45c97",
+      "procedure": {
+        "kind": "procedure",
+        "length": 160,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\AudioChannel3D.obj",
+        "name": "sgg::AudioChannel3D::Set3DAttributes",
+        "rva": 258048,
+        "type_index": 66845
+      }
+    }
+  },
+  "observed": {
+    "SwapSound": {
+      "action_rva": "0x25ccd0",
+      "arguments": "First Names() entry and first DestinationNames() entry; source keys Names/Name and DestinationNames/DestinationName. No iteration over remaining entries. Original empty vector indexing is not a supported portable input.",
+      "behavior": "Resolve destination through SoundCueManager.GetSoundCue, copy owner/name/valid descriptor into static source-name keyed map. Source key is exact/case sensitive and not normalized by this action. This is replacement for future admissions; no live channel search or stop. Destination GetSoundCue does not consult swaps.",
+      "consumers": [
+        "Play2D0x49c90 consults exactly once immediately before Create2D",
+        "Play3D owner0x49d40 and location0x49ea0 consult once after their existing admission gates and before Create3D"
+      ],
+      "delayed_path": "ScriptAction.PlaySound Delay>0 calls CreateCue3D0x4a510 then queues Play(channel). It bypasses Play2D/Play3D replacement; existing delayed channel retains its admitted descriptor.",
+      "snapshot": "A->B followed by B->C produces B for A; replacing A later leaves already admitted channels unchanged."
+    },
+    "OnOwnerDeath": {
+      "rva": "0x4b440",
+      "order": "Thing disposal StopAmbientSound precedes AudioManager.OnOwnerDeath, before actor deregistration.",
+      "filter": "Visit AudioManager channel vector; spatial flag channel+8 true and actual Thing pointer channel+70 equals disposed Thing.",
+      "effect": "Read GetSourceLocation while owner still exists, clear owner pointer+70, retain final XY at channel+68. No stop, fade, volume or channel release. All matching channels, including admitted/unstarted channels, are detached."
+    },
+    "SourceLocation": {
+      "rva": "0x3ee10",
+      "world": "Parent attachment world location plus Thing offset when parent entity alive; otherwise own body XY.",
+      "screen": "Thing.UseScreenLocation converts XY using Camera inverse zoom plus Camera position.",
+      "attributes": "Set3DAttributes0x3f000 writes source world XY to FMOD position x,0,-y. Raw Thing Z does not participate."
+    },
+    "StopAmbientSound": {
+      "rva": "0x2dc0f0",
+      "state": "Thing.mAmbientSoundId full+0x224, source Thing.Defaults initializes0 atVA1802dbd69.",
+      "effect": "ZeroID or unavailable channel is no-op; matching allocated channel receives FMOD stop mode0/allow-fadeout. Original function does not reset stored ID.",
+      "admission": "Thing.PlayAmbientSound2dc150 requires actual ThingData.AmbientSound.valid full+71; existing ID is stopped immediately; copy actual cue and owner PlayCue3DWithCap4a770 cap0, store actual returned ID at Thing+224."
+    }
+  },
+  "implemented": {
+    "files": [
+      "native/app/audio_world.hpp",
+      "native/app/audio_world.cpp",
+      "native/app/lua_audio.cpp",
+      "native/app/lua_speech.cpp",
+      "native/app/speech_world.cpp",
+      "native/app/actor_runtime.hpp"
+    ],
+    "api": [
+      "AudioWorld.swapCue(from,destination,error)",
+      "AudioWorld.createCue(name,source,id,error,applySwaps=false)",
+      "AudioWorld.attachedChannels()/ownedChannels(owner,lifetime)",
+      "AudioWorld.detachOwner(owner,lifetime,finalX,finalY,error)",
+      "ScriptRuntime.audioAction mode6 for SwapSound",
+      "ScriptRuntime.audioOwnerDeath(id,error)",
+      "ScriptRuntime.stopActorAmbientSound(id,error)"
+    ],
+    "ownership": "Spatial AudioSource retains actor ID plus generation/lifetime; advanceAudio refreshes actual owner worldXY. Disposal helper requires registered actor, detaches matching generation only. Location-only audio has no owner and is unaffected. 2D listener-owner audio has no spatial owner.",
+    "ambient": "ActorComponents.ambientSoundId is actual channel storage initialized0. Helper consumes this real state; caller must populate only with actual successful original ambient admission. PlayAmbientSound action/initialization is not implemented by this change."
+  },
+  "verification": {
+    "host": ".local/reports/native-audio-swap-owner-lifetime-final-v1.log",
+    "kind": "Actual reconstructed host mixer linked to pinned decoder and original compressed streams, ASan+UBSan; no hardware playback.",
+    "checks": [
+      "One-pass descriptor snapshot replacement",
+      "Direct delayed/Create path bypass",
+      "Existing channel unchanged after later replacement",
+      "Invalid destination returns0 without allocating",
+      "Owner generation mismatch does not detach",
+      "Actual owner death freeze XY clears reference while remaining spatial",
+      "Detached original sound renders nonzero PCM",
+      "Ambient/channel stop remains separate from detachment"
+    ]
+  },
+  "limits": [
+    "Spatial screen Thing source conversion is an explicit error until real Camera transform provider is wired. Selected world owners use actual reconstructed world positions.",
+    "Proprietary FMOD DSP and playlist randomness are portable adaptations documented in audio event/mixer contracts.",
+    "Whole-map ambient admission coverage and speech-component disposal are separate obligations; these helpers do not claim them complete.",
+    "FMOD ALLOWFADEOUT source mode is preserved at the control seam; current portable event renderer stops on either stop mode. Proprietary event release tails are not reconstructed."
+  ]
+}

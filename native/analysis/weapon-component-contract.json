@@ -1,0 +1,110 @@
+{
+  "schema": "hades-staged-weapon-component-contract-v1",
+  "scope": "Pure per-unit component state before world activation; original EquipWeapon live-unit bridge remains outside and blocked.",
+  "files": {
+    "native/app/weapon_runtime.hpp": "16d0cd4bce00ea6068667866e617cec76f5f0d2cb7b5ea278d7d5cb2594bcc0a",
+    "native/app/weapon_runtime.cpp": "b993f30f47e14f2a602bac21799bfe68e793a4bc7221c8a88ff27e52a6bc7da7",
+    "native/analysis/weapon_component_smoke.cpp": "322fb430fdc7f6084002126ca08ddb63a40b89c989c3bc68edabe2ba0ce5257a"
+  },
+  "api": {
+    "namespace": "hades",
+    "owner": "WeaponArsenal(int32_t ownerId,std::string ownerName); validates positive intended Thing/map ID and original typed-unit data name. Owner is an explicitly staged component, not original entity handle/live actor.",
+    "equip": "bool equip(const WeaponDefinition&,std::string&error); copies supported original definition into actual per-owner state, duplicate name idempotent before revalidation. Transactional unsupported branch rejection.",
+    "snapshot": "vector<WeaponSnapshot> snapshot()const; owned deep value copies.",
+    "dump": "Explicit staged_component/live_unit=false/world_registered=false/fire_supported=false.",
+    "ammo": "hasAmmo and spendAmmo only reachable for proven original -1 nondepleting sentinel. Finite depletion/OnOutOfAmmo not implemented."
+  },
+  "supported_initialization": {
+    "name": "ArmorBreakAttack",
+    "type": "GUN0",
+    "projectile": "literal string null; no source projectile named null; both validity flagsfalse",
+    "controls": "All4empty; controllablefalse",
+    "bundled": "All7empty; no recursive dependencies",
+    "ammo": -1,
+    "clip": 0,
+    "timers": "Charge/cooldown/reload/clipregen/lastfire/scatter all0; chargingfalse",
+    "effect": "One ArmorBreakStun normalized entry, TypeUNKNOWN12,TriggerFire1. Effect executionunsupported; other defaults retained as unknown names.",
+    "effect_normalization_contract": "native/analysis/weapon-effect-normalization-contract.json",
+    "effect_normalization_sha256": "70a09fae5fa0a3881bdd807da81f88dce2ffd96b228c4c73ac1fdeabf28ec8f9",
+    "unknowns": "Original unknown complex defaults remain in definition.unresolvedFields; this DTO is not a full WeaponData memory image.",
+    "rejected": "Other names/types, real projectile data, nonempty controls/bundles, finite ammo, nonzero clip/timers, creation/equip reload, unresolved/different effect container/type/trigger."
+  },
+  "native_proof": {
+    "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1,
+    "defaults": "native/analysis/weapon-defaults-contract.json",
+    "unit_constructor": {
+      "report": ".local/reports/native-weapon-owner-unit-constructor.json",
+      "observed": "Fresh Unit ctor clears mArsenal.pOwner and weapon vectors (VA0x1802f0c79..c95). Component requires explicit owner binding rather than claiming constructor itself activates unit."
+    },
+    "unit_init": {
+      "report": ".local/reports/native-weapon-owner-unit-init.json",
+      "observed": "After common Thing/Life/AI setup, non-hotload Unit.Init assigns mArsenal.pOwner=this atVA0x1802f1217, clears vector endpoints, creates/adds up to7 original UnitData weapon names VA0x1802f1234..0x1802f12f0. This occurs before managerAdd/OnSpawn."
+    },
+    "unit_add": {
+      "report": ".local/reports/native-rea-unit-add-creation.json",
+      "evidence_id": "ev_51ff5b5b6c69959e7fbbe27351bed1607197c6e486a62428f79b3b3d87ae6023",
+      "observed": "UnitManager.Add VA0x1802f9380 registers manager lookups, sets location, iterates preexisting arsenal weapons (unit+0x430/438) handling ReloadOnCreation, then World.Add VA0x1802f9510 and OnSpawn VA0x1802f9524."
+    },
+    "init_cancel_charge": {
+      "report": ".local/reports/native-weapon-cancel-charge.json",
+      "observed": "Weapon.init calls cancelChargeOnUnit VA0x180088bfc. Helper sets ChargeTimeRemaining=ChargeTime atVA0x1800859b1; with fresh Chargingfalse, guardVA0x1800859cf/d3 returnsbeforeowner/control/animation/audio/effect sideeffects. Supports pure first-branch initialization without active UnitManager lookup."
+    },
+    "effect_helper_evidence": "ev_5a2ea3b119144699ae17b19edbe3790d73126e68a9c9bcf6e039a9bd7cbef5c5",
+    "effect_serializer_evidence": "ev_295f3c04c5424ad145a8b4f5b4f27bb3aea079c45782a85842b7a61fd9f263f8"
+  },
+  "phase_contract": {
+    "legitimate": "Create a typed staged unit-component owner from verified original unit definition/map identity; attach independent Arsenal without modifying ObjectSnapshot alive/active/queryProxy, world/group managers or dispatching callbacks.",
+    "normal_lua_action": "Native EquipWeapon selects World.GetActiveMapThings and checks Unit type flags before accessing Arsenal. Metadata/query proxies must not satisfy this normal selection. Pure component method is not the Lua/native action.",
+    "diagnostic_replay": "If original OnAnyLoad diagnostic replay targets a staged component, enable explicitly within diagnostic-only bridge; record source-proxy -> staged-owner association, leave normal action blocked and gameplay/worldReadyfalse.",
+    "temporal_limit": "Original ArmorBreakAttack Lua equip occurs during SetupHeroObject/GatherAndEquipWeapons AFTERnativeWorld.Start begins OnAnyLoad. Component can be initialized earlier for preparation/debugging, but that is not original callback timing.",
+    "promotion_limit": "Do not carry diagnostic equipment/Lua mutations into a later claimed real boot. Native Unit.Init resets arsenal and adds its initial definition weapons; genuine activation must initialize fresh actors once, then replay actual lifecycle in order."
+  },
+  "activation_audit": {
+    "implemented_now": "Original scripts/precreation, source-backed map creation plan and isolated component state. Current loadMapObjects retains metadata with alivefalse; probeLoadCallbacks explicitly injects queryProxy records and replays OnAnyLoad without OnSpawn/World.Start.",
+    "before_real_OnSpawn": [
+      "Create actual typed Thing/Unit/Obstacle with lifetime/generation and correct manager handle/ID domains; original map ID alone is insufficient.",
+      "Apply fresh Defaults, resolved UnitData/ObstacleData, common Thing.Init, body, physics, life/status and conditional component initialization. Geometry export solves only selected static polygon transforms, not complete PhysicsComponent/world registration.",
+      "For units: complete Unit.Init, owner/data identity, default7weapon handling, status/AI/goal-angle and RNG branches; establish actual player association/SpawnedBy for exact unit trigger args.",
+      "Follow managerAdd ordering: manager lookups/location/preexisting weapon reload, World.Add, then OnSpawn with recovered caller boolean and Thing.TriggerOnSpawn. Unit caller boolean/player setup remains incompletely traced across original creation paths.",
+      "Implement actor-source trigger matching by IDs/groups/virtual name/category; supply original triggeredById/TriggeredByTable, NeedsLuaInitialization, name, and unit-only SpawnedById/PlayerIndex when pPlayer exists. Existing map-name dispatcher is insufficient.",
+      "Preserve child creation ordering: childCreate/OnSpawn before structural AddChild/OnParentAdded and its grandchildren; do not bulk preregister the entire map before callbacks."
+    ],
+    "before_real_World_Start": [
+      "Finish eligible map creation and dynamic callback sideeffects in native GroupManager top-level traversal; exact top-level hash/allocation order remains unresolved. Ordered child DFS is recovered.",
+      "Preserve original RNG state/order, inactive/range registrations and native manager/group visibility. The creation plan and all-map proxies are not activation.",
+      "Cache required animation assets, then execute World.Start -> Map.Begin; OnAnyLoad before OnLoad with exact map-name filters and actual active-world query state.",
+      "Retain failures/coroutine semantics; successful initial coroutine resume is not completion of asynchronous work or a complete playable room. Android platform policies may replace Windows controller/error UI without pretending native platform code ran."
+    ],
+    "smallest_next_actor_slice": "A typed component construction store plus independent Arsenal is implementable now. Do not label it a fully initialized Unit or invoke OnSpawn. Incremental real actor admission should fail at the first unsupported required component/API instead of fabricating life/physics/AI defaults."
+  },
+  "validation": {
+    "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)",
+    "command": "clang++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -g -I hades/native/app hades/native/app/weapon_runtime.cpp hades/native/analysis/weapon_component_smoke.cpp -o hades/.local/reports/native-weapon-component-smoke",
+    "run": "hades/.local/reports/native-weapon-component-smoke > hades/.local/reports/native-weapon-component-smoke.log",
+    "exit_code": 0,
+    "log_sha256": "133590b3f75b7152b1050a2e35cf9ae693349f4cbcd16dbd2006667d79cc633a",
+    "checks": [
+      "Exact original first ammo/timer/control/projectile state",
+      "Duplicate before revalidation does not replace/reinitialize",
+      "Independent owner and source/snapshot value copies",
+      "-1 nondepleting ammo/missing weapon errors",
+      "Control/projectile/reload/nonfinite/unresolvedeffect rejected without state mutation"
+    ],
+    "asan_ubsan_clean": true
+  },
+  "boundaries": [
+    "No Lua/app/build/CMake integration edits by this worker.",
+    "No firing/projectile/effect/animation/audio/unit activation implementation.",
+    "No emulator/device operations.",
+    "No new REA/Ghidra sessions; reused retained REA evidence and PDB-bounded native reports."
+  ],
+  "integration_followup": {
+    "report": ".local/reports/native-unit-arsenal-pass.json",
+    "actual_source_catalog_debug": ".local/reports/native-weapon-source-catalog-debug.log",
+    "staged_units": 22,
+    "diagnostic_on_copy_only": true,
+    "normal_EquipWeapon_still_blocked": true
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "schema": "hades-primary-animation-properties-contract-v1",
+  "packet": {
+    "path": ".local/native-assets/hero-properties-v1/actor-properties.bin",
+    "bytes": 7492,
+    "sha256": "d07add54326c8d80c2bbbef256ab14a075fd4abf1f3220f97f29bc718cb8fce0"
+  },
+  "binding": {
+    "path": ".local/native-assets/hero-actions-v3/actor-animations.bin",
+    "bytes": 220277751,
+    "sha256": "3e8c4db297499b8485f63780ee08861206dc7a1ed1cbc745b39ab598ba65a567"
+  },
+  "format": "HAP1 + raw32 HAA SHA + u32 clipCount; per clip u32 knownMask/valueMask/slideCount; per slide u32 originalFrame1/u32 airborne(0 unknown,1 false,2 true). Property mask OwnerImmobile=1,BlockNewOwnerAnims=2.",
+  "API": [
+    "ActorAnimationBank::load canonical optional auto-load actor-properties.bin",
+    "loadProperties(store,filename,identityFilename) explicit alternate companion",
+    "exactOwnerImmobile(clip) -> optional<bool>",
+    "exactBlockNewOwnerAnims(clip) -> optional<bool>",
+    "exactAirborne(clip,slide) -> optional<bool>"
+  ],
+  "evidence": [
+    {
+      "path": ".local/reports/native-active-animation-data-ctor-static.json",
+      "bytes": 31333,
+      "sha256": "50386e8891b12647403a13217834ebaf1d3e0ce610100dd0bf6db5c034485f0d"
+    },
+    {
+      "path": ".local/reports/native-fields-AnimationDataDef.txt",
+      "bytes": 40025,
+      "sha256": "8694d388317a3b622ff2e5a37809d9aaed9ca41adc3c83757935ef8d8d9b02f3"
+    },
+    {
+      "path": ".local/reports/native-primary-slide-fields.json",
+      "bytes": 54416,
+      "sha256": "304cbc6f2d6e3d2e2641e782a55d3137e8c61be19c5361972f0b4d4e9d247272"
+    },
+    {
+      "path": ".local/reports/native-primary-slide-fill-default-static.json",
+      "bytes": 8675,
+      "sha256": "293b6bb617b32121bde651b513cf477cf2aa1dd2a95e906a76159bce827ddf63"
+    },
+    {
+      "path": ".local/reports/native-primary-slide-assign-static.json",
+      "bytes": 9716,
+      "sha256": "5887d6a395c8aace5ddfe62c5a67ca41a29201514d65481a1723cb9747ad4f13"
+    },
+    {
+      "path": ".local/reports/native-active-unit-airborne-static.json",
+      "bytes": 2772,
+      "sha256": "2af4201c5fef3ea2fb9c585581ec875088d7659fe0c66afed7cfd25606c98ae9"
+    }
+  ],
+  "native_defaults": {
+    "primary": "AnimationData ctor 180093d7a..180093d85 zeros template rsp+0x38 for 0x2e0 bytes; 180093eae selects template, 180093eba selects mDef+0x58; operator= call 1800940b5. No subsequent writes to full offsets 0x8e/0xb0.",
+    "slide": "SlideData fill 18009e3b0 zeros eax, 18009e492 zeros temporary rsp+0x50 (template+0x30); 18009e501 copies default via SlideDataDef::operator=. Assignment 1800e930a/e copies byte+0x30. PDB mAirborne offset48, SlideData.mDef offset0; stride0x110."
+  },
+  "source_files": [
+    {
+      "path": "native/app/actor_animation.hpp",
+      "bytes": 5172,
+      "sha256": "58f9f0d8bb92fe179e1b9c4fbf66d3d6ae50083b4f3b135b7fc993d8acb0bfa2"
+    },
+    {
+      "path": "native/app/actor_animation.cpp",
+      "bytes": 15265,
+      "sha256": "f4a688aea5fdac6c9bc6cf582c178732f9cad2b89ec4ba4966fcf5429ab02cb3"
+    },
+    {
+      "path": "native/tools/export_actor_properties.py",
+      "bytes": 6047,
+      "sha256": "276ee72114a29621dada9b86ae04a18ccad6a9f8f701233c8c8be2f741d27dd4"
+    },
+    {
+      "path": "native/analysis/actor_properties_smoke.cpp",
+      "bytes": 2015,
+      "sha256": "4a0315c05102e66dbfd9cc5b4597cde632a8ee240f380681b1b6ab90502d3ca7"
+    }
+  ],
+  "validation": {
+    "result": "passed",
+    "clips": 29,
+    "source_frame_bindings": 888,
+    "book_clips": 3,
+    "absent_companion_unknown_preserved": true,
+    "native_world_execution_observed": false
+  },
+  "arm64_compile": "NDK29 aarch64-linux-android26-clang++, C++20 -Wall -Wextra -Werror passed",
+  "unknown_semantics": "Missing HAP1 returns unknown for OwnerImmobile/BlockNewOwnerAnims/SlideData Airborne. Actual Book type IsAirborne alwaysfalse. No Z heuristic.",
+  "sessions": "No sessions opened; reused retained native evidence and bounded matching PDB/LLVM inspection."
+}

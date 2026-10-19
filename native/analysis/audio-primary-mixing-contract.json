@@ -1,0 +1,74 @@
+{
+  "schema": "hades-primary-audio-mixing-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "Read-only original PE/PDB and original bounded FEV metadata; no original FMOD execution. Rebuilt host source playback results are distinct.",
+  "reports": {
+    ".local/reports/native-audio-effect-state-execute-static.json": "21b05d7e3dca59cd9b8ad4945d49fabeba05242729cf297fa1c2aad3455c0b12",
+    ".local/reports/native-audio-load-mixing-snapshot-static.json": "f89762d061b763eaa767048457bb1d0757395499fe72f9629ad09dbb060efa3f",
+    ".local/reports/native-audio-load-mixing-param-static.json": "d8f0675cb340d057b2133e0078cfbe6d7f1448fe0b1b779e9ae2883e0acc4fbf",
+    ".local/reports/native-audio-control-primary-reverb-link-v1.json": "383e3760636e9dd5a2fc8350c9cf5c2d9c1b5f3e43d3accdf1a147c8525a40b4",
+    ".local/reports/native-audio-mixing-control-event-v1.json": "a61aafe3344659fb6dadb6e1748a163526b559665316848f3c965f706a5a10d1",
+    ".local/reports/native-audio-primary-reverb-snapshot-v1.json": "5bb6f2ecbffa5a4bd2a45096265cc97a7358f2cc2ac7d484fe47b8937913651f",
+    ".local/reports/native-audio-get-mixing-id-static.json": "f31b1222100ca19847b442a64297b7362fda264a45683fba92e99e480c7a7b28"
+  },
+  "native_chain": {
+    "LoadMixing": "47880 resolves actual /Control/MixingControl GUID8069e372-afe4-4d98-b4b8-2bd913804ec6, creates2D channel, calls Play and increments framecounter, retains channel+290 and EventInstance+2c8. Thus control consumes nextID1 before normal script audio in fresh source init.",
+    "initial_control_values": {
+      "Health": 1,
+      "Pause": 0,
+      "Reverb": 0,
+      "Glitch": 1,
+      "ControllerVoice": 0
+    },
+    "LoadMixingParam": "48190 reads currentparameter successfully, caches default, then EventInstance.setParameterByName override from source argument. Reverb0 differs from PRMB default-1.",
+    "SetAudioEffectState": "Inline ScriptAction.Execute252a06..252adf: float Value default0, all Names, EventInstance.setParameterByName on actual manager control instance, ignoreSeekSpeed=false. Not a Studio.System globalparameter call.",
+    "GetMixingId": "4b9c0 returns actual retained control channelID or0. No fabricated fixedID."
+  },
+  "source_control_event": {
+    "bank": "Sounds.bank",
+    "timeline_loop": "956332\u21920 point transition, unconditioned100percent, original namedmarker loop region length956332.",
+    "instrument": "Time0 EVIBf3bc062f-8a3a-496c-8c64-abb202812cb4 references actual Primary snapshot event38472610-ad7d-419b-b7d5-00f86e820ecd, intensity100. No original waveform streams in this control event; intended effect is real mixer control.",
+    "Reverb_link": "Identical local parameter GUID/name/range in parent and referenced Primary; no instrument override for Reverb property. Official linked-parameter semantics corroborate propagation.",
+    "documentation": [
+      "https://www.fmod.com/docs/tutorials/parameters.html#other-parameters",
+      "https://qa.fmod.com/t/accessing-an-event-inside-another-event/12001"
+    ]
+  },
+  "snapshot_layout": {
+    "SNAB": "GUID snapshot, i32priority, versioned fixed28B entries, boolblending,u32resolution,floatintensity.",
+    "entry": "u32propertyKey THEN GUIDtarget THEN u32targetIndex THEN floatbaseValue. Pinned reference FSnapshot.cs incorrectly places GUID first for retained target; corrected interpretation resolves all133 target GUIDs to original MasterBank bus/effect records.",
+    "property_join": "Controller.property_index interpreted u32 equals exact source snapshot propertyKey. PROP/CTRL/CURV/CTRO/MAP byte identities retained.",
+    "Reverb": "Exactly5 controls:2returnbus gains,1sendgain,2reverb type19 decay parameters. No guessed GUID hash mapping.",
+    "baseline": "133 source base entries,18 differ from MasterBank static bus/DSP fields. Fresh v16 overlays admitted UNCONTROLLED baselines plus five implemented Reverb targets only. Other controlled baselines remain explicit unresolved obligations; applying them without their controllers muted narrator in rejected private v15.",
+    "mapping": "Reverb output mapped through actual source MAP tables, including decay0\u2192100ms,.5\u2192300,1\u21921000,2\u21925000,3\u219220000. Curves store knobdomain values, not directly milliseconds."
+  },
+  "portable_api": [
+    "AudioWorld.initializeMixingControl(error)",
+    "AudioWorld.setMixingParameter(name,value,error)",
+    "AudioWorld.mixingControlId()/mixingTargets()",
+    "ScriptRuntime.audioAction mode7 SetAudioEffectState, mode8 GetMixingId"
+  ],
+  "implementation": [
+    "native/app/audio_world.cpp",
+    "native/app/lua_audio.cpp",
+    "native/tools/export_audio_events.py",
+    "native/analysis/audit_audio_snapshot.py"
+  ],
+  "adaptations": [
+    "Piecewise-linear source curve+MAP interpolation, not proprietary FMOD runtime interpolation proof. Selected Reverb source curves are type0/shape0; original method/type retained.",
+    "Existing Android four-comb reverb processor uses source mapped decay/wet/dry/send/routing; FMOD bitwise DSP parity not claimed.",
+    "Control event models selected Primary Reverb consumer and original loop/lifetime; other source snapshot controls are explicit unsupported obligations, not successful setters."
+  ],
+  "verification": {
+    "source_mixer": ".local/reports/native-audio-primary-mixing-source-v2.log",
+    "observed": "ASan+UBSan actual reconstructed host: controlID1,firstscriptcueID2,30secondsourceControl loop survives,all5targetschange,actual compressedWhoosh PCM changed; energyReverb2=4222.37 vsReverb0=1657.71. No hardware playback.",
+    "android": "AudioWorld+lua_audio NDK29 API26 -O2 -Wall/-Wextra/-Werror passed.",
+    "baseline_revision": "Fresh v16 bounded baseline ASan+UBSan speech, mixing/control loop and original stereo32k hero cue probes all passed; private logs native-audio-v16-{speech,mixing,hero32k}-v1.log. Rejected private v15 remains unstaged."
+  },
+  "limits": [
+    "Other known Primary parameters reject dynamic mutation until source consumer/combination semantics recovered;10of43 Primary properties combine2controllers.",
+    "Unknown actual control parameter names preserve original ignored missing-name status.",
+    "Protected control-channel arbitrary Stop/Volume operations and full native snapshot intensity blending remain outside selected script path.",
+    "Android actual AAudio output/performance is not established by host mixing probes."
+  ]
+}

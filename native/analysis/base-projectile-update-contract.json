@@ -1,0 +1,137 @@
+{
+ "schema": "hades-base-projectile-update-contract-v1",
+ "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+ "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+ "pdb_age": 1,
+ "implementation": [
+  "native/app/projectile_world.cpp ProjectileWorld::updateBase",
+  "native/app/projectile_collision.cpp detonate/updateDetonation/isInBlast/blastDone/prepareDeath/createStartFx/checkBaseProjectileDefense, CheckForImpact prelude",
+  "native/app/lua_projectiles.cpp OnProjectileDeath dispatch"
+ ],
+ "class_dispatch": {
+  "STRAIGHT": "no sgg::StraightProjectile vtable exists in the PDB; STRAIGHT uses sgg::Projectile vtable (RVA 0x5d8b30) -> base UpdateSelf6a720",
+  "ARC": "ArcProjectile::UpdateSelf621b0 unchanged (updateArc)",
+  "vtable_slots": {
+   "0x48": "Thing::UpdateAnimation2df5c0",
+   "0x80": "Projectile::SetLocation6ee90",
+   "0x180": "Projectile::Detonate6d670",
+   "0x1a0": "Projectile::OnDeath6f5c0",
+   "0x1a8": "Projectile::Move702d0 (Arc: ArcProjectile::Move)",
+   "0x1b0": "Projectile::CheckForImpact708b0 (shared by ARC)",
+   "0x1b8": "Projectile::CheckProjectileDefense72560 (Arc: 626e0)"
+  }
+ },
+ "evidence": {
+  "UpdateSelf6a720": {
+   "rea": "ev_39ca087fe952d42a4a9edf17b06ecf1e3bd8b289301a832729d9fd85f1dbf13a",
+   "llvm": ".local/reports/native-projectile-base-update-self-static.json"
+  },
+  "Detonate6d670": {
+   "rea": "ev_59bdd9864e1b701d332a893d661c09e17161e2f1a3e273017a1fec6df8e65f17",
+   "llvm": ".local/reports/native-projectile-detonate-static.json"
+  },
+  "UpdateDetonation71c10": {
+   "rea": "ev_09cc5ff36dcf1dde1a9f0bb02eda7113a5f89572d380f084485e8fb1d7b087f0",
+   "llvm": ".local/reports/native-projectile-update-detonation-static.json"
+  },
+  "IsInBlast760e0": {
+   "rea": "ev_7d91a586fee23ad7a787bb3353af37f94a3d25f7651d17766499bc015d2b8c45",
+   "llvm": ".local/reports/native-projectile-is-in-blast-static.json"
+  },
+  "IsBlastDone71bc0": {
+   "rea": "ev_21923b3a8098669751f51774f9a8e9d6ab82280db73516e926b7abc1f5727041",
+   "llvm": ".local/reports/native-projectile-is-blast-done-static.json"
+  },
+  "OnDeath6f5c0": {
+   "rea": "ev_c5fcabf5d99b33c1b6a9ef88badd9cd3e4dc218c8d807aaa59b04f03930fc38d",
+   "llvm": ".local/reports/native-projectile-on-death-static.json"
+  },
+  "CreateStartFx6f1a0": {
+   "rea": "ev_d703a4d595e885f9a4239cc783d38fba57654fe07ac52d963a69252340302d3e",
+   "llvm": ".local/reports/native-projectile-create-start-fx-static.json"
+  },
+  "ScriptManager::OnProjectileDeath289ed0": {
+   "rea": "ev_2a23247ab1563898f63625a98dbd6047f43e156a1e792943f9cffc73d56e28aa",
+   "llvm": ".local/reports/native-script-on-projectile-death-static.json"
+  },
+  "SpawnObject72c70": {
+   "rea": "ev_7b210497c4a5362e21cc26b1d9ce20625c9aaa856d4fcb1d18186f8b6bfbf4b0",
+   "fact": "returns immediately for empty name or mBlockSpawns"
+  },
+  "AnimationManager::Create29e410/CreateCustom29f870": {
+   "rea": [
+    "ev_cd0ad49427b32918f45c433e2400268f2668e0cc2f5be9661dc219ebd0b386b3",
+    "ev_d54907ba39738152b98ee521b48b0658d0f78b494d8693bce207b05f39caff1d"
+   ],
+   "fact": "empty name or literal 'null' returns null"
+  },
+  "CheckProjectileDefense72560": {
+   "llvm": ".local/reports/native-projectile-base-check-projectile-defense-static.json"
+  },
+  "CheckForImpact708b0": {
+   "llvm": ".local/reports/native-projectile-check-for-impact-static-v2.json"
+  },
+  "Unit::GetAirborneZ2f2930": {
+   "llvm": ".local/reports/native-unit-get-airborne-z-static.json"
+  },
+  "DebugDrawBlastRadius75e40": {
+   "llvm": ".local/reports/native-projectile-debug-draw-blast-radius-static.json",
+   "fact": "gated by ConfigOptions::DrawExtents VA181a0f0e8 (zero-initialized .bss)"
+  },
+  "pseudocode": [
+   ".local/reports/native-projectile-detonate-pseudocode.c",
+   ".local/reports/native-projectile-death-helpers-pseudocode.c"
+  ],
+  "offset_naming": "ProjectileData native offset = ProjectileDataDef offset + 0x50 (native-player-projectile-compiled-defaults-v2.json); Projectile members from native-arc-projectile-complete-layout.txt; Thing members from native-fields-Thing.txt"
+ },
+ "base_update_order": [
+  "VA6a77a flash timer = mLifeRemaining(+0x4ec) if < FLT_MAX else mFuseRemaining(+0x4f0); FlashBeforeExpireDuration(+0x494)>0 && >= timer -> Animation::Flash [fails if reached]",
+  "VA6a811 DieWithOwner(+0x718): owner absent or !IsAlive -> mExpired(+0x4c2)=1; mExpired -> OnDeath(null), return 1",
+  "VA6a873 TimeModifierFraction<1 time scaling",
+  "VA6a8da !mHasStarted: mStartDelay(+0x4f8)-=dt, >0 return 0; mHasStarted=1; CreateStartFx; BodyComponent::Adjust(alpha, AlphaOverride or 1, start 1, 0.2s)",
+  "VA6a976 mPauseTimeRemaining(+0x3ec)>0: -=dt, >0 return 0; OnUnpause75550 [consumer absent]",
+  "VA6a9a0 VacuumDistance(+0x63c)>0 && VacuumStrength(+0x638)>0 -> radial force pass [fails if reached]",
+  "VA6ac2d vslot0x1b8 CheckProjectileDefense; vslot0x48 UpdateAnimation (null primary returns)",
+  "VA6ac46 ExpandBlastDuringDetonation(+0x3cd) && (BlastSpeed>0||BlastDuration>0): UpdateDetonation(dt), mBlastTimeRemaining-=dt",
+  "VA6ac94 finished = (detonated && !MultiDetonate) || (Multi && MaxDetonations>0 && detonations>=Max): if !Expand {UpdateDetonation if BlastSpeed>0||BlastDuration>0; blastTime-=dt}; blastTime<=0 && (BlastSpeed<=0 || blastRadius>=mod*DamageRadius) -> OnDeath(null) return 1; else attached SetLocation; return 0",
+  "VA6add2 fuse-=dt; fuse<=0: vslot0x180 Detonate; !Multi -> IsBlastDone ? OnDeath(null) return 1 : return 0; Multi -> fuse+=GetFuse",
+  "VA6ae22 life-=dt; <=0 -> OnDeath(null) return 1",
+  "VA6ae40 moveInterval-=dt; >0 return 0; += MoveInterval(+0x48c)",
+  "VA6ae6f FollowOwner(+0x71) && owner -> SetLocation(owner) then CheckForImpact",
+  "VA6af0e IsAlive(mAttachedTo) && Type!=BEAM -> SetLocation(attachedTo) then CheckForImpact",
+  "VA6af33 AttachToMarker(+0x5e0) nonempty (literal 'null' counts) && owner -> owner marker + Z*0.8660254 -> StepMove75650, return its result",
+  "VA6af5e mSpeed(+0x4e0)!=0 || mAcceleration(+0x4e8)!=0 -> vslot0x1a8 Move, return its result; Type==BEAM -> return 0",
+  "VA6aeba vslot0x1b0 CheckForImpact(&victim): CONTINUE -> return 0; STOP -> OnDeath(victim), return 1"
+ ],
+ "detonate": "VA6d6b2 admission; ++mDetonations(+0x4d4); mDetonated=1; mBlastTimeRemaining=BlastDuration; clear mHitByDetonation(+0x460); SpawnOnDetonate gate; !HideDetonateGraphic -> DetonateGraphic/DetonateGraphic2 Create (absent for ''/'null'); SoundCue DetonateSound(+0x2b0) PlayCue3D4a8a0; DetonateScreenShakeSpeed>0 -> Camera::Shake; UpdateDetonation(0); owner && CheckObstacleImpact -> GetObstacles(DamageRadius rect) + IsInBlast -> CheckMovementReactionsWithChildren",
+ "update_detonation": "BlastSpeed>0: step=BlastSpeed*dt*mod toward mod*DamageRadius, else set; DebugDraw; !DrawAsBeam -> attached Animation::SetRadius; radius>0: vslot0x1b8; GetUnits(unscaled rect) filters StopsProjectiles(ThingData+0x219), anim OwnerHasNoCollision(+0x8d) unless IgnoreNoCollisionAnimData, AffectsUnit, Z=GetZ+GetAirborneZ<=MaxVictimZ and MinVictimZ<=Tallness+Z, hit-set/ResetCollisionOutsideDetonation, IsInBlast, LOS, LOS-from-owner, DetonateArc isAngleBetween, insert, CheckDodge&&damage>0 ? OnDodge : (!(CanBeReflected&&ShouldReflect) && !CheckImmunities -> ApplyImpact); CheckObstacleImpact -> obstacles with StopsProjectiles, hit set, IsInBlast, LOS, insert, ApplyImpact",
+ "on_death_null_victim": "DissipateGraphic else ImpactFx CreateCustom; SpawnObject(SpawnOnDeath); primary anim death chain; owner OnDeathFiredByAnimation/AddControlOnDeath(2); InvulnerableImpact from last mThingsHit; GUN volley LastProjectileDeath/FirstUnitInVolley; paused attached anims; ScriptManager::OnProjectileDeath(proj,null,last,first,invuln) -> per trigger TRIGGER_ARGS {WeaponName, AttackerTable, LocationX/Y | KilledVictim, Angle(deg), FireIndex, ProjectileVolley, LastHitTable/LastHitUnitTable, UnitsHit, FirstUnitInVolley, LastProjectileDeath, InvulnerableImpact, IsDeflected(+0x4c0)}, name=ProjectileData name",
+ "check_for_impact_prelude": "VA7096f mCurrentDistanceSqrd; DetonateAtTarget(+0x6b9) && target!=0 && dist>targetDist -> CanDetonate?Detonate, STOP; Type!=ARC(5)/BEAM(2) && mRangeSqrd>0 && dist>rangeSqrd -> CanDetonate?Detonate, mHitMaxRange=1, return Deceleration(+0x3bc)!=0&&speed>0 ? CONTINUE : STOP; !CheckUnitImpact && !CheckObstacleImpact -> CONTINUE. STOP returns write the victim out-parameter (VA7144f/71519/71721).",
+ "fail_loudly_when_reached": [
+  "FlashBeforeExpire",
+  "OnUnpause",
+  "Vacuum",
+  "base CheckProjectileDefense candidate tests beyond IsAlive/self",
+  "FollowOwner/attached SetLocation",
+  "AttachToMarker StepMove",
+  "Move",
+  "projectile-owned Start/Detonate/Dissipate animations",
+  "SpawnOnDetonate/SpawnOnDeath",
+  "valid DetonateSound PlayCue3D",
+  "Camera::Shake",
+  "GetAirborneZ for airborne Slide",
+  "in-blast Unit outside the unscaled GetUnits rectangle",
+  "detonation victim LOS/arc/dodge/reflect/immunity/ApplyImpact",
+  "detonation obstacle movement reaction/impact",
+  "OnDeath with non-null victim or nonempty mThingsHit",
+  "RequireHitCenter=false"
+ ],
+ "portable_adaptations": [
+  "Unit candidates are registration order, not GetUnits hash order; every victim path that would be order-sensitive fails before mutation",
+  "ProjectileActor has no attachment storage; AttachToOwner true fails rather than assuming unattached"
+ ],
+ "verification": {
+  "run": ".local/reports/native-detonate-replay-v1.log",
+  "result": "HeroTouchdown STRAIGHT detonated on its first tick, no victims, OnDeath(null) and original Lua OnProjectileDeath (Combat.lua:2803) completed, projectile retired without fault; replay then blocked at RoomPresentation.lua:392 DustLanding CreateAnimation DustPuffALarge (unadmitted action effect definition)."
+ }
+}

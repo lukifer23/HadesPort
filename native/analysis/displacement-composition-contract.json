@@ -1,0 +1,56 @@
+{
+  "schema": "hades-source-displacement-gpu-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "scope": "Original group13 displacement and mode5 AdditiveMerge implementation; exact game-level light/shadow/full combat parity remains unverified.",
+  "source_contract": "native/analysis/group-composition-contract.json",
+  "native_evidence": [
+    "ev_e88660beb15ba0e1b4269aee297985210fbb33eab2f830d08f30262ec2c77419",
+    "ev_38c07b2eb05aefd6d998d2a164a85d1775101cd9218cd4b47f7ae89ea174b745"
+  ],
+  "shader": {
+    "path": ".local/native-assets/shader-sources-v2/615e19f986975622-displacement2d.frag",
+    "bytes": 793,
+    "sha256": "615e19f986975622fe824ea66f4270ad65fc06eb21e5cfc33669fec7e36ba574"
+  },
+  "source_route": {
+    "13": {
+      "clear_rgba8": [
+        128,
+        128,
+        0,
+        128
+      ],
+      "group_blend": "premultiplied source-over",
+      "final_blend": "opaque",
+      "shader": "Displacement2D",
+      "strength": 0.15,
+      "neutral_epsilon": "abs(128/255*2-1)",
+      "gl_uv_adapter": "invert displacement Y when sampling GL framebuffer"
+    },
+    "5": {
+      "name": "AdditiveMerge",
+      "blend": "premultiplied RGB ONE+ONE"
+    }
+  },
+  "gpu": {
+    "renderer": "Apple M3 Pro",
+    "checks": [
+      "neutral/horizontal/vertical coordinate-ramp output within2RGBA8",
+      "source group9+11 overlap unchanged",
+      "binding failure cleanup",
+      "resize and exposure",
+      "repeated shutdown",
+      "fresh GL context recovery"
+    ],
+    "log": {
+      "path": ".local/reports/native-displacement-gpu-v2.log",
+      "bytes": 3563,
+      "sha256": "aaab9f640e4011417e68a9cd53b0be40b8818b5edcb24a2d08fa6052d5402b35"
+    },
+    "exit_code": 0
+  },
+  "limits": [
+    "Synthetic ramp diagnoses real rendering code, not complete gameplay.",
+    "Android GPU execution and full original light/shadow/bloom still pending."
+  ]
+}

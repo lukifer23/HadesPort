@@ -1,0 +1,124 @@
+{
+  "schema": "hades-player-firing-barriers-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "critical_boundary": "Original synchronous Lua callbacks may mutate weapon/unit data before native continuation reads it. Computing a full frame then dispatching callbacks afterward is not equivalent.",
+  "execution_shape": "Preflight supported action domains; execute bounded segments in source order, yield at callbacks, refresh mutable definitions/status and resume. Unsupported continuation remains an explicit gate.",
+  "ordered_path": [
+    {
+      "stage": "RequestFire",
+      "behavior": [
+        "Requires live enabled owner and Enabled weapon, release/ammo/clip/lock gates.",
+        "FireFromObstacle and FireToObstacle query actual World entities.",
+        "PriorityFireRequest and AllowMultiFireRequest inspect other pending weapons.",
+        "Copies 40-byte FireRequest; no charge or fire execution here."
+      ]
+    },
+    {
+      "stage": "Weapon::Update",
+      "behavior": [
+        "Absent owner returns before timers.",
+        "First edge can clear cooldown via TriggerTapIgnoresCooldown or emit OnWeaponFailedToFire.",
+        "HandleTriggerDown calls Charge then virtual Fire then FX and virtual PostFire; release uses previous request.",
+        "Clip regeneration/scatter/cooldown/reload update follows trigger work.",
+        "Current/previous request update and request clearing happen at end."
+      ]
+    },
+    {
+      "stage": "Charge",
+      "behavior": [
+        "Computes old fraction, subtracts dt, computes new clamped fraction; optional complete-angle update.",
+        "First fractional charge frame may cancel movement, SetAnimation ChargeStartAnimation, create ChargeStartFx and ChargeFx with source timing.",
+        "Synchronous OnWeaponCharging barrier precedes disable cancellation, control removals, Charging effects and final mCharging=true.",
+        "Original Combat.lua2194 may immediately change weapon Enabled properties through RushOverride.",
+        "At full charge applies Charging effects, creates ChargeFinishFx/cue and optional perfect-window callback; returns fraction >= MinChargeToFire."
+      ]
+    },
+    {
+      "stage": "Base Fire",
+      "behavior": [
+        "SetAnimation FireGraphic; LastFireTime uses actual World clock.",
+        "Applies Fire effects, owner physics, optional random angle; spends ammo unless per-projectile spending.",
+        "OnOutOfAmmo is synchronous and can change subsequent state.",
+        "Fire sound/FX, owner angle and delayed actions retain source order."
+      ]
+    },
+    {
+      "stage": "Gun Fire",
+      "behavior": [
+        "Runs Base Fire first; projectile cap and refresh require actual ProjectileManager state.",
+        "Each wave consumes randomDouble for spread even when spread is zero, then another for BonusProjectileChance even when chance is zero.",
+        "Bonus comparison is <=; exact zero sample can add a projectile at zero chance.",
+        "Sword InvulnerableImpactOwnerVelocity 300/350 with CheckObstacleImpact requires real GridManager query and conditional owner force.",
+        "Creates copied source projectile through ProjectileManager with FireRequest/volley/wave context, then HandleTriggerDown creates FX and calls PostFire."
+      ]
+    },
+    {
+      "stage": "PostFire",
+      "behavior": [
+        "Cancels source disables with callbacks, handles attached projectiles/cooldowns/controls and forced releases.",
+        "Sets cooldown, resets clip regeneration, decrements clip even when ClipSize=0, updates scatter and disable timers.",
+        "Empty clips can reload and trigger animation/FX/cue.",
+        "OnWeaponFired callbacks, charge cancellation and combo swaps must retain source order."
+      ]
+    }
+  ],
+  "implemented": [
+    "Transactional 12-weapon initialization/11 projectile DTOs",
+    "Native canFire common and Blink alive gates",
+    "Native timers with input blocked",
+    "Finite/shared ammo with terminal callback preflight",
+    "Source barrel origin with explicit unsupported LoS path"
+  ],
+  "limits": [
+    "Static evidence, no original target execution or gameplay observation.",
+    "Active charging/firing remains explicitly rejected by step().",
+    "No projectile actor, hit/effect simulation or healthy actor fabricated.",
+    "Complex Thing defaults remain separately unresolved."
+  ],
+  "cleanup": {
+    "close_report": ".local/reports/native-player-fire-rea-close.json",
+    "owned_pids": [
+      4775,
+      4777,
+      4786
+    ],
+    "confirmed_absent_after_close": true
+  },
+  "evidence": {
+    "update": {
+      "evidence_id": "ev_d9566dddbab96b57298cffe298ef86803ac4d0ffa8fee3856c721c4ccf0dd07d",
+      "report": ".local/reports/native-player-fire-rea-update.json",
+      "address": "0x180083b60"
+    },
+    "charge": {
+      "evidence_id": "ev_fd634f86d733699906e102efacfc3053a26b4d809a2194c032f83de7cf4ec6d6",
+      "report": ".local/reports/native-player-fire-rea-charge.json",
+      "address": "0x180087cd0"
+    },
+    "trigger-release": {
+      "evidence_id": "ev_cd4498c45c26758fc868230f5bc403d7df92f6f82e8f446c036a3be8362fd047",
+      "report": ".local/reports/native-player-fire-rea-trigger-release.json",
+      "address": "0x180087150"
+    },
+    "request-fire": {
+      "evidence_id": "ev_8ed300ffecf216d679501b23ac441557c96f8cf3f3c54375f5a13bd4367d8d62",
+      "report": ".local/reports/native-player-fire-rea-request-fire.json",
+      "address": "0x180083160"
+    },
+    "base-fire": {
+      "evidence_id": "ev_e056fd8a462f648de739b43618ea8d17a911d258d6dc1cdf04ee3afb2732e30f",
+      "report": ".local/reports/native-player-fire-rea-base-fire.json",
+      "address": "0x180088f00"
+    },
+    "gun-fire": {
+      "evidence_id": "ev_ee14e92bac9c2d5f6ff7dcfd00221252b3d139e840083c2cacdc1afc7416fca9",
+      "report": ".local/reports/native-player-fire-rea-gun-fire.json",
+      "address": "0x18007fb20"
+    },
+    "post-fire": {
+      "evidence_id": "ev_57af9b40d249a6403f4a90d9707d3cb214bf6b663a6731dbaa677c3b06d30355",
+      "report": ".local/reports/native-player-fire-rea-post-fire.json",
+      "address": "0x180089500"
+    }
+  }
+}

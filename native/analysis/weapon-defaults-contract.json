@@ -1,0 +1,108 @@
+{
+  "schema": "hades-weapon-defaults-contract-v1",
+  "scope": "Bounded first original EquipWeapon ArmorBreakAttack native initialization; research/export only.",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "artifacts": {
+    "export": ".local/native-assets/first-weapon-v1/weapon.json",
+    "export_sha256": "98c96ec8a274d8ece58044269d67956d44dd555f6cec38b80331716d06756656",
+    "exporter": "native/analysis/export_first_weapon.py",
+    "constant_store_reader": "native/analysis/recover_weapon_defaults.py",
+    "compiled_defaults_report": ".local/reports/native-weapon-compiled-defaults.json"
+  },
+  "schema_contract": {
+    "weapons": "array; currently exactly ArmorBreakAttack",
+    "effective_fields": "dictionary native field names without m prefix -> {type,value,native_member,native_definition_offset,provenance}; enums keep numeric value plus enum_name/type",
+    "effect": "Original singular source Effect record plus recovered EffectType UNKNOWN12; native mEffects vector normalization unresolved",
+    "initial_state": "proven native instance member names -> initial typed JSON values",
+    "unresolved_fields": "7 complex defaults plus effective Effects container gap; absent instead of zero/default fabricated"
+  },
+  "compiled_defaults": {
+    "recovered_fields": 267,
+    "exported_effective_fields": 266,
+    "definition_bytes": 2400,
+    "temporary_constant_bytes_proven": 2358,
+    "constructor_rva": "0xf7530",
+    "temporary": "post-prologue RSP+0x20; RBP=RSP+0x100",
+    "transfer": "WeaponDataDef move assignment RVA0xf87b0; called VA0x1800f7e76 with destination WeaponData+0x50. Explicit later stores override defaults.",
+    "unresolved": [
+      "FireSound",
+      "ReloadSound",
+      "ChargeSound",
+      "ChargeFullSound",
+      "OnWeaponChargingSound",
+      "ChargeFinishSound",
+      "ProjectileOffsetStart"
+    ],
+    "important_defaults": {
+      "StartingAmmo": -1,
+      "MaxAmmo": -1,
+      "ClipSize": 0,
+      "ClipRegenInterval": 0.0,
+      "ChargeTime": 0.0,
+      "InitialCooldown": 0.0,
+      "ReloadOnEquip": false,
+      "ReloadOnCreation": true,
+      "DefaultControl": true,
+      "Control": "",
+      "AlternateControl": "",
+      "SecondaryControl": "",
+      "DisallowedControl": ""
+    },
+    "source_override": "1_BaseMagicWeapon overrides ReloadOnCreation=false; ArmorBreakAttack Projectile is literal string null, Type GUN0."
+  },
+  "instance_initialization": {
+    "report": ".local/reports/native-weapon-init.json",
+    "rva": "0x88b60",
+    "state": {
+      "mAmmo": -1,
+      "mClipShotsRemaining": 0,
+      "mChargeTimeRemaining": 0.0,
+      "mCooldownTimeRemaining": 0.0,
+      "mReloadTimeRemaining": 0.0,
+      "mNextClipRegenTime": 0.0,
+      "mCharging": false,
+      "mLastFireTime": 0.0,
+      "mScatter": 0.0,
+      "mValidProjectileData": false,
+      "mValidSpawnedProjectileData": false
+    },
+    "ammo": "VA0x180088dc9..dde chooses StartingAmmo if nonnegative else MaxAmmo. Therefore -1.",
+    "ammo_meaning": "HasAmmo VA0x180083981 MaxAmmo<0 returns true; SpendAmmo VA0x180088eb6 mAmmo==-1 returns without decrement. Reports native-weapon-has-ammo.json, native-weapon-spend-ammo.json.",
+    "validity": "Weapon owner ctor RVA0x886c0: VA0x18008877c writes DWORD0x17 at this+0x11f -> mValidProjectileData+0x120 false, mValidSpawnedProjectileData+0x121 false. Init VA0x180088c1e..c21 missing lookup skips validity-setting branch to0x180088d82.",
+    "validity_report": ".local/reports/native-weapon-instance-owner-ctor.json",
+    "projectile_source_check": ".local/reports/native-weapon-null-projectile-lookup.json",
+    "timer_state": "ChargeRemaining=ChargeTime0; ClipShotsRemaining=ClipSize0; NextClipRegenTime=ClipRegenInterval0. Cooldown/reload set0. ReloadOnCreation false and InitialCooldown0 avoid further mutation. ReloadOnEquip false avoids post-equip reload.",
+    "control": "Four empty source/default control names yield no bound controls. AddWeapon controllable condition fails.",
+    "dependencies": "All seven getBundledWeapons strings empty; ArmorBreakStun EffectType UNKNOWN12, not WEAPON_FIRE8."
+  },
+  "effect_type_proof": {
+    "report": ".local/reports/native-weapon-effect-default-ctor.json",
+    "constructor_rva": "0xae2a0",
+    "store_va": "0x1800ae6ce",
+    "store": "QWORD0xc to EffectData+0x68, where PDB mDef begins. Type int32=12UNKNOWN; Trigger int32=0.",
+    "limits": "Other omitted EffectData defaults not fully normalized. No effect application implementation."
+  },
+  "limitations": [
+    "No full native WeaponData memory image: unknown complex fields explicit.",
+    "Source singular Effect to native Effects vector serializer mapping not recovered.",
+    "No firing, hit detection, effect application, audio, actor activation or combat claim.",
+    "Metadata/source order and inheritance preserved; originals unmodified.",
+    "Static LLVM/PDB evidence is address/SHA bound; no new REA sessions opened and no device operations."
+  ],
+  "validation": [
+    "Exact binary SHA checked by constant-store reader and exporter.",
+    "Exact original source UTF8 byte ranges/hashes retained for each inheritance definition.",
+    "Exporter asserts first branch: GUN, empty controls/dependencies, negative ammo, zero initial timer fields, no creation/equip reload.",
+    "Parsed all original projectile SJSON definitions; no definition named literal null."
+  ],
+  "resolved_followups": {
+    "effect_container_and_trigger": "native/analysis/weapon-effect-normalization-contract.json",
+    "component_runtime": "native/analysis/weapon-component-contract.json",
+    "integration_report": ".local/reports/native-unit-arsenal-pass.json",
+    "note": "Earlier normalization gap resolved; full effect behavior, live actor activation and actual combat remain incomplete."
+  }
+}

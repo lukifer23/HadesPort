@@ -1,0 +1,396 @@
+{
+  "schema": "hades-first-weapon-effect-normalization-v1",
+  "scope": "ArmorBreakAttack singular inline ArmorBreakStun source effect; container and loader trigger normalization only. Not a complete native EffectData image or execution implementation.",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "source_export": {
+    "path": ".local/native-assets/first-weapon-v1/weapon.json",
+    "bytes": 343130,
+    "sha256": "98c96ec8a274d8ece58044269d67956d44dd555f6cec38b80331716d06756656",
+    "schema": "hades-first-weapon-v1",
+    "weapon_index": 0,
+    "weapon_name": "ArmorBreakAttack",
+    "effect_name": "ArmorBreakStun"
+  },
+  "weapon_name": "ArmorBreakAttack",
+  "effectContainerResolved": true,
+  "effectTrigger": 1,
+  "effectTriggerEnumName": "Fire",
+  "source_effect": {
+    "key": "Effect",
+    "value": {
+      "Name": "ArmorBreakStun",
+      "Duration": 1.0,
+      "DisableMove": true,
+      "DisableRotate": true,
+      "DisableAttack": true,
+      "Active": true,
+      "CanAffectInvulnerable": true,
+      "Cancelable": false
+    },
+    "range": {
+      "source": {
+        "path": ".local/game/base/Content/Game/Weapons/PlayerWeapons.sjson",
+        "bytes": 158312,
+        "sha256": "7b51214ee3b9221959d0e801d71737609a0d6baaf5a7f8b3c9f7c0fc38b12582"
+      },
+      "definition_name": "ArmorBreakAttack",
+      "definition_byte_range": [
+        97252,
+        390
+      ],
+      "property_path": "Effect",
+      "effect_byte_range": [
+        97391,
+        244
+      ],
+      "effect_range_sha256": "e120f58aff471990043d4eae11a12f544ee159c09b5993f2a39ed696cd4a72d4"
+    }
+  },
+  "effects": [
+    {
+      "index": 0,
+      "name": "ArmorBreakStun",
+      "effective_fields": {
+        "Duration": {
+          "type": "float32",
+          "value": 1.0,
+          "provenance": {
+            "kind": "original_source_override",
+            "source": {
+              "path": ".local/game/base/Content/Game/Weapons/PlayerWeapons.sjson",
+              "sha256": "7b51214ee3b9221959d0e801d71737609a0d6baaf5a7f8b3c9f7c0fc38b12582",
+              "definition_name": "ArmorBreakAttack",
+              "definition_index": 45,
+              "definition_byte_range": [
+                97252,
+                390
+              ],
+              "range_sha256": "2715fbe0633ffb45b7fb4d1702910dbb365f9692f291c1b5a4def08233efdaac"
+            },
+            "property_path": "Effect.Duration"
+          }
+        },
+        "DisableMove": {
+          "type": "bool",
+          "value": true,
+          "provenance": {
+            "kind": "original_source_override",
+            "source": {
+              "path": ".local/game/base/Content/Game/Weapons/PlayerWeapons.sjson",
+              "sha256": "7b51214ee3b9221959d0e801d71737609a0d6baaf5a7f8b3c9f7c0fc38b12582",
+              "definition_name": "ArmorBreakAttack",
+              "definition_index": 45,
+              "definition_byte_range": [
+                97252,
+                390
+              ],
+              "range_sha256": "2715fbe0633ffb45b7fb4d1702910dbb365f9692f291c1b5a4def08233efdaac"
+            },
+            "property_path": "Effect.DisableMove"
+          }
+        },
+        "DisableRotate": {
+          "type": "bool",
+          "value": true,
+          "provenance": {
+            "kind": "original_source_override",
+            "source": {
+              "path": ".local/game/base/Content/Game/Weapons/PlayerWeapons.sjson",
+              "sha256": "7b51214ee3b9221959d0e801d71737609a0d6baaf5a7f8b3c9f7c0fc38b12582",
+              "definition_name": "ArmorBreakAttack",
+              "definition_index": 45,
+              "definition_byte_range": [
+                97252,
+                390
+              ],
+              "range_sha256": "2715fbe0633ffb45b7fb4d1702910dbb365f9692f291c1b5a4def08233efdaac"
+            },
+            "property_path": "Effect.DisableRotate"
+          }
+        },
+        "DisableAttack": {
+          "type": "bool",
+          "value": true,
+          "provenance": {
+            "kind": "original_source_override",
+            "source": {
+              "path": ".local/game/base/Content/Game/Weapons/PlayerWeapons.sjson",
+              "sha256": "7b51214ee3b9221959d0e801d71737609a0d6baaf5a7f8b3c9f7c0fc38b12582",
+              "definition_name": "ArmorBreakAttack",
+              "definition_index": 45,
+              "definition_byte_range": [
+                97252,
+                390
+              ],
+              "range_sha256": "2715fbe0633ffb45b7fb4d1702910dbb365f9692f291c1b5a4def08233efdaac"
+            },
+            "property_path": "Effect.DisableAttack"
+          }
+        },
+        "Active": {
+          "type": "bool",
+          "value": true,
+          "provenance": {
+            "kind": "original_source_override",
+            "source": {
+              "path": ".local/game/base/Content/Game/Weapons/PlayerWeapons.sjson",
+              "sha256": "7b51214ee3b9221959d0e801d71737609a0d6baaf5a7f8b3c9f7c0fc38b12582",
+              "definition_name": "ArmorBreakAttack",
+              "definition_index": 45,
+              "definition_byte_range": [
+                97252,
+                390
+              ],
+              "range_sha256": "2715fbe0633ffb45b7fb4d1702910dbb365f9692f291c1b5a4def08233efdaac"
+            },
+            "property_path": "Effect.Active"
+          }
+        },
+        "CanAffectInvulnerable": {
+          "type": "bool",
+          "value": true,
+          "provenance": {
+            "kind": "original_source_override",
+            "source": {
+              "path": ".local/game/base/Content/Game/Weapons/PlayerWeapons.sjson",
+              "sha256": "7b51214ee3b9221959d0e801d71737609a0d6baaf5a7f8b3c9f7c0fc38b12582",
+              "definition_name": "ArmorBreakAttack",
+              "definition_index": 45,
+              "definition_byte_range": [
+                97252,
+                390
+              ],
+              "range_sha256": "2715fbe0633ffb45b7fb4d1702910dbb365f9692f291c1b5a4def08233efdaac"
+            },
+            "property_path": "Effect.CanAffectInvulnerable"
+          }
+        },
+        "Cancelable": {
+          "type": "bool",
+          "value": false,
+          "provenance": {
+            "kind": "original_source_override",
+            "source": {
+              "path": ".local/game/base/Content/Game/Weapons/PlayerWeapons.sjson",
+              "sha256": "7b51214ee3b9221959d0e801d71737609a0d6baaf5a7f8b3c9f7c0fc38b12582",
+              "definition_name": "ArmorBreakAttack",
+              "definition_index": 45,
+              "definition_byte_range": [
+                97252,
+                390
+              ],
+              "range_sha256": "2715fbe0633ffb45b7fb4d1702910dbb365f9692f291c1b5a4def08233efdaac"
+            },
+            "property_path": "Effect.Cancelable"
+          }
+        },
+        "Type": {
+          "type": "int32",
+          "value": 12,
+          "enum_name": "UNKNOWN",
+          "provenance": {
+            "kind": "compiled_native_default",
+            "report": ".local/reports/native-weapon-effect-default-ctor.json",
+            "constructor_rva": "0xae2a0",
+            "store_va": "0x1800ae6ce",
+            "full_EffectData_offset": "0x68",
+            "definition_offset": 0
+          }
+        },
+        "Trigger": {
+          "type": "int32",
+          "value": 1,
+          "enum_name": "Fire",
+          "enum_type": "sgg::EffectDataDef::EffectTrigger",
+          "provenance": {
+            "kind": "compiled_weapon_effect_loader_override",
+            "procedure": "sgg::ReadWeaponEffectData",
+            "rva": "0xfbda0",
+            "singular_store_va": "0x1800fbebe",
+            "array_store_va": "0x1800fbe65",
+            "full_EffectData_offset": "0x6c",
+            "definition_offset": 4,
+            "evidence_id": "ev_5a2ea3b119144699ae17b19edbe3790d73126e68a9c9bcf6e039a9bd7cbef5c5",
+            "source_override_present": false,
+            "default_precedence": "EffectData constructor TriggerUnknown0 -> weapon loader Fire1 -> optional explicit source Trigger; this source omits Trigger."
+          }
+        }
+      },
+      "type": 12,
+      "type_enum_name": "UNKNOWN",
+      "trigger": 1,
+      "trigger_enum_name": "Fire",
+      "complete_native_definition": false,
+      "execution_supported": false,
+      "unknown_defaults": "All omitted EffectData defaults except the previously proven Type and newly proven weapon-context Trigger remain unnormalized; do not infer zeros/false/empty."
+    }
+  ],
+  "normalization": {
+    "member": "sgg::WeaponData.mDef.mEffects",
+    "WeaponData_mDef_offset": "0x50",
+    "WeaponDataDef_mEffects_offset": "0x948",
+    "full_WeaponData_mEffects_offset": "0x998",
+    "EffectData_stride": "0x418",
+    "keys": [
+      "Effects",
+      "Effect"
+    ],
+    "alias_semantics": "Both source names dispatch to the same branch; each occurrence clears vector first, then reads that property. Not append semantics. If both occur, source processing order matters.",
+    "this_source": "Inline object, resulting vector length1, entry0 named ArmorBreakStun; no named-effect lookup or inheritance call in EffectData::Read.",
+    "native_object_branch": "(handle&7)==6: resize1; set entry.Trigger=Fire1; EffectData::Read(context,handle,entry0).",
+    "native_array_branch": "(handle&7)==5: resize to flattened source item count; each entry.Trigger=Fire1; EffectData::Read per item in source order.",
+    "type_vs_trigger": "EffectType UNKNOWN12 and EffectTrigger Fire1 are independent enums. This is not EffectType WEAPON_FIRE8 and does not introduce an arsenal weapon dependency.",
+    "missing_or_other_value": "Read helper does nothing for zero/other tag; outer property branch has already cleared vector. No broad malformed-input behavior claim."
+  },
+  "native_evidence": {
+    "serializer": {
+      "rva": "0xfc380",
+      "pdb_length": 14882,
+      "public_requested_address": "0x1800fc2d0",
+      "public_canonical_address": "0x1800fc380",
+      "boundary_note": "Ghidra groups PostRead tail0xfc2d0..0xfc312 with serializer0xfc380..0xffda1; exact PDB separates functions. Static original instructions used for address claims.",
+      "evidence_id": "ev_295f3c04c5424ad145a8b4f5b4f27bb3aea079c45782a85842b7a61fd9f263f8",
+      "report": {
+        "path": ".local/reports/native-rea-weapon-effectnorm-postread-bundle.json",
+        "bytes": 7815421,
+        "sha256": "daccf7f89b6c923f81e5e2316a60dbd7f9863f317b2cb6f2ad7bcc474a11e2a3"
+      },
+      "key_compare_va": [
+        "0x1800ffd09",
+        "0x1800ffd27"
+      ],
+      "vector_clear_va": "0x1800ffd4a",
+      "helper_call_va": "0x1800ffd5b",
+      "definition_base_join_va": "0x1800fc3d4"
+    },
+    "helper": {
+      "rva": "0xfbda0",
+      "pdb_length": 308,
+      "evidence_id": "ev_5a2ea3b119144699ae17b19edbe3790d73126e68a9c9bcf6e039a9bd7cbef5c5",
+      "report": {
+        "path": ".local/reports/native-rea-weapon-effectnorm-read.json",
+        "bytes": 618031,
+        "sha256": "895a88ac061f4dd73dd2617e01a88c87dfdc0e3f45ed31cf948f0a9921f7628b"
+      },
+      "object_resize_va": "0x1800fbeb1",
+      "object_trigger_store_va": "0x1800fbebe",
+      "object_read_tail_va": "0x1800fbecf",
+      "array_resize_va": "0x1800fbe0b",
+      "array_trigger_store_va": "0x1800fbe65",
+      "array_read_call_va": "0x1800fbe7b"
+    },
+    "EffectData::Read": {
+      "rva": "0xb0fe0",
+      "pdb_length": 6631,
+      "evidence_id": "ev_25699c70d447d2a1f9abc8e723debcd7daf3ae78b8e0e3f10002cd6e0c0c9250",
+      "report": {
+        "path": ".local/reports/native-rea-weapon-effectnorm-effect-read-bundle.json",
+        "bytes": 12732349,
+        "sha256": "57ebac2a6b18a03cc9e524ea81588c3a938d6dedf2e34c5284306db53c9baaa7"
+      },
+      "Type_explicit_source_store_va": "0x1800b1383",
+      "Trigger_explicit_source_store_va": "0x1800b13e3",
+      "source_property_read_addresses": {
+        "Duration": "0x1800b1a26",
+        "Active": "0x1800b1aa3",
+        "Cancelable": "0x1800b1af2",
+        "DisableMove": "0x1800b1b78",
+        "DisableRotate": "0x1800b1bbb",
+        "DisableAttack": "0x1800b1bfe",
+        "CanAffectInvulnerable": "0x1800b211d"
+      },
+      "postread_limit": "DurationFrames>0 can rewrite Duration at0x1800b297c..0x1800b2995. We preserve the explicit source Duration1; full omitted defaults/postprocessing are not claimed recovered."
+    },
+    "construction_chain": {
+      "resize": {
+        "path": ".local/reports/native-weapon-effectnorm-resize-static.json",
+        "bytes": 4220,
+        "sha256": "2608a36f24e2f981e3f2854367886927d3fc7d9e0c25d30bd34b2a6bf3fca58c"
+      },
+      "insert": {
+        "path": ".local/reports/native-weapon-effectnorm-insert-static.json",
+        "bytes": 13689,
+        "sha256": "531034d5539ce8414b78fa46523302d82d2297b83d6a6f545a9a7eb7b3644bc4"
+      },
+      "EffectData_constructor_calls": [
+        "0x1801039d3",
+        "0x180103a49"
+      ],
+      "compiled_Type12_store": {
+        "va": "0x1800ae6ce",
+        "report": {
+          "path": ".local/reports/native-weapon-effect-default-ctor.json",
+          "bytes": 16655,
+          "sha256": "50e4c766bf9d4ac33c46428d0532ab67c8f4e677d7cd39175e3c3030978e74bc"
+        },
+        "meaning": "QWORD0xc at EffectData+0x68 initializes Type12 and Trigger0; loader then overrides Trigger1."
+      }
+    },
+    "pdb_fields": {
+      "WeaponDataDef": {
+        "path": ".local/reports/native-fields-WeaponDataDef.txt",
+        "bytes": 38710,
+        "sha256": "4075475713acc7963ded66c0246d5686ded6528734b71ce7aba81bf215ed9460"
+      },
+      "EffectData": {
+        "path": ".local/reports/native-fields-EffectData.txt",
+        "bytes": 2083,
+        "sha256": "6bbe9d48cd2afdfe299f84798d8b93af9544358fc5f0191b9ae4f557ad5e6611"
+      },
+      "EffectDataDef": {
+        "path": ".local/reports/native-fields-EffectDataDef.txt",
+        "bytes": 15044,
+        "sha256": "e8190ab762c7fa2a8d3c9a5ea9df5d5f226c10bbdd151e2f10c5048e9b1ac6b8"
+      },
+      "EffectTrigger": {
+        "type_index": "0xd68a",
+        "field_list": "0xd689",
+        "values": {
+          "Unknown": 0,
+          "Fire": 1,
+          "FireEnd": 2,
+          "Charging": 3
+        }
+      },
+      "EffectType": {
+        "type_index": "0xd6a3",
+        "field_list": "0xd6a2",
+        "selected_values": {
+          "WEAPON_FIRE": 8,
+          "UNKNOWN": 12
+        }
+      }
+    }
+  },
+  "initialization_guidance": {
+    "supported": "Preserve original singular source_effect and one separate, explicitly partial normalized metadata entry. Container count/order/Trigger are now resolved; other proven weapon initialization may proceed without applying an effect.",
+    "unsupported_fire": "A fire, hit, status/effect application or unimplemented update path must raise the explicit unsupported boundary before pretending the effect ran or mutating target status. This is reconstruction policy, not observed original behavior.",
+    "not_required_for_equip": "This effect type12 is not type8 weapon-firing dependency handled by recovered Arsenal::AddWeapon. Source preservation and trigger metadata do not require fabricated EffectData defaults to initialize the bounded weapon instance.",
+    "no_silent_noop": "Do not mark effects as executed, synthesize a projectile, or translate UNKNOWN12 into WEAPON_FIRE8."
+  },
+  "validation": [
+    "Old first-weapon-v1 JSON exact SHA/schema/ArmorBreakAttack/ArmorBreakStun asserted and unchanged.",
+    "Exact original PlayerWeapons SHA and ranged SJSON nested Effect bytes retained.",
+    "Source record agrees with exported listed values and omits Type/Trigger.",
+    "Matching DLL/PDB field offsets and source addresses corroborate full member path and distinct enums.",
+    "Static analysis only; no native game code execution, device or emulator operation."
+  ],
+  "REA_session": {
+    "close_report": {
+      "path": ".local/reports/native-rea-weapon-effectnorm-close.json",
+      "bytes": 250,
+      "sha256": "052cc72acfb75907e9ff703ebd805df08cd7d770bdebc4c2da17cf9d10cd8447"
+    },
+    "result": "Public close_binary returned null; helper exited0; no owned open session remains."
+  },
+  "limits": [
+    "Only first utility weapon and inline effect are covered.",
+    "EffectData complete defaults, enum execution semantics, effect lifecycle/status application, weapon firing, projectile/hit/combat remain unsupported.",
+    "Source explicit properties are retained; unnormalized omitted fields and postprocessing are not silently defaulted.",
+    "Read-only audit created only new evidence/contract files; no app, build, exporter or old private export edits."
+  ]
+}

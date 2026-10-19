@@ -1,0 +1,196 @@
+{
+ "schema": "hades-player-attack-dash-contract-v1",
+ "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+ "evidence_kind": "REA Ghidra decompilation (scripts/rea.py decompile, one-shot, no persistent session) plus PDB-bounded LLVM disassembly (native/analysis/inspect_engine.py); no original execution",
+ "procedures": {
+  "Projectile::SetLocation6ee90": {
+   "rea": ".local/reports/native-combat-projectile-set-location-pseudocode.c",
+   "llvm": ".local/reports/native-combat-projectile-set-location-static.json",
+   "impl": "projectile_world.cpp ProjectileWorld::setLocation",
+   "order": [
+    "mPrevLocation(+0x508)=GetLocation",
+    "AngleFromMarker(+0x5f8) nonempty && owner: owner pAnim GetMarkerLocation or owner GetLocation; y+=Thing.Z(+0x74)*0.8660254; Thing::SetAngle(normalized atan2)",
+    "delta=target-old raw mLocation (old y read before store); mLocation=target; Polygon::Offset(delta)",
+    "draw rect (+0x98) recentred or polygon AABB (no portable projectile consumer)",
+    "vslot0x70 MarkSortScoreChanged (fails if graphic/attached animations exist)"
+   ]
+  },
+  "Projectile::StepMove75650": {
+   "rea": ".local/reports/native-combat-projectile-step-move-pseudocode.c",
+   "impl": "ProjectileWorld::stepMove",
+   "rule": "step=max(2,0.5*sqrt(min sq dist over vertex pairs with indices>=1)); per segment GetLocation+dir*seg/dist -> SetLocation, ShiftZLocation(mDirection.z*seg) (zero: Thing ctor zeroes mDirection, SetAngle writes x/y only), CheckForImpact; STOP -> blast checks then OnDeath(victim) return1; dist==0 performs no impact check"
+  },
+  "Projectile::Move702d0": {
+   "rea": ".local/reports/native-projectile-base-move-pseudocode.c",
+   "impl": "ProjectileWorld::moveBase",
+   "rule": "speed update gated by mHitMaxRange/Deceleration and (accel!=0||JumpSpeedMultiplier!=1); IsReturningToOwner77a90 owner-return branch fails loudly; PROJECTILE_EFFECTORS (admitted at promotion when IncreaseAdjustRateOfFriendlyProjectilesInside!=0, VA180078fc8; erased at removal VA18007920b) with SpeedMultiplierOfEnemyProjectilesInside!=0, different owner and !FiredByTraitor -> IsInBlast(projectile target) fails loudly"
+  },
+  "Projectile::IsReturningToOwner77a90": {
+   "rea": ".local/reports/native-combat-is-returning-to-owner-pseudocode.c"
+  },
+  "Projectile::UpdateSelf6a720 tail": {
+   "impl": "ProjectileWorld::updateBase",
+   "rule": "finished branch: IsAlive(mAttachedTo)&&!BEAM -> SetLocation(GetLocation(attachedTo)) without offset; FollowOwner&&owner -> SetLocation(owner); else attached -> SetLocation(attachedTo) then CheckForImpact; else AttachToMarker(literal null included)&&owner -> StepMove to marker; else speed/accel -> Move (ScaleGeometryAlongRange fails loudly)"
+  },
+  "Thing::AttachTo2e59f0/Detach2e5ad0/SetAttachOffset2e0e80/OnAttachedToMoved2e5960": {
+   "rea": [
+    ".local/reports/native-combat-thing-attach-to-pseudocode.c",
+    ".local/reports/native-combat-thing-detach-pseudocode.c"
+   ],
+   "llvm": [
+    ".local/reports/native-combat-thing-SetAttachOffset-static.json",
+    ".local/reports/native-combat-thing-OnAttachedToMoved-static.json"
+   ],
+   "impl": "ProjectileActor attachedTo/attachedToLifetime/attachOffsetX/Y/Z; ProjectileWorld::thingLocation/thingZ/ownerMoved"
+  },
+  "Unit::SetLocation2f2a40": {
+   "llvm": ".local/reports/native-combat-unit-set-location-static.json",
+   "impl": "lua_player_input.cpp calls ProjectileWorld::ownerMoved after the local Unit move"
+  },
+  "Thing::SetAngle2e0ce0": {
+   "llvm": ".local/reports/native-combat-thing-set-angle-static.json",
+   "impl": "ProjectileWorld::setThingAngle (Polygon::Rotate1204b0 about attached-aware GetLocation by old-new; MirrorGeometry flip fails loudly)"
+  },
+  "Weapon::GetFireOffset86010": {
+   "rea": ".local/reports/native-combat-weapon-get-fire-offset-pseudocode.c",
+   "impl": "WeaponArsenal::fireOffset"
+  },
+  "Projectile::Init AttachToOwner": {
+   "source": ".local/reports/native-player-projectile-init-pseudocode.c lines 405-416",
+   "impl": "initializeShot AttachToOwner consumer: GetFireOffset(Body angle) -> AttachTo -> SetAttachOffset/OnAttachedToMoved SetLocation(parent+offset); mAttachOffsetZ=Thing.OffsetZ"
+  },
+  "Animation::GetLocation296c90 / BookAnimation::GetMarkerLocation2b0d10": {
+   "rea": ".local/reports/native-combat-animation-get-location-pseudocode.c",
+   "impl": "ScriptRuntime::projectileOwnerMarker (absent marker incl. 'null' -> owner location; attached-marker/tip/LocationFromOwner branches fail loudly)"
+  },
+  "GunWeapon::Fire barrel test": {
+   "rea": ".local/reports/native-player-fire-gun-fire-pseudocode.c",
+   "detect": ".local/reports/native-combat-detect-collisions-pseudocode.c",
+   "impl": "barrelObstacleAt + lua_combat CheckInvulnerableBarrelImpact (ApplyForce2bd070 angle+pi, v, selfApplied=false, cap v, 0; ExternalForceMultiplier/ImmuneToForce/effect ImmuneToForce)"
+  },
+  "GunWeapon::Fire pDelayedProjectile + Weapon::Update183e80": {
+   "impl": "WeaponOutput.delayedProjectile, WeaponArsenal::setDelayedProjectile/clearDelayedProjectiles"
+  },
+  "Animation::SetRadius2974e0": {
+   "llvm": ".local/reports/native-combat-animation-set-radius-static.json",
+   "impl": "ScriptRuntime::weaponAnimationRadius (admitted only while reached definitions have zero ScaleRadius/RadialOffsetScaleRadius)"
+  },
+  "ScriptAction::ExpireProjectiles258f10": {
+   "rea": ".local/reports/native-combat-expire-projectiles-pseudocode.c",
+   "impl": "ProjectileWorld::expire + Lua ExpireProjectiles"
+  },
+  "PlayerUnitInput::HandleInput2eccb0/CheckWeaponInput2ef3f0/CheckWeaponControl2ef100/AttemptFireWeapon2ee480, UnitStatus::ShouldLocKTrigger2fce40, WeaponArsenal::AddWeaponControl2ff480": {
+   "rea": [
+    ".local/reports/native-combat-handle-input-pseudocode.c",
+    ".local/reports/native-combat-input-weapon-for-control-pseudocode.c",
+    ".local/reports/native-combat-check-weapon-control-pseudocode.c",
+    ".local/reports/native-combat-attempt-fire-weapon-pseudocode.c"
+   ],
+   "llvm": [
+    ".local/reports/native-combat-should-lock-trigger-static.json",
+    ".local/reports/native-combat-arsenal-add-weapon-control-static.json"
+   ],
+   "impl": "lua_player_input.cpp trigger-lock gate and CheckWeaponControl; WeaponArsenal::checkWeaponControl/finishLostControl/clearReleasedControls/addWeaponControl"
+  },
+  "EffectFactory::CreateEffect5e200": {
+   "llvm": ".local/reports/native-combat-effect-factory-static.json",
+   "impl": "weapon_catalog.cpp: types 1,2,3,10,>11 -> TagEffect path"
+  },
+  "PhysicsComponent::GetGrip2bd530": {
+   "llvm": ".local/reports/native-combat-physics-get-grip-static.json",
+   "impl": "lua_physics.cpp: Amount(+0x124)/Modifier(+0x118), replacing nonexistent GripAddition/GripMultiplier names"
+  },
+  "Effect::Clear5d560 HaltOnEnd / PhysicsComponent::Halt2bcd20": {
+   "rea": ".local/reports/native-combat-effect-clear-pseudocode.c",
+   "llvm": ".local/reports/native-combat-physics-halt-static.json",
+   "impl": "self_effect_world.cpp + lua_effects.cpp haltPhysics provider"
+  },
+  "LifeComponent::TakeHit attack counter": {
+   "source": ".local/reports/native-projectile-life-take-hit-pseudo.txt line 768",
+   "impl": "self_effect_world.cpp ClearOnDamageInflictedInstances (EffectDataDef+0x160) replacing nonexistent ClearAfterNAttacks"
+  },
+  "LifeComponent::TakeHit hit FX": {
+   "llvm": ".local/reports/native-combat-life-take-hit-static.json",
+   "impl": "lua_projectiles.cpp: selection implemented; nonempty FX fails loudly (needs action-effect AddAngle consumer + admission)"
+  },
+  "Projectile::GetImpactAngle6e7d0 (STRAIGHT)": {
+   "source": ".local/reports/native-projectile-hit-angle-pseudo.txt",
+   "impl": "prepareArcImpact now admits STRAIGHT"
+  },
+  "Projectile::OnDeath6f5c0 last-hit": {
+   "source": ".local/reports/native-projectile-detonate-pseudocode.c FUN_18006f5c0",
+   "llvm": [
+    ".local/reports/native-combat-life-IsInvulnerableOnlyFromAngle-static.json"
+   ],
+   "impl": "prepareDeath last mThingsHit InvulnerableImpact/coverage, LastHitTable/LastHitUnitTable/UnitsHit"
+  },
+  "ObstacleData::ObstacleData d4130 post-copy defaults": {
+   "llvm": ".local/reports/native-combat-obstacle-data-ctor-static.json",
+   "obstacle_init": "Obstacle::Init2c2b80 NeedsLife -> LifeComponent init (actor_runtime.cpp)",
+   "defaults_fix": "native/analysis/recover_actor_defaults.py now tracks the ctor this register (rdi for ObstacleData); .local/reports/native-actor-compiled-defaults-v4.json; NeedsLife/AllowInvulnerableImpacts/AllowStoppingImpacts/CollidesWithObstacles/UseCollisionShift/ReflectLobProjectiles/DisplayInEditor default true, CollisionVelocityRetention 1, MaxCollisionZ 150, magnetism values",
+   "packet": ".local/native-assets/opening-actors-v5/actors.lua (NOT staged into .local/native-build/assets)"
+  },
+  "ScriptManager::OnWeaponFailedToFire28d0d0": {
+   "llvm": ".local/reports/native-combat2-on-weapon-failed-to-fire-static.json",
+   "impl": "lua_combat.cpp weaponCallback/weaponOperationSupported; weapon_execution.cpp Update phase 0",
+   "rule": "(Weapon*,bool Controllable,bool FreshInput). Loop OnWeaponFailedToFire scripts; nonempty name list must contain WeaponData name (+8) else skip; no PlayerIndex filter. Table: Ammo = ShareAmmoWeapon(+0x6f0) nonempty && owner arsenal(+0x428) GetWeapon ? GetAmmo83af0 : mAmmo(+0x34); MaxAmmo = data+0x6e8; Controllable; FreshInput; Script::run(script, owner unit, weapon name, table). Weapon::Update183bd1 passes 1,1; AttemptFireWeapon passes 1,param_4."
+  },
+  "Weapon::HandleTriggerDown RootOwnerWhileFiring 863f0": {
+   "llvm": ".local/reports/native-player-weapon-trigger-down.json VA180086425..450",
+   "impl": "lua_combat.cpp K::RootOwnerMovement",
+   "rule": "data+0x6c0 && request+0x24 && duration(+0x6c4)>0 -> Unit+0x464 = max(Unit+0x464,duration); Unit+0x460 (move cancelable) = 0"
+  },
+  "Weapon::Charge87cd0 ChargeStartFx/ChargeFx": {
+   "rea": ".local/reports/native-player-fire-charge-pseudocode.c lines 128-164",
+   "impl": "weapon_execution.cpp chargeFxRole; lua_combat.cpp CreateAttachedAnimation",
+   "rule": "ChargeStartFx(+0x548) Create -> PlaySpeedMultiplier component = anim vfunc+0xe0 / ChargeTime(+0x4f4); ChargeFx(+0x530) Create -> Animation::SetDuration298310(mChargeTimeRemaining); each PreferUnmodifiedTime29a5c0 if owner data byte +0x69. Null Create skips. Live (nonnull) FX fails loudly until action_effect exposes PlaySpeedMultiplier/SetDuration+PreferUnmodifiedTime."
+  },
+  "BlinkWeapon (RushWeapon) evidence only": {
+   "llvm": [
+    ".local/reports/native-combat2-blink-fire-static.json",
+    ".local/reports/native-combat2-blink-canfire-static.json",
+    ".local/reports/native-combat2-blink-update-static.json",
+    ".local/reports/native-combat2-blink-teleport-target-static.json",
+    ".local/reports/native-combat2-blink-postfire-static.json",
+    ".local/reports/native-combat2-blink-finished-static.json",
+    ".local/reports/native-combat2-blink-fire-projectile-static.json",
+    ".local/reports/native-combat2-invuln-create-static.json",
+    ".local/reports/native-combat2-invuln-affect-static.json",
+    ".local/reports/native-combat2-invuln-clear-static.json"
+   ],
+   "state": "Fire order recovered in native/analysis/blink-weapon-contract.json; not yet reconstructed. Common Fire prefix still rejects type!=0."
+  },
+  "PhysicsComponent::IsImmuneToForce2bd4d0": {
+   "llvm": ".local/reports/native-active-physics-force-immune-static.json",
+   "impl": "lua_combat.cpp ScriptRuntime::isImmuneToForce",
+   "rule": "ThingData+0x205 Thing.ImmuneToForce -> true; else Unit (typeflags mask0x221) active effects (+0x4b0..0x4b8) EffectData+0x1b3 ImmuneToForce -> true; else false"
+  },
+  "LifeComponent::TakeHit ImpactVelocity": {
+   "source": "native/analysis/hit-callback-contract.json projectile_present.ImpactVelocity",
+   "impl": "projectile_hit.cpp (ProjectileHitProviders.immuneToForce)",
+   "rule": "0 unless victim Physics(+0xd8) && !IsImmuneToForce; then ProjectileData+0x618"
+  },
+  "Projectile::ApplyImpact76590 impact forces": {
+   "rea": ".local/reports/native-combat3-apply-impact-pseudocode.c lines 249-312",
+   "llvm": ".local/reports/native-projectile-apply-impact-static.json VA180076c2a..180076d80",
+   "impl": "lua_projectiles.cpp ProjectileHitOperationKind::ApplyImpactForces; lua_combat.cpp externalForceOwner",
+   "rule": "v=ImpactVelocity(+0x618), up=ImpactUpwardVelocity(+0x61c); ImpactVelocityFalloff(+0x620)!=1 -> scale=clamp(|victim-projectile|/DamageRadius(+0x30c),0,1)*(falloff-1)+1 (dist 0 -> 1); SelfImpactVelocityMultiplier(+0x614)!=1 && victim==GetUnit(projectile owner +0x3b8) fails loudly (xmm0 live across call unproven); victim Physics && IsAlive: ApplyForce2bd070(impact angle, v, false, ImpactVelocityCap(+0x624), 0); CounterImpactOnSelf(+0x62c)>0 && weapon owner Unit: ApplyForce(owner, angle+pi, c*v, false, c*v, 0); ApplyUpwardForce2bd2c0(up, false, FLT_MAX)",
+   "offsets": "ProjectileData = ProjectileDataDef + 0x50 (.local/reports/native-arc-projectile-complete-layout.txt type 0xdc68)"
+  },
+  "Weapon::Charge87cd0 live ChargeStartFx/ChargeFx": {
+   "rea": ".local/reports/native-player-fire-charge-pseudocode.c lines 128-164",
+   "impl": "lua_combat.cpp CreateAttachedAnimation chargeFxRole",
+   "rule": "ChargeStartFx: PlaySpeedMultiplier = GetTimeRemaining(vslot0xe0)/ChargeTime(+0x4f4); ChargeFx: SetDuration298310(mChargeTimeRemaining +0x2c); both PreferUnmodifiedTime29a5c0 when UnitData+0x69 (PlayerControlled, native-actor-compiled-defaults-v4.json full_data_offset 105)"
+  }
+ },
+ "portable_adaptations": [
+  "Parent attached-children list is not mirrored; ownerMoved iterates projectiles in allocation (=attach) order",
+  "Barrel query uses portable spatial-grid order; first containing obstacle only",
+  "Projectile draw rectangle (+0x98) not stored"
+ ],
+ "verification": {
+  "sanitized_replay": ".local/reports/native-first-combat-replay-v2.tsv in a scratch copy with HUD/room-flow Lua stand-ins, unadmitted action-FX skip and actors v5; ASan/UBSan clean; SwordWeapon and SwordWeapon2 fire, SwordWeapon3 blocks on OnWeaponFailedToFire; Rush blocks on BlinkWeapon Fire",
+  "combat2_sanitized_replay": ".local/reports/native-combat2-asan-scratch-v1.log: scratch copy (Lua stand-ins PlayStatusAnimation/CreateDoorRewardPreview/PatrolPath/DisplayLocationText/DoWeaponSounds pcall; C++ stand-ins: skip unexported action FX, unexported audio, TakeHit hit FX). ASan/UBSan clean. SwordWeapon, SwordWeapon2, SwordWeapon3 fire (OnWeaponFailedToFire then charge then OnWeaponFired); blocks at 1491 on OnHit ImpactVelocity IsImmuneToForce query",
+  "combat3_replay": ".local/reports/native-combat3-asan-scratch-v1.log: scratch copy with the same Lua stand-ins plus unexported-audio/FX skips; SwordWeapon3 hit completes; stops at tick 1530 Rush: Common Fire prefix currently requires native GUN subclass"
+ }
+}

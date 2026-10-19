@@ -1,0 +1,170 @@
+{
+  "schema": "hades-native-speed-effect-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_class": "Complete bounded LLVM disassembly joined to matched original PDB; successful original function execution is not claimed",
+  "observations": {
+    "layout": {
+      "SpeedEffect": {
+        "size": 144,
+        "mModifier": 136,
+        "mAppliedModifier": 140
+      },
+      "Unit": {
+        "mSpeedModifier": 988,
+        "mSpeedAddition": 992
+      },
+      "UnitData": {
+        "SlowModifier": 336
+      },
+      "EffectData": {
+        "Modifier": 384,
+        "mm_changeType": 448,
+        "Stacks": 341,
+        "MaxStacks": 344,
+        "ExpiringTimeThreshold": 580,
+        "ExpiringModifierFalloff": 588
+      }
+    },
+    "constructor_defaults": {
+      "SpeedEffect": "defaults607c0 calls base defaults, zeroes modifier/appliedModifier QWORD+88",
+      "Unit_live_speed": "Unit constructor VA1802f0c60 writes QWORD3f800000 to full+3dc -> SpeedModifier1/SpeedAddition0",
+      "data": "EffectDataDef compiled mm_changeType MULTIPLY1; actual source key ChangeType at1800b1d42, not report-derived m_changeType"
+    },
+    "factory": {
+      "rva": "0x60390",
+      "observation": "Native pooled SpeedEffect defaults, then pData/sourceWeapon assigned; factory override duration -1 does not overwrite source Duration in examined fast/default path",
+      "limits": "Portable parent owns actual identity/record lifetime; no pool pointer fabricated"
+    },
+    "affect": {
+      "rva": "0x60590",
+      "order": [
+        "Store effect.mModifier = data.Modifier",
+        "If 0<Modifier<1 and ChangeType==MULTIPLY1 and owner.SlowModifier!=1: captured modifier=float32(1-float32(float32(1-Modifier)*SlowModifier))",
+        "Full base Effect::AffectUnit executes including original OnEffectApply barrier",
+        "Lookup actual owner again by effect.UnitId",
+        "Read current effect data ChangeType: MULTIPLY1 -> live Unit.SpeedModifier *= captured effect modifier; ADD0 -> live Unit.SpeedAddition += current data.Modifier and record that amount in effect.AppliedModifier"
+      ],
+      "callback_visibility": "Original OnEffectApply sees speed before Speed-derived multiplication; applied base elapsed time mutation already visible."
+    },
+    "clear": {
+      "rva": "0x607e0",
+      "order": [
+        "Lookup actual owner by effect.UnitId",
+        "If owner exists and ChangeType1: reciprocal=float32(1/effect.mModifier); multiply live Unit.SpeedModifier by reciprocal NumStacks+1 times",
+        "If owner exists and ChangeType0: add sign-negated effect.AppliedModifier to live Unit.SpeedAddition NumStacks+1 times",
+        "Then invoke full base Effect::Clear, even if owner absent"
+      ],
+      "nonfinite_policy": "Portable module rejects nonfinite/zero reciprocal rather than concealing unsupported state"
+    },
+    "reapply_noarg": {
+      "rva": "0x606f0",
+      "order": [
+        "Full base noarg Effect::Reapply5d350 including original OnEffectApply(reapplied=true)",
+        "Lookup owner, read current effect data",
+        "Only if Stacks true and mode0/1; if data.MaxStacks>0 require actual Effect.GetMaxStacks then NumStacks<cap",
+        "Mode1 multiplies live speed by captured modifier; mode0 adds current data.Modifier",
+        "Increment NumStacks after callback"
+      ],
+      "overload_caution": "Data/source/duration overload slot20 (base5d910) applies existing ExtendDurationOnReapply before virtual noarg slot28; this portable function is only slot28."
+    },
+    "update": {
+      "rva": "0x60670",
+      "order": [
+        "Lookup current actual owner",
+        "If falloff>0 && remaining<expiring threshold && owner exists: delta=falloff*elapsed, Unit.SpeedAddition-=delta, effect.AppliedModifier-=delta",
+        "Then full base Effect::Update(effect,elapsed ref)"
+      ],
+      "mode_caution": "Native falloff always modifies addition, including modes other than ADD; do not simplify by intuition."
+    },
+    "base_lifetime_pending_port": {
+      "rva": "0x5d220",
+      "observed": [
+        "Lookup owner; local elapsed *= UnitData.StunBreakModifier if data disables move/rotate/attack",
+        "Else if typeCHARM7 and CharmBreakModifier!=1: local elapsed*=CharmBreakModifier",
+        "TimeRemaining-=local elapsed, then UpdateFx",
+        "If remaining<0: HasRefreshOnExpireEffect true resets to data.Duration; false expires",
+        "ClearOnSourceDeath with source weapon also expires when weapon owner lookup absent or !Thing.IsAlive",
+        "When expiring call real virtual Clear if !mCleared, returntrue; otherwise returnfalse"
+      ],
+      "strict_deadline": "remaining==0 is not expired",
+      "not_implemented_by_speed_update": "Parent must execute actual base callback, including FX, refresh lookup, source owner liveness and virtual Clear before status deletion."
+    }
+  },
+  "implementation": {
+    "module": "native/app/speed_effects.hpp/.cpp",
+    "headers": "SpeedEffectData/Owner/State, owner lookup callback, affect/clear/reapply/update functions",
+    "base_affect": "Calls real effect_affect.cpp orchestration with mandatory operation executor",
+    "other_base_operations": "Actual parent callbacks required; missing ones fail explicitly",
+    "validation": "native/analysis/speed_effects_smoke.cpp passed Mac clang ASan+UBSan: slow adjustment, before/after Lua barrier visibility, stack cap, repeated reciprocal restore, ADD falloff before lifetime callback, missing callback rejection"
+  },
+  "known_initial_charge": {
+    "weapon": "SwordWeapon",
+    "effect": "SwordSelfSlowCharge",
+    "type": "SPEED0",
+    "trigger": "Charging3",
+    "DurationFrames": 15,
+    "Duration_postread": 0.25,
+    "Modifier": 0.35,
+    "source": "player-weapons-v5 catalog source_fields; defaults and frame divisor independently recovered"
+  },
+  "unknowns": [
+    "General base Effect.UpdateFx and Clear side effects remain parent actual callbacks; no no-op implementations supplied.",
+    "Live actor movement must consume actual Unit.SpeedModifier/SpeedAddition in recovered movement formula, not overwrite UnitData.Speed.",
+    "Native pooled storage allocation and unrelated derived effects are outside this numeric/orchestration module."
+  ],
+  "rea_attempt": {
+    "batch": "speed-effect-",
+    "status": "First create analysis failed; session closed in finally. No new Ghidra import after root pause instruction.",
+    "success_evidence_claimed": false
+  },
+  "evidence": [
+    {
+      "path": ".local/reports/native-speed-effect-create.json",
+      "sha256": "9ae7d0e6f6ff4338e48b7b1e9ee24a405a5cad930f39998d6791bbe43b644427"
+    },
+    {
+      "path": ".local/reports/native-speed-effect-defaults.json",
+      "sha256": "f4e668900397b664394997e2ca9d6178fea557b1d09a368ddb4c766c879fca5b"
+    },
+    {
+      "path": ".local/reports/native-speed-effect-affect.json",
+      "sha256": "2e2901f825582a597142f49498397b421bb407791e751b04354b4337aea11c58"
+    },
+    {
+      "path": ".local/reports/native-speed-effect-update.json",
+      "sha256": "7bd9e322fa6111c154aeebdda26587f21154734443a9bee0618ac78cb0739be9"
+    },
+    {
+      "path": ".local/reports/native-speed-effect-reapply.json",
+      "sha256": "482de1c49cd6f5a15816db12f052bc510110caddb04fc3cca522f6dfe25af10d"
+    },
+    {
+      "path": ".local/reports/native-speed-effect-clear.json",
+      "sha256": "01f87d9d179f3d156d05b46e07566074a2cf7ebddc58c6fdb8b9ffe82f5cfe39"
+    },
+    {
+      "path": ".local/reports/native-speed-effect-pdb-types.json",
+      "sha256": "c5bd3e28f16a980cecb2f75853f1cfb733b8f7169d220dd2d0db896ab7fc0b1b"
+    },
+    {
+      "path": ".local/reports/native-effect-base-update.json",
+      "sha256": "86e38a8747b244768ce61ddf0fb8f19f9ddb3e8646cf325b7a23841905228326"
+    },
+    {
+      "path": ".local/reports/native-status-unit-constructor.json",
+      "sha256": "3039644762784736db98bdeb05063aa385dc1e983c08256ea99504229f518d43"
+    },
+    {
+      "path": ".local/reports/native-effect-reapply-wrapper.json",
+      "sha256": "92c978c458ea0b835325d225d752441fb95b1521184fbaeddc2c0e012a66dfe5"
+    },
+    {
+      "path": ".local/reports/native-rea-speed-effect-create.json",
+      "sha256": "4c1ea4ff28ce2ab05f51be693cc9250efcef872dc860a340ab7e54701290e4f2"
+    },
+    {
+      "path": ".local/reports/native-rea-speed-effect-close.json",
+      "sha256": "052cc72acfb75907e9ff703ebd805df08cd7d770bdebc4c2da17cf9d10cd8447"
+    }
+  ]
+}

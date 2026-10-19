@@ -1,0 +1,313 @@
+{
+  "schema": "hades-audio-runtime-contract-v1",
+  "target": {
+    "engine_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+  },
+  "scope": "Opening-room original compressed audio playback reconstructed on host plus API26 decoder/output build. Native event graph/timing/parameters/IDs preserved, Android DSP/resampler adaptations explicit. No original FMOD/game execution or Android audio output execution.",
+  "evidence": [
+    {
+      "path": ".local/reports/native-audio-script-play-sound-static.json",
+      "sha256": "97374c50e47dbc6cb35c1150b9649393323dae288f9e462687f0cbafa81247d1",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-audio-manager-ctor-static.json",
+      "sha256": "f2f6ef651bfd5317f742fb89f6117efa864cf0aafd97a5d3ac339a9d56c2e27e",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-audio-create2d-static.json",
+      "sha256": "701ec5d6fc4c1395ca8d065a8a6bb5f8b27ee47700e1952f2ca4c2c014a9e39c",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-audio-create3d-static.json",
+      "sha256": "9a308b8eb380b7c0fd457c68173d284e4c6375d895faba1295980d822af2e718",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-audio-create-cue3d-static.json",
+      "sha256": "c3299538f0ee47cda2232db6716678c8a7c4a662440265676db0de40e60578dc",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-audio-channel-base-init-static.json",
+      "sha256": "1bd81219a0f9e8ab507ace0b9acea48559bc89dd030efbe3c1c1df5bd1e8d8fc",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-audio-set-cue-value-static.json",
+      "sha256": "f54e7a5cec983131e2280ba68c2ff0fa835e87bacbcf09efc19345bcb828d1a4",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-audio-script-music-marker-static.json",
+      "sha256": "6da924bda58e954e2cb88d810960d79e22bd31ffb9bc93156b61b0bf91397960",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-audio-exploration4-event-v2.json",
+      "sha256": "5045fc418525e20685aaef20bd186e7bd1c50ab78ab364264a066e4e07014c09",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-audio-opening-ambience-event.json",
+      "sha256": "61118c90cebb1a133aaed4ca5a3d14e9cb36cbc51bda97c1028657eda1435f8f",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-audio-opening-zoom-event.json",
+      "sha256": "cbf2944cf31e2ec2e17edb906ca66ecf07470b7d5c65aecc917309a049a8c832",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-audio-opening-drop-event.json",
+      "sha256": "d8dad0323467c36fb230d76f6ee07a5c5b97c7326b73b00c976c766d5c2fe7a4",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-audio-bank-source-probe-v3.json",
+      "sha256": "31d20439fcf760edfa02e28446829035afb094ca113a8d51f154c583a9d64662",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-rea-audio-fmod-get-timeline.json",
+      "sha256": "2c0835741a9ad68d000cbe506222c9896feec35e05b6cc1ee76dd60268b3d196",
+      "evidence_id": "ev_4e8c613eabffb31284027f81fa9d02ca1c946654a77682f1209b7444df1eae9d"
+    },
+    {
+      "path": ".local/reports/native-rea-audio-fmod-cursor-accessor.json",
+      "sha256": "aaf3f6ef30bcabcb9c84dac1b9e3c90e4569ed245f054dc6dbc774f6bf8be2c8",
+      "evidence_id": "ev_b51c07354481322ca377845dbd69d8b7b909aa53f17bf416ed6b7d7bd669649d"
+    },
+    {
+      "path": ".local/reports/native-rea-audio-fmod-threeeq-process.json",
+      "sha256": "855d9cde25c4a35c4d4a9284e18b42aba961e905fa074895b33dc2d97f7294c0",
+      "evidence_id": "ev_da07b2c95da98462288f25e669eb87f7fb41762cda5ec292cdf104d7787d4923"
+    },
+    {
+      "path": ".local/reports/native-rea-audio-fmod-limiter-process.json",
+      "sha256": "bf97d98cda074b68aa6ae46f6331bd7d8e29b7da01980c5fdb0144b3756d7e80",
+      "evidence_id": "ev_f145e8a0c862a942f29d35134387fe32dc251443f24e5648f1a6d284ed21d65a"
+    },
+    {
+      "path": ".local/reports/native-rea-audio-fmod-close.json",
+      "sha256": "052cc72acfb75907e9ff703ebd805df08cd7d770bdebc4c2da17cf9d10cd8447",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-rea-audio-fmod-dsp-close.json",
+      "sha256": "052cc72acfb75907e9ff703ebd805df08cd7d770bdebc4c2da17cf9d10cd8447",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-fmodstudio-identity.json",
+      "sha256": "15659ea677e237c2eb6686c939cbc5003979dd81a46697b7bfdc981457f333bd",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-rea-audio-fmod-threeeq-24-process.json",
+      "sha256": "16f71f4f498f127c4f700977c35985666031c52ce2b3cbd78fe734f57658b9ef",
+      "evidence_id": "ev_b144d74ef3c93c3082352b24455e7bbc07718ee88649a46a5bc1ec563e4ccbbb"
+    },
+    {
+      "path": ".local/reports/native-rea-audio-fmod-biquad-lowpass-coeff.json",
+      "sha256": "b1ca5d6580e2c4c285cdd0eebe9f3fc5937873fd10dec19a6e6d3d04e3be20b3",
+      "evidence_id": "ev_174e19a07e723d294ae8d2455e56e42a309e3d7abcbb85785d7cc803413ad1c1"
+    },
+    {
+      "path": ".local/reports/native-rea-audio-fmod-biquad-highpass-coeff.json",
+      "sha256": "483d0be57a295bf3829c004ac29a5b8bcec093e86acb6d18f2b186fc738ca35a",
+      "evidence_id": "ev_929b71b4981953e835d8025f0e824252f9981245060aff9d05bc57424908424d"
+    },
+    {
+      "path": ".local/reports/native-rea-audio-fmod-biquad-commit.json",
+      "sha256": "12e3bc901c5258de80ec8eae951e397b9858d6db2cc6c0583597509ede156847",
+      "evidence_id": "ev_240a3b189d9b927a24ed101083fd3cbfdf6eaf79639db259eae9810e535e2c39"
+    },
+    {
+      "path": ".local/reports/native-rea-audio-fmod-threeeq-reset.json",
+      "sha256": "ccc05a13263a84ba54ec38a7fde302ee9f15fa445f12e4e5493d7ae1bdb21ad6",
+      "evidence_id": "ev_740441826d8b6d8c12f6baedd6746279b1651c68f4db67a709787c81b1530bc4"
+    },
+    {
+      "path": ".local/reports/native-audio-sfx-frame-cap-default-static.json",
+      "sha256": "36580b5b6534beda7266baba803a96f9ef952bcf628f601f2f8d366efa344830",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-audio-play-count-static.json",
+      "sha256": "6e7c292b74a66c6890df7f8a159d5da3c6df8a802634c79f079f12ebff61bff1",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-audio-play-cue-fx-static.json",
+      "sha256": "a1449770e2f022ea25249c3f5de8045fb507e514a6a05d0956733853546efa1f",
+      "evidence_id": null
+    },
+    {
+      "path": ".local/reports/native-audio-play3d-cap-static.json",
+      "sha256": "71cb3cb9a5c1a06a604f2af616afa690be3e901e5e8bc395e178c09b15d68503",
+      "evidence_id": null
+    }
+  ],
+  "observations": {
+    "event_mapping": "Original GUIDs.txt event:/name UUIDs match EVTB body GUIDs. Typed EVTB->TLNB/PMLB->WAIB->WAV resource->FSB bank/subsound mappings, with node namespaces kept distinct. Controller and curve GUIDs can be equal.",
+    "opening_music": "RoomOpening.StartUnthreadedEvents directly requests MusicExploration4_MC; MusicHadesReset_MC is biome fallback, not presumed initial opening selection.",
+    "timeline_rate": "Shipped FMOD Studio export getTimelinePosition at1800848a0 calls cursor accessor1800e4400 and divides returned integer by48; API result milliseconds corroborates48000 time units/sec. No mismatched PDB RVAs used.",
+    "channel_ids": "AudioManager.mNextId+1d8 initialized1 at180044314. Successful Create2D/3D assign old value and increment shared counter.",
+    "create_2d_or_3d": "CreateCue3D returns0 if manager absent/suppress-new. Source absent or source==AudioManager.Listener uses2D; other actual source uses3D.",
+    "delay": "ScriptAction.PlaySound Delay>0 creates channel immediately, returns actual channelID and queues only actual Play(channelID) via World.AddDelayedGameEvent. Immediate path uses ManagerCap default0. AddCallbacks installs actual callback after either branch.",
+    "music_parameters": "MusicExploration4 has Section[0,10],Keys[0,1],Drums[0,1], all default0. Fixed original KILL TRACK4 instrument routes to Drums-driven bus; MUSIC3 routes to Keys-driven bus. Source SetDefaultMusicParams sets Keys1, Guitar/Drums/Bass1 thenSection1.",
+    "music_timeline": "No playlist in selected opening music. Six named markers and986 point transition regions retained with exact integer positions, destinations, encoded evaluators and conditions.",
+    "parameter_automation": "Keys/Drums controlling bus property0 maps float x0->-41.85 and x1->-1. Timeline controller curve x must preserve uint32 ticks; reading those as float produces tiny invalid time values.",
+    "effects": "Source opening events contain genuine limiters,3-EQ,panners,reverb sends and pitch modulation. Those are not equivalent to playing all reachable waveform files unmodified.",
+    "dsp_targets": "Original Core DSP descriptions atVA1801a5090 (FMOD Limiter) and1801a6690 (FMOD3-EQ) bind read callbacks1800717c0->180071d10 and18008c160->18008e1d0 respectively. REA procedures recovered through those actual pointers, not PDB guesses.",
+    "music_routing": "KILL/dd791b49 routes Drums bus73365927, which owns limiter56a3acab (~+1dB maximizer). MUSIC/40b8b657 routes Keys bus264f804a with no stem limiter. Both sum at masterca115227, which owns limiter026574a4 (0dB maximizer). Earlier shorthand of one limiter per stem was incomplete.",
+    "native_name_controls": "Pause/Resume/Stop/SetVolume Name branches GetSoundCue then use returned pOwner; matched GetSoundCue unconditionally initializes returned owner=null. This is not evidence for selecting every live same-name channel. Full action contract retained separately.",
+    "sfx_cap": "Config SfxFrameCap compiled default16; native AudioManager.Play increments counter+3a0, Update resets0 near end. Owner3D HighPrioritySfx has its source priority branch; location3D cap/VO gates differ. No per-cue cap invented. AnimationManager.CreateAndInit early2D PlayCue block is guarded Random type5; actual nonRandom Book/Slide sound executes InitData3D owner/location overload with source SoundManagerCap. See audio-actions-contract and audio-swap-owner-lifetime-contract."
+  },
+  "source_events": {
+    "/Leftovers/Object Ambiences/EvilLairAmbienceMatchSiteE": {
+      "bank": "Ambience.bank",
+      "sample": "EvilLairAmbience",
+      "subsong": 4,
+      "loop_start_tick": 144000,
+      "loop_jump_tick": 2640000,
+      "track_gain_db": -19.5
+    },
+    "/Music/MusicExploration4_MC": {
+      "bank": "Music.bank",
+      "subsong_indices": [
+        71,
+        33
+      ],
+      "samples": [
+        "Music Exploration 4 KILL TRACK 4",
+        "Music Exploration 4 MUSIC3"
+      ]
+    },
+    "/Leftovers/World Sounds/MapZoomInShortHigh": {
+      "bank": "Sounds.bank",
+      "sample": "MapZoomIn",
+      "subsong": 1698,
+      "left_trim_tick": 9660,
+      "track_gain_db": -8,
+      "master_pitch_semitones": 5
+    },
+    "/SFX/Player Sounds/ZagreusWhooshDropIn": {
+      "bank": "Sounds.bank",
+      "subsong_indices": [
+        5005,
+        953
+      ],
+      "samples": [
+        "ZagreusWhooshDropIn",
+        "PillarBoulderImpact2"
+      ],
+      "second_start_tick": 50880,
+      "track_gains_db": [
+        -1,
+        -1
+      ]
+    }
+  },
+  "portable_modules": {
+    "audio_bank_decoder": "Actual custom AssetStore seek/read FSB5/FEV decoder to original-rate interleaved float32. Fixed64KiB read cache per source handle; deny optional companion reads. Native looping disabled so event layer owns actual loops.",
+    "upstream_api_corrections": "Pinned libvgmstream seek retains EOF decode_done; wrapper calls actual public reset before seek. Wrapper tracks consumed frames because upstream position can include buffered-but-unconsumed frames.",
+    "audio_timeline": "Bounded fixed48000-time-unit state machine with named markers and inclusive parameter ranges. Conflicting eligible destinations fault rather than invent priority. General native priority/callback ordering is not yet fully recovered.",
+    "audio_output": "Real AAudio API26 stereo float48000 endpoint with SPSC ring, producer thread, retained underrun and sticky device/render errors. Compiled only; no Android runtime/output evidence yet.",
+    "integration": "native/audio_decoder.cmake + native/tools/build_audio_decoder.py; exact pinned archives and source members, compiler/target,NDK/API/ABI and4 library hashes verified.",
+    "audio_world": "Production AssetStore-backed source event graph. Real unstarted channel admission, original streams, independent per-instance local buses plus shared global buses, source timeline/parameters/fades/markers, actual mixer and controls. Five exported cues; missing cues fail. Root owns Lua and device-output integration.",
+    "audio_channels": "Native ID1+ monotonic, deferred actual Play, pause vs unstarted resume distinction, exact target rate1/duration, event state/name/volume queries, actual stopped/finished cleanup at control update.",
+    "audio_limiter": "Actual recovered native limiter algorithm, including initial envelope1, coefficient releaseSeconds/(1/rate+releaseSeconds), channel-order-sensitive linked path. Float/ARM implementation not original-binary bitwise validation.",
+    "audio_three_eq": "Recovered static slope1/24dB path with native coefficient formulas and two-pole-cascade band structure. Other slopes and runtime coefficient/gain ramps explicitly unsupported.",
+    "audio_sample_stream": "32tap Hann-windowed-sinc adaptation:160 precomputed phases for original44100\u219248000 and3 for32000\u219248000;48k direct frames. Rational integer timeline phase,32source-frame cache overlap avoids repeated sequential seek. Original Vorbis remains compressed; no full PCM cache. Exact entry32k+44.1k debug-reference probes cover phase/cacheboundaries/backwardsseek; FMOD interpolation kernel not claimed.",
+    "hot_path": "Compiled bus/effect indices, persistent local/global/feedback/sidechain arrays, compiled curves and cached automation gains. No per-PCM-frame routing map construction or string lookup."
+  },
+  "private_artifacts": {
+    "pcm_debug": ".local/native-assets/audio-opening-v1",
+    "stream_packet": ".local/native-assets/audio-streams-opening-v1/audio-streams.lua",
+    "stream_samples": 6,
+    "encoded_bytes": 24896664,
+    "full_reference_pcm_bytes": 650000296,
+    "identity": "All6 derived single-sample FSB5 containers retain original encoded Vorbis/setup/seek bytes and decode PCM-identically to full original-bank decode with the pinned decoder. Changed FSB count/section sizes/sample-relative data offset/name table explicitly identified.",
+    "host_probe": "All6 source streams fully compared and random seeks compared under ASan/UBSan. This is rebuilt portable code execution, not original FMOD runtime evidence.",
+    "ndk_build": ".local/native-audio-build/android-arm64-api26-verified-v2/verification.json",
+    "event_catalog": ".local/native-assets/audio-events-opening-v2/audio-events.lua",
+    "event_catalog_receipt": ".local/native-assets/audio-events-opening-v2/receipt.json",
+    "extra_stream_packet": ".local/native-assets/audio-streams-bat-v1",
+    "stream_samples_total": 7,
+    "encoded_bytes_total": 25078609,
+    "bat": "Original one BatGroupLoop stream (181945 compressed bytes), PCM-identical to full original bank decode with pinned decoder."
+  },
+  "first_party_references": [
+    {
+      "url": "https://qa.fmod.com/t/condition-range-criteria/12869",
+      "supports": "FMOD staff documentation specifies inclusive parameter condition ranges."
+    },
+    {
+      "url": "https://www.fmod.com/docs/2.04/studio/authoring-events.html",
+      "supports": "Logic marker conditions and region/quantization behavior; use alongside actual selected bank records, not as version-aligned binary proof."
+    }
+  ],
+  "reference_source": [
+    {
+      "url": "https://github.com/vgmstream/vgmstream/tree/db77f98f405a45ad08df98aa444cae3848f95e6c",
+      "scope": "Pinned decoder actually built/tested; upstream permissive license retained with dependencies."
+    },
+    {
+      "url": "https://github.com/Masusder/FModBankParser/tree/b7cfcfc60c93fcca7e4ffe666144e7ee3ed7ce77",
+      "scope": "Focused field-layout cross-check only. Not a game/FMOD implementation and not executed. All selected record lengths accounted independently."
+    }
+  ],
+  "android_adaptations": {
+    "resampling": "32tap windowed sinc, original source rate/channels and source timeline retained; FMOD interpolation kernel not claimed.",
+    "compressors": "Source threshold/ratio/attack/release/makeup/link/sidechain inputs retained. Portable linked peak-envelope compressor, not original FMOD RMS/window/kernel.",
+    "filters": "Source cutoff/resonance plus portable RBJ biquad; FMOD exact response not claimed.",
+    "reverb": "Source sends, return routing, decay, pre-delay, highcut, wet/dry retained; four damped comb network approximates FMOD reverb. Diffusion/density/shelf/early-late shaping not fully matched.",
+    "panning": "Source mode/min/max and moving source/listener; centered stereo preserved, portable balance + inverse-distance with max-range taper for3D. Exact FMOD surround spatial kernel/occlusion not claimed.",
+    "curves": "Exact source points/time/parameter domains; nonzero source shape uses monotone exponent adaptation until original interpolation recovered.",
+    "feedback": "Source feedback sends retained with one-output-sample feedback delay; exact native DSP-block delay not established. Sidechains likewise one-sample routed detector history.",
+    "volume_equality": "Portable absolute1e-6 completion epsilon; original absolute/relative epsilon constants not fully recovered."
+  },
+  "remaining_unknowns": [
+    "Only five cue graphs/seven original compressed streams exported; additional gameplay/voice/multi-instrument/playlist events need actual graph admission.",
+    "Native random pitch modulators are identified in source graph by GUID; normalized amount parser added to exporter, production v2 catalog does not yet apply their random pitch modulation.",
+    "Exact priority for conflicting eligible transitions and native coincident marker/jump callback ordering; conflicting destinations fail explicitly.",
+    "Full FMOD reverb/surround/occlusion and effects parameter automation outside selected graph remain documented portable adaptations or missing behavior.",
+    "Native callback/event-lifetime ordering under actual Android output and other original voices not established by host tests.",
+    "No Android AAudio output execution, listening test or Fold throughput evidence yet."
+  ],
+  "validation": {
+    "source_smoke": "native/analysis/audio_world_source_probe.cpp loads real generated Lua metadata and original-derived streams; all5 actual cues produce finite nonzero PCM under ASan/UBSan. Rebuilt code execution only.",
+    "source_cases": [
+      "admitted/unstarted silence",
+      "real music two stems and Marker Start4090ms",
+      "missing immediate Guitar ignored",
+      "pause/resume and .2s fade-stop",
+      "actual finished/stopped retirement and monotonic IDs",
+      "producer buffer-partition invariance"
+    ],
+    "sanitized_log": ".local/reports/native-audio-world-source-probe-sanitized-v5.log",
+    "release_log": ".local/reports/native-audio-world-source-probe-release-v4.log",
+    "host_release_seconds_per_source_audio_seconds": {
+      "music5": 0.150688,
+      "ambience3": 0.0655753,
+      "zoom3": 0.056024,
+      "drop3": 0.0712015,
+      "bat3": 0.065665
+    },
+    "performance_boundary": "Isolated Mac arm64 release-O2 throughput only; no Android performance inference.",
+    "mixed_60s": {
+      "report": ".local/reports/native-audio-world-mixed-60s-sanitized-v5.log",
+      "result": "ASan+UBSan passed: all5 real cues mixed; ambience55\u21923 loop and Bat17.55s loop traversed; ended zoom/whoosh retired;3 sustained events remain; finite nonzero PCM.",
+      "frames": 2880000,
+      "rms": 0.0355794,
+      "peak": 0.480419,
+      "host_seconds_sanitized": 11.2996
+    },
+    "android_compile": "NDK29 aarch64-none-linux-android26 audio_world.cpp compiled -O2 -Wall -Wextra -Werror (no output device execution)"
+  },
+  "entry_audio_extension": "opening-entry-audio-contract.json: actual RoomOpening override ambience +both first-run hero voices; packetv13. Source globals/Reverb action retained, unimplemented until actual global automation consumer."
+}

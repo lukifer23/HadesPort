@@ -1,0 +1,182 @@
+{
+  "schema": "hades-weapon-frame-continuations-v1",
+  "target_dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence": [
+    {
+      "path": "hades/.local/reports/native-player-arsenal-update.json",
+      "sha256": "03b601302c833789a0e2a86970597bc3e65834c40c628c97c7c14194de91cb06",
+      "procedure": {
+        "kind": "procedure",
+        "length": 700,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\WeaponArsenal.obj",
+        "name": "sgg::WeaponArsenal::Update",
+        "rva": 3138848,
+        "type_index": 54554
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly"
+    },
+    {
+      "path": "hades/.local/reports/native-player-trigger-down.json",
+      "sha256": "57efc74c03bbca43c0ac58c514ddf66649773cd30329031e472041808f51200a",
+      "procedure": {
+        "kind": "procedure",
+        "length": 602,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Weapon.obj",
+        "name": "sgg::Weapon::HandleTriggerDown",
+        "rva": 549872,
+        "type_index": 54971
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly"
+    },
+    {
+      "path": "hades/.local/reports/native-player-cancel-charge.json",
+      "sha256": "b12dfc9491147e01d452dce446ead1057e9c9d8e3245a5a940e30f63cb3ffb42",
+      "procedure": {
+        "kind": "procedure",
+        "length": 613,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Weapon.obj",
+        "name": "sgg::Weapon::cancelChargeOnUnit",
+        "rva": 547168,
+        "type_index": 54963
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly"
+    },
+    {
+      "path": "hades/.local/reports/native-player-cancel-self-effects.json",
+      "sha256": "c9e56d112413fea9cc9baa05b9b609b6ad871dcc5c0056721b2ef11da81f9b06",
+      "procedure": {
+        "kind": "procedure",
+        "length": 910,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Weapon.obj",
+        "name": "sgg::Weapon::CancelSelfEffects",
+        "rva": 551600,
+        "type_index": 54928
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly"
+    },
+    {
+      "path": "hades/.local/reports/native-player-weapon-live-ctor.json",
+      "sha256": "f31a397addb0115dd5fceb1c85f9f85e3db938b299ea13b26fb0b23b82af0c75",
+      "procedure": {
+        "kind": "procedure",
+        "length": 552,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Weapon.obj",
+        "name": "sgg::Weapon::Weapon",
+        "rva": 558784,
+        "type_index": 54987
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly"
+    },
+    {
+      "path": "hades/.local/reports/native-player-charge-stop-cue.json",
+      "sha256": "d903d02863b3d541585c7de1999b49ceb2044b639d67b1f7a10631ff060700d7",
+      "procedure": {
+        "kind": "procedure",
+        "length": 249,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\AudioManager.obj",
+        "name": "sgg::AudioManager::StopCue",
+        "rva": 309056,
+        "type_index": 61695
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly"
+    },
+    {
+      "path": "hades/.local/reports/native-player-unit-can-move.json",
+      "sha256": "20335d6031c33979633362ad1833f96d701349f74797eda70dce2d122a3a72ec",
+      "procedure": {
+        "kind": "procedure",
+        "length": 185,
+        "module": "D:\\Jenkins\\workspace\\Minos_PC_Latest\\GSGE\\Engine.Native\\Windows\\x64\\ShipDx11\\Intermediate\\Unit.obj",
+        "name": "sgg::Unit::CanMove",
+        "rva": 3082992,
+        "type_index": 56797
+      },
+      "evidence_kind": "matching-PDB-bounded-static-disassembly"
+    },
+    {
+      "path": "hades/.local/reports/native-player-can-move-field-types.txt",
+      "sha256": "dedcf1ec1f6b5a7abd0492b9facff05e2efa8a8227e436fb931117afb4141ab0"
+    },
+    {
+      "path": "hades/.local/reports/native-player-can-move-animation-type.txt",
+      "sha256": "d08f03c682b878ddc4d05718548631f4f67faafc0cf31a67e1df2ead4eb4120b"
+    }
+  ],
+  "implemented": {
+    "WeaponArsenalExecution": "Actual outer order and mandatory per-weapon completion acknowledgements; not a replacement for missing Weapon.Update child implementation",
+    "WeaponFireEffects": "Actual inline HandleTriggerDown FireFx/FireFx2 create-result barriers, source DamageRadiusScaleX radius, before virtual PostFire",
+    "WeaponCancelCharge": "cancelChargeOnUnit charge reset/current-request clearing/control additions/real self-effect cancellation/charging=false then original OnWeaponChargeCanceled"
+  },
+  "arsenal_order": [
+    "EditingMode early exit",
+    "Living + UnitStatus.CanAttack(false) gate for nonempty source ContinuousWeapon; actual owned weapon gets RequestFire(angle=-1,zero target/from,applySelfEffects=true)",
+    "UnitData.PriorityWeapon lookup/update",
+    "capture ordinary creation vector count AFTER priority callback; skip priority pointer",
+    "current ordinary fixed capture only, callback additions excluded",
+    "capture current controllable vector after all updates, subtractdt from ControlTime if current source ControlWindow>0, allowing negative"
+  ],
+  "firefx_order": [
+    "AFTER virtual Gun.Fire (even if its boolean result is false), recompute FromLocation",
+    "positive source FireFxOffset along request angle",
+    "Create FireFx including actual absent lookup; wait actual returned animation handle (0 if absent)",
+    "if real animation + valid copied projectile data, setradius to current DamageRadius*DamageRadiusScaleX*live Weapon.blastRadiusModifier",
+    "Create FireFx2 at SAME retained origin; independently wait and set radius from fresh fields",
+    "virtual PostFire remains required"
+  ],
+  "cancel_charge_order": [
+    "Read ChargeTime and old clamped fraction; store charge timer reset",
+    "If ClearFireRequestOnChargeCancel true, reset current optional request",
+    "If not charging, return",
+    "Partial ChargeCancelGraphic only if 0<oldfraction<MinChargeToFire and graphic nonempty",
+    "AddControlOnChargeCancel then2 through native idempotent AddWeaponControl, no ControlTime reset",
+    "Stop ChargeSound with ChargeSoundFadeTime and stop ChargeFullSound; native ID0 guards proven, nonzero actual channel consumers not supported here",
+    "CancelSelfEffects(triggerCharging3)",
+    "Set charging=false",
+    "dispatch original OnWeaponChargeCanceled"
+  ],
+  "cancel_self_effects_contract": {
+    "entry": "Weapon::CancelSelfEffects RVA86ab0",
+    "definition_order": "current weapon effect vector order, only Active/full+1ac and requested Trigger/full+6c",
+    "matching": "effect instance source data Name, case-sensitive equality; no applied-weapon identity, immunity, selfApplied, DisableAttack or Cancelable filter",
+    "pending": "UnitStatus pending reverse; Clear if !cleared; if !disposed set UnitId=-1 then Dispose(true), mark disposed; erase pending entry. Prior prose timeRemaining=-1 was corrected against VA180086be2.",
+    "active": "active forward; Clear if !cleared; append matching instance to ToDelete, leave active until later manager cleanup",
+    "callback_boundary": "each actual virtual Clear/Dispose may invoke Lua; native mutation/iterator edge under reentrant container replacement remains bounded unknown. Do not replace with cancelAttackDisables."
+  },
+  "can_move_contract": {
+    "procedure": "Unit::CanMove RVA2f0af0",
+    "blocks": [
+      "primary AnimationData.mDef.OwnerImmobile, full+8e",
+      "effective speed<=0: (UnitData.Speed + live SpeedAddition)*live SpeedModifier, additionally Config.SpeedMultiplier only if PlayerControlled",
+      "UnitStatus.disableMoveTime>0",
+      "any pending OR active EffectData.DisableMove/full+1af"
+    ],
+    "does_not_test": [
+      "Data.CanMove",
+      "Alive/Living",
+      "AllowInput",
+      "EditingMode",
+      "effect Cleared/Disposed/SelfApplied/ImmuneToStun/Cancelable"
+    ]
+  },
+  "known_boundaries": [
+    "per-weapon Weapon.Update trigger-down/release/timer orchestration remains unfinished",
+    "virtual PostFire state/callback/swap pipeline next",
+    "source nonzero actual audio channels need real stop/fade consumer",
+    "actual animation creation/radius and CancelWeaponSelfEffects operation consumers parent-owned; unsupported operations fail explicitly",
+    "native pointer invalidation on weapon removal/replacement during captured vector iteration not fabricated"
+  ],
+  "verification": {
+    "log": "hades/.local/reports/native-player-weapon-debug-v10-asan.log",
+    "sha256": "a21e2d3aa7b0aba51452e3388a2f9363fef87872417eec0bf577eed5966697d9",
+    "kind": "one focused C++ ASAN+UBSAN replay, reconstructed code only",
+    "result": "passed",
+    "includes": [
+      "source v10 angular normalization",
+      "Gun replay",
+      "inline FX callback-fresh radius",
+      "outer priority + fixed ordinary count under equip callback",
+      "charge reset/effect cancellation/charging/callback ordering"
+    ]
+  },
+  "owned_rea_session": "No new session for this pass; prior projectile pass closed and cleanup retained."
+}

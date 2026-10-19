@@ -1,0 +1,310 @@
+{
+  "schema": "hades-source-ambient-contract-v1",
+  "scope": "Recovered original ambient contribution for unchanged v5 scene; full light/shadow composition remains incomplete.",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "packet": {
+    "path": ".local/native-assets/opening-ambient-v1/ambient.bin",
+    "bytes": 6420,
+    "sha256": "b9f60647839785e91cf5b57fb1161049e26bf8e372c1a2682e2a84c0db3eb9dd"
+  },
+  "packet_contract": {
+    "name": "ambient.bin",
+    "magic": "HLA1",
+    "header": "4byte magic,32byte sceneSHA256,u32 spriteCount,3float globalAmbientRGB",
+    "records": "float resolvedAmbient,u32 shaderClass;0retain multiplier1,1apply recovered fast vertex ambient",
+    "endianness": "little",
+    "expected_bytes": "52+spriteCount*8",
+    "binding": "Runtime compares scene-sha256.bin (32bytes), count and exact packet length; parent staging independently hashes actual scene and validates binding."
+  },
+  "source_scene": {
+    "path": ".local/native-assets/opening-fx-v5/scene-affine.bin",
+    "bytes": 111675996,
+    "sha256": "35faae7b545bf314063b3b7f0a30877398e55ec09bbbb02bf754264d31aa1799"
+  },
+  "global_ambient": [
+    0.461470008,
+    0.461470008,
+    0.461470008
+  ],
+  "counts": {
+    "sprites": 796,
+    "shader_classes": {
+      "1": 796
+    },
+    "ambient_values": {
+      "0.0": 551,
+      "1.0": 159,
+      "0.49000000953674316": 86
+    },
+    "unchanged_unit_multiplier": 551
+  },
+  "material_normalization": {
+    "evidence": {
+      "material_read": {
+        "report": {
+          "path": ".local/reports/native-rea-lighting-read-ambient.json",
+          "bytes": 538728,
+          "sha256": "ce18625d13f9218a4fa0a16a2c5a5e42f0a167e590ff301f9efa50edf5a2abcf"
+        },
+        "evidence_id": "ev_c6d7c2fd68949ff09e57f43d1cf5d943e086aab27bd772adec8ffe13aa327c35"
+      },
+      "material_lookup": {
+        "report": {
+          "path": ".local/reports/native-rea-lighting-from-name.json",
+          "bytes": 271642,
+          "sha256": "fbc35c10e5f7b8fe7c57be56cc31346a1f8576e1f06e25d302f0ad55018c4d6e"
+        },
+        "evidence_id": "ev_bb09a33c886b4567e28d52fbc2e83a78502c8862011325a8330781aeedd7b02d"
+      },
+      "material_predefined": {
+        "report": {
+          "path": ".local/reports/native-rea-lighting-predefined-init.json",
+          "bytes": 660525,
+          "sha256": "2b5da23f119258f8986e2b37bcec3cb1ed070996a3e038f83f2b93fb8ddcdef3"
+        },
+        "evidence_id": "ev_e9d99093f6af411b63059b3d31cc341d4d5f2c75d5ca9a675e2d0d757b055a16"
+      }
+    },
+    "observed": "Native MaterialManager::ReadAmbient writes the same ambient float; object Material nodes read member Ambient, string Material nodes call FromName. Material does not independently force Unlit shader selection in this path.",
+    "predefined_table": {
+      "Default": 1.0,
+      "Unlit": 0.0,
+      "Emissive": 0.0,
+      "Shadowed": 0.699999988079071
+    },
+    "lookup_limit": "FromName uses pointer equality on named keys and returns0 on miss. This room uses only zero-valued names Unlit/Emissive; result0 is exact on hit or miss. Exporter rejects nonzero Default/Shadowed string names until key identity/interning is verified.",
+    "thing_deserializer_join": {
+      "report": "native-lighting-thing-material-read-disassembly.txt",
+      "call_va": "0x1800ed750",
+      "destination": "ThingDataDef+0x36c=mAmbient"
+    }
+  },
+  "ambient_precedence": {
+    "definition_body": "ThingData compiled Ambient default1 at0x1800eb7e3; source Material/explicit Ambient where present normalize scalar.",
+    "map": "InitMapThing replaces Body.mAmbient only if map Ambient>=0, otherwise retains definition scalar. Native actor initialization contract supplies exact proof.",
+    "animation": "AnimationData compiled Ambient default-1 at0x18009425f (full object+0x2e0). Constant/Book/Dataless PrepDraw chooses animation ambient>=0, else attached Body ambient>=0, else1.",
+    "precedence_evidence": [
+      "native-constant-prep-rea.json",
+      "native-book-prep-correct-rea.json",
+      "native-lighting-DatalessPrep-static.json",
+      "native-lighting-AnimationCtor-static.json",
+      "native/analysis/actor-initialization-contract.json"
+    ],
+    "unlit_rule": "Resolved ambient0 => RGB multiplier1; original map/animation explicit overrides remain respected."
+  },
+  "world_shader_selection": {
+    "evidence_kind": "exact matching-PDB bounded native instruction/data joins; distinguished from material REA functions",
+    "steps": [
+      {
+        "observation": "Drawable::Reset initializes mShader byte+0x98 to0",
+        "anchor": "0x18016ba51",
+        "report": "native-lighting-DrawableReset-static.json"
+      },
+      {
+        "observation": "World::Draw reads DEFAULT_WORLD_EFFECT and stores begin-state byte at stack+0x51; Begin reads that byte and writes render-command effect",
+        "anchors": [
+          "0x18031acb4",
+          "0x18031acbf",
+          "0x18031c765",
+          "0x180226ea2",
+          "0x180226f81"
+        ],
+        "reports": [
+          "native-lighting-WorldDraw-static.json",
+          "native-lighting-Begin-static.json"
+        ]
+      },
+      {
+        "observation": "DrawManager::Load sets DEFAULT_WORLD_EFFECT=0x20",
+        "anchor": "0x180225d8f",
+        "report": "native-lighting-DrawLoad-static.json"
+      },
+      {
+        "observation": "Exact binary EffectNames[32] is ShaderEffectType::Lighting3DFast",
+        "report": "native-lighting-effect-names.json",
+        "table_va": "0x1804d0570"
+      },
+      {
+        "observation": "DoBegin stores selected effect as DEFAULT_EFFECT",
+        "anchor": "0x18022a741",
+        "report": "native-lighting-DoBegin-static.json"
+      },
+      {
+        "observation": "DoDraw mShader0 goes to fallback path selecting DEFAULT_EFFECT",
+        "anchors": [
+          "0x1802291fc",
+          "0x1802292f9",
+          "0x180229302",
+          "0x180229e69"
+        ],
+        "report": "native-lighting-DoDraw-static.json"
+      },
+      {
+        "observation": "AddColor mShader13 path selects ADD_COLOR_EFFECT initialized0; original AddColor.shader uses same Lighting3DFast.vert",
+        "anchors": [
+          "0x180229b6f",
+          "0x180229b96",
+          "0x180225dab"
+        ],
+        "reports": [
+          "native-lighting-DoDraw-static.json",
+          "native-lighting-DrawLoad-static.json"
+        ],
+        "original_shader_pair": {
+          "path": ".local/game/base/Content/Win/EffectsForgeD3D11/AddColor.shader",
+          "bytes": 51,
+          "sha256": "7d6bd0eb3a02354e0dd4b491d0badf0591abaab2b5820a57841392e6945d9fa2"
+        }
+      }
+    ],
+    "primary_original_sources": [
+      {
+        "shader": ".local/game/base/Content/Win/EffectsForgeD3D11/Lighting3DFast.vert",
+        "shader_sha256": "adcd4f929a6ba1cdad2e503b18ba18918b2e3853434412e7c0d4d22b93774bbb",
+        "shader_bytes": 28388,
+        "name": "/src/files/d:\\jenkins\\workspace\\minos_pc_latest\\gsge\\engine\\content\\effectsforged3d11\\lighting3dfast.vert",
+        "stream": 8,
+        "bytes": 967,
+        "sha256": "d9c737d512914eae4ce9d913a66c2db5baa35f648f27bc8121c09d3c7fbae53b",
+        "source_blocks": [
+          {
+            "offset": 6372,
+            "size": 512
+          },
+          {
+            "offset": 6884,
+            "size": 455
+          }
+        ],
+        "output": "d9c737d512914eae-lighting3dfast.vert"
+      },
+      {
+        "shader": ".local/game/base/Content/Win/EffectsForgeD3D11/DebugZ.frag",
+        "shader_sha256": "eb7dc9d3754a40bd5968cff58c7d6aa2984c79555f7a6c07a4b1495947d3086f",
+        "shader_bytes": 37896,
+        "name": "/src/files/d:\\jenkins\\workspace\\minos_pc_latest\\gsge\\engine\\content\\effectsforged3d11\\lightingfunctions.inc",
+        "stream": 11,
+        "bytes": 1569,
+        "sha256": "2446be44b7b3752d2070451ddfab2116ccc8232c3f29c8e2aba39fc34164be57",
+        "source_blocks": [
+          {
+            "offset": 14344,
+            "size": 512
+          },
+          {
+            "offset": 14856,
+            "size": 512
+          },
+          {
+            "offset": 15368,
+            "size": 512
+          },
+          {
+            "offset": 15880,
+            "size": 33
+          }
+        ],
+        "output": "2446be44b7b3752d-lightingfunctions.inc"
+      },
+      {
+        "shader": ".local/game/base/Content/Win/EffectsForgeD3D11/AddColor.frag",
+        "shader_sha256": "a66fd2626e352a9f74eda5748447c9610d1359a8fca9f737af878081579dd6bd",
+        "shader_bytes": 34204,
+        "name": "/src/files/d:\\jenkins\\workspace\\minos_pc_latest\\gsge\\engine\\content\\effectsforged3d11\\samplerhsv.inc",
+        "stream": 12,
+        "bytes": 2543,
+        "sha256": "e75026640024e0720f37ef47cc5651314d02670f17072e4af48cc2db1a888eb5",
+        "source_blocks": [
+          {
+            "offset": 11676,
+            "size": 512
+          },
+          {
+            "offset": 12188,
+            "size": 512
+          },
+          {
+            "offset": 12700,
+            "size": 512
+          },
+          {
+            "offset": 13212,
+            "size": 512
+          },
+          {
+            "offset": 13724,
+            "size": 495
+          }
+        ],
+        "output": "e75026640024e072-samplerhsv.inc"
+      },
+      {
+        "shader": ".local/game/base/Content/Win/EffectsForgeD3D11/AddColor.frag",
+        "shader_sha256": "a66fd2626e352a9f74eda5748447c9610d1359a8fca9f737af878081579dd6bd",
+        "shader_bytes": 34204,
+        "name": "/src/files/d:\\jenkins\\workspace\\minos_pc_latest\\gsge\\engine\\content\\effectsforged3d11\\addcolor.frag",
+        "stream": 8,
+        "bytes": 420,
+        "sha256": "d56ab57b3738df5be3a8a25f568e0a2284ecaa863da4912ed1ee75c92b6bade8",
+        "source_blocks": [
+          {
+            "offset": 6044,
+            "size": 420
+          }
+        ],
+        "output": "d56ab57b3738df5b-addcolor.frag"
+      }
+    ]
+  },
+  "implemented_equation": {
+    "source": "Lighting3DFast.vert: Out.v_Color=In.a_Color*float4(CalculateLightColor(In.a_Position.xyz,ambient),1). LightingFunctions.inc: lightColor=lerp(1,globalAmbient,ambient)+randFac.",
+    "implemented": "RGB vertex tint *= 1+(globalAmbientRGB-1)*resolvedAmbient; alpha untouched.",
+    "omitted": "Original randFac=(rand(nativeXYZ)-0.5)/257. HDS3 only stores projected XY; do not invent nativeXYZ. Omitted absolute scalar amplitude <1/514.",
+    "shader_order": "Applied to vertex tint before existing HSV texture/tint/AddColor fragment algebra; explicit user displayExposure remains a separate final-frame preference."
+  },
+  "animation_preservation": {
+    "source": "hades/native/app/scene_animation.cpp",
+    "observation": "SceneAnimation::apply modifies only sprite.texture and sprite.corners atline79; copied ambientMultiplier remains intact. No clip/frame/tint/alpha mutation introduced.",
+    "effects": 14,
+    "bindings": 206
+  },
+  "validation": {
+    "mac": "Sanitizer/warning-clean build and actual Apple M3 Pro OpenGL4.1 GPU capture atsource time1second",
+    "android": "NDK29 ARM64 graphics_scene.cpp compile clean",
+    "sprites": 796,
+    "clips": 14,
+    "absent_companion_byte_identical_to_prior_source_backdrop_capture": true,
+    "wrong_scene_binding_rejected_before_capture": true,
+    "ambient_changed_pixels": 219425,
+    "capture_pixels": 1600000,
+    "backdrop_corner_unchanged": [
+      62,
+      62,
+      62
+    ],
+    "packet_size_count_hash_checked": true,
+    "scene_HDS3_and_HDA1_unchanged": true
+  },
+  "limitations": [
+    "Ambient vertex-color multiplier only; original light sprites, shadow maps, bloom and exact group composition remain separate work.",
+    "Original tiny position dither omitted because HDS3 stores projected XY rather than native shader XYZ.",
+    "Original v5 texture/quad/animation files remain unchanged; per-sprite metadata is hash-bound to the exact scene.",
+    "Material object source and scalar Ambient precedence with differing simultaneous values is rejected rather than guessed.",
+    "This adds ambient weighting only; local light textures, light/shadow maps, bloom and original group render-target composition are not reconstructed.",
+    "Other existing color/animation approximations remain; recovered ambient weighting does not establish pixel-equivalent original final rendering.",
+    "Runtime Lua room-light overrides are not implemented by static source companion.",
+    "Map Brightness is not equated to ambient RGB or user exposure."
+  ],
+  "session": {
+    "opened_targets": 3,
+    "helper_exit_code": 0,
+    "close_report": {
+      "path": ".local/reports/native-rea-lighting-material-close.json",
+      "bytes": 250,
+      "sha256": "052cc72acfb75907e9ff703ebd805df08cd7d770bdebc4c2da17cf9d10cd8447"
+    },
+    "close_result": null,
+    "owned_helper_processes_after_close": [],
+    "device_operations": false
+  }
+}

@@ -1,0 +1,190 @@
+{
+  "schema": "hades-original-script-scheduling-contract-v1",
+  "target": {
+    "dll": "EngineWin64s.dll",
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "scope": "Matching original DLL/PDB static evidence, unmodified original Lua source, and separate portable Mac scheduler observations. No original game execution, Android device or emulator work.",
+  "evidence": {
+    "native_update": {
+      "path": ".local/reports/native-rea-script-update.json",
+      "sha256": "4e63023f3ba4bb84efa4c58cab96a27a65c1fc117aa3281387a12a0cf7c05f67",
+      "kind": "retained-static-analysis",
+      "evidence_id": "ev_cf2994b8925a823ba259675ca52e3b7e1c3ebcbdb691d8aa163f5532e0ae8e41"
+    },
+    "native_update_named": {
+      "path": ".local/reports/native-script-update-annotated.json",
+      "sha256": "228d202ac49f6d054960538f57ad78e1643c683c88dd067d4037710dd1b8d496",
+      "kind": "retained-static-analysis"
+    },
+    "world_update": {
+      "path": ".local/reports/native-scheduler-World-Update.json",
+      "sha256": "404b0c012fa8309d1834f4c8fad95a01579d6987fe3095c5bdba16b721bc592c",
+      "kind": "retained-static-analysis"
+    },
+    "screen_update": {
+      "path": ".local/reports/native-scheduler-ScreenManager-Update.json",
+      "sha256": "2a324e73c0e34cea4e83761076f00565188653865969da63b9eec30276e727e8",
+      "kind": "retained-static-analysis"
+    },
+    "source_main": {
+      "path": "Content/Scripts/Main.lua",
+      "sha256": "6aab9af9cbaf499aef3adb7e4ac622efc530db652dcf8e80d44e85cc74a7453e",
+      "lines": {
+        "wait": [
+          20,
+          26
+        ],
+        "waitScreenTime": [
+          28,
+          34
+        ],
+        "waitUntil": [
+          36,
+          45
+        ],
+        "resume": [
+          406,
+          450
+        ],
+        "dispatch": [
+          469,
+          477
+        ],
+        "notify": [
+          481,
+          496
+        ],
+        "notifyExistingWaiters": [
+          498,
+          514
+        ],
+        "tagged_kills": [
+          557,
+          566
+        ],
+        "thread": [
+          575,
+          584
+        ],
+        "update": [
+          611,
+          652
+        ],
+        "draw": [
+          655,
+          661
+        ]
+      }
+    }
+  },
+  "observed_source_contract": {
+    "ownership": "Main.lua owns Lua coroutines, timer/event queues, tag cancellation and deferred presentation. Native reconstruction invokes its real functions.",
+    "initial_resume": "dispatch and thread create a Lua coroutine and immediately call original resume. The callback runs until completion, error or first positive/event wait.",
+    "timed_waits": "wait(nil), wait(0), wait(negative) return immediately. Positive wait yields a table and queues an absolute world-clock deadline; waitScreenTime uses screen clock.",
+    "strict_deadline": "Main.update resumes only when resumeTime < selected clock, not <=. A frame exactly equal to deadline does not resume the coroutine.",
+    "event_waits": "waitUntil consumes a retained event once or yields into the event listener table. notify resumes current listeners synchronously; if none, it retains an event for a future wait. notifyExistingWaiters never retains a missing event. Listeners resumed by notify append later waits to _workingThreads.",
+    "tagged_cancellation": "killTaggedThreads queues tags; update excludes due threads marked for killing and removes matching remaining waits after queue rotation. killWaitUntilThreads deletes one event listener list. killAllWaitingThreads resets timed/working/event queues.",
+    "frame": "update(time,screenTime) first computes world elapsed and replaces the source globals, calls optional UpdateTimers(elapsed), traverses timed waits, rotates _workingThreads, applies cancellation, then calls draw(time,screenTime). draw calls deferred combat, UI and audio functions.",
+    "ordering_caution": "The original Lua code uses pairs and can start other threads during a resume. The bridge leaves those exact source operations unchanged rather than imposing a replacement scheduling order.",
+    "fault": "Original resume checks coroutine.resume status, logs DebugMessage and asserts failure. A native protected update failure sets ScriptManager::HAS_CRASHED; portable frame bridge latches its failure and refuses silent retries of partially mutated state."
+  },
+  "native_frame_contract": {
+    "update_procedure": "0x180283c90",
+    "arguments": [
+      {
+        "index": 1,
+        "source": "World.mElapsedTime",
+        "offset": "0x1c",
+        "native_type": "float, PDB type0x40, converted to Lua number"
+      },
+      {
+        "index": 2,
+        "source": "ScreenManager::s_ElapsedTime",
+        "global_rva": "0x19085f8",
+        "native_type": "double, PDB type0x41"
+      }
+    ],
+    "cached_function": "ScriptManager::LUA_UPDATE retains the original Lua function; replacing a global later does not replace the bridge cached function.",
+    "world_clock": "World::Update multiplies supplied float frame delta by world time scale then accumulates float mElapsedTime at0x180315074/07a and increments mFrame. Clock generation, scale easing and pause/step ownership remain parent engine integration work.",
+    "screen_clock": "ScreenManager::Update accumulates float frame delta converted to double into s_ElapsedTime at0x1801a7aef..af7. Focus/update early-out paths still apply; it is not an unconditional wall clock.",
+    "pause": "World non-running or paused without mStepFrame returns before ScriptManager::Update. Distinct screen-clock deadlines do not by themselves establish Lua resumes while native world updates are suppressed.",
+    "world_order": [
+      "world systems and entity bookkeeping",
+      "AnimationManager::Update",
+      "World::UpdateGameEvents",
+      "Camera::Update at0x1803155c5",
+      "ScriptManager::Update at0x1803155ca",
+      "UseableManager::Update",
+      "post-update ECS systems"
+    ],
+    "native_delayed_actions": "Before invoking Lua update, native ScriptManager processes separate FireData/ScriptAction records (0xa0-byte records, deadline+0x98) and executes only when worldTime > deadline. The new portable Lua bridge does not implement this distinct engine-action queue.",
+    "gc_and_thread_guard": "Native also performs Cleanup, Lua GC step and one-thread access guards; these are not claimed as reconstructed by the new scheduling bridge."
+  },
+  "portable_implementation": {
+    "files": [
+      "native/app/script_scheduler.hpp",
+      "native/app/script_scheduler.cpp"
+    ],
+    "api": [
+      "initializeScriptScheduler(lua_State*,error)",
+      "advanceScriptScheduler(lua_State*,float worldTime,double screenTime,error)",
+      "notifyScriptEvent(lua_State*,event,existingOnly,wasTimeout,error)",
+      "snapshotScriptScheduler(lua_State*)",
+      "dumpScriptScheduler(lua_State*)"
+    ],
+    "properties": [
+      "VM-owned registry table caches original Lua function values; no original Lua mutation.",
+      "Finite caller-supplied clocks, stack preservation, queue diagnostics and explicit retained faults.",
+      "Parent controls world activation, frame/pause clocks, native delayed-action execution, actor components and engine notifications."
+    ],
+    "limits": [
+      "Does not create actors, execute native delayed actions, update camera/physics, play audio or provide save persistence.",
+      "Public notify helper accepts named string events as an integration seam; it does not reproduce every native condition/check action producing events."
+    ]
+  },
+  "portable_validation": {
+    "runner": "native/analysis/run_script_scheduler_debug.py",
+    "smoke": "native/analysis/script_scheduler_smoke.cpp",
+    "report": ".local/native-analysis/script-scheduler-0dybjgxf/report.json",
+    "result": "pass",
+    "sanitizers": [
+      "address",
+      "undefined"
+    ],
+    "source": "complete, unmodified original Main.lua",
+    "checks": [
+      "missing-before-Main initialization rejected",
+      "positive/zero/nil/negative wait behavior",
+      "strict equality deadline",
+      "world-clock held while screen-clock supplied advances",
+      "retained and existing-only event semantics",
+      "synchronous event resume and working-queue handoff",
+      "tagged cancellation",
+      "cached update retained after global replacement",
+      "nonfinite clock rejected without corrupting state",
+      "expected coroutine error preserved and further frame attempts blocked",
+      "caller Lua stack sentinel preserved"
+    ],
+    "limits": "Synthetic callback bodies and instrumented deferred hooks establish scheduling semantics only, not complete room/gameplay integration."
+  },
+  "source_sha256": {
+    "native/app/script_scheduler.hpp": "ae4a987620f07d53d5e9664e7fcac1c8a933868fbce0bb9499a0b5c1b4a5ae09",
+    "native/app/script_scheduler.cpp": "65856c553d2e5395d0e667aca061549038f65805585cc36d4508afe392d29d5f",
+    "native/analysis/script_scheduler_smoke.cpp": "e3f6eab108a1a5d80839e35cadab04e303d4b1fd78f938ce0afe4a2787b5e634",
+    "native/analysis/run_script_scheduler_debug.py": "72e88feefb772c103bc1649c1675ab669e7be48230edf760dca749cbf660654b"
+  },
+  "session_lifecycle": {
+    "new_REA_session_opened": false,
+    "reason": "Reused exact matching retained REA evidence and supplemented it with bounded original DLL disassembly and matching PDB declarations; no new native session required.",
+    "originals_modified": false,
+    "device_or_emulator_operations": false
+  },
+  "unknowns": [
+    "Full native delayed engine-action queue scheduling/reentrancy integration.",
+    "Complete host clock, pause, focus and step behavior around every screen mode.",
+    "Actual RoomOpening scheduling requires real actors, remaining engine interfaces, source data state and proper ordered callback dispatch."
+  ]
+}

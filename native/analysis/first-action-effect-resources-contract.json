@@ -1,0 +1,63 @@
+{
+  "schema": "hades-first-action-effect-resources-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "original source/PKG and exact PDB/LLVM; no original executable run",
+  "resources": [
+    {
+      "path": ".local/native-assets/first-action-effects-v1/manifest.json",
+      "bytes": 92091,
+      "sha256": "5bcca0e65099e7dcbfc31b661f8dbd25c3f1c46a88cb35f9cbc6c60fb76b6f18"
+    },
+    {
+      "path": ".local/native-assets/first-action-effects-v1/catalog.json",
+      "bytes": 38558,
+      "sha256": "8382d99cf3630419e8c3f6b60adadf86a9bf3dcdbe06da1b29d884b8a1e1b76b"
+    },
+    {
+      "path": ".local/native-assets/first-action-effects-v1/action-effects.lua",
+      "bytes": 21951,
+      "sha256": "445543253082c61e55750895bd7be05971fefabd9dc63ac598595a6562bfa66e"
+    },
+    {
+      "path": ".local/native-assets/first-action-effects-v1/action-effect-frames.bin",
+      "bytes": 304420,
+      "sha256": "0efdd9c13b56738b9936fbe55acc1f031e15307baf3666b0c66fe36ff8abb21b"
+    }
+  ],
+  "native_evidence": [
+    {
+      "path": ".local/reports/native-action-animation-deserialize-static.json",
+      "bytes": 561121,
+      "sha256": "74aaf2da4abadaf5c1ca0c02335859d8c2cf3a8bd4f8a1582e32f9984e0af386"
+    },
+    {
+      "path": ".local/reports/native-action-animation-create-list-static.json",
+      "bytes": 15497,
+      "sha256": "1566daf106cea91dfd1d00d11aaadbd7254372efcd47ff37f2419bcc918a4474"
+    }
+  ],
+  "normalization": {
+    "ClearSlides": "Matching deserializer compares ClearSlides at18008f5b7 and invokes vector<SlideData>::clear at18008f5ee..5f5 on actualData+5c8.",
+    "Slides": "First Slides key clears vector unconditionally at180093743..758 then additiveSlideDeserialize9d000; source Slides replaces inherited vector even without ClearSlides.",
+    "ClearCreateAnimations": "Matching compare18008f5fa then booltrue path18008f631..638 invokes actual vector<string>::clear8dbd0 on Data+5f8. Omission of new CreateAnimations after clear leaves genuinely empty vector.",
+    "CreateAnimations": "Matching key180093819..82a branches1800939f6 to actualData+5f8, calling additiveStringDeserialize9d160. Source entries append to inherited vector unless cleared.",
+    "selected_root": "SwordSwipeAFlipped clears inherited list then adds exactlyDark/Displace; both children clear and add none. No recursive inherited create graph."
+  },
+  "validation": {
+    "path": ".local/reports/native-action-effect-resources-v1-smoke.json",
+    "bytes": 230,
+    "sha256": "b9f47f7a04cb4b8c255098ee376d305dadfd0728071dee5d0e336420be764234"
+  },
+  "known_dependencies": {
+    "first_swipe": "Slide18images,14positiveDurationFrames, frame3 QuickFlashRed; sourceOrigin200/256; FlipVertical;PostRotateScaleY.62;Scale1.1;TimeModifierFraction.75; actualDark/Displace child creates.",
+    "footstep_spawners": "Constant.1s,TimeInterval.001..0011,VisualFxCap1,VisualFxManagerCap300; actualr/l_foot_TRACKING marker required.",
+    "visible_footstep": "SourceSlide25images;L includes30ticks atframe7,R overridesall2ticks. ChildRaysBook13, particles, FootstepLight and /SFX/Player Sounds/BurningFootsteps needed."
+  },
+  "limits": [
+    "Resource/frame-bank admission is complete for this bounded11definition closure; no successful effect allocation/update/draw is asserted.",
+    "Native constructor defaults and runtime typed transitions, source shake/marker/light/sound/material/group/playback/child ownership are not supplied by a resource catalog.",
+    "Displacement source group retained; renderer currently has no verified native displacement composition path.",
+    "Source origin/flip/post-rotation transform must be applied in actual draw provider; bank preserves original shared unflippedRGBA.",
+    "No supplied original binaries run and no owned REA session opened in this pass."
+  ]
+}

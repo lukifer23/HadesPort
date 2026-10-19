@@ -1,0 +1,80 @@
+{
+  "schema": "hades-native-physics-force-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "Matching DLL/PDB and bounded LLVM static; host reconstruction replay is not original execution",
+  "native_reports": [
+    {
+      "path": ".local/reports/native-active-physics-force-angle-static.json",
+      "procedure": "sgg::PhysicsComponent::ApplyForce",
+      "rva": "0x2bd070"
+    },
+    {
+      "path": ".local/reports/native-active-physics-force-vector-static.json",
+      "procedure": "sgg::PhysicsComponent::ApplyForce",
+      "rva": "0x2bd160"
+    },
+    {
+      "path": ".local/reports/native-active-physics-force-direct-static.json",
+      "procedure": "sgg::PhysicsComponent::ApplyDirectForce",
+      "rva": "0x2bcea0"
+    },
+    {
+      "path": ".local/reports/native-active-physics-force-up-static.json",
+      "procedure": "sgg::PhysicsComponent::ApplyUpwardForce",
+      "rva": "0x2bd2c0"
+    },
+    {
+      "path": ".local/reports/native-active-physics-init-static.json",
+      "procedure": "sgg::Thing::InitPhysics",
+      "rva": "0x2dda20"
+    },
+    {
+      "path": ".local/reports/native-active-physics-ensure-static.json",
+      "procedure": "sgg::Thing::EnsurePhysics",
+      "rva": "0x2ddb00"
+    },
+    {
+      "path": ".local/reports/native-active-action-force-static.json",
+      "procedure": "sgg::ScriptAction::ApplyForce",
+      "rva": "0x25a370"
+    },
+    {
+      "path": ".local/reports/native-active-action-force-up-static.json",
+      "procedure": "sgg::ScriptAction::ApplyUpwardForce",
+      "rva": "0x25a600"
+    },
+    {
+      "path": ".local/reports/native-active-thing-on-up-force-static.json",
+      "procedure": "sgg::Thing::OnUpwardForce",
+      "rva": "0x2dfb00"
+    },
+    {
+      "path": ".local/reports/native-active-unit-airborne-static.json",
+      "procedure": "sgg::Unit::IsAirborne",
+      "rva": "0x2f28d0"
+    }
+  ],
+  "implemented": {
+    "ActorWorld": "Owns actual PhysicsState; initial InitPhysics checks Thing.Grip<99999 and map AttachToID<=0. EnsurePhysics allocates once and copies current Thing.Gravity/BounceMultiplier. Membership request is retained separately until real World reconciliation.",
+    "ApplyUpwardForce": "Actual Lua Id-only fast path; ignores Names/Ids. Ensures actual Physics, uses positive HangTime*currentGravity*.5 instead of Speed, always selfApplied=true, source UpwardTerminalVelocity cap. Thing.OnUpwardForce requests same actual component.",
+    "force": "Actual planar immunity/multiplier/lastSelf ordering, normalized force, native velocity magnitude clamp and double degrees-to-radians SpinFactor conversion. OnForce and component/audio/animation callbacks mandatory at real boundary. Zero-angle force early return precedes footing changes; immunity rejects vector but angle wrapper still stores positive footing.",
+    "OwnerImmobile": "AnimationData+8e is actual OwnerImmobile, not a distinct invented animation ImmuneToForce field.",
+    "airborne": "Unit.IsAirborne2f28d0 queries concrete Slide current-frame Airborne bool only; not Z or upward velocity."
+  },
+  "verification": ".local/reports/native-physics-source-debug.log",
+  "limits": [
+    "Full World.Physics update, friction, Z/collision/tether/spin integration still pending.",
+    "Planar LuaApplyForce action remains gated until actual Thing.OnForce animation/audio providers are connected.",
+    "Nonfinite values and zero vector direction rejected by explicit portable guards.",
+    "Snapshots of force inputs must be refreshed after original callbacks."
+  ],
+  "superseded_bad_requests": [
+    "native-rea-active-thing-on-force.json requested2df8d0 and resolved previous containingprocedure2df720; do not cite for OnForce.",
+    "native-rea-active-physics-update.json requested2bd560 and resolvedGetGrip2bd530; do not cite for WorldPhysicsUpdate."
+  ],
+  "corrected_rea": [
+    "native-rea-active-thing-on-force-exact.json",
+    "native-rea-active-physics-update-thing-exact.json",
+    "native-rea-active-physics-friction-exact.json"
+  ]
+}

@@ -1,0 +1,415 @@
+{
+  "schema": "hades-original-actor-animation-contract-v1",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "artifacts": {
+    "bank": {
+      "path": ".local/native-assets/hero-actions-v3/actor-animations.bin",
+      "bytes": 220277751,
+      "sha256": "3e8c4db297499b8485f63780ee08861206dc7a1ed1cbc745b39ab598ba65a567"
+    },
+    "facing": {
+      "path": ".local/native-assets/hero-facing-v1/actor-facing.bin",
+      "bytes": 3620,
+      "sha256": "a14a705185b3f47e70fca3ef7f2d54831619c162544c4a81376a08f720c3ceba"
+    },
+    "manifest": ".local/native-assets/hero-actions-v3/manifest.json",
+    "format": "native/tools/ACTOR_ANIMATION_FORMAT.md",
+    "exporters": [
+      "native/tools/export_actor_animations.py",
+      "native/tools/export_actor_facing.py"
+    ],
+    "runtime": [
+      "native/app/actor_animation.hpp",
+      "native/app/actor_animation.cpp",
+      "native/app/scene_renderer.hpp",
+      "native/app/scene_renderer.cpp"
+    ]
+  },
+  "clips": [
+    {
+      "name": "ZagreusIdle",
+      "type": "Book",
+      "frames_in_schedule": 120,
+      "original_angles": 32,
+      "exported_angles": 8,
+      "chain": "",
+      "animation_blocks_attack": false,
+      "flags": 521
+    },
+    {
+      "name": "ZagreusRun",
+      "type": "Book",
+      "frames_in_schedule": 32,
+      "original_angles": 64,
+      "exported_angles": 8,
+      "chain": "",
+      "animation_blocks_attack": false,
+      "flags": 513
+    },
+    {
+      "name": "ZagreusSwordRun",
+      "type": "Book",
+      "frames_in_schedule": 32,
+      "original_angles": 64,
+      "exported_angles": 8,
+      "chain": "",
+      "animation_blocks_attack": false,
+      "flags": 521
+    },
+    {
+      "name": "ZagreusSwordDashAttack",
+      "type": "Slide",
+      "frames_in_schedule": 20,
+      "original_angles": 32,
+      "exported_angles": 8,
+      "chain": "ZagreusSwordDashAttackReturnToIdle",
+      "animation_blocks_attack": false,
+      "flags": 132
+    },
+    {
+      "name": "ZagreusSwordParryCharge",
+      "type": "Slide",
+      "frames_in_schedule": 18,
+      "original_angles": 16,
+      "exported_angles": 8,
+      "chain": "",
+      "animation_blocks_attack": false,
+      "flags": 128
+    },
+    {
+      "name": "ZagreusSwordParryFire",
+      "type": "Slide",
+      "frames_in_schedule": 22,
+      "original_angles": 16,
+      "exported_angles": 8,
+      "chain": "ZagreusSwordParryReturnToIdle",
+      "animation_blocks_attack": false,
+      "flags": 168
+    },
+    {
+      "name": "ZagreusSwordCharge1",
+      "type": "Slide",
+      "frames_in_schedule": 1,
+      "original_angles": 32,
+      "exported_angles": 8,
+      "chain": "",
+      "animation_blocks_attack": false,
+      "flags": 128
+    },
+    {
+      "name": "ZagreusSwordAttack1",
+      "type": "Slide",
+      "frames_in_schedule": 8,
+      "original_angles": 32,
+      "exported_angles": 8,
+      "chain": "ZagreusSwordAttack1_ReturnToIdle",
+      "animation_blocks_attack": false,
+      "flags": 128
+    },
+    {
+      "name": "ZagreusSwordCharge2",
+      "type": "Slide",
+      "frames_in_schedule": 13,
+      "original_angles": 32,
+      "exported_angles": 8,
+      "chain": "",
+      "animation_blocks_attack": false,
+      "flags": 128
+    },
+    {
+      "name": "ZagreusSwordAttack2",
+      "type": "Slide",
+      "frames_in_schedule": 4,
+      "original_angles": 32,
+      "exported_angles": 8,
+      "chain": "ZagreusSwordAttack2_ReturnToIdle",
+      "animation_blocks_attack": false,
+      "flags": 128
+    },
+    {
+      "name": "ZagreusSwordCharge3",
+      "type": "Slide",
+      "frames_in_schedule": 13,
+      "original_angles": 32,
+      "exported_angles": 8,
+      "chain": "",
+      "animation_blocks_attack": false,
+      "flags": 128
+    },
+    {
+      "name": "ZagreusSwordAttack3",
+      "type": "Slide",
+      "frames_in_schedule": 21,
+      "original_angles": 32,
+      "exported_angles": 8,
+      "chain": "ZagreusSwordReturnToIdle",
+      "animation_blocks_attack": false,
+      "flags": 128
+    },
+    {
+      "name": "ZagreusDashNoCollide",
+      "type": "Slide",
+      "frames_in_schedule": 9,
+      "original_angles": 16,
+      "exported_angles": 8,
+      "chain": "ZagreusDashCollide",
+      "animation_blocks_attack": false,
+      "flags": 396
+    },
+    {
+      "name": "ZagreusDashCollide",
+      "type": "Slide",
+      "frames_in_schedule": 47,
+      "original_angles": 16,
+      "exported_angles": 8,
+      "chain": "",
+      "animation_blocks_attack": false,
+      "flags": 12
+    },
+    {
+      "name": "ZagreusRangedWeapon_Charge",
+      "type": "Slide",
+      "frames_in_schedule": 13,
+      "original_angles": 32,
+      "exported_angles": 8,
+      "chain": "",
+      "animation_blocks_attack": false,
+      "flags": 8
+    },
+    {
+      "name": "ZagreusRangedWeapon_Fire",
+      "type": "Slide",
+      "frames_in_schedule": 107,
+      "original_angles": 32,
+      "exported_angles": 8,
+      "chain": "",
+      "animation_blocks_attack": false,
+      "flags": 8
+    },
+    {
+      "name": "ZagreusHeroLanding_Start",
+      "type": "Slide",
+      "frames_in_schedule": 10,
+      "original_angles": 1,
+      "exported_angles": 1,
+      "chain": "ZagreusHeroLanding_Fire",
+      "animation_blocks_attack": false,
+      "flags": 1
+    },
+    {
+      "name": "ZagreusHeroLanding_Air",
+      "type": "Slide",
+      "frames_in_schedule": 10,
+      "original_angles": 1,
+      "exported_angles": 1,
+      "chain": "ZagreusHeroLanding_ReturnToIdle",
+      "animation_blocks_attack": false,
+      "flags": 0
+    },
+    {
+      "name": "ZagreusHeroLanding_Fire",
+      "type": "Slide",
+      "frames_in_schedule": 24,
+      "original_angles": 1,
+      "exported_angles": 1,
+      "chain": "ZagreusHeroLanding_ReturnToIdle",
+      "animation_blocks_attack": false,
+      "flags": 0
+    },
+    {
+      "name": "ZagreusHeroLanding_LandingHold",
+      "type": "Slide",
+      "frames_in_schedule": 15,
+      "original_angles": 1,
+      "exported_angles": 1,
+      "chain": "ZagreusHeroLanding_ReturnToIdle",
+      "animation_blocks_attack": false,
+      "flags": 9
+    },
+    {
+      "name": "ZagreusHeroLanding_ReturnToIdle",
+      "type": "Slide",
+      "frames_in_schedule": 80,
+      "original_angles": 1,
+      "exported_angles": 1,
+      "chain": "ZagreusIdle",
+      "animation_blocks_attack": false,
+      "flags": 8
+    },
+    {
+      "name": "ZagreusSwordDashAttackReturnToIdle",
+      "type": "Slide",
+      "frames_in_schedule": 22,
+      "original_angles": 32,
+      "exported_angles": 8,
+      "chain": "ZagreusSwordAttack2_ReturnToIdle_Loop",
+      "animation_blocks_attack": false,
+      "flags": 140
+    },
+    {
+      "name": "ZagreusSwordParryReturnToIdle",
+      "type": "Slide",
+      "frames_in_schedule": 22,
+      "original_angles": 16,
+      "exported_angles": 8,
+      "chain": "ZagreusSwordAttack1_ReturnToIdle_Loop",
+      "animation_blocks_attack": false,
+      "flags": 168
+    },
+    {
+      "name": "ZagreusSwordAttack1_ReturnToIdle",
+      "type": "Slide",
+      "frames_in_schedule": 49,
+      "original_angles": 16,
+      "exported_angles": 8,
+      "chain": "ZagreusSwordAttack1_ReturnToIdle_Loop",
+      "animation_blocks_attack": false,
+      "flags": 8
+    },
+    {
+      "name": "ZagreusSwordAttack2_ReturnToIdle",
+      "type": "Slide",
+      "frames_in_schedule": 50,
+      "original_angles": 16,
+      "exported_angles": 8,
+      "chain": "ZagreusSwordAttack2_ReturnToIdle_Loop",
+      "animation_blocks_attack": false,
+      "flags": 8
+    },
+    {
+      "name": "ZagreusSwordReturnToIdle",
+      "type": "Slide",
+      "frames_in_schedule": 11,
+      "original_angles": 32,
+      "exported_angles": 8,
+      "chain": "ZagreusSwordReturnToIdleCancelMove",
+      "animation_blocks_attack": false,
+      "flags": 0
+    },
+    {
+      "name": "ZagreusSwordAttack2_ReturnToIdle_Loop",
+      "type": "Slide",
+      "frames_in_schedule": 50,
+      "original_angles": 16,
+      "exported_angles": 8,
+      "chain": "",
+      "animation_blocks_attack": false,
+      "flags": 9
+    },
+    {
+      "name": "ZagreusSwordAttack1_ReturnToIdle_Loop",
+      "type": "Slide",
+      "frames_in_schedule": 50,
+      "original_angles": 16,
+      "exported_angles": 8,
+      "chain": "",
+      "animation_blocks_attack": false,
+      "flags": 9
+    },
+    {
+      "name": "ZagreusSwordReturnToIdleCancelMove",
+      "type": "Slide",
+      "frames_in_schedule": 15,
+      "original_angles": 32,
+      "exported_angles": 8,
+      "chain": "ZagreusSwordAttack2_ReturnToIdle_Loop",
+      "animation_blocks_attack": false,
+      "flags": 8
+    }
+  ],
+  "counts": {
+    "clips": 29,
+    "movie_frames": 6119,
+    "cropped_raw_bytes": 515286528,
+    "zlib_bytes": 219918114,
+    "max_frame_rgba_bytes": 410000,
+    "export_seconds": 32.19112291700003
+  },
+  "native_evidence": [
+    {
+      "path": ".local/reports/native-rea-actor-slide-start.json",
+      "evidence_id": "ev_b7b6bcbc04db80e7a2e31fed240d141c6b6181eb281f4d4693b3375baac80ddf"
+    },
+    {
+      "path": ".local/reports/native-rea-actor-slide-next.json",
+      "evidence_id": "ev_87fb570f74c594003690d558caaed37bdc404ff8e8ef9408c5ca193833932376"
+    },
+    {
+      "path": ".local/reports/native-rea-actor-slide-post.json",
+      "evidence_id": "ev_a8a621846a912e34f2f748f2c73229b966c3a292acdb2b7cd749bc2ed084b98a"
+    }
+  ],
+  "recovered": {
+    "slide_duration": "SlideStartVA1802b4126 divides currentDurationFrames by float60 and accumulates mSlideTimeRemaining. NextSlideVA1802b48db skips zero-duration slides before SlideStart/events. PostUpdateVA1802b4a26 advances one positive slide per update when remaining<0.0001.",
+    "book_default_speed": "BookAnimation::SetupFrameUpdateModeVA1802b125c reads exact DefaultDataPlaySpeed atVA181cd05d0; dynamic initializerRVA25a90 writes60.0. ExplicitRunPlaySpeed60 agrees.",
+    "owner_attack_gate": "AnimationData.mDef offset0x58 plus DisableOwnerWeapons0x2c=full0x84. Matching weapon canFire reads it atVA18008386b. Selected clips source absentfalse, native zero-template/copy constructor establishesfalse; unrelated owner CanAttack/alive/enabled gates remain separate.",
+    "origin": "InitDataVA180292340 reads sourceOriginX/Y; absentboth0 and valid atlas uses original width/height*0.5 atVA180292394..23bc. ReadBinkAtlasVA1801f4cbc..4cda computes trim trunc((originalCanvas-movieSize)/2). AtlasMap.GetOrigin source mapping retained; half-pixel oddcanvas preserved.",
+    "scale_offset": "GetDrawLocationVA180297e2a..7f35 adds animation offsets scaled by attachedBody scale. GetDrawScale/GetScale multiply source animation scale by attached unit scale; atlas scale inverse applied by original Bink data. Selected unitScale0.7 and animationScale1.05 retained separately in manifest.",
+    "angle": "Exact720float lookup atVA1804cf140 bound to original DLL and native GetAngleNum disassembly; source-only currentmetadata ownAngle/offsets0, UseIsometricAngledefaulttrue and Mirrorfalse reviewed. HAF1 immutable HAA1 binding; nearest selected original angle remains reduced coverage."
+  },
+  "native_static_reports": [
+    ".local/reports/native-actor-animation-book-frame-mode.json",
+    ".local/reports/native-actor-animation-default-book-speed.json",
+    ".local/reports/native-actor-animation-angle-num.json",
+    ".local/reports/native-actor-animation-inverse-isometric-angle.json",
+    ".local/reports/native-actor-animation-init-data.json",
+    ".local/reports/native-actor-animation-bink-atlas.json",
+    ".local/reports/native-actor-animation-draw-location.json",
+    ".local/reports/native-actor-animation-get-scale.json",
+    ".local/reports/native-lighting-AnimationCtor-static.json"
+  ],
+  "facing_source_range": {
+    "rva": "0x4cf140",
+    "va": "0x1804cf140",
+    "file_offset": 5037888,
+    "bytes": 2880,
+    "sha256": "48ce8721b3211b60edbe721e59c904c69d02b8e2ecbb2e23d95fd9e1b55199b2"
+  },
+  "validation": {
+    "ASAN_UBSan": {
+      "schema": "hades-actor-animation-validation-v1",
+      "clips": 29,
+      "samples": 6131,
+      "raw_bytes_sampled": 515798060,
+      "elapsed_seconds": 6.13374,
+      "cache_frames": 8,
+      "cache_bytes": 800424,
+      "misses": 12068,
+      "hits": 138,
+      "inflated_bytes": 1018936960,
+      "inflate_ms": 2540.53,
+      "native_slide_assertions": true
+    },
+    "source_cardinal_facing_assertions": true,
+    "actual_Mac_GL": {
+      "path": ".local/reports/native-actor-animation-gpu-v3.json",
+      "gpu": "Apple M3 Pro",
+      "frames": 360,
+      "actor_inflates": 144,
+      "actor_inflate_ms": 16.5378,
+      "mean_GPU_ms": 1.8288576388888889,
+      "mean_CPU_ms": 3.3983467916666665,
+      "room_frames_visited": 1069,
+      "capture": ".local/reports/native-actor-animation-gpu-v3.png",
+      "limits": "Diagnostic imposed action selection sequence, not combat/entry gameplay. Shared host load may include parent emulator. No Android/Fold performance conclusion."
+    },
+    "ARM64_compilation": "actor_animation.cpp and scene_renderer.cpp compile; final facing helper compile verified in current pass."
+  },
+  "limits": [
+    "Source graphics/schedules/metadata; full native animation owner/component lifecycle is separate.",
+    "FX, audio, footsteps and chain requests require actual owner integration; retained event data is not a no-op success claim.",
+    "Animation control flags exposed as source data; CancelOnOwnerMove/DisableOwnerWeapons do not mutate world by themselves.",
+    "Native random/time/marker/attachment/movement and generic animation types are not reconstructed by this actor-specific bank.",
+    "Original eight source directions selected from full32/64: approximate directional coverage, no invented images.",
+    "Current Standing sort is provisional; native scene graph/bounds/SCC remains pending."
+  ],
+  "session_lifecycle": {
+    "owned_sessions_remaining": 0,
+    "close_report": ".local/reports/native-rea-actor-slide-close.json"
+  },
+  "device_operations": false
+}

@@ -1,0 +1,23 @@
+{
+  "schema": "hades-config-speed-multiplier-default-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "Original static instructions joined to matching PDB global",
+  "report": ".local/reports/native-config-defaults-static.json",
+  "report_sha256": "31c71536e70732c7fce09f7c6ec8127bcaf67c1f163ac57770aa5420f2a7fa7f",
+  "observation": {
+    "global": "sgg::ConfigOptions::SpeedMultiplier",
+    "global_rva": "0x6a7f14",
+    "initializer": "sgg::ConfigOptions::Defaults",
+    "initializer_rva": "0x105830",
+    "write_va": "0x18010590a",
+    "instruction": "movl $0x3f800000, 0x5a2600(%rip)",
+    "next_instruction_va": "0x180105914",
+    "effective_destination_va": "0x1806a7f14",
+    "float32_bits": "3f800000",
+    "value": 1.0
+  },
+  "limits": [
+    "Defaults routine assignment proven; later game/user configuration overrides require live port configuration ownership.",
+    "No original execution observed."
+  ]
+}

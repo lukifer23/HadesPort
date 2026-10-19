@@ -1,0 +1,41 @@
+{
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_type": "Matching PDB and bounded LLVM disassembly; original Windows code was not executed",
+  "evidence": [
+    {
+      "path": ".local/reports/native-active-body-transition-calc-static.json",
+      "sha256": "c6bf2d53c2748b29672dbbdee945096a92b70058c4a24ad2551b684c54d84860"
+    },
+    {
+      "path": ".local/reports/native-active-body-adjust-static.json",
+      "sha256": "5eab1d8bd8c7787c57f3ed277bc01fe5d5e13cefd491ad47c89fe752bae94838"
+    },
+    {
+      "path": ".local/reports/native-active-body-update-static.json",
+      "sha256": "da6eae1257ddccc9b74621ebb1943237ebe8f00668b2d73ea787ac54a24d875b"
+    },
+    {
+      "path": ".local/reports/native-active-interpolate-static.json",
+      "sha256": "eab72b8aa859c04e56b831077f3439787e3a090b571375eda45063a2b735aae8"
+    },
+    {
+      "path": ".local/reports/native-engine-pdb-transitions.json",
+      "sha256": "33c532e8b827ec1339ada943f9e2c774ce9629a9b1554edf4ea815c35029f0ef"
+    }
+  ],
+  "runtime": "native/app/body_transition.cpp",
+  "behavior": [
+    "separate base body Scale and transition fraction",
+    "first adjustment native start1; retarget starts at current interpolated value",
+    "same target returns without resetting duration/easing",
+    "elapsed divided by actual UndoModifier, strict remaining<0 removal",
+    "linear, double Hermite smooth-step and positive control-point easing",
+    "zero duration returns exact target; ping-pong phase0 supported"
+  ],
+  "integration": "ActorWorld owns actual scale and alpha scalar transitions; ObjectRuntime delegates only lifetime-backed actors. Body phase call is exposed but full world schedule remains gated.",
+  "limits": [
+    "Nonfinite values, negative duration and nonpositive UndoModifier fail under explicit portable bounds.",
+    "Nonzero phase offset, native angle-value setup, remaining body channels and complete system membership update are not integrated.",
+    "No renderer-time interpolation or full gameplay claim."
+  ]
+}

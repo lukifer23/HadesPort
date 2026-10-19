@@ -1,0 +1,326 @@
+{
+  "schema": "hades-collision-transform-contract-v1",
+  "scope": "Exact selected fresh-body obstacle polygon transform semantics; source-bound static export, no engine actor/physics completeness claim.",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "evidence_kind": "Matching-PDB procedure bounded LLVM disassembly, joined to retained original source hashes. No original code executed.",
+  "new_evidence_reports": [
+    {
+      "path": ".local/reports/native-collision-setup-geometry.json",
+      "sha256": "7cf74d1cf4fbdcca74c1532b42392c11e4a2246f8cbf059af238cc5db7fab919"
+    },
+    {
+      "path": ".local/reports/native-collision-polygon-create.json",
+      "sha256": "ab6dc2e72236c3e181033a20c43f857b6b868ba144ca414e1832729b51de3590"
+    },
+    {
+      "path": ".local/reports/native-collision-polygon-scale.json",
+      "sha256": "df35bc0fad8dd825ed24d1b5039c48a8d97cba9b0a8552caef44b755135eb103"
+    },
+    {
+      "path": ".local/reports/native-collision-polygon-rotate.json",
+      "sha256": "eba84f74efec63ce92a7bd1c204541bf5be828bb18a5e9c6e40e16615dabe1f3"
+    },
+    {
+      "path": ".local/reports/native-collision-polygon-flip-horizontal.json",
+      "sha256": "5ae2c1d5a77d19af26c7c4e1961badd8c2b09409b37c4bd6ea6ef863d78abcbf"
+    },
+    {
+      "path": ".local/reports/native-collision-polygon-flip-vertical.json",
+      "sha256": "3fb9050720d630e9ec5055fb55edf43ec36f4cb5f0f9b69bba3b706a8e373113"
+    },
+    {
+      "path": ".local/reports/native-collision-polygon-winding.json",
+      "sha256": "7ac5cd4da80019b810b48ca2ac1017a518b768b0c2cc72ae245de03581f173f0"
+    },
+    {
+      "path": ".local/reports/native-collision-body-constructor2.json",
+      "sha256": "4ce82c7847c55d8a05a0fb3c32cdc4a6056ca23f331b0e83800a97b809fc0113"
+    },
+    {
+      "path": ".local/reports/native-collision-thing-data-defaults.json",
+      "sha256": "60994b3ffc0c77368313f722c5f8ad794c4962c6fd5a68b508f767d4e987cd1e"
+    },
+    {
+      "path": ".local/reports/native-collision-thing-def-assignment.json",
+      "sha256": "877aef646734689b518f7f3cc08a119800849ca96a7fd321336e8e27ffb0b795"
+    },
+    {
+      "path": ".local/reports/native-collision-body-add-angle.json",
+      "sha256": "a9489cfc6d530b61ba24d215f65d1239fad60a35710f0cec810f0ce1757ae2a2"
+    }
+  ],
+  "reused_actor_evidence": {
+    "contract": "native/analysis/actor-initialization-contract.json",
+    "InitThing": "ev_f090dd35ceda4e6c9b4cab0833c3c1ab493e3e8726bf479bc8cdd3bd93dbb466",
+    "InitMapThing": "ev_7f6fcd6b5aab41c2346d5b52bf749f5391ac084e8451ad548e444d8dd5cde513",
+    "map_child_link": "ev_a2e5ccba9a489cfeefc1a1c6a8847cc3968c1f3ede2d243b58e2c607c960d116"
+  },
+  "compiled_defaults_report": ".local/reports/native-collision-compiled-defaults.json",
+  "compiled_default_values": {
+    "Scale": 1.0,
+    "MinScale": 0.0,
+    "MaxScale": 0.0,
+    "StartAngle": 0.0,
+    "RelativeExtentScale": 0.0,
+    "ExtentScale": 0.0,
+    "RotateGeometry": false,
+    "MirrorGeometry": false,
+    "StopsUnits": true
+  },
+  "fresh_body_defaults": {
+    "Scale": 1.0,
+    "SquashStretchScale": 1.0,
+    "SquashStretchAngle": 0.0,
+    "Angle": 0.0,
+    "Flips": 0,
+    "ScaleTransitionActive": false
+  },
+  "source_initialization": {
+    "InitThing": "Body.Scale multiplied by Thing.Scale unless MinScale/MaxScale request random value. Body.Angle AddAngle(Thing.StartAngle).",
+    "InitMapThing": "Body.Scale multiplied by map.Scale; Body.Angle AddAngle(map.Angle*float32pi/180); Body.squashScale=map.SkewScale, squashAngle=map.SkewAngle*float32pi/180; map flips toggle fresh body bits.",
+    "body_angle_normalization": "BodyComponent::AddAngle RVA0x2b73e0: ifdelta!=0, newAngle=(old+delta)-floorf(float32((old+delta)/TAU))*TAU; TAU=float32bits40c90fdb.",
+    "generic_attachment_boundary": "Static exporter uses original initial world XY. Native structural map obstacle parent links do not rebase it. Generic live AttachTo/animated parent transformations are separate and unsupported."
+  },
+  "native_polygon_setup_order": [
+    {
+      "order": 0,
+      "operation": "Prefer nonempty original map Points; otherwise nonempty resolved Thing.Points. Build canonical winding then offset by world XY.",
+      "anchors": [
+        "0x1802dc8fa",
+        "0x1802dc94b",
+        "0x1802dc955",
+        "0x1802dca20",
+        "0x1802dcad5",
+        "0x1802dcb10"
+      ],
+      "definition_helper": "Polygon::Create RVA0x2da6a0 copies original definition points unchanged, normalizes winding, then offsets by supplied XY; SetupGeometry calls it with fourthargumentZ=0."
+    },
+    {
+      "order": 1,
+      "operation": "Directional squash/stretch around current location if Body.SquashStretchScale!=1.",
+      "formula": "e=(cos(skewAngle),-sin(skewAngle)); delta=(skewScale-1)*dot(p-origin,e)*e; p+=delta. Scalar f32 operations in observed order.",
+      "anchors": [
+        "0x1802dce34",
+        "0x1802dcebd",
+        "0x1802dced0",
+        "0x1802dcedc",
+        "0x1802dcf30..0x1802dcf9f"
+      ]
+    },
+    {
+      "order": 2,
+      "operation": "Uniform scale around current location by Body.Scale times current scale-transition value if active; fresh body scale transition inactive.",
+      "anchors": [
+        "0x1802dcfe5",
+        "0x1802dd00c",
+        "0x1802dd099"
+      ],
+      "helper": "Polygon::Scale RVA0x20eee0 implements origin+(p-origin)*scale."
+    },
+    {
+      "order": 3,
+      "operation": "Optional ExtentScale>0 then RelativeExtentScale>0 adjustment. Both compiled/source0 for all exported room polygons; unsupported nonzero branch fails closed.",
+      "anchors": [
+        "0x1802dd0aa",
+        "0x1802dd0cd",
+        "0x1802dd0d9",
+        "0x1802dd115"
+      ],
+      "field_correction": "Native fields are ThingDataDef.ExtentScale and RelativeExtentScale, not guessed GeometryScale/GeometryScaleFraction."
+    },
+    {
+      "order": 4,
+      "operation": "Apply Body horizontal flip then vertical flip around current location, reversing point list after each reflection.",
+      "anchors": [
+        "0x1802dd133",
+        "0x1802dd19b",
+        "0x1802dd1a7",
+        "0x1802dd20f"
+      ],
+      "helpers": "Polygon::FlipHorizontal RVA0x1202b0; FlipVertical RVA0x1203b0.",
+      "MirrorGeometry": "SetupGeometry does not consult Thing.MirrorGeometry: its recovered reflection branches directly test Body.mFlips bits1/2. No claim that MirrorGeometry is unused elsewhere."
+    },
+    {
+      "order": 5,
+      "operation": "Only when Thing.RotateGeometry true, rotate around current location by NEGATIVE Body.Angle.",
+      "anchors": [
+        "0x1802dd21b",
+        "0x1802dd227",
+        "0x1802dd234",
+        "0x1802dd2a9"
+      ],
+      "helper": "Polygon::Rotate RVA0x1204b0 uses conventional x*cos-y*sin,x*sin+y*cos; callsite supplies -BodyAngle.",
+      "default": "RotateGeometry compiledfalse, so original map angle alone does not rotate collision."
+    },
+    {
+      "order": 6,
+      "operation": "Native recomputes polygon AABB and light-occluder/tallness/sort updates. Export retains only polygon points; broadphase manager integration is not claimed.",
+      "anchor": "0x1802dd2b9"
+    }
+  ],
+  "winding": {
+    "helper_rva": "0x2ba8d0",
+    "behavior": "Counts signs of successive edge cross products, +1 forpositive, -1 fornonpositive; return true iff signed vote negative. Fresh polygon reversed if false.",
+    "actual_export": "All207 polygons are convex, retain engine negative-turn winding after transforms."
+  },
+  "artifacts": {
+    "exporter": "native/tools/export_native_collision.py",
+    "defaults_reader": "native/analysis/recover_collision_defaults.py",
+    "geometry": ".local/native-assets/opening-collision-v1/room-geometry.json",
+    "packet": ".local/native-assets/opening-collision-v1/collision.bin",
+    "packet_sha256": "244071af893ebfeabe0c56d32b9bacb3c8594e101f6fb787cd201653050cf4fd",
+    "format": "native/tools/COLLISION_FORMAT.md",
+    "verification": ".local/reports/native-collision-export-verification.json"
+  },
+  "actual_room": {
+    "all_source_objects": 1037,
+    "candidate_obstacle_polygons": 256,
+    "deterministic_polygons": 207,
+    "random_scale_unresolved": 49,
+    "previous209accepted": {
+      "now_proven": 187,
+      "actually_random_scale_unresolved": 22
+    },
+    "previous47excluded": {
+      "now_proven": 20,
+      "actually_random_scale_unresolved": 27
+    },
+    "newly_resolved": [
+      {
+        "id": 310226,
+        "name": "_Impassable_Long_Tall",
+        "rotation": -2.0420351028442383
+      },
+      {
+        "id": 410743,
+        "name": "TartarusChains05",
+        "rotation": 0
+      },
+      {
+        "id": 410744,
+        "name": "TartarusChains05",
+        "rotation": 0
+      },
+      {
+        "id": 410745,
+        "name": "TartarusChains05",
+        "rotation": 0
+      },
+      {
+        "id": 410981,
+        "name": "_Impassable_Long",
+        "rotation": -5.183640956878662
+      },
+      {
+        "id": 410982,
+        "name": "_Impassable_Long",
+        "rotation": -5.183640956878662
+      },
+      {
+        "id": 410983,
+        "name": "_Impassable_Long",
+        "rotation": -5.183640956878662
+      },
+      {
+        "id": 410984,
+        "name": "_Impassable_Long",
+        "rotation": -5.183640956878662
+      },
+      {
+        "id": 410985,
+        "name": "_Impassable_Long",
+        "rotation": -5.183640956878662
+      },
+      {
+        "id": 410986,
+        "name": "_Impassable_Long",
+        "rotation": -5.183640956878662
+      },
+      {
+        "id": 410999,
+        "name": "_Impassable_Oval",
+        "rotation": -4.486101150512695
+      },
+      {
+        "id": 508064,
+        "name": "_Impassable_Oval",
+        "rotation": -0.5466434359550476
+      },
+      {
+        "id": 508065,
+        "name": "_Impassable_Oval",
+        "rotation": -0.1476176530122757
+      },
+      {
+        "id": 508066,
+        "name": "_Impassable_Oval",
+        "rotation": -0.5466434359550476
+      },
+      {
+        "id": 508069,
+        "name": "_Impassable_Long",
+        "rotation": -5.183640956878662
+      },
+      {
+        "id": 508070,
+        "name": "_Impassable_Long",
+        "rotation": -5.183640956878662
+      },
+      {
+        "id": 508071,
+        "name": "_Impassable_Long",
+        "rotation": -5.183640956878662
+      },
+      {
+        "id": 508072,
+        "name": "_Impassable_Long",
+        "rotation": -5.183640956878662
+      },
+      {
+        "id": 508073,
+        "name": "_Impassable_Long",
+        "rotation": -5.183640956878662
+      },
+      {
+        "id": 508074,
+        "name": "_Impassable_Long",
+        "rotation": -5.183640956878662
+      }
+    ],
+    "actually_rotated": 17,
+    "rotation_disabled_chains": 3,
+    "corrected_inherited_definition_scale_instances": 7,
+    "source_inactive_excluded": 4,
+    "nonobstacle_excluded": 22,
+    "definition_stops_units_false_excluded": 318
+  },
+  "player_hull": {
+    "source": "Content/Game/Units/PlayerUnits.sjson::_PlayerUnit.Thing.Points",
+    "supported_initial_shape": "Original octagon times Thing.Scale0.7, mapScale1, noflips/skew, RotateGeometrydefaultfalse. Original mapangle274 does not rotate hull. Nonempty Points branch wins over Size.",
+    "boundary": "Preserves currently reconstructed local player hull; does not prove original unit activation/controller or full collision response."
+  },
+  "validation": {
+    "complete_packet_extent": true,
+    "binary_json_coordinate_equality": true,
+    "all_source_gate_checks": true,
+    "all_convex_and_native_winding": true,
+    "maximum_radial_float32_cancellation_error": 0.0003662109375
+  },
+  "limits": [
+    "Static transform semantics recovered; no original runtime polygon snapshot comparison or collision gameplay equivalence.",
+    "Float32 stage rounding reproduced; host/Windows CRT sinf/cosf last-bit equivalence not claimed.",
+    "No RNG value/seed/order fabricated; original random placements excluded even when mapAngle0.",
+    "Native fallback animation/size shapes, dynamic transitions, changing attachments, broadphase/narrowphase solver and runtime collision masks remain outside export.",
+    "Point packet IDs are original map metadata IDs, not asserted live obstacle handles or active actors."
+  ],
+  "session_lifecycle": {
+    "new_rea_sessions_opened": 0,
+    "owned_rea_sessions_remaining": 0,
+    "note": "Reused retained original REA actor-init evidence; new bounded PDB/LLVM inspection launches no Ghidra target sessions."
+  },
+  "device_operations": false
+}

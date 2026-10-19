@@ -1,0 +1,152 @@
+{
+  "schema": "HadesActorScriptMotionContract1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "status": "Selected original entrance actions implemented; Windows pathfinder not reconstructed",
+  "source": {
+    "path": "Content/Scripts/RoomPresentation.lua",
+    "sha256": "e686ec7a3d3b67c692754d69dfe2e7bd9057856285477129023723563994d4d4",
+    "ranges": [
+      [
+        1,
+        35
+      ],
+      [
+        190,
+        228
+      ]
+    ]
+  },
+  "binary_reports": [
+    {
+      "path": ".local/reports/native-script-motion-destination-static.json",
+      "sha256": "ecff1338d7bdda0885d1422410b83f5b48c3795846aaf22add33b775936d01f4"
+    },
+    {
+      "path": ".local/reports/native-script-motion-findpath-static.json",
+      "sha256": "97f3ca3fa75391fcb6c7ad6dafaae4bfbf065d2b56d108fcd560cb3a284980fa"
+    },
+    {
+      "path": ".local/reports/native-script-motion-goal-static.json",
+      "sha256": "faa2859ad7fa8afc2d109927378005f7b5d732a0864ad60c0ec53b087e76453d"
+    },
+    {
+      "path": ".local/reports/native-script-motion-input-vector-static.json",
+      "sha256": "4d707cc8466c441b79d2517701f6a96be6aa9553b1c2964cc5d4f6fb0e967f13"
+    },
+    {
+      "path": ".local/reports/native-script-motion-move-ai-ctor-static.json",
+      "sha256": "7b40d4f8ad023c0ac5203f4d2f2dc6ea896e81ad0d02630d1973ae3e87f3ef1d"
+    },
+    {
+      "path": ".local/reports/native-script-motion-move-data-ctor-static.json",
+      "sha256": "62c9b963a86c1cc53319732ec9347cfe00cb1a25e39aac23a97466eb6f96ff15"
+    },
+    {
+      "path": ".local/reports/native-script-motion-move-static.json",
+      "sha256": "1fb63a71b7e16dd9495f4cf65b1df06ab3f37880c1c42b329dfca735aef68d7b"
+    },
+    {
+      "path": ".local/reports/native-script-motion-next-static.json",
+      "sha256": "e06c3f2b91f5f9777425a954372de5d83e796ba2a74365478d25a94ec67d991e"
+    },
+    {
+      "path": ".local/reports/native-script-motion-thing-action-static.json",
+      "sha256": "8e0902dd1d9cff5c20fc92041ef3be234ac7170c698b5c8b45271b6b47a832d2"
+    },
+    {
+      "path": ".local/reports/native-script-motion-thing-shiftz-static.json",
+      "sha256": "c4e478aa54169fe93cb32305b2ca57ed8665f16d53ca10cf00136821b31368af"
+    },
+    {
+      "path": ".local/reports/native-script-motion-thing-teleport-static.json",
+      "sha256": "f732cf136966f6986bcfe3d13bdf4a738a894f4818aa5d2e1365bc57cc5cf441"
+    },
+    {
+      "path": ".local/reports/native-script-motion-track-static.json",
+      "sha256": "83f38bc5a9c2d4810fe77cdf35e8d9380e0c8b6ba0e243ad22463c928b0819c3"
+    },
+    {
+      "path": ".local/reports/native-script-motion-unit-action-static.json",
+      "sha256": "523de1e43836c988621f6ef6546e5972442a4b395c6aa884c4859f3453a12824"
+    },
+    {
+      "path": ".local/reports/native-script-motion-unit-init-static.json",
+      "sha256": "f87d2c4a9d5a958b91ffd17855dbf88dcf3e5dccadee4f2a808e1ddf1c12f7d7"
+    },
+    {
+      "path": ".local/reports/native-script-motion-unit-moveto-static.json",
+      "sha256": "eafa70a39e0533f9a1f84c5bc2ba895f10757c47fd8a49522382a101fd1412de"
+    },
+    {
+      "path": ".local/reports/native-script-motion-unit-shiftz-static.json",
+      "sha256": "eb5f3eeddc3446991a91789f0b3ee04aea7a7755d66fafe8f9e0b84195736e04"
+    },
+    {
+      "path": ".local/reports/native-script-motion-unit-stop-static.json",
+      "sha256": "09e4c44346aef13447f65e8d47821c6c600c59a790a46bd48ee0ad116e4d91f2"
+    },
+    {
+      "path": ".local/reports/native-script-motion-unit-teleport-static.json",
+      "sha256": "adfca2b7082dbf5ee9e007c1a23b46480028cece1ab8d6839952472f082b875a"
+    },
+    {
+      "path": ".local/reports/native-script-motion-z-event-thunk-static.json",
+      "sha256": "ab8b4030f7fc498a805fa419af45c29aab77e6e77dbdb1514d3349cd9eb6092b"
+    },
+    {
+      "path": ".local/reports/native-script-motion-z-update-static.json",
+      "sha256": "ed47e720d7fec7f0c692f2afda768d889f2db7377bcf0a7cd7e9fb5e370c93e1"
+    }
+  ],
+  "observed_native": {
+    "Teleport": "runWithDestination25eea0 selected ordinary branch passes check=false,propagate=true. Unit.TeleportTo2f8b20 calls SetLocation then StopMoving; does not HaltPhysics or change raw Z.",
+    "AdjustZLocation": "Thing.RunScriptAction99 at1802e270d..2804 calls virtual ShiftZLocation for zero duration; nonzero transition start=rawZ,end=rawZ+Distance, default linear. Both positive1500 actions in source are additive. Thing.AdjustZLocation2e4580 applies current transition value minus current rawZ each game update.",
+    "ShiftZ": "Thing.ShiftZLocation2e0ae0 clamps upper bound to ThingData.MaxZ; Unit2f2e40 invokes actual sort/properties dirty. No new Physics membership is invented by this setter.",
+    "Move": "Unit.MoveTo2f4920 stores goal and native Precise TargetMode1. Unit.MoveInput2f6220 computes actual velocity/force using live speed/effects/physics; selected source disables obstacle collision temporarily.",
+    "Stop": "Unit.RunScriptAction93 at1802f43c2..4459 invokes StopMoving speedFraction0, default StopRotation=true resets goalAngle to bodyAngle and clears MoveAI target/track data; preserves Physics velocity.",
+    "AngleTowardTarget": "Unit.RunScriptAction116 at1802f451a..4763 uses averaged actual target world XY and wrapped atan2(-dy,dx); default sets goal angle, CompleteAngle additionally sets body/cosmetic angle."
+  },
+  "implemented": {
+    "Teleport": "Actual source/destination Thing selection, averaged world XY and offsets, real body/geometry/properties state; selected unparented Unit branch.",
+    "AdjustZLocation": "Actual lifetime-bound rawZ game-clock transitions and actual source MaxZ; selected world UndoModifier1.",
+    "Move": "Actual source Precise goal, current speed and modifiers, genuine Unit.MoveInput/onActorForce and Physics/Unit body consumption. Collision-disabled branch required.",
+    "Stop": "Lifetime target removal, source speedFraction0 and optional rotation stop; no fabricated velocity halt.",
+    "AngleTowardTarget": "Live actual target world XY, goalAngle; CompleteAngle invokes actual ActorWorld.setAngle and cosmetic angle state."
+  },
+  "api": {
+    "register": "ScriptRuntime.registerActorMotionActions()",
+    "advance": "ScriptRuntime.advanceActorMotion(dt,error) after local input before Physics; Unit body consumption remains advanceLocalPlayerMovement after Physics.",
+    "ownership": "ActorMotionWorld holds source-created target and Z-transition state keyed by actual entity lifetime; stale lifetimes are erased."
+  },
+  "android_adaptations": [
+    "Collision-disabled Precise Move uses direct original source XY path with final-step speed fraction. Full Windows path nodes/repath RNG/StopToRotate/SlowToRotate are not reproduced.",
+    "Portable defined sequential script-motion/physics/body phases; not a claim of identical Windows ECS thread completion ordering."
+  ],
+  "unsupported": [
+    "Colliding script Move pathfinding",
+    "Attached actor target-relative setters",
+    "Obstacle Teleport/ShiftZ callback branches",
+    "Name-query/relative/screen-space Teleport branches",
+    "Non-unit Move",
+    "Script Z transition modified event UndoModifier",
+    "All other MoveAI behaviors/options"
+  ],
+  "validation": {
+    "host_syntax": "passed",
+    "arm64_api26_syntax": "passed",
+    "actual_intro_replay": "Parent-owned genuine Lua room replay pending",
+    "device_execution_observed": false
+  },
+  "owned_sessions_open": false,
+  "files": {
+    "native/app/actor_motion.hpp": "2dc945ed963ece44794ea8b5392a744f9215a7b304deee4e348f8c3c1b3b758e",
+    "native/app/lua_actor_motion.cpp": "8050d3ec85fd5d4f89262a45baa13418cd3312147329b665dc8bf93a35fe3599",
+    "native/app/lua_player_input.cpp": "d37a3c8535021f03c05ea29cf6d4d119436b8cb2fe8b6399965f3d3a7fd2fab3"
+  },
+  "binary_reports_extra": [
+    {
+      "path": ".local/reports/native-move-target-mode-enum-v1.txt",
+      "observation": "Matching PDB TargetMode Default0,Precise1; MoveAI+14 is enum mode, not generic bool."
+    }
+  ]
+}

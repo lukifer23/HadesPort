@@ -1,0 +1,88 @@
+{
+  "schema": "hades-delayed-native-actions-contract-v1",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "evidence": {
+    "admission": {
+      "path": ".local/reports/native-rea-delayed-admission.json",
+      "sha256": "ccafaf9c6f56b9a6fee7eb59d64ab997d1a11e9a04396103b1209810aaa73325",
+      "evidence_id": "ev_53ccb70943e70d96a78d9004062b3213a402ca8424385dccffb8b9e4b815c5b7"
+    },
+    "admission_named": {
+      "path": ".local/reports/native-delayed-admission-static.json",
+      "sha256": "762f30d3458ee086a36860e0cc944dfbf29def926fce64cdea48211ef8ed2c05"
+    },
+    "copy_constructor": {
+      "path": ".local/reports/native-delayed-ScriptArgs-copy-static.json",
+      "sha256": "e991b420841088860576fa7219dd7c1887797f1ed83dedd84c28b5fd58ed9614"
+    },
+    "update": {
+      "path": ".local/reports/native-rea-script-update.json",
+      "sha256": "4e63023f3ba4bb84efa4c58cab96a27a65c1fc117aa3281387a12a0cf7c05f67",
+      "evidence_id": "ev_cf2994b8925a823ba259675ca52e3b7e1c3ebcbdb691d8aa163f5532e0ae8e41"
+    },
+    "clear": {
+      "path": ".local/reports/native-rea-delayed-clear.json",
+      "sha256": "101c6c5107ce2fe3de491bac82616ab2ff57ac033cf479cad15abdf916635540",
+      "evidence_id": "ev_3196622d377e0455e55d22cbdcb04a3f059dc648cf240d51f84b1f4c302990b2"
+    },
+    "animation_frame_condition": {
+      "path": ".local/reports/native-rea-frame-passed.json",
+      "sha256": "10b361667b1bce5b0fc5dc397b892192b5597a28cb07fdc3575755d7d3bee74f",
+      "evidence_id": "ev_b2b6da837826e7a2f5b50a22a9cb009e5cd182a8d072792f95af72382fb0bb41"
+    },
+    "close": {
+      "path": ".local/reports/native-rea-delayed-actions-close.json",
+      "sha256": "052cc72acfb75907e9ff703ebd805df08cd7d770bdebc4c2da17cf9d10cd8447",
+      "evidence_id": null
+    }
+  },
+  "admission": {
+    "scope": "Native registered Void closure only, RVA0x287640. ScriptAction::Execute itself immediately selects action behavior. Other return kinds have separate bridges; PlaySound Float handles Delay inside its own sound behavior.",
+    "properties": "Delay overrides DelaySeconds when non-nil; corresponding DelayMin/DelaySecondsMin and DelayMax/DelaySecondsMax pairs follow same rule. Defaults0. Native Float conversion accepts numbers, numeric strings, C-locale strtof string prefixes, otherwise default0.",
+    "condition": "Queue when baseDelay>0 OR minimum>0 OR maximum>0; otherwise immediate action.",
+    "randomization": "Only baseDelay>0 AND maximum>minimum triggers original Deterministic::RandomFloat(min,max). Range-only positive minimum/maximum does not sample; unchanged base (often0) still queues.",
+    "deadline": "float(world.mElapsedTime + chosenDelay), stored FireData+0x98.",
+    "arguments": "ScriptArgs.mTable is copied with lua_rawgeti/luaL_ref; actual original Lua table remains aliased. Copying parsed native name/ID caches is separate; admission has not populated those target caches. Do not deep-copy the Lua table."
+  },
+  "execution": {
+    "condition": "Strict float worldTime > deadline; equality remains pending.",
+    "phase": "Native ScriptManager::Update before calling original Lua Main.update.",
+    "queues": "Existing TO_FIRE records followed by new ACTION_TO_ADD admissions; not-due records and admissions made during execution survive in order for a subsequent pump. They are not recursively executed in the admitting pump.",
+    "clear": "Native ScriptManager::Clear destroys both action queues and resets HAS_CRASHED, alongside broader callback/cache cleanup. Portable clear covers its action queues/fault only; parent owns remaining lifecycle."
+  },
+  "portable": {
+    "files": [
+      "native/app/delayed_actions.hpp",
+      "native/app/delayed_actions.cpp",
+      "native/analysis/delayed_actions_smoke.cpp"
+    ],
+    "api": "initializeDelayedActions with explicit verified native Void whitelist; admitDelayedAction returns ExecuteNow/Queued; advanceDelayedActions invokes genuine parent immediate executor; clearDelayedActions performs full cancellation; snapshot/dump diagnostics.",
+    "argument_lifetime": "VM-owned registry tables retain actual source args table until execution/cancellation; no host file/game data mutation.",
+    "random": "Required parent callback into recovered deterministic stream. Missing provider on the actual sampled branch fails explicitly.",
+    "errors": "Unsupported actions/return kinds fail at admission. Failed delivery retains interrupted/remaining records and a fault, preventing silent retries. Explicit clear releases records and fault. Parent executor must protect Lua calls and preserve borrowed stack.",
+    "bounds": "Nonfinite clock/delay/RNG/deadline rejected explicitly. Cancellation during execution and reentrant pumping rejected until native lifecycle behavior is recovered.",
+    "validation_report": ".local/native-analysis/delayed-actions-u6vnnv70/report.json",
+    "validation": "ASan/UBSan pass: strict float deadlines, FIFO, original-table mutation visibility, captured deadline, next-pump admissions, range-only quirk, required RNG, native string prefix conversion, unsupported IDs, failed-record retention, cancellation and reference release."
+  },
+  "notify_frame": {
+    "action": "NotifyOnFramePassed, action259",
+    "condition": "CheckFramePassed RVA0x27e0e0 resolves active target Things via Names/Ids; returns true if ANY selected Thing.pAnimation(+0x138)->frame(+0x80) >= integer Frame(default0). Empty target set false. This is animation frame, not World.mFrame.",
+    "limits": "Condition admission, timeout and event delivery driver require further recovery; portable queue does not fabricate animation state or condition completion."
+  },
+  "limits": [
+    "Static original code/source and portable component validation only; no full engine/native gameplay completion.",
+    "Individual task cancellation is not invented; recovered cancellation is full ScriptManager::Clear boundary.",
+    "Full native notify registration/timeout dispatch and all engine action bodies remain separate."
+  ],
+  "session_lifecycle": {
+    "owned_batch": "delayed-actions-",
+    "closed": true,
+    "close_report": ".local/reports/native-rea-delayed-actions-close.json",
+    "device_operations": false,
+    "originals_modified": false
+  }
+}

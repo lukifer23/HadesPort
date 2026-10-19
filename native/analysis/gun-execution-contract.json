@@ -1,0 +1,71 @@
+{
+  "schema": "hades-gun-execution-v1",
+  "target_dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence": {
+    "path": "hades/.local/reports/native-player-fire-rea-gun-fire.json",
+    "sha256": "15b71a8c4343c4f83d840273808fc891a81a8e7213da1ec05f34aa7874df92be",
+    "id": "ev_ee14e92bac9c2d5f6ff7dcfd00221252b3d139e840083c2cacdc1afc7416fca9",
+    "procedure": "sgg::GunWeapon::Fire",
+    "rva": "0x7fb20"
+  },
+  "module": "native/app/weapon_execution.{hpp,cpp}",
+  "entry_boundary": "Only after successful common Weapon::Fire for an actual owned GUN; does not call common Fire again.",
+  "order": [
+    "Reacquire actual owner and recompute FireRequest.GetFromLocation after common Fire callbacks",
+    "Check valid ProjectileData, active cap/refresh branches (currently rejects positive cap or refresh)",
+    "Increment volley, clear selected modulo4 hit-time vector, first-hit ID=-1",
+    "For each source wave, mandatory RandomDouble for spread, normalized float angle",
+    "Conditional invulnerable barrel obstacle query/owner force",
+    "Mandatory RandomDouble for bonus projectile count (native <= comparison even chance0)",
+    "For each captured wave count, append FLT_MAX volley hit-time, invoke actual ProjectileManager.Create",
+    "WAIT for full projectile Init callbacks/RNG and actual returned parent lifetime handle",
+    "Read current weapon fields again, set native wave index, conditional current crit/additive bonus, multiply projectile blast radius modifier",
+    "Only then next projectile/wave"
+  ],
+  "protocol": {
+    "reply": "WeaponGunReply exactly one randomDouble or createdProjectile for matching pending barrier",
+    "consumer": "pure support preflight, then consume returned operation synchronously before calling advance again",
+    "state": "initial volley mutation staged until first operation preflight succeeds; earlier genuine stages remain committed across callbacks",
+    "spawn_data": "issued COW DTO assists planning only; actual projectile retains current per-instance weapon ProjectileData identity",
+    "result": "GunBodyFinished carries nativeVirtualFireResult but still requires HandleFireFx and PostFire, including false result"
+  },
+  "supported_source_subset": [
+    "Original default Sword/Ranged zero source spread/spacing/angular random offsets/intervals",
+    "Current runtime scatter plus source angle-start offset",
+    "One or multiple waves/projectiles within explicit128/4096bounds",
+    "Native bonus comparison boundary",
+    "Conditional source barrel impact event",
+    "Per-projectile real spawn+resumption+post-create metadata",
+    "Native modulo4 volley hit-time bookkeeping"
+  ],
+  "explicit_gaps": [
+    "actual parent ProjectileWorld/FX/geometry/physics/manager consumers",
+    "active cap/refresh queries",
+    "nonzero source Spread/FullChargeSpread normalized data provenance",
+    "full-circle RandomFireAngle",
+    "ammo-derived projectile counts",
+    "nonzero angular offsets/spacing/delay/Yscale",
+    "manual/override real entity target links",
+    "per-projectile ammo and OwnerFaceProjectile",
+    "nonzero ChargeRadiusMultiplier/PerfectChargeRadiusMultiplier",
+    "positive source StartDelay needs Unit.pPlayer and retained delayed projectile lifetime",
+    "HandleFireFx/PostFire/CancelCharge/trigger-release/Weapon.Update frame orchestration",
+    "Owner destruction during a continuation is an explicit parent lifetime boundary, not recovered native dangling pointer behavior"
+  ],
+  "frame_integration": "Store cursor instance per native per-unit Arsenal invocation across synchronous child operations. Do not recreate it every frame or continue independent timers while a child cursor is unfinished. Actual Weapon.Update handles current/previous requests BEFORE timers; original Arsenal priority weapon then creation vector, no sorted IDs. Trigger producer is separate from this Gun continuation.",
+  "verification": {
+    "kind": "focused C++ ASAN+UBSAN, reconstructed modules only",
+    "log": "hades/.local/reports/native-player-weapon-debug-v10-asan.log",
+    "log_sha256": "a21e2d3aa7b0aba51452e3388a2f9363fef87872417eec0bf577eed5966697d9",
+    "result": "passed",
+    "checks": [
+      "unsupported first RNG consumer leaves volley unchanged",
+      "mandatory spread/bonus replies",
+      "source sword query -> projectile -> post-create ordering",
+      "actual returned parent handle forwarded",
+      "modulo4 volley state retained",
+      "54weapon/46projectile source packet still loads"
+    ]
+  },
+  "ownership": "No app/runtime spine/build/CMake/device edits; projectile_runtime.cpp new source must be integrated by parent."
+}

@@ -1,0 +1,634 @@
+{
+  "schema": "hades-actor-initialization-contract-v1",
+  "scope": "Static original native common Thing initialization and map-obstacle tree attachment; not a runtime implementation or completeness claim.",
+  "target": {
+    "sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "evidence": {
+    "definition": {
+      "path": "hades/.local/reports/native-rea-actor-init-common.json",
+      "evidence_id": "ev_f090dd35ceda4e6c9b4cab0833c3c1ab493e3e8726bf479bc8cdd3bd93dbb466",
+      "sha256": "c0e3059e2bf903355d5f208f02d4add271bc73eed49e5237e8b4f1f1af117e94"
+    },
+    "map": {
+      "path": "hades/.local/reports/native-rea-actor-init-map.json",
+      "evidence_id": "ev_7f6fcd6b5aab41c2346d5b52bf749f5391ac084e8451ad548e444d8dd5cde513",
+      "sha256": "92e757c352350194651a8b9226ab421d77e709b9308e22c1f2687f1c054d54ad"
+    },
+    "add_child": {
+      "path": "hades/.local/reports/native-rea-actor-add-child.json",
+      "evidence_id": "ev_db0003531dff4f34d895bb5911dadf7e2f5635963499cff35f55dbd2c3338e4a",
+      "sha256": "934e59c4626117c50e722bd6de4fabc2166e6e5ec6ef20d15145e306e044ffb9"
+    },
+    "parent_added": {
+      "path": "hades/.local/reports/native-rea-actor-parent-added.json",
+      "evidence_id": "ev_a2e5ccba9a489cfeefc1a1c6a8847cc3968c1f3ede2d243b58e2c607c960d116",
+      "sha256": "8afb3f090c1e42bcafe9d497ed87b45d48215e2b7da59089a021b5e1c9606d83"
+    }
+  },
+  "common_creation_sequence": {
+    "procedure_va": "0x1802dbea0",
+    "support": "matching-PDB bounded disassembly native-actor-sgg-Thing-Init-static.json",
+    "steps": [
+      {
+        "order": 0,
+        "operation": "virtual Defaults at slot0x160; exact defaults not expanded here",
+        "anchor": "0x1802dbec3"
+      },
+      {
+        "order": 1,
+        "operation": "copy supplied XY into both Thing.mLocation+0x88 and mSpawnLocation+0x90; supplied XY is not re-added by InitMapThing",
+        "anchor": "0x1802dbed9..0x1802dbef7"
+      },
+      {
+        "order": 2,
+        "operation": "InitThing(definition ThingData)",
+        "anchor": "0x1802dbeff"
+      },
+      {
+        "order": 3,
+        "operation": "InitMapThing(original MapThing)",
+        "anchor": "0x1802dbf0a"
+      },
+      {
+        "order": 4,
+        "operation": "InitPhysics(definition,map)",
+        "anchor": "0x1802dbf18"
+      },
+      {
+        "order": 5,
+        "operation": "InitLightOccluder(definition,map)",
+        "anchor": "0x1802dbf26"
+      },
+      {
+        "order": 6,
+        "operation": "SetAnimation from Graphic; optional caller-gated StartGraphic and spawn animation creation",
+        "anchors": [
+          "0x1802dbf42",
+          "0x1802dbf60",
+          "0x1802dbf83"
+        ]
+      }
+    ],
+    "obstacle_caller": "Obstacle::Init0x1802c2b80 copies ObstacleData/identity/handle then calls this common Thing::Init at0x1802c2ce3; further life/components/groups follow."
+  },
+  "definition_initialization": {
+    "procedure_va": "0x1802dd5c0",
+    "evidence": "definition",
+    "nonnull_gate": true,
+    "operations": [
+      {
+        "field": "Thing.pThingData",
+        "operation": "assign supplied ThingData pointer",
+        "offset": "0xc0"
+      },
+      {
+        "field": "Thing byte+0x38",
+        "operation": "assign definition SortMode; base-class member naming not separately recovered here",
+        "full_data_offset": "0x298"
+      },
+      {
+        "field": "Thing.mUseScreenLocation",
+        "operation": "assign definition UseScreenLocation",
+        "offset": "0x220",
+        "full_data_offset": "0x29c"
+      },
+      {
+        "field": "Thing.pBody",
+        "operation": "allocate if absent; AddComponent",
+        "offset": "0xc8"
+      },
+      {
+        "field": "Thing.mZLocation",
+        "operation": "add definition OffsetZ",
+        "offset": "0x74",
+        "full_data_offset": "0x1ac"
+      },
+      {
+        "field": "Body.mAngle",
+        "operation": "AddAngle(definition StartAngle) directly; no degree conversion in this function",
+        "full_data_offset": "0x1a8"
+      },
+      {
+        "field": "Body.mBaseColor",
+        "operation": "MultiplyColor(definition Color)",
+        "full_data_offset": "0x21c"
+      },
+      {
+        "field": "Body.mHsv",
+        "operation": "add definition Hue,Saturation,Value",
+        "offset": "0x70",
+        "full_data_offsets": [
+          "0x220",
+          "0x224",
+          "0x228"
+        ]
+      },
+      {
+        "field": "Body.mScale",
+        "operation": "multiply existing scale by definition Scale if MinScale=MaxScale=0, otherwise by float(RandomDouble())*(MaxScale-MinScale)+MinScale",
+        "offset": "0x48",
+        "full_data_offsets": {
+          "scale": "0x19c",
+          "min": "0x1a0",
+          "max": "0x1a4"
+        },
+        "random_anchor": "0x1802dd714"
+      },
+      {
+        "field": "Body.mAmbient",
+        "operation": "assign definition Ambient",
+        "offset": "0x58",
+        "full_data_offset": "0x374"
+      },
+      {
+        "field": "Body.mMeshType",
+        "operation": "assign definition MeshType and mark dirty",
+        "offset": "0x68",
+        "full_data_offset": "0x340"
+      },
+      {
+        "field": "Thing.mTimeModifierFraction",
+        "operation": "assign definition TimeModifierFraction",
+        "offset": "0x7c",
+        "full_data_offset": "0x36c"
+      }
+    ],
+    "side_effects": [
+      "optional Interact allocation and Useable registration",
+      "optional Light removal/recreation",
+      "optional EnsurePlayerNearby",
+      "optional outline request",
+      "optional AttachedAnim creation; add definition Offset vector to Animation.mOffset"
+    ],
+    "limit": "Body constructor defaults, packed MultiplyColor arithmetic/clamping, complete component creation and RNG state are not reconstructed by this contract."
+  },
+  "map_initialization": {
+    "procedure_va": "0x1802dd3b0",
+    "evidence": "map",
+    "null_map_behavior": "set Thing.mId=-1 then return",
+    "operations": [
+      {
+        "field": "Thing.pMapThing / mId",
+        "operation": "assign map pointer and original map ID",
+        "offsets": [
+          "0x240",
+          "0x6c"
+        ]
+      },
+      {
+        "field": "Thing.mGroupNames",
+        "operation": "append original GroupNames through vector insertion",
+        "offset": "0x338"
+      },
+      {
+        "field": "Body.mFlips",
+        "operation": "toggle horizontal bit if map FlipHorizontal; FlipVertically if map FlipVertical; geometry update/dirty side effects",
+        "offset": "0x69",
+        "precondition": "definition initialization normally already ensured Body before flip checks"
+      },
+      {
+        "field": "Body.mBaseColor",
+        "operation": "MultiplyColor(map Color); map decoder already converted original BGRA to native RGBA"
+      },
+      {
+        "field": "Body.mHsv",
+        "operation": "add map Hue,Saturation,Value to existing definition contribution"
+      },
+      {
+        "field": "Body.mAngle",
+        "operation": "AddAngle(map Angle*0.017453292 radians)",
+        "anchor": "0x1802dd507"
+      },
+      {
+        "field": "Thing.mZLocation",
+        "operation": "add map OffsetZ to existing definition contribution",
+        "anchor": "0x1802dd524"
+      },
+      {
+        "field": "Body.mScale",
+        "operation": "multiply existing definition-initialized scale by map Scale",
+        "anchor": "0x1802dd533"
+      },
+      {
+        "field": "Body.mSquashStretchAngle",
+        "operation": "replace with map SkewAngle*0.017453292 radians",
+        "offset": "0x50"
+      },
+      {
+        "field": "Body.mSquashStretchScale",
+        "operation": "replace with map SkewScale",
+        "offset": "0x4c"
+      },
+      {
+        "field": "Body.mAmbient",
+        "operation": "replace only when map Ambient>=0, otherwise retain definition Ambient",
+        "offset": "0x58"
+      }
+    ],
+    "not_operations": [
+      "No map Active/DoCreate/range gate here; those belong to loader/World creation.",
+      "No parent-relative XY/Z rebase or copying map.Location here.",
+      "Not a per-frame recomputation; cumulative mutations make replaying InitThing/InitMapThing on an initialized body incorrect."
+    ]
+  },
+  "map_obstacle_tree_attachment": {
+    "record_domain": "original MapThing AttachedIDs/AttachToID are map IDs; runtime Obstacle mChildren/mParent contain obstacle handles, not those map IDs",
+    "fields": {
+      "Obstacle.mParent": "0x640",
+      "Obstacle.mHandle": "0x644",
+      "Obstacle.mChildren": "0x648"
+    },
+    "ordered_sequence": [
+      "World::CreateChildren takes each parent AttachedIDs in original list order using reverse-push/pop-back depth-first traversal.",
+      "ObstacleManager::Create performs common actor initialization and Add(...,true)/OnSpawn before returning child handle.",
+      "RemoveInactiveThing for child map record.",
+      "parent.AddChild(childHandle).",
+      "child.OnParentAdded().",
+      "Process original grandchildren depth-first."
+    ],
+    "create_children_evidence_id": "ev_92816af134504b5a00a1094e6395c1c35572d1cf3e4dcebe90ba048fc3b9c823",
+    "add_child": {
+      "procedure_va": "0x1802c6010",
+      "evidence": "add_child",
+      "operations": [
+        "Return early if child handle already in mChildren.",
+        "Append child handle preserving insertion order.",
+        "Resolve child through ObstacleManager handle table; if found set child.mParent=parent.mHandle."
+      ],
+      "does_not": [
+        "compute XY/Z attachment offsets",
+        "call Thing::AttachTo",
+        "rebase original map coordinates"
+      ]
+    },
+    "on_parent_added": {
+      "procedure_va": "0x1802c4980",
+      "evidence": "parent_added",
+      "operations": [
+        "Resolve structural parent handle.",
+        "Unless parent original data Name is HeroStart, set child byte+0x38 to1 and light byte+0x38 to1 when light exists. This is the byte populated from SortMode by InitThing; enum name for1 not recovered here.",
+        "ClearGridRecord virtual slot0x148, then register grid range from existing integer rectangle with original grid origin/shift/clamps.",
+        "Mark DrawGridManager update using child entity.",
+        "Queue UseableManager update if Interact exists.",
+        "MarkSortScoreChanged virtual slot0x70."
+      ],
+      "does_not": [
+        "modify child world XY, Z, body scale, angle, or generic attach offset"
+      ]
+    },
+    "actual_room": {
+      "children": 182,
+      "parents": 131,
+      "maximum_depth": 4,
+      "all_children_active_obstacles_without_range_gate": true,
+      "bidirectional_graph_verified": true
+    }
+  },
+  "generic_dynamic_attachment_separate_path": {
+    "evidence_kind": "matching-PDB bounded static disassembly; not new REA decompilation",
+    "procedures": {
+      "Thing.AttachTo": "0x1802e59f0",
+      "Thing.OnAttachedToMoved": "0x1802e5960",
+      "Thing.SetAttachOffset": "0x1802e0e80",
+      "Obstacle.SetLocation": "0x1802c26f0"
+    },
+    "fields": {
+      "Thing.mAttachedTo Entity(pointer/entity-ID)": "0x140",
+      "Thing.mAttachmentIds map/object IDs": "0x178",
+      "Thing.mAttachOffset XY": "0x200",
+      "Thing.mAttachOffsetZ": "0x70"
+    },
+    "attach_operation": [
+      "Remove own Thing.mId from previous live generic parent attachment-ID list.",
+      "Assign new parent Entity(pointer and entity-ID), append own Thing.mId to new parent attachment list.",
+      "Call virtual SetAttachOffset and OnAttachedToMoved."
+    ],
+    "on_attached_to_moved": "If parent Entity is alive and pointer exists, candidateXY=parent.GetLocation()+mAttachOffset. Otherwise candidateXY=current own mLocation. Call virtual SetLocation(candidateXY,false), then MarkSortScoreChanged. No rotation/scale/Z arithmetic in this bounded routine.",
+    "location_change_propagation": "Obstacle.SetLocation updates own XY, offsets polygon by delta, tracks fractional integer-rectangle error, then resolves generic mAttachmentIds and invokes each OnAttachedToMoved; updates grid/draw state. It iterates Thing+0x178, not structural Obstacle.mChildren+0x648.",
+    "unresolved": "Do not assume generic dynamic attachment semantics define structural map-child movement; structural-tree per-update behavior outside these bounded routines remains untraced."
+  },
+  "initial_vs_update_boundary": {
+    "initial": "Run common initialization once on fresh/defaulted actor with resolved native defaults and native supplied XY, then structural graph linking in native creation/callback order.",
+    "update": "Later SetLocation, generic OnAttachedToMoved, and dirty/grid/sort propagation operate initialized state. They are not substitutes for creation and do not justify rerunning cumulative InitMapThing.",
+    "rendering": "HDS3/v5 baked geometry and source coordinates remain preserved; this contract adds actor semantics, not scene regeneration."
+  },
+  "genuine_creation_remaining_prerequisites": [
+    "Entity and obstacle/unit handle allocation, lifetime/aliveness and manager identity must be established, not merely map IDs registered.",
+    "Reproduce native Defaults and BodyComponent constructor baseline before cumulative transformations.",
+    "Resolved definition defaults beyond verified TriggerOnSpawn/PlayerControlled must remain explicit unknowns.",
+    "Correct RNG stream/seed/order is required for source MinScale/MaxScale placements.",
+    "Complete InitPhysics, geometry, collision, life, light/occluder, interactions and unit-specific data must be initialized or reported unsupported.",
+    "GroupManager top-level enumeration and callbacks must see incrementally created actors; full-map pre-registration changes query visibility.",
+    "OnSpawn child callback precedes structural parent linkage and grandchildren; preserve native observations and definition gates.",
+    "Structural-tree dynamic movement/angle/Z propagation is not fully traced by this bounded contract."
+  ],
+  "actual_room_random_scale_records": [
+    {
+      "id": 210155,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 210158,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 210163,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 210164,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 210169,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 210170,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 210199,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 210200,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 210201,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 210202,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 210204,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 210211,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 310281,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 310282,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 310283,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 310284,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 310285,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410152,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410153,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410154,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410155,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410156,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410157,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410158,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410159,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410160,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410161,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410162,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410163,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410164,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410165,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410166,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410167,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410168,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410169,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410170,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410171,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410172,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410173,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410174,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410175,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410176,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410177,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410178,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410179,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410180,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410181,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 410716,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    },
+    {
+      "id": 507995,
+      "name": "TartarusGhost01",
+      "min": 0.9,
+      "max": 1.0
+    }
+  ],
+  "session_lifecycle": {
+    "ownership": "Parent-owned actor-init batch; this worker did not open or operate a session.",
+    "parent_close_report": "hades/.local/reports/native-rea-actor-init-close.json",
+    "close_result": null
+  },
+  "limitations": [
+    "Static original binary/source evidence, not observed original runtime execution.",
+    "Exact common scalar/map transformations recovered; complete engine actor creation remains incomplete.",
+    "Generic dynamic attachment supporting disassembly is distinguished from the four parent-owned REA procedure results."
+  ]
+}

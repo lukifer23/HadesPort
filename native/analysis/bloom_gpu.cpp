@@ -1,0 +1,24 @@
+#define GL_SILENCE_DEPRECATION
+#include <OpenGL/OpenGL.h>
+#include <OpenGL/gl3.h>
+#include "bloom_renderer.hpp"
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <vector>
+class File final:public hades::AssetFile{std::vector<char>b;size_t p=0;public:explicit File(const char*n){std::ifstream f(n,std::ios::binary);b={std::istreambuf_iterator<char>(f),{}};}size_t size()const override{return b.size();}size_t remaining()const override{return b.size()-p;}size_t read(void*t,size_t n)override{n=std::min(n,remaining());std::memcpy(t,b.data()+p,n);p+=n;return n;}};
+class Store final:public hades::AssetStore{const char*p;public:explicit Store(const char*n):p(n){}std::unique_ptr<hades::AssetFile>open(std::string_view n)override{assert(n=="bloom-settings.bin");return std::make_unique<File>(p);}};
+int main(int argc,char**argv){assert(argc>=2&&argc<=4);const CGLPixelFormatAttribute at[]{kCGLPFAOpenGLProfile,static_cast<CGLPixelFormatAttribute>(kCGLOGLPVersion_3_2_Core),kCGLPFAColorSize,static_cast<CGLPixelFormatAttribute>(24),kCGLPFAAlphaSize,static_cast<CGLPixelFormatAttribute>(8),static_cast<CGLPixelFormatAttribute>(0)};CGLPixelFormatObj pf=nullptr;CGLContextObj context=nullptr;GLint count=0;assert(CGLChoosePixelFormat(at,&pf,&count)==0&&pf);assert(CGLCreateContext(pf,nullptr,&context)==0);CGLDestroyPixelFormat(pf);assert(CGLSetCurrentContext(context)==0);
+ const int W=argc>3?std::stoi(argv[3]):64,H=W/2;std::vector<unsigned char>original(W*H*4),actual(original.size());for(int y=0;y<H;++y)for(int x=0;x<W;++x){auto*p=&original[(y*W+x)*4];p[0]=x==31?255:unsigned(x*4);p[1]=y==15?255:unsigned(y*7);p[2]=(x+y)%7==0?220:32;p[3]=255;}
+ unsigned texture=0,target=0;glGenTextures(1,&texture);glBindTexture(GL_TEXTURE_2D,texture);glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,W,H,0,GL_RGBA,GL_UNSIGNED_BYTE,original.data());glGenFramebuffers(1,&target);glBindFramebuffer(GL_FRAMEBUFFER,target);glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,texture,0);assert(glCheckFramebufferStatus(GL_FRAMEBUFFER)==GL_FRAMEBUFFER_COMPLETE);
+ Store store(argv[1]);hades::FullscreenBloom b;b.load(store);hades::BloomRenderer r;std::string e;r.render(b,true,W,H);glReadPixels(0,0,W,H,GL_RGBA,GL_UNSIGNED_BYTE,actual.data());assert(actual==original);assert(b.adjust(argc>2?argv[2]:"Default",0,true,0,0,e));const auto settings=b.snapshot();glEnable(GL_SCISSOR_TEST);glScissor(5,6,7,8);glViewport(3,4,13,14);glColorMask(GL_FALSE,GL_TRUE,GL_FALSE,GL_TRUE);r.render(b,true,W,H);assert(glIsEnabled(GL_SCISSOR_TEST));GLboolean mask[4];glGetBooleanv(GL_COLOR_WRITEMASK,mask);assert(!mask[0]&&mask[1]&&!mask[2]&&mask[3]);GLint viewport[4];glGetIntegerv(GL_VIEWPORT,viewport);assert(viewport[0]==3&&viewport[1]==4&&viewport[2]==13&&viewport[3]==14);glReadPixels(0,0,W,H,GL_RGBA,GL_UNSIGNED_BYTE,actual.data());
+ // Independent direct equations from retained HLSL; no runtime shader reuse.
+ std::vector<double>weights(15),offsets(15);double total=0;for(int i=-7;i<=7;++i){const int j=i+7;weights[j]=std::exp(-double(i*i)/(2*settings.blur*settings.blur));total+=weights[j];offsets[j]=i<0?-(2*(-i-1)+1.5):i>0?2*(i-1)+1.5:0;}for(auto&w:weights)w/=total;
+ const auto quant=[](double v){return std::clamp(std::nearbyint(v*255),0.,255.)/255;};std::vector<double>a(original.size()),h(original.size()),v(original.size());for(size_t i=0;i<a.size();++i)a[i]=original[i]/255.;
+ for(int pass=0;pass<2;++pass){const auto&src=pass==0?a:h;auto&dst=pass==0?h:v;for(int y=0;y<H;++y)for(int x=0;x<W;++x)for(int c=0;c<4;++c){double sum=0;for(int i=0;i<15;++i){double pos=(pass==0?x:y)+offsets[i];int lo=int(std::floor(pos));double f=pos-lo;auto sample=[&](int j){return src[((pass==0?y:std::clamp(j,0,H-1))*W+(pass==0?std::clamp(j,0,W-1):x))*4+c];};double z=sample(lo)*(1-f)+sample(lo+1)*f;if(pass==0)z=std::max((z-settings.threshold)/(1-settings.threshold),0.);sum+=z*weights[i];}dst[(y*W+x)*4+c]=quant(sum);}}
+ int maxError=0,changed=0;for(size_t i=0;i<actual.size();++i){const auto base=i-i%4;const double greyB=v[base]*.3+v[base+1]*.59+v[base+2]*.11,greyA=a[base]*.3+a[base+1]*.59+a[base+2]*.11;const double bloom=(greyB+(v[i]-greyB)*settings.bloomSaturation)*settings.bloomIntensity;const double raw=greyA+(a[i]-greyA)*settings.baseSaturation;int expected=i%4==3?255:int(std::nearbyint(std::clamp(raw*(1-std::clamp(bloom,0.,1.))*settings.baseIntensity+bloom,0.,1.)*255));maxError=std::max(maxError,std::abs(expected-int(actual[i])));changed+=actual[i]!=original[i];}assert(maxError<=2&&changed>100);std::cout<<"original-preset="<<settings.name<<" three-pass source shader equations GPU pixels="<<W*H<<" changed-components="<<changed<<" max-CPU-reference-byte-error="<<maxError<<" Off-identity=true GL-state-restored=true\n";
+ r.shutdown();glDeleteFramebuffers(1,&target);glDeleteTextures(1,&texture);CGLSetCurrentContext(nullptr);CGLDestroyContext(context);
+}

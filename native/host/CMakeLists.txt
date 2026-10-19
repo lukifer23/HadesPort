@@ -1,0 +1,118 @@
+cmake_minimum_required(VERSION 3.22)
+project(hades_host_debug LANGUAGES C CXX)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(LUA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../.local/native-deps/lua-5.2.2/src)
+file(GLOB LUA_SOURCES CONFIGURE_DEPENDS ${LUA_DIR}/*.c)
+list(FILTER LUA_SOURCES EXCLUDE REGEX "/lua(c)?\\.c$")
+add_library(lua52 STATIC ${LUA_SOURCES})
+target_include_directories(lua52 PUBLIC ${LUA_DIR})
+target_compile_definitions(lua52 PRIVATE LUA_USE_POSIX)
+add_executable(hades-debug main.cpp ../app/player.cpp ../app/lua_runtime.cpp ../app/source_value.cpp ../app/actor_runtime.cpp ../app/effect_animation.cpp ../app/effect_particle.cpp ../app/animation_registry.cpp ../app/hit_arguments.cpp ../app/effect_arguments.cpp ../app/self_effects.cpp ../app/effect_affect.cpp ../app/body_transition.cpp ../app/physics_runtime.cpp ../app/camera_fade.cpp ../app/movie_preload.cpp ../app/speed_effects.cpp ../app/effect_update.cpp ../app/weapon_execution.cpp ../app/projectile_runtime.cpp ../app/projectile_world.cpp ../app/unit_status.cpp ../app/actor_animation.cpp ../app/actor_marker.cpp ../app/primitive_properties.cpp ../app/asset_packages.cpp ../app/script_scheduler.cpp ../app/delayed_actions.cpp ../app/recovered_runtime.cpp ../app/scene_runtime.cpp ../app/object_runtime.cpp ../app/weapon_runtime.cpp ../app/weapon_catalog.cpp ../app/text_runtime.cpp ../app/input_runtime.cpp ../app/map_creation.cpp ../app/graphics_scene.cpp)
+target_compile_options(hades-debug PRIVATE -Wall -Wextra -Wpedantic -Werror=return-type)
+target_link_libraries(hades-debug PRIVATE lua52 z)
+add_executable(hades-controls-debug ../analysis/controls_camera_debug.cpp ../app/game_ui.cpp ../app/touch_controls.cpp ../app/camera_rig.cpp)
+target_compile_options(hades-controls-debug PRIVATE -Wall -Wextra -Wpedantic)
+add_executable(hades-weapons-debug ../analysis/weapon_component_smoke.cpp ../app/weapon_runtime.cpp ../app/weapon_catalog.cpp ../app/primitive_properties.cpp)
+target_include_directories(hades-weapons-debug PRIVATE ../app)
+target_compile_options(hades-weapons-debug PRIVATE -Wall -Wextra -Wpedantic)
+option(HADES_SANITIZE "Enable memory/undefined-behavior debugging" ON)
+if(HADES_SANITIZE)
+    target_compile_options(hades-debug PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(hades-debug PRIVATE -fsanitize=address,undefined)
+    target_compile_options(hades-controls-debug PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(hades-controls-debug PRIVATE -fsanitize=address,undefined)
+    target_compile_options(hades-weapons-debug PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(hades-weapons-debug PRIVATE -fsanitize=address,undefined)
+endif()
+if(APPLE)
+    add_executable(hades-render render.cpp ../app/player.cpp ../app/graphics_scene.cpp ../app/scene_renderer.cpp ../app/scene_animation.cpp ../app/game_ui.cpp ../app/ui_renderer.cpp ../app/touch_controls.cpp ../app/camera_rig.cpp ../app/actor_animation.cpp)
+    target_compile_options(hades-render PRIVATE -Wall -Wextra -Wpedantic -Werror=return-type)
+    target_link_libraries(hades-render PRIVATE "-framework OpenGL" z)
+    if(HADES_SANITIZE)
+        target_compile_options(hades-render PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(hades-render PRIVATE -fsanitize=address,undefined)
+    endif()
+endif()
+
+# The host debug executable uses the same compressed-asset event renderer.
+target_sources(hades-debug PRIVATE ../app/audio_world.cpp ../app/audio_channels.cpp ../app/audio_timeline.cpp ../app/audio_limiter.cpp ../app/audio_three_eq.cpp ../app/audio_sample_stream.cpp ../app/audio_bank_decoder.cpp ../app/audio_output.cpp)
+target_include_directories(hades-debug PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../.local/tools/vgmstream-db77f98f/src)
+target_link_directories(hades-debug PRIVATE /opt/homebrew/lib)
+target_link_libraries(hades-debug PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../.local/tools/vgmstream-db77f98f/build/src/libvgmstream.a vorbisfile vorbis ogg m)
+
+target_sources(hades-debug PRIVATE ../app/lua_audio.cpp)
+
+target_sources(hades-debug PRIVATE ../app/lua_vfx.cpp)
+
+target_sources(hades-debug PRIVATE ../app/lua_actor_animation.cpp)
+target_sources(hades-debug PRIVATE ../app/action_effect.cpp ../app/lua_action_fx.cpp)
+target_sources(hades-debug PRIVATE ../app/screen_animation.cpp ../app/lua_screen_animation.cpp)
+target_sources(hades-debug PRIVATE ../app/unit_movement.cpp ../app/lua_player_input.cpp)
+
+target_sources(hades-debug PRIVATE ../app/actor_properties.cpp ../app/lua_lifecycle.cpp)
+target_sources(hades-debug PRIVATE ../app/actor_unit_lifecycle.cpp)
+target_sources(hades-debug PRIVATE ../app/lua_collision_notify.cpp)
+target_sources(hades-debug PRIVATE ../app/lua_control_notify.cpp)
+target_sources(hades-debug PRIVATE ../app/lua_spatial_queries.cpp)
+target_sources(hades-debug PRIVATE ../app/native_camera.cpp ../app/lua_camera.cpp)
+target_sources(hades-debug PRIVATE ../app/lua_actor_motion.cpp)
+
+target_sources(hades-debug PRIVATE ../app/scene_primary.cpp ../app/lua_primaries.cpp ../app/scene_animation.cpp)
+
+target_sources(hades-debug PRIVATE ../app/lua_combat.cpp ../app/actor_lifecycle.cpp)
+
+target_sources(hades-debug PRIVATE ../app/lua_physics.cpp ../app/self_effect_world.cpp)
+
+target_sources(hades-debug PRIVATE ../app/lua_effects.cpp)
+target_sources(hades-debug PRIVATE ../app/lua_projectiles.cpp)
+target_sources(hades-debug PRIVATE ../app/lua_presentation.cpp)
+target_sources(hades-debug PRIVATE ../app/lua_location.cpp ../app/actor_location.cpp ../app/actor_spatial.cpp)
+target_sources(hades-debug PRIVATE ../app/projectile_collision.cpp)
+target_sources(hades-debug PRIVATE ../app/actor_lighting.cpp)
+target_sources(hades-debug PRIVATE ../app/actor_occlusion.cpp)
+if(APPLE)
+    target_sources(hades-debug PRIVATE world_capture.cpp ../app/scene_renderer.cpp ../app/ui_renderer.cpp ../app/game_ui.cpp ../app/touch_controls.cpp)
+    target_link_libraries(hades-debug PRIVATE "-framework OpenGL")
+endif()
+
+target_sources(hades-debug PRIVATE ../app/actor_light_world.cpp ../app/lua_lights.cpp)
+target_sources(hades-debug PRIVATE ../app/life_runtime.cpp)
+target_sources(hades-debug PRIVATE ../app/speech_world.cpp ../app/lua_speech.cpp)
+target_sources(hades-debug PRIVATE ../app/projectile_hit.cpp)
+
+target_sources(hades-debug PRIVATE ../app/text_layout.cpp ../app/text_caption.cpp ../app/lua_text.cpp)
+
+target_sources(hades-debug PRIVATE ../app/color_grading.cpp ../app/lua_color_grading.cpp)
+
+if(APPLE)
+target_sources(hades-debug PRIVATE ../app/color_grading_renderer.cpp)
+endif()
+
+target_sources(hades-debug PRIVATE ../app/bloom_state.cpp ../app/lua_bloom.cpp ../app/bloom_renderer.cpp)
+
+# Original save pipeline (save agent): pinned Luabins 0.3 serializer and LZ4 1.9.4
+# block codec from scripts/prepare_native_dependencies.py.
+set(LUABINS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../.local/native-deps/luabins-0.3/src)
+set(LZ4_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../.local/native-deps/lz4-1.9.4/lib)
+add_library(luabins03 STATIC ${LUABINS_DIR}/luabins.c ${LUABINS_DIR}/save.c ${LUABINS_DIR}/load.c ${LUABINS_DIR}/savebuffer.c ${LUABINS_DIR}/write.c ${LUABINS_DIR}/luainternals.c)
+target_include_directories(luabins03 PUBLIC ${LUABINS_DIR})
+target_compile_options(luabins03 PRIVATE -include ${CMAKE_CURRENT_SOURCE_DIR}/../app/luabins_lua52_compat.h)
+target_link_libraries(luabins03 PUBLIC lua52)
+add_library(lz4block STATIC ${LZ4_DIR}/lz4.c)
+target_include_directories(lz4block PUBLIC ${LZ4_DIR})
+target_sources(hades-debug PRIVATE ../app/save_runtime.cpp ../app/lua_save.cpp)
+target_link_libraries(hades-debug PRIVATE luabins03 lz4block)
+target_sources(hades-debug PRIVATE save_probe.cpp)
+
+# --- Default control bindings (input bindings agent): pure table smoke, no sanitizers. ---
+add_executable(hades-input-bindings-smoke ../analysis/input_bindings_smoke.cpp ../app/input_bindings.cpp)
+target_include_directories(hades-input-bindings-smoke PRIVATE ../app)
+target_compile_options(hades-input-bindings-smoke PRIVATE -Wall -Wextra -Wpedantic)
+# --- end default control bindings ---
+
+# --- Original settings/bindings persistence (config file agent): Profile<N>.sjson + .ctrls, no sanitizers. ---
+add_executable(hades-config-file-smoke ../analysis/config_file_smoke.cpp ../app/config_file.cpp ../app/input_bindings.cpp)
+target_include_directories(hades-config-file-smoke PRIVATE ../app)
+target_compile_options(hades-config-file-smoke PRIVATE -Wall -Wextra -Wpedantic)
+# --- end original settings/bindings persistence ---

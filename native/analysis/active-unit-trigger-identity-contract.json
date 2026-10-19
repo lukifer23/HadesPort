@@ -1,0 +1,40 @@
+{
+  "schema": "hades-active-unit-trigger-identity-v1",
+  "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "observed": {
+    "SCRIPTS_base_va": "0x181ccfc30",
+    "vector_stride": 24,
+    "SwitchActiveUnit_vector_va": "0x181ccff00",
+    "index": 30,
+    "TriggerToString_jump_table_va": "0x1802832c0",
+    "entry_bytes": "6f312800",
+    "branch_va": "0x18028316f",
+    "branch_instruction_bytes": "488d05f2423700",
+    "name_va": "0x1805f7468",
+    "name": "OnActiveUnitChanged",
+    "native_proof": "RegisterTrigger indexes SCRIPTS via index*24 at180288b13..1e; InitLua registers TriggerToString names at18028558e..59b; SwitchActiveUnit reads begin/end of slot30 at180271977..97e"
+  },
+  "not_observed": "No OnControlSwapped string or Lua trigger registration; OnControlHotSwap is separate trigger and callback",
+  "source_reports": [
+    {
+      "path": ".local/reports/native-active-unit-trigger-init-lua.json",
+      "sha256": "a372f23ff6ea11c0cf1c1d49c99a059e51a2d580501641bf538948d1c6c8811a"
+    },
+    {
+      "path": ".local/reports/native-active-unit-trigger-register.json",
+      "sha256": "45fd94f23f0f6a8524f8a59f6556795fdfbee90128dcb6990543ce75cfe6c41f"
+    },
+    {
+      "path": ".local/reports/native-active-unit-trigger-switch.json",
+      "sha256": "6584609a96d69f1585db43cbc570e1e1935a8681c144030e868965770b06c926"
+    },
+    {
+      "path": ".local/reports/native-active-unit-trigger-to-string.json",
+      "sha256": "5ccbab4c2c1b0b9eb31942e52716521795935d988d54a4ba2eb79c68083d4c7b"
+    }
+  ],
+  "limits": [
+    "Static table derivation only; no original code execution",
+    "SwitchActiveUnit full behavioral contract remains parent audit"
+  ]
+}

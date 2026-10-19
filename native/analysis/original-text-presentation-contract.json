@@ -1,0 +1,179 @@
+{
+  "schema": "hades-original-text-consumer-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "resources": {
+    "path": ".local/native-assets/original-text-v5/manifest.json",
+    "bytes": 1992684,
+    "sha256": "4207c80358b680c6725c3e5c53efeab93ce29ef3083bc3b8cebd649615c02491"
+  },
+  "font_format": "Reuses exact UFN1 metrics and UIR1 original Alpha8-whiteRGBA companions. Six admitted original English font names,3,750 unambiguous DisplayName keys. Original source identities/ranges/complete glyph records retained privately. No system font.",
+  "source_behavior": {
+    "glyphs": "DrawInto2462f0 convertsUTF8toUTF32; CR skipped, LF resetsx+incrementslineSpacing; previousABC+spacing advancespen; glyphA+cropXY setsquad. Scale GetFont166f44..56=requestedFontSize/nativeSpriteFontSize(+4).",
+    "textColor": "LuaGetColor2496f0 checks RGB each0..1 independentofalpha; selects floatColorctorA1b60 that clamps0..1,multiplies255,truncates. Otherwise byte-truncation branch. Thus source .729,.702,.631,255 retains actual normalizedRGB withopaquealpha.",
+    "creation": "CreateTextBox2701e0 actual per-owner component append retained, rawText overrideslocalized Text, FontSize accepts native numeric-string conversion andintegertruncation. DefaultJustification/VerticalJustification CENTER provencreatefallback.",
+    "modify": "Source requested scale/fade/color targets+durations update real per-component state. Portable linearUIinterpolation is explicit adaptation; complex easedGUIcurve/characterfade unsupported.",
+    "destroy": "DestroyTextBox source ownertarget selection removesactualtextvisuals; ownerlifetime/visibility checkedonsampling. Unsupported filtersfailratherthansilentlyack.",
+    "captions": "AudioManagerAddSubtitle4ac80 checks Config.Subtitles then cueName.findZag selectsAelseB. ActualScratch callsShowB andchannelcompletionHideB; SpeechDTO begins/ends materializeoriginaltextandsourcecolor. DefaultomittedSubtitleColorFFFFFFFF provenPlaySpeech2576ad. LiveThingcolorresolverprovidedbyaudioworker. NativeInGameUI widgetcoordinates/Font/FontSize/Shadow/Outline retained; theseareGUIwidgetswithnosyntheticThingorGroup. Registered source caption completion callbacks hide their actual A/B GUI slot even if another caption has since replaced its text, matching global HideA/B.",
+    "opacity": "Original embedded FancyText.frag: shadowColor.a*=In.v_Color.a; outlineColor.a*=In.v_Color.a before premultiplied layer merge. Runtime snapshots bake final textColor alpha (including live owner alpha and text fade) into shadow/outline once; renderer must not multiply again.",
+    "black_byte_alpha_quirk": "Actual source black RGB {0,0,0,128} enters floating color constructor because all RGB<=1; alpha128 clamps to1, rather than choosing byte alpha128/255. Focused fade regression retains this native quirk."
+  },
+  "api": {
+    "TextFontBank": "fonts()/font(name) expose originalCPUrgba andABC/cropping; layout givesglyphquads relativeowner",
+    "ScriptRuntime": "textFonts(),textVisuals(),advanceText(worldElapsed,screenElapsed,error),consumeSpeechText(actualEvents,error)",
+    "cleanup": "disposeTextOwner(lua_State*,ownerId) removes every real owned format/body at ResetComponents; no fabricated DestroyTextBox callback."
+  },
+  "validation": {
+    "result": "passed",
+    "original_fonts": 6,
+    "actual_remembrance_glyphs": 5,
+    "actual_source_Create_Modify_Destroy_executed": true,
+    "owner_group_and_visibility_preserved": true,
+    "source_byte_color_policy": true,
+    "unicode_decode_checked": true,
+    "source_caption_begin_end_and_config_gate": true,
+    "android_observed": false,
+    "native_paragraph_wrap_equivalence_claimed": false,
+    "final_report": ".local/reports/native-text-layout-v6-smoke.json"
+  },
+  "proofs": [
+    {
+      "path": ".local/reports/native-ui-font-reader.json",
+      "bytes": 25734,
+      "sha256": "9e747a56cf1820374c86a0359dab6a0ecbccda47f98e021b759923dee5489dfd"
+    },
+    {
+      "path": ".local/reports/native-text-sprite-font-ctor-static.json",
+      "bytes": 18226,
+      "sha256": "223e36bdb096e87d803eef63f938cc62ff7c0d17ff9f68627109b7dd758f4f13"
+    },
+    {
+      "path": ".local/reports/native-text-sprite-font-draw-static.json",
+      "bytes": 42395,
+      "sha256": "d9ed37d7e6b8d99480f36ca00517dc4be2f87f027822b9fc3cfa9c5ba2e3a066"
+    },
+    {
+      "path": ".local/reports/native-text-sprite-font-measure-static.json",
+      "bytes": 19665,
+      "sha256": "538ece4ae7f09a09a75a266e49930ef13a6f96b5cefd04d9f62a0ce752861c87"
+    },
+    {
+      "path": ".local/reports/native-text-font-get-static.json",
+      "bytes": 33352,
+      "sha256": "4da20705f8b1b007113b75bba39c0f534182ce5685e99d77f2708cb68c9438a9"
+    },
+    {
+      "path": ".local/reports/native-text-get-color-static.json",
+      "bytes": 19495,
+      "sha256": "011c42584e61c280ba0b3c743a6b749e64d7ffc7e2a096abcb4ae94cc20566e8"
+    },
+    {
+      "path": ".local/reports/native-text-float-color-static.json",
+      "bytes": 3771,
+      "sha256": "67206a08138ea6df2d71b9392ea8a2cbab131c56cef2314407e1d8a5b6fb2554"
+    },
+    {
+      "path": ".local/reports/native-text-modify-static.json",
+      "bytes": 100682,
+      "sha256": "d7b0306c069887571609b8cb9c834dbc522a50dc4884b1cde883364bf96c198e"
+    },
+    {
+      "path": ".local/reports/native-text-destroy-static.json",
+      "bytes": 25197,
+      "sha256": "b60591e0561ee720d3698f469ee37a9d049bf42dbccb746611fd78f5a66f32b1"
+    },
+    {
+      "path": ".local/reports/native-text-subtitle-show-static.json",
+      "bytes": 6292,
+      "sha256": "6e01e575b1cd00f24a26dd40bd7634d31bb1b925d5081689d1b55c62451fb1bb"
+    },
+    {
+      "path": ".local/reports/native-text-subtitle-config-static.json",
+      "bytes": 4444,
+      "sha256": "1169634d0c3e3cd3bb428dbbbf0e8190a586b41c42fa10d51a9675fe70418a57"
+    },
+    {
+      "path": ".local/reports/native-audio-add-subtitle-static.json",
+      "bytes": 28971,
+      "sha256": "8aafa5eb935d25f3a4439990917ca45840838639de91c56fdc8c8f06c09a6642"
+    },
+    {
+      "path": ".local/reports/native-text-draw-opacity-static.json",
+      "bytes": 162314,
+      "sha256": "2072443057a3aa8ef7c62214dae5315173d2552fe47fc896ec951b5126dd84ce"
+    },
+    {
+      "path": ".local/reports/native-text-line-opacity-static.json",
+      "bytes": 175937,
+      "sha256": "f421335320c59f1f76c0e6f1a3f0f891ce882dfa7a7d8e023fd3bfaa88be7ecb"
+    },
+    {
+      "path": ".local/reports/native-text-string-effect-static.json",
+      "bytes": 21945,
+      "sha256": "9105591d755836a9ec7e2e4b4999d49b480394156ecd1921982c1dd1c6825353"
+    },
+    {
+      "path": ".local/reports/native-text-command-static.json",
+      "bytes": 10941,
+      "sha256": "25864a18185c7fb9eafb57f9f5a485908c12b21077290e619f74e1d107267839"
+    },
+    {
+      "path": ".local/reports/native-text-command-run-static.json",
+      "bytes": 171488,
+      "sha256": "b2d25a300f8a3af90e8ffc855975ad4cd926345f14e729fa917b7df092c29da6"
+    },
+    {
+      "path": ".local/reports/native-text-color-by-name-static.json",
+      "bytes": 5711,
+      "sha256": "9b32bc9650b683117845b74e0bdc4bd69e6acdb62cff509036c3771778535c92"
+    }
+  ],
+  "source": [
+    {
+      "path": "native/app/text_layout.hpp",
+      "bytes": 2395,
+      "sha256": "f04e75b09672642c4fcc849532db09a8329badbf3f952565ddfada16f635dff6"
+    },
+    {
+      "path": "native/app/text_layout.cpp",
+      "bytes": 7621,
+      "sha256": "7eaa8883e7c4e78ff37d6716e2c46704bedeeace05968f22b6a2e2391f254b3f"
+    },
+    {
+      "path": "native/app/text_caption.cpp",
+      "bytes": 2696,
+      "sha256": "09dd29e1f1526b5bad248859d1d518b4bd7bddbee5f4e85b4dffa1b5251d28c0"
+    },
+    {
+      "path": "native/app/text_runtime.hpp",
+      "bytes": 1492,
+      "sha256": "ea6682b1accf7c520bc19c162de5fc274f911e4e4cd453582cd97e3920afce31"
+    },
+    {
+      "path": "native/app/text_runtime.cpp",
+      "bytes": 18642,
+      "sha256": "759c4471559f3feef600019631973d71c5ed097662ce36054995ad83aa8261c5"
+    },
+    {
+      "path": "native/app/lua_text.cpp",
+      "bytes": 2294,
+      "sha256": "7bee06b9bf5ebc2188489d1783adbdace441f52d51c1fc7e4b5d5dc5e1681af7"
+    },
+    {
+      "path": "native/tools/export_text_resources.py",
+      "bytes": 4378,
+      "sha256": "b3dd45a5fc331cac632055c8002c65cd5459d68571f3c7bee84b7cf39a6129c5"
+    },
+    {
+      "path": "native/tools/stage_text_resources.py",
+      "bytes": 948,
+      "sha256": "e49a815e8994ccc4281dda09dd4373ac5f26c50c417a4b713421ca8313c1a312"
+    }
+  ],
+  "limits": [
+    "Portable paragraph wrapping/line-block centering, not full native TextSystem equivalence. Rich substitutions/macros/descriptions, emphasis, nonzero characterfades and unknownfontrequests remain explicit unsupported.",
+    "Linear scale/color/fade interpolation is Android UI adaptation; no recovered easedGUIupdate claim.",
+    "Actualsource shadow/outline parameters exposed; GPUkernel equivalence is root renderer scope. Subtitlebackinggraphic not allocated bytextpipeline.",
+    "Focused source-title andcaptionDTO checks proveCPUstate+glyphs, noAndroidvisual/gameplay claim."
+  ],
+  "rea_sessions_owned_open": 0
+}

@@ -1,0 +1,153 @@
+{
+ "schema": "hades-blink-weapon-contract-v2",
+ "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+ "evidence_kind": "PDB-bounded LLVM disassembly (native/analysis/inspect_engine.py) with PDB symbol resolution of call targets (.local/reports/native-engine-pdb.json); WeaponData offsets = WeaponDataDef offset + 0x50 (.local/reports/native-fields-WeaponDataDef.txt). Not yet reconstructed in native/app; this is the recovered order for the implementer. REA Ghidra decompile of these procedures timed out when run in parallel (provider_timeout 330 s); run them one at a time if pseudocode is wanted.",
+ "native_reports": {
+  "BlinkWeapon::Fire 0x7d7d0 (1864 B)": ".local/reports/native-combat2-blink-fire-static.json",
+  "BlinkWeapon::canFire 0x7d770": ".local/reports/native-combat2-blink-canfire-static.json",
+  "BlinkWeapon::Update 0x7d1c0": ".local/reports/native-combat2-blink-update-static.json",
+  "BlinkWeapon::GetTeleportTarget 0x7d540": ".local/reports/native-combat2-blink-teleport-target-static.json",
+  "BlinkWeapon::PostFire 0x7df20": ".local/reports/native-combat2-blink-postfire-static.json",
+  "BlinkWeapon::OnBlinkFinished 0x7dff0": ".local/reports/native-combat2-blink-finished-static.json",
+  "BlinkWeapon::FireProjectile 0x7e4f0": ".local/reports/native-combat2-blink-fire-projectile-static.json",
+  "InvulnerableEffect createEffect/AffectUnit/Clear 0x5e380/0x5e580/0x5e7c0": ".local/reports/native-combat2-invuln-{create,affect,clear}-static.json"
+ },
+ "weapon_data_fields": {
+  "0x328": "UnblockedBlinkFx",
+  "0x8ea": "SetCompleteAngleOnFire",
+  "0x910": "BlinkDuration",
+  "0x914": "BlinkEaseIn",
+  "0x918": "BlinkEaseOut",
+  "0x91c": "BlinkMaxRange",
+  "0x920": "BlinkDetonateAtOrigin",
+  "0x921": "BlinkDetonateAtEndpoint",
+  "0x924": "BlinkDetonateAtEndpointDelay",
+  "0x928": "BlinkDetonateOnInterval",
+  "0x92c": "BlinkNumGhosts",
+  "0x930": "PostBlinkAnim",
+  "0x950": "BlinkGhostAnimation",
+  "0x968": "BlinkCameraLerpTime",
+  "0x98c": "CheckMovementReactionDistance",
+  "0x83c (GetTeleportTarget)": "WeaponRange"
+ },
+ "blink_weapon_members_observed": {
+  "0x198": "byte, cleared by Fire (in-progress/finished flag; set elsewhere by Update/OnBlinkFinished)",
+  "0x1a4": "float blink angle (FireRequest+0x20)",
+  "0x1a8": "float blink time remaining = BlinkDuration",
+  "0x1ac": "float detonate interval remaining = BlinkDetonateOnInterval",
+  "0x1b0/0x1b4": "Vector2 blink start (owner GetLocation)",
+  "0x1b8/0x1bc": "Vector2 blink target (after validity/shift resolution)",
+  "0x19c": "float last blink angle (OnBlinkFinished; read by PostFire for pFireFx)",
+  "0x1a0": "float last blink radius (OnBlinkFinished; read by PostFire)",
+  "defaults": "BlinkWeapon::defaults7d170 zeroes +0x198..+0x1c4 (.local/reports/native-combat4-blink-defaults-static.json)",
+  "typeflags": "Weapon::Weapon(edx=0x24) in vector<BlinkWeapon>::DoInsertValuesEnd VA18007f040; Projectile::Init GUN modifier gate (~flags&0x44)==0 excludes Blink"
+ },
+ "Fire_order": [
+  "angle = FireRequest+0x20; owner = UnitManager::Get(Weapon.mOwnerId +0x30)",
+  "SetCompleteAngleOnFire && !owner Arsenal(+0x428).IsStrafing(this): owner vslot0x90(angle), Unit::SetGoalAngle2f85f0(angle), owner+0x3d0 = owner+0x3d4 = angle",
+  "BlinkDetonateAtOrigin: FireProjectile7e4f0(owner GetLocation (attached-aware), angle, request)",
+  "start = owner GetLocation; target = GetTeleportTarget7d540(owner, request)",
+  "limit = BlinkMaxRange>0 ? start + owner Vector2(+0xb0) * BlinkMaxRange : target",
+  "target == (0,0) -> skip all blink state, return Weapon::Fire88f00(request)",
+  "member+0x1a8>0 && member+0x198==0 && BlinkDetonateAtEndpoint: FireProjectile(owner GetLocation, member+0x1a4, zero FireRequest)",
+  "ok = owner vslot0xa8(&target, true, 4, false); dist = 0",
+  "!ok: dist = |start-target|; out = Thing::CalcValidLocationOnVector2e1770(owner, target, start, limit, const float @0x180610db0); out==(0,0) -> target=start, and if member+0x1a8>0 return FireResult 0; else dist -= |start-out|, target = out",
+  "BlinkCameraLerpTime>0 && Camera::Instance followed-id vector (+0x320..+0x328) contains owner id(+0x6c): goal=GetMoveGoalLocation, f=clamp(GetMoveFraction,0,1), camera+0x88/+0x8c = SmoothStep(current, goal, f); camera+0x28 = lerp time, camera+0x2c = World+0x1c; then camera byte+2 = 0",
+  "dist>0: owner vslot0x80(target, true); shift=(cos(angle)*dist, -sin(angle)*dist); Unit::ApplyFullShift2f76d0(owner GetLocation+shift, shift, false, false); target = owner GetLocation; owner vslot0x80(start, true)",
+  "dist==0: UnblockedBlinkFx nonempty && !GridManager::IsLineBlocked308230(start,target) -> AnimationManager::Create29e410(UnblockedBlinkFx, owner, FireRequest::GetFromLocation83020(owner,this), null)",
+  "store member+0x1b0 start, +0x1b8 target, +0x1a4 angle, +0x1a8 BlinkDuration, +0x1ac BlinkDetonateOnInterval, +0x198 = 0",
+  "return Weapon::Fire88f00(request) (existing common prefix; weapon_execution.cpp currently rejects type!=0 at phase 0)"
+ ],
+ "other_callees": {
+  "Update7d1c0": [
+   "Weapon::Update83b60",
+   "Interpolate1eaba0 (ease in/out)",
+   "FireProjectile (BlinkDetonateOnInterval)",
+   "OnBlinkFinished7dff0"
+  ],
+  "OnBlinkFinished7dff0": [
+   "GridManager::CheckMovementReactions309850 (CheckMovementReactionDistance)",
+   "FireProjectile (BlinkDetonateAtEndpoint, Delay)",
+   "AnimationManager::Create (BlinkGhostAnimation x BlinkNumGhosts)",
+   "Thing::SetAnimation2decb0 (PostBlinkAnim)"
+  ],
+  "PostFire7df20": [
+   "Weapon::PostFire89500",
+   "BodyComponent::MarkDirty2b7340",
+   "Animation::SetAngle298190",
+   "Animation::SetRadius2974e0"
+  ],
+  "FireProjectile7e4f0": [
+   "Weapon::GetAmmo83af0",
+   "Random::RandomDouble54f80",
+   "ProjectileManager::Create79d40",
+   "Projectile::PauseForDuration6d390"
+  ]
+ },
+ "first_replay_data": "RushWeapon (PlayerWeapons.sjson): Type BLINK, BlinkDuration 0.21, BlinkEaseIn 0, BlinkEaseOut 0.8, BlinkMaxRange 400, WeaponRange 300, BlinkDetonateAtOrigin true, BlinkDetonateAtEndpoint false, BlinkNumGhosts 3, BlinkGhostAnimation null, CheckMovementReactionDistance 150, UnblockedBlinkFx DashCrack, FireGraphic ZagreusDashNoCollide, Effects RushWeaponInvulnerable (INVULNERABLE, 0.24, NoUnitCollision) and RushWeaponImmuneToForce",
+ "unresolved_for_implementation": [
+  "Unit vtable slots 0x80 (SetLocation), 0x90 (SetAngle), 0xa8 (location validity query with (Vector2*, bool, uint8 4, bool)) must be resolved against the Unit vtable before use",
+  "Thing::CalcValidLocationOnVector2e1770, Unit::ApplyFullShift2f76d0, GridManager::IsLineBlocked308230 and CheckMovementReactions309850 have no native/app consumer yet",
+  "float constant at 0x180610db0 (CalcValidLocationOnVector last argument) not read yet"
+ ],
+ "projectile_data_fields_GetTeleportTarget": {
+  "0x3a4": "Range (ProjectileDataDef 0x354; used when ValidProjectileData && WeaponRange==0)",
+  "0x664": "AutoAdjustForTarget (ProjectileDataDef 0x614; target = request target entity/location)"
+ },
+ "effect_data_fields": {
+  "0x1bc": "BlinkRangeMultiplier (EffectDataDef 0x154, EffectData base +0x68); GetTeleportTarget multiplies each active effect"
+ },
+ "resolved": {
+  "Unit vtable (??_7Unit@sgg@@6B@ RVA0x5f9918)": {
+   "0x80": "Unit::SetLocation2f2a40",
+   "0x90": "Thing::SetAngle2e0ce0",
+   "0xa8": "Unit::IsLocationValid2f20f0 -> IsDestinationValid2f23f0(loc, totalZ+airborneZ, type, r9, bool)==9"
+  },
+  "const 0x180610db0": "0.17453292 (10 degrees) = CalcValidLocationOnVector angle step",
+  "Thing::CalcValidLocationOnVector2e1770": "probe order in lua_combat.cpp thingCalcValidLocationOnVector (.local/reports/native-combat4-thing-calc-valid-location-static.json / -pseudocode.c)",
+  "Thing.mDirection(+0xb0)": "(cos body angle, -sin body angle) stored by Thing::SetAngle VA1802e0e29..47",
+  "FireRequest::GetFromLocation83020": "request from (+0x10) if nonzero, else owner GetLocation + GetFireOffset(request angle), else target entity/location",
+  "HandleTriggerDown VA180086480": "FireGraphic SetAnimation only when WeaponData mType != BLINK",
+  "BlinkWeapon::FireProjectile7e4f0": "Create(projData,this,loc,request{angle=shot},Spread,i,-1,0); Projectile+0x3b2 mUseStartMarker=0",
+  "BlinkWeapon::PostFire7df20": "Weapon::PostFire then only a live pFireFx(+0x150, zeroed by Weapon ctor) gets angle/radius",
+  "OnBlinkFinished7dff0": "lastRadius/lastAngle, CheckMovementReactions309850(start,loc,2*CheckMovementReactionDistance), endpoint FireProjectile, BlinkNumGhosts x Create(BlinkGhostAnimation, lerp(start,loc,i/n)), PostBlinkAnim or cancel FireGraphic primary (Animation+0x63 mCanceled, DisableOwnerInput -> AllowInput)",
+  "GridManager::IsLineBlocked308230": "StopsUnits obstacles in segment grid cells; PolygonCollision(segment) or PointInPolygon(start)"
+ },
+ "implementation": {
+  "files": [
+   "native/app/weapon_execution.cpp (WeaponFirePrefix BLINK phases 20-23, WeaponBlinkProjectile, Update phase 11, PostFire)",
+   "native/app/lua_combat.cpp (blinkTeleport, blinkUpdate, unitSetLocation, unitLocationValid, gridLineBlocked, thingCalcValidLocationOnVector, unitApplyFullShift)",
+   "native/app/projectile_runtime.cpp (Init tail skips GUN modifiers for BLINK)"
+  ],
+  "approximations": [
+   "Unit::ApplyFullShift2f76d0/ApplyShift2f7c00: uses the labelled portable 4-unit sweep of advanceLocalPlayerMovement; Unit+0x500 collision-set OnCollisionEnd not modelled",
+   "Unit::IsDestinationValid2f23f0: transformed-polygon overlap against StopsUnits obstacles (same narrowphase as movement); its Z/type branches are not separately modelled"
+  ],
+  "fails_loudly": [
+   "BlinkCameraLerpTime>0 camera lerp",
+   "BlinkDetonateOnInterval / BlinkDetonateAtEndpoint FireProjectile",
+   "GridManager::CheckMovementReactions309850 (reached only when the blink actually moved and CheckMovementReactionDistance>0)",
+   "OnBlinkFinished FireGraphic primary cancel",
+   "attached-owner blink"
+  ]
+ },
+ "combat5_target_equals_start": {
+  "finding": "Not a GetTeleportTarget/range/direction bug. Scratch replay (Rush at tick 1530, angle pi): target computed correctly as start+300*(cos,-sin)=(1595.3,5249.5) (WeaponRange 300, no BlinkRangeMultiplier effects). Zagreus (hull x 1861.7..1928.9, y 5232.7..5266.3) stands against the upper-right edge of _Impassable_Tile64IsoUnitsOnly_Short 410970 (centre 1236.5,5390.7, scale 13.93 -> diamond half-extents 891x446; edge x=1844 at y=5249), inside the concave V it forms with _Impassable_Tile64Iso 410015 (apex ~1708,5180). All 35 CalcValidLocationOnVector2e1770 probes are invalid (blockers 410015/410970/HouseDoor02 310098) -> out=(0,0) -> target=start with distance 300; the remaining shift goes to ApplyFullShift, whose labelled axis-slide approximation cannot slide along the diagonal edge, so displacement is 0..4 units. A right dash (angle 0) from the same spot gives target 2176.56 (B-probe k=1 valid at 2165.3, then ApplyFullShift of the remaining 30 units adds 11.3): 281.3 units, plausible.",
+  "consequence": "The original Unit::ApplyShift slides along the 410970 edge (push-out vector from GridManager::DetectCollisions), so the left dash in the original likely moves Zagreus up-left toward the V apex; exact ApplyShift is needed to match.",
+  "ApplyFullShift2f76d0 (.local/reports/native-combat5-unit-apply-full-shift-pseudocode.c)": [
+   "shift==0 -> return",
+   "|shift|^2 < 64: ApplyShift2f7c00(this, loc arg, shift, param5) once",
+   "else n = 1 - int(-|shift|*0.125) (= 1+floor(|shift|/8)); step = shift/n; repeat n times: ApplyShift(this, Thing location(+0x88) + step, &step, param5); break early when stopOnCollision(param4) && ApplyShift returned true",
+   "then collision-set swap: obstacles in old set +0x500 missing from new set +0x530 -> obstacle +0x4d4>0 body transition FUN_1802b7440, Thing::SetAnimation2decb0(obstacle+0x4b8), FUN_18028b290(unit); new set copied into +0x4f8/+0x500, +0x530 cleared"
+  ],
+  "ApplyShift2f7c00 (.local/reports/native-combat5-unit-apply-shift-pseudocode.c)": [
+   "CollisionParameters306ab0 query: rect = int(newLoc - size(+0xa0,+0xa4)*0.5), size; unit geometry points (param_1[0x3b..0x3c]); velocity = *shift; CollideWithObstacles-ish flag from UnitData+0x15c (cleared when param4 && Thing data+0x8d); unit-collision flag from UnitData+0x15d gated by Z (location Z <= UnitData+0x300) and no active effect with EffectData+0x360",
+   "GridManager::DetectCollisions309dd0 over grid cells -> GridSquare::detectCollisions30ae10 (or DetectCollisionsPath30b850 when params[9]); push vector accumulates at result+0x30/+0x34 from PolygonHelpers::PolygonCollisionOpt2cefd0 / PolygonCollision2ce450/2ce1d0 (pseudocode .local/reports/native-combat5-grid-detect-collisions-pseudocode.c, native-combat5-grid-cell-detect-pseudocode.c)",
+   "push c rescaled isometrically: c' = (c.x, c.y*0.25) normalised * |c|; accumulated into Unit+0x410/+0x414; NaN/inf -> random jitter (Random::RandomDouble54f80)",
+   "unit collisions -> Unit::OnUnitCollision2f7580 per unit then self; obstacles -> Unit::OnObstacleCollision2f6ce0; return true when any unit collision or a StopsUnits obstacle with +0x44c>0",
+   "c==0 -> newLoc = requested loc; else if |shift|^2<|c|^2 and cos(c,shift)<-0.8 -> no move; s'=shift+c; |s'|^2<=|shift|^2 ? newLoc=requested+c : newLoc=current+s'*(|shift|/|s'|); blocked distance Unit+0x3cc=max(+0x3cc,|shift|-|newLoc-current|)",
+   "PhysicsComponent(+0xd8) with +0x5c<=0 -> CheckTether2bd890 clamp; then vtable +0x80 SetLocation(newLoc)"
+  ],
+  "next_for_exact_ApplyShift": "reconstruct GridSquare::detectCollisions30ae10 obstacle branch + PolygonHelpers::PolygonCollisionOpt2cefd0 (MTV along velocity param+0x28); then replace unitApplyFullShift approximation in lua_combat.cpp (walking path in lua_player_input.cpp can share it)"
+ }
+}

@@ -1,0 +1,202 @@
+{
+  "schema": "hades-animation-manager-ownership-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "matching PDB/LLVM static; retained REA source anchors, supplied binaries never executed",
+  "evidence": [
+    {
+      "path": ".local/reports/native-registry-set-animation-name.json",
+      "bytes": 26979,
+      "sha256": "44292ec71c2827d2d97cf7dbd6c945a049ba08ba019d02ee08e094ba0386b988"
+    },
+    {
+      "path": ".local/reports/native-registry-set-animation-data.json",
+      "bytes": 24604,
+      "sha256": "c3516baed206ffd6e2279653b278153f109ad0c0e73eca89d038cc505860c967"
+    },
+    {
+      "path": ".local/reports/native-registry-create-custom.json",
+      "bytes": 6892,
+      "sha256": "17dac376dbad6ffc2def1c3ff6d51764d0546a11c83e61e595ba27b5efdd84c9"
+    },
+    {
+      "path": ".local/reports/native-registry-create-dataless-attached.json",
+      "bytes": 10077,
+      "sha256": "e2cd32fa9eecaa7d33a19428cd5624fb975cb861b303b0a7bdaaa784b7e6e992"
+    },
+    {
+      "path": ".local/reports/native-registry-thing-update.json",
+      "bytes": 6103,
+      "sha256": "51162615dbdc31f3df7598b8ba4392045d5d2dbf3cc842b955a7bb77256de417"
+    },
+    {
+      "path": ".local/reports/native-registry-release.json",
+      "bytes": 7667,
+      "sha256": "7a01462cd0e1658181ce386aed3c6f3a1e6f6174deea128d9126a8f84bb766a7"
+    },
+    {
+      "path": ".local/reports/native-registry-manager-update.json",
+      "bytes": 35867,
+      "sha256": "e1389fc1ff8f8a1f29db6ad74c99a2155c47234ea5bb0842034f9e0888ccc206"
+    },
+    {
+      "path": ".local/reports/native-effect-manager-add.json",
+      "bytes": 23273,
+      "sha256": "e7b9c732990f782b4d6c63ddfba1abd8634c1559e56daabfc7246a866f7c4a29"
+    },
+    {
+      "path": ".local/reports/native-registry-entity-query.json",
+      "bytes": 13585,
+      "sha256": "4bde5ba0bda15c925dcfc27a0b238b7dbdf89f88c8c67d25c1bdf213f41f41c3"
+    },
+    {
+      "path": ".local/reports/native-registry-vfx-time-run.json",
+      "bytes": 17479,
+      "sha256": "7c28cd555849b895c3822a71c7f86ea1f4386fd562e841e952e0d0494a579774"
+    },
+    {
+      "path": ".local/reports/native-registry-vfx-distance-run.json",
+      "bytes": 8234,
+      "sha256": "8803ec6d879ed99709297f160f3467ce51aabbdf5f872149384712d739240ae5"
+    },
+    {
+      "path": ".local/reports/native-registry-obstacle-animation-set.json",
+      "bytes": 12588,
+      "sha256": "dda27240b3e6872f6d73820ad9c5f29c8102dadfd8bf96fb4f847233e7494858"
+    },
+    {
+      "path": ".local/reports/native-registry-obstacle-submit-draw.json",
+      "bytes": 12218,
+      "sha256": "12aacda428c8233839f7f65d47a85cb6b81eec9b1ec23e39935558109f759199"
+    },
+    {
+      "path": ".local/reports/native-registry-obstacle-done-updating.json",
+      "bytes": 11779,
+      "sha256": "20d8136ea3854b9a9b40118c50725038b22932007f643df73f15fd399c649d55"
+    },
+    {
+      "path": ".local/reports/native-animation-type-enum.json",
+      "bytes": 1368,
+      "sha256": "1e8bf04f7b8577bbafba3afade64f86d4e62c754f6c79b132acf0d7bfa2b03df"
+    },
+    {
+      "path": ".local/reports/native-registry-spawn-time.json",
+      "bytes": 20371,
+      "sha256": "9205c1b5604e5d8ac8fdd2c47e63e28f8cda604a582606ca43a0eb55a1fd67ef"
+    },
+    {
+      "path": ".local/reports/native-registry-spawn-distance.json",
+      "bytes": 36343,
+      "sha256": "db9e046fe66981e10f30a9752aa8a746df32009c6c68b44408809fb67861c41a"
+    }
+  ],
+  "native_type_enum": {
+    "Book": 0,
+    "Slide": 1,
+    "Constant": 2,
+    "ConstantNoUpdate": 3,
+    "Dataless": 4,
+    "Random": 5,
+    "Graft": 6,
+    "Text": 7
+  },
+  "native_default_type": {
+    "name": "ConstantNoUpdate",
+    "value": 3,
+    "anchor": "0x1800940cb",
+    "supersedes": "opening-animation-registry-v1 provisional label Constant3; do not consume v1"
+  },
+  "recipes": {
+    "path": ".local/native-assets/opening-animation-registry-v2/registry.json",
+    "bytes": 897016,
+    "sha256": "eaeb47159494ba49ad29609792a00de4bb0b3e5729e37dcf945bf21b39ece02c"
+  },
+  "primary_assets_manifest": ".local/native-assets/opening-spawners-v1/manifest.json",
+  "source_counts": {
+    "active_map_primaries": 1033,
+    "dataless": 755,
+    "Book": 206,
+    "ConstantNoUpdate": 62,
+    "Constant": 10,
+    "primary_manager_vector_members": 0,
+    "primary_time_spawners": 9,
+    "child_initializations": 1
+  },
+  "ownership": [
+    {
+      "kind": "ThingPrimary",
+      "factory": "Thing.SetAnimation ->CreateAndInit1802df358, or CreateDataless1802defbc",
+      "owner": "Thing+0x138",
+      "manager_add": false
+    },
+    {
+      "kind": "Child",
+      "factory": "Animation.AddChild293ae0 ->CreateCustom29f870 ->CreateAndInit18029f946",
+      "owner": "parent+0xc8, child.parent+0x700",
+      "manager_add": false
+    },
+    {
+      "kind": "ManagerCreate",
+      "factory": "Manager.Create29e410 calls CreateAndInit18029e4e5 then Add18029e4f8",
+      "manager_add": true
+    }
+  ],
+  "caps": {
+    "manager_length": "(mAnimations.end+0xe0 - begin+0xd8)/8, actual complete ordered ManagerAdd vector, includes non-permanent and pending-canceled entries",
+    "source_checks": [
+      "Time180295255..2a6",
+      "Distance18029550b..55c"
+    ],
+    "permanent_cap": 80,
+    "permanent_reverse_scan": "Add18029df70..dfe6 checks only data.CancelOverCap(full+0xb5); count starts1 for new; pending canceled not filtered; marks existing.mCanceled(+0x63) at18029dfcd",
+    "managed_disposal": "Manager.Update retains source order with compaction after PostUpdate/OnDeath/Release, preserves appended entries beyond snapshotted iteration end"
+  },
+  "initial_room_components": {
+    "active_primary_spawners": [
+      "DustSpawner x2",
+      "BatCluster x2",
+      "TartarusEmberSpawner x5"
+    ],
+    "manager_members": 0,
+    "native_type": 2,
+    "Loop": false,
+    "OnlyWhenVisible": true,
+    "initial_skip_update": false,
+    "bat_duration": "RandomDuration[3,8] consumes float draw before initial VFX interval; actual Duration/TimeRemaining phase + ChainTo required",
+    "door_child": "DoorLocked creates RoomRewardUnavailable through child chain, not manager Add"
+  },
+  "skip_update": {
+    "query": "EntityManager.Query1882d0 always rejects SkipUpdate archetypes at180188340..378 before requested component filters. Time/Distance RunJobs both use it.",
+    "on_animation_set": "Obstacle.OnAnimationSet2c5e20: initial Type3/4 branch at1802c5e4f..57 bypasses animated registration and SkipUpdate block. Other types add SkipUpdate only when notScreen &&OnlyWhenVisible&&Loop. Selected9 Type2/nonLoop initially do not skip.",
+    "submit_draw": "Obstacle.SubmitDraw2c3b40 removes SkipUpdate from primary/children only OnlyWhenVisible &&Type not3/4, after actual source draw admission. Alpha is not visibility.",
+    "done_updating": "Obstacle.DoneUpdating2c3190 restores SkipUpdate only after source App/physics/translation/state guards; caller must supply actual guard result. No invented offscreen heuristic."
+  },
+  "implementation": [
+    "native/app/animation_registry.hpp",
+    "native/app/animation_registry.cpp",
+    "native/app/effect_animation.hpp",
+    "native/app/effect_animation.cpp",
+    "native/app/effect_particle.hpp",
+    "native/app/effect_particle.cpp"
+  ],
+  "limits": [
+    "Recipe export is not runtime allocation; source order/definition identities/resources retained without fake native handles.",
+    "Initialization must run at real actor creation point to preserve original global RNG order, not bulk post-startup seeding.",
+    "Current typed map initializer supports selected three Constant classes; other 1024 source primaries are not fabricated by registry.",
+    "Root caller must cover every manager-add path before declaring world-manager completeness; allAllocationsInitialized only checks admitted lifetime records.",
+    "Map VFX leaf Dust/Bat/Ember execution remains unsupported by Laurel-only particle adapter, and fails before mutable emission.",
+    "Duration/time modifiers and visibility phase transitions require actual source state; expired Bat ChainTo fails until root primary replacement bridge handles it.",
+    "All owned REA sessions closed; latest leaf import timed out, no new Ghidra decompilation claimed."
+  ],
+  "validation": ".local/reports/native-room-spawner-validation.json",
+  "primary_initialization_api": {
+    "createPrimary": "selected actual source Constant owner, RNG, original CRC-checked texture required; allocates shared lifetime + selected native components, no Add",
+    "setSkipUpdate": "actual original visibility/admission result only",
+    "setDurationRemaining": "actual TimeRemaining phase value; no local invented timer",
+    "update": "durationSystemResolved required for live Bat; expired Bat requires ChainTo bridge",
+    "original_assets": {
+      "path": ".local/native-assets/opening-spawners-v1/manifest.json",
+      "bytes": 5631,
+      "sha256": "7e91cb8f636ae7b44990d9e79e86e27c732f4f0c7faa6b279b41e3c97543e6d3"
+    }
+  }
+}

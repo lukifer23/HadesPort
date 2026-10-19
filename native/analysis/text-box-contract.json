@@ -1,0 +1,59 @@
+{
+  "schema": "hades-text-box-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence": ".local/reports/textbox-v2/ (REA decompile JSON: Parse, ParseLua, ParseMarkup, ParseImage, SetLuaParam, ShowDisplayName, ConvertAnyToString; inspect-CreateTextBox.json; disasm/*.s LLVM disassembly of ctor 0x173ae0, Clear 0x1740d0, GUIComponent ctor 0x1681c0, ComponentData::Defaults 0xa2a30, GUIComponent::Update 0x1689b0, GUIComponentTextBox::Update 0x175300, Draw 0x175de0, DrawLine 0x178cb0, TextComponent::ModifyTextBox 0x2be2d0). Earlier CreateTextBox pseudocode: .local/reports/native-text-create-pseudocode.txt. Draw/DrawLine REA decompiles timed out; those conclusions come from disassembly only.",
+  "resources": {
+    "export": ".local/native-assets/original-text-v6/manifest.json",
+    "exporter": "native/tools/export_text_resources.py",
+    "changes_from_v5": [
+      "Fonts AlegreyaSansSCBold and AlegreyaSansSCRegular admitted. The combat HUD CreateTextBox calls use them.",
+      "Each font now carries RemapSize, taken from Game/FontSizes.remap.",
+      "The English block of Game/Text/Aliases.sjson is merged in, and InheritFrom records resolve parent-first, then own fields. This makes UI_AmmoText and UI_GunText resolve through UI_SuperText. Three keys conflict and are excluded.",
+      "Symbols: the GUI\\HUD\\Slash and GUI\\HUD\\InfiniteIcon atlas crops from GUI.pkg are exported (UIR1 RGBA)."
+    ],
+    "build_default_note": "build_native.py still defaults to original-text-v5. Staging needs --text-resources .local/native-assets/original-text-v6/manifest.json. With v5, HUD text fails with 'Original font has not been loaded: AlegreyaSansSCBold'."
+  },
+  "defaults": {
+    "source": "ctor 0x173ae0 + ComponentData::Defaults(component+0xa8) + Clear",
+    "TextSymbolScale": 1.0, "FontSize": 0, "Width": 0, "Justification": "CENTER", "VerticalJustification": "CENTER",
+    "LocationZWithOwner": true, "ScaleWithOwner_0xc9": false,
+    "OutlineColor": "-1 sentinel. Draw clamps RGB to [0,1] and forces alpha 0xFF.",
+    "ShadowColor": [0, 0, 0, 0], "ShadowOffset": [0, 0], "ShadowBlur_create_default": 50,
+    "speeds_per_second": {"fade_0x7a4": 4, "scale_0x7bc": 4, "color_0x7e8": 4},
+    "FadeTarget_0x60": 1, "TextColor": "0xFFFFFFFF via SetTextColor when Color is absent"
+  },
+  "CreateTextBox_0x2701e0": {
+    "always": "Id resolves to the owner Thing. Scale is clamped to [0,1] (stored at 0x54). RawText wins over Text. Text goes through ShowDisplayName: GetTextData(key)->DisplayName (+0x58), or the key itself if no record exists. Color (GetColor), TooltipKey/TooltipData, LuaKey/LuaValue (SetLuaParam), FadeOpacity (default 0), FadeTarget (1), ScaleModifier (1), ScaleTarget (1).",
+    "AutoSetDataProperties_default": false,
+    "AutoSet_true": "Every argument key goes to ReflectionHelper::SetProperty, and the explicit block is skipped.",
+    "AutoSet_false_reads_only": ["Font", "FontSize(int)", "TextSymbolScale", "Width", "Height", "OffsetX(int)", "OffsetY(int)", "Justification", "VerticalJustification", "LocationZWithOwner", "OutlineThickness", "ShadowBlur", "Lang*ScaleModifier", "NonEnglishScaleModifier", "ScaleDuration(->speed 1/d)", "VariableAutoFormat"],
+    "both_paths": ["LineSpacingTop/Bottom/Left/Right", "CharacterFadeColor", "OutlineColor (RGB only)", "ShadowColor (RGBA)", "ShadowOffset (3,3 if present but not a vector2)", "DataProperties (reflection)", "Hide"],
+    "not_read_without_AutoSet": "ShadowRed/Green/Blue/Alpha, ShadowOffsetX/Y, CharacterFadeTime/Interval. The HUD passes these keys, but the original engine ignores them."
+  },
+  "ModifyTextBox_0x2be2d0": {
+    "reads": ["AffectText", "ExcludeText", "Text", "UseDescription", "Color (immediate)", "FadeTarget>=0", "FadeDuration (speed=1/d)", "ScaleTarget>=0", "ScaleDuration", "ColorTarget", "ColorDuration", "VariableAutoFormat", "AutoSetDataProperties (default false)", "Font", "ParamValue/ParamTarget", "TooltipKey/TooltipData/BlockTooltip", "LuaKey/LuaValue", "MarkDirty", "ReReadImmedaitely"],
+    "ignored_keys_are_native": "Other keys, for example the HUD's OffsetY and ColorChangeSpeed, are never read."
+  },
+  "update": "FadeOpacity steps toward FadeTarget by dt*fadeSpeed. ScaleModifier steps toward ScaleTarget by dt*scaleSpeed. StepTowardColor 0x1ead60 steps each byte channel in [0,1] by speed*dt, clamps, and truncates back to a byte. TextScale() = fontScale * Scale * ScaleModifier (* owner scale only when ScaleWithOwner is set).",
+  "parse": {
+    "lua_params": "GetLines 0x17b150 copies mLuaParams (+0xd08) and sets each key as a Lua global (LuaTableExtensions::SetValue). Parse then runs.",
+    "tokens": "CharAsToken jump table: '{'=5 '}'=6 '!'=11 '@'=12 '#'=13 '$'=14 '%'=15 '^'=16 '+'=22 '\\\\'=19 '['=3. Word breaks: 0x28081020 mask.",
+    "markup_dispatch": "ParseMarkup 0x17f1c0. '!' -> ParseLua, then appends '@'+value, which re-tokenizes as a ParseImage symbol. '$' -> ParseLua, ConvertAnyToString, then GetTextData(value)->DisplayName (+0x58) or the raw value, re-tokenized via PushTokenizer. '%' -> GetDescription. '^' -> +0x70. '+' -> +0x88. '#' -> ParseFormatting. Word -> IF / control symbol / ParamValue / mParams.",
+    "lua_path": "ParseLua 0x17cf30: a global, then '.' fields (a numeric field is an integer index). ':P' is a percent format.",
+    "number_format": "ConvertAnyToString 0x2023d0: an integral double prints as '%d', otherwise '%g'. Booleans print true/false.",
+    "image": "DrawLine: symbolScale = TextSymbolScale()*data TextSymbolScale. TextSymbolScale() uses FontSize/remapSize (Fonts::GetFont 0x166f71). The pen advances 2 x 0.5 x trunc(w*symbolScale). The sprite is centred, sized w*symbolScale, at the line centre. Its colour is white, with alpha = fade*FadeOpacity."
+  },
+  "implemented": {
+    "files": ["native/app/text_runtime.cpp", "native/app/text_layout.hpp", "native/app/text_layout.cpp", "native/app/ui_renderer.cpp (renderText: inline symbol quads)", "native/tools/export_text_resources.py"],
+    "markup": "Only '{$path}' and '{!path}' are implemented. Every other markup, raw '@', '\\\\' escapes and '[' overrides fail with 'Original text markup unreconstructed: {...}' or 'Original text token unreconstructed: X'."
+  },
+  "approximations_and_unproven": [
+    "Text alpha still includes the owner's alpha. The OpacityWithOwner default and how Draw consumes it were not traced; the flag is parsed but not used.",
+    "Glyph line layout and justification are the earlier portable layout (from DrawInto evidence). Paragraph-wrap equivalence with Parse is not claimed.",
+    "Symbol line width for CENTER/RIGHT justification (ParseImage TextureAtlasEntry+0x18) is unresolved. Symbols in justified text fail loudly.",
+    "Symbols are admitted only when untrimmed and unscaled, so the atlas entry width equals the texture width.",
+    "Outline thickness is not multiplied by TextScale in the renderer. Draw stores TextScale beside it; this was not consumed.",
+    "Shadow/outline drawing for inline symbols was not traced; symbols draw plain."
+  ],
+  "replay": ".local/reports/text-box-hud-replay-v1.json"
+}

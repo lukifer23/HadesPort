@@ -1,0 +1,213 @@
+{
+  "schema": "hades-original-effect-animation-initialization-v1",
+  "status": "selected Constant parent/child creation implemented; original particle emission remains explicitly unsupported without provider",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "artifacts": {
+    "catalog_lua": {
+      "path": ".local/native-assets/laurel-effects-v2/effects.lua",
+      "bytes": 34856,
+      "sha256": "b56d96ce5826bc17ff9b66372e70ebf4320dfaa988f20d6fddf36a820ff59317"
+    },
+    "catalog_json": {
+      "path": ".local/native-assets/laurel-effects-v2/catalog.json",
+      "bytes": 51583,
+      "sha256": "dda0977fa6767009778bfb61d63b481d75c370d550fcffd364ba514eb9a9e455"
+    },
+    "dependency_export": {
+      "path": ".local/native-assets/laurel-source-v1/laurel-dependencies.json",
+      "bytes": 68586,
+      "sha256": "b2a82ee9087b0ba0119cce761174521b53a576418c40480a15078f41326a59c6"
+    },
+    "manifest": ".local/native-assets/laurel-effects-v2/manifest.json",
+    "format": "native/tools/EFFECT_ANIMATION_FORMAT.md",
+    "runtime": [
+      "native/app/effect_animation.hpp",
+      "native/app/effect_animation.cpp"
+    ],
+    "exporters": [
+      "native/tools/export_laurel_dependencies.py",
+      "native/tools/export_effect_initialization.py"
+    ],
+    "validation": ".local/reports/native-effect-initialization-validation.json"
+  },
+  "source": [
+    {
+      "path": ".local/game/base/Content/Game/Animations/Fx.sjson",
+      "bytes": 1966710,
+      "sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4"
+    },
+    {
+      "path": ".local/game/base/Content/Win/Packages/Dev.pkg_manifest",
+      "bytes": 53182,
+      "sha256": "0382e466fa7a20d3b3da9335429df139712f11253d10f345d5b918fe66de691b"
+    },
+    {
+      "path": ".local/game/base/Content/Win/Packages/Dev.pkg",
+      "bytes": 30058143,
+      "sha256": "703a7947d98ce2a47e32a9ee75822e5418ee752481a506edf809c698f3f85c7b"
+    }
+  ],
+  "selected": {
+    "LaurelCindersSpawner": {
+      "type": "Constant",
+      "original_graphic": "Dev\\blank_invisible",
+      "child": "LaurelCindersSpawnerAmbient",
+      "group": "FX_Terrain",
+      "component": "VfxDistanceSpawner",
+      "distance_interval": [
+        40,
+        50
+      ],
+      "source_frame_cap": 1,
+      "source_manager_cap": 200
+    },
+    "LaurelCindersSpawnerAmbient": {
+      "type": "Constant",
+      "original_graphic": "Dev\\blank_invisible",
+      "component": "VfxTimeSpawner",
+      "time_interval": [
+        0.45,
+        0.5
+      ],
+      "animation_location_marker": "head_TRACKING",
+      "source_manager_cap": 200
+    }
+  },
+  "initialization": {
+    "source_defaults": "reviewed matching AnimationData constructor zeros/direct overrides only; full native leaf defaults not claimed",
+    "records": "real parent/child handles, bidirectional owner links, exact owner lifetime, original texture, typed Time/Distance components",
+    "random_order": [
+      "child time uniform [0.45,0.5]",
+      "parent distance uniform [40,50]"
+    ],
+    "rng": "actual native RandomDouble provider required; double converted to float then separate multiply/add as original SSE",
+    "zero_previous_vfx_location": [
+      0,
+      0,
+      0
+    ],
+    "compiled_config": {
+      "VfxFrameCap": 60,
+      "VfxManagerCapMultiplier": 4
+    },
+    "ownership": "child creation/initialization occurs before parent interval draws; spawner destroy recurses child, does not blindly destroy emitted particles"
+  },
+  "update": {
+    "phase": "explicit Time then Distance from original system registration; general component iteration order not yet reconstructed",
+    "admission": "all owner/marker/particle-initializer dependencies checked before timing/RNG mutation",
+    "source_gates": [
+      "block/done/suspend",
+      "total spawn cap",
+      "source manager cap * compiled multiplier",
+      "actual global frame count",
+      "active child count where selected source supplies nonzero cap"
+    ],
+    "selected_distance_branch": {
+      "previous_xy_zero": "first update establishes baseline",
+      "delta_clamp": 1920,
+      "time_or_distance_negative": "spawn condition",
+      "interpolation": "t=clamp(1-abs(distanceRemaining/delta),0,1); previous + (current-previous)*t",
+      "radial_interpolation_length": 0,
+      "use_location_since_previous_spawn": false
+    },
+    "marker_semantics": "UseAttachedMarkerLocation at AnimationDataDef+0x390/full+0x3e8 differs from VisualFxUseAttachedMarkerLocation at Def+0x468/full+0x4c0; require actual owner marker when primary animation exists",
+    "emission_seam": "read-only prepare + actual create returning real live handle + actual liveness; no synthetic cinders",
+    "failure_after_side_effects": "world faults rather than claiming RNG/handles/external effects rolled back"
+  },
+  "evidence": [
+    {
+      "claim": "InitData component construction, child ordering and initial interval RNG",
+      "path": ".local/reports/native-rea-active-animation-init-data.json",
+      "evidence_id": "ev_11ce0b2685363d0de85b45c89b935f43723e6cc9d37833664bdce8d57e7e1133"
+    },
+    {
+      "claim": "native TimeSpawn body",
+      "path": ".local/reports/native-rea-effect-time-spawn.json",
+      "va": "0x180294290",
+      "evidence_id": "ev_8b8d7ed184a1ec0146b235149d9325add15eefac3aef0ecc9f0845558fe13770"
+    },
+    {
+      "claim": "native DistanceSpawn body, interpolation and caps",
+      "path": ".local/reports/native-rea-effect-distance-spawn.json",
+      "va": "0x180294680",
+      "evidence_id": "ev_e962d868736b2b973add0fb0f08702a3aff2e7e09105c92c94bef8421d9f21d9"
+    },
+    {
+      "claim": "ordered child append and attached owner inheritance",
+      "path": ".local/reports/native-effect-add-child.json",
+      "rva": "0x293ae0"
+    },
+    {
+      "claim": "compiled VfxFrameCap60",
+      "path": ".local/reports/native-effect-config-VfxFrameCap.json",
+      "va": "0x18000f299"
+    },
+    {
+      "claim": "compiled manager multiplier4",
+      "path": ".local/reports/native-effect-config-VfxManagerCapMultiplier.json",
+      "va": "0x18000f329"
+    },
+    {
+      "claim": "native update gates and distance clamp",
+      "paths": [
+        ".local/reports/native-effect-time-update.json",
+        ".local/reports/native-effect-distance-update.json"
+      ]
+    },
+    {
+      "claim": "Time then Distance systems append order",
+      "path": ".local/reports/native-systems-initialize.json",
+      "vas": [
+        "0x180155e93",
+        "0x180155e9f",
+        "0x180155eb5",
+        "0x180155ec1"
+      ],
+      "type": "matching PDB-backed static disassembly; full RunSystems evidence owned by separate audit"
+    }
+  ],
+  "limits": [
+    "The actual OnAnyLoad engine bridge is root-owned and not verified by this isolated module test.",
+    "Random selector/Slide/Book child admission and native SetupSpawnedVfx remain required from actual emission provider.",
+    "Particle motion, random slide duration/speed/scale/angle/rotation, gravity, owner modes and visible textures are retained source fields, not fabricated execution.",
+    "Actual head marker track and native RNG stream/seed must be supplied.",
+    "Native null-create counter-advancement branch is outside strict real-handle interface.",
+    "Inheritance merge retains ClearSlides and other native post-read operations as source properties; not a claim of compiled leaf state.",
+    "No device or emulator execution performed."
+  ],
+  "owned_rea_session": {
+    "state": "closed",
+    "close_report": ".local/reports/native-rea-effect-spawn-close.json"
+  },
+  "source_files": [
+    {
+      "path": "native/app/effect_animation.hpp",
+      "bytes": 3915,
+      "sha256": "ef1fe600114e19120a6347bec3b4c957676e4f59110e28235b21ba8f2b109774"
+    },
+    {
+      "path": "native/app/effect_animation.cpp",
+      "bytes": 16279,
+      "sha256": "ebf538ff22ee273ad83eafd3cace8543bd0dc9418b087672da46c686544eb6ce"
+    },
+    {
+      "path": "native/tools/export_laurel_dependencies.py",
+      "bytes": 3368,
+      "sha256": "591922d6d0df27ec585224cff66e71881b53424201faab6b9f27703dce1288de"
+    },
+    {
+      "path": "native/tools/export_effect_initialization.py",
+      "bytes": 3833,
+      "sha256": "26a691fb640ba8d90956cd267ab89c03551e8ac075c0174d47e6d17960c9338b"
+    },
+    {
+      "path": "native/analysis/effect_animation_smoke.cpp",
+      "bytes": 5076,
+      "sha256": "664c66866e721f6db782df67879472f049f6487cf91638fb9efd68351572726f"
+    }
+  ]
+}

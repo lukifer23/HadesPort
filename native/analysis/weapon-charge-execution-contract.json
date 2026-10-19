@@ -1,0 +1,69 @@
+{
+  "schema": "hades-native-charge-cursor-v1",
+  "native_rva": "0x87cd0",
+  "rea_evidence": "ev_fd634f86d733699906e102efacfc3053a26b4d809a2194c032f83de7cf4ec6d6",
+  "raw_evidence_path": "hades/.local/reports/native-player-fire-rea-charge.json",
+  "source_identity": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "module": [
+    "native/app/weapon_execution.hpp",
+    "native/app/weapon_execution.cpp"
+  ],
+  "entry": "explicit charge invocation AFTER native trigger/control selection and after owner OnActivationFinished; not full Weapon.Update",
+  "api": "WeaponExecution(arsenal,request); advance(freshOwnerFrame,pureSupportPreflight,step,error)",
+  "completion": "ChargeFinished.chargeReady is native Charge boolean only; no ammo consumption, projectile creation or shot claim",
+  "ordering": [
+    "subtract charge dt before observable operations",
+    "optional SetCompleteAngleOnCharge",
+    "initial partial charge: ChargeCancelMovement -> ChargeStartAnimation -> ChargeStartFx -> ChargeFx -> synchronous OnWeaponCharging",
+    "consume OnWeaponChargingSoundChance RNG even chance0/invalid cue",
+    "CanCancelDisables otherwise CanCancelRotateDisables -> Ram cancellation -> five control removals",
+    "ApplySelfEffects Charging3 on each charge fraction>0.0001; parent must preserve global proc RNG even empty effects",
+    "crossing full: ChargeFinishFx -> ChargeFinishSound -> perfect charge callback if positive configured window",
+    "mark charging true; compare current MinChargeToFire against fraction computed before callback"
+  ],
+  "partial_source_sword_observed_harness_sequence": [
+    "ZagreusSwordCharge1",
+    "attached animation source lookup null",
+    "OnWeaponCharging",
+    "RandomChance0",
+    "CancelOwnerRotateDisables",
+    "ApplySelfEffects Charging3",
+    "ChargeFinished false"
+  ],
+  "rng": {
+    "helper_rva": "0x54fe0",
+    "report": ".local/reports/native-player-charge-chance-helper.json",
+    "exact": "RandomDouble then chance>=draw; draw occurs even chance0/1"
+  },
+  "state_proof": {
+    "perfectChargeWindowRemaining_initial": 0,
+    "proof": ".local/reports/native-weapon-instance-owner-ctor.json VA1800887e8 qword +178=1, upper float +17c=0",
+    "charge_timer_commit": "delayed internally until first operation preflight succeeds; committed immediately before returned operation becomes observable. Later callbacks may alter state and are not overwritten."
+  },
+  "unsupported": [
+    "native trigger/control arbitration and HandleTriggerDown aim line/FX",
+    "real shot BaseFire/Gun/PostFire continuation",
+    "nonempty ChargeStartFx/ChargeFx/MinChargeStartFx except literal null source namespace lookup",
+    "nonzero rumble/perfect-charge duration",
+    "valid or unknown SoundCue playback",
+    "Ram weapon charge cancellation",
+    "full actor effect/animation consumers outside this module"
+  ],
+  "consumer_requirements": {
+    "CreateAttachedAnimation": "name actual source name (including literal null); parent resolves real namespace. value=ChargeTime when start-FX speed scaling required; x=current remaining duration. This bounded path only emits null/missing FX, not fabricated art.",
+    "CancelOwnerDisables": "use current weapon flags CanCancelOwnDisables and real UnitStatus callbacks synchronously before resume",
+    "ConsumeRandomChance": "consume actual engine deterministic RandomDouble (<=chance); result discarded here because cue is proven invalid",
+    "ApplySelfEffects": "actual synchronous effect admission/AffectUnit then pending queue; cannot be dropped",
+    "ScriptCallback": "synchronous original callback dispatch; per-instance property writes survive cursor resume"
+  },
+  "verification": {
+    "host": "clang++ c++20 -Wall -Wextra -Werror ASAN+UBSAN",
+    "harness": "native/analysis/player_weapon_debug.cpp",
+    "log": ".local/reports/native-player-weapon-debug-v5-asan.log",
+    "result": "passed actual54-weapon source catalog and callback mutation/order checks; no original binary runtime/device execution"
+  }
+}

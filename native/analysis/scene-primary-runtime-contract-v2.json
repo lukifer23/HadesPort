@@ -1,0 +1,200 @@
+{
+  "schema": "hades-scene-primary-runtime-v2",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "matching original source/package/PDB/retained LLVM static; supplied game binaries never run",
+  "assets": [
+    {
+      "path": ".local/native-assets/opening-primaries-v2/catalog.json",
+      "bytes": 297129,
+      "sha256": "e07d5765a8153945434710e2ae75edff328ccfe2cc69fefd3203a996ebb50727"
+    },
+    {
+      "path": ".local/native-assets/opening-primaries-v2/primaries.lua",
+      "bytes": 213285,
+      "sha256": "41be1f7abaaaf17b107ed0be6fbd6fc4154f81ba71412d982a6c194f92018653"
+    },
+    {
+      "path": ".local/native-assets/opening-primaries-v2/primary-child-frames.bin",
+      "bytes": 1695643,
+      "sha256": "ef096b5dd198029c31c9f46c45309fd816cd65ec2239bea61aec57ec2c1e0794"
+    },
+    {
+      "path": ".local/native-assets/opening-primaries-v2/manifest.json",
+      "bytes": 97196,
+      "sha256": "f05569847c6c1bb773d1923c1f769f1222f4c64705ab6eb3be462b185cb5a87d"
+    }
+  ],
+  "evidence": [
+    {
+      "path": ".local/reports/native-registry-animation-get-location.json",
+      "bytes": 16259,
+      "sha256": "442cb82969ee43aa4ce1b9479311c693a13d1424e71c47536ebeb6f3305d6503"
+    },
+    {
+      "path": ".local/reports/native-actor-animation-draw-location.json",
+      "bytes": 9661,
+      "sha256": "e1142c46faabdf0e9558bb155c9ca378af736e8424f338af52e6926d7217772f"
+    },
+    {
+      "path": ".local/reports/native-actor-animation-get-scale.json",
+      "bytes": 4727,
+      "sha256": "96b6bc47f3f9571f25de4f81fee150f385c0ff8b49709159c230b21cec77121d"
+    },
+    {
+      "path": ".local/reports/native-actor-animation-base-draw-scale.json",
+      "bytes": 2858,
+      "sha256": "1107c94275725c76c7704fa992548c19540b6e87c90cec10edd446966f1e77cf"
+    },
+    {
+      "path": ".local/reports/native-registry-obstacle-animation-set.json",
+      "bytes": 12588,
+      "sha256": "dda27240b3e6872f6d73820ad9c5f29c8102dadfd8bf96fb4f847233e7494858"
+    },
+    {
+      "path": ".local/reports/native-registry-obstacle-submit-draw.json",
+      "bytes": 12218,
+      "sha256": "12aacda428c8233839f7f65d47a85cb6b81eec9b1ec23e39935558109f759199"
+    },
+    {
+      "path": ".local/reports/native-registry-constant-update.json",
+      "bytes": 6777,
+      "sha256": "5ddc87a43f731bf460247400c8a31dd8e12a39e244ed12e7fbd871f0d94a0acf"
+    },
+    {
+      "path": ".local/reports/native-registry-set-animation-name.json",
+      "bytes": 26979,
+      "sha256": "44292ec71c2827d2d97cf7dbd6c945a049ba08ba019d02ee08e094ba0386b988"
+    },
+    {
+      "path": ".local/reports/native-registry-set-animation-data.json",
+      "bytes": 24604,
+      "sha256": "c3516baed206ffd6e2279653b278153f109ad0c0e73eca89d038cc505860c967"
+    },
+    {
+      "path": ".local/reports/native-active-animation-data-ctor-static.json",
+      "bytes": 31333,
+      "sha256": "50386e8891b12647403a13217834ebaf1d3e0ce610100dd0bf6db5c034485f0d"
+    }
+  ],
+  "runtime_source": [
+    {
+      "path": "native/app/scene_primary.cpp",
+      "bytes": 15294,
+      "sha256": "4b1d82e55a91bbdcf6183f3b856cd52411995c4241fa82953f639d42a6ab961c"
+    },
+    {
+      "path": "native/app/scene_primary.hpp",
+      "bytes": 3720,
+      "sha256": "c1fa07800109e641d9ca2241bcb95e5cd0144e319d747395d390907a4ab19133"
+    },
+    {
+      "path": "native/app/scene_animation.cpp",
+      "bytes": 6930,
+      "sha256": "e2b300d37fc539cf8318c6186f0818083dbf13bb2676cc73eba77ab387b2197c"
+    },
+    {
+      "path": "native/app/scene_animation.hpp",
+      "bytes": 1674,
+      "sha256": "2a5ce5166bab05f8bbc884be4b30a04cb5ef3d562be88dc5c8832e90d6a75455"
+    },
+    {
+      "path": "native/app/scene_renderer.cpp",
+      "bytes": 33943,
+      "sha256": "4111ab079c0f5e6cd95ae4df81ef216220cf84e8c283dafbb3e9e76f03c06156"
+    },
+    {
+      "path": "native/app/scene_renderer.hpp",
+      "bytes": 4727,
+      "sha256": "d9b3f2ea2cc0b9905d118d908167ce9e19ad50a6372fb36f0e9e808e4aba2c4b"
+    },
+    {
+      "path": "native/app/graphics_scene.cpp",
+      "bytes": 13708,
+      "sha256": "ce54ecebb48cc7be776cb1c62a0a095beeda9fa2fd6352514d488a86cb9fa08d"
+    },
+    {
+      "path": "native/app/graphics_scene.hpp",
+      "bytes": 2454,
+      "sha256": "f28824086ba34bf7fc6830c463681229b9b9ed49858de29b30c19098df75976b"
+    },
+    {
+      "path": "native/app/actor_animation.hpp",
+      "bytes": 5769,
+      "sha256": "bed5c0869546926f6cd8a1c67163d455ce2c4bcbd997e095a855b5b799bbce17"
+    },
+    {
+      "path": "native/app/lua_primaries.cpp",
+      "bytes": 5666,
+      "sha256": "f44d221f315122cdaaf813c83ba4adf0d62b57de7cae484dadecc918b5f29592"
+    },
+    {
+      "path": "native/app/lua_vfx.cpp",
+      "bytes": 7024,
+      "sha256": "265eeb3f944211fa23d634c409aa3d70efa0d22b893258cd1a9f629f4d9dfe6e"
+    }
+  ],
+  "observed_validation": [
+    {
+      "path": ".local/reports/native-scene-primary-v2-smoke.json",
+      "bytes": 301,
+      "sha256": "a2d15fa87bec69ff4b3059606a70b2aa14f889fb82be2b4059f4fcedbc9d7abc"
+    },
+    {
+      "path": ".local/reports/native-scene-primary-gpu-v2.json",
+      "bytes": 357,
+      "sha256": "ce06b302785bf098fcc6f9ea7ef411ab9d85f43bf8dbcc7502cf990d871590cb"
+    },
+    {
+      "path": ".local/reports/native-scene-primary-v2-arm64-compile.json",
+      "bytes": 542,
+      "sha256": "049378c651c92542fbf3deb47dfab287d5b197c853fd10c0e2eb61eab1eb7a6b"
+    }
+  ],
+  "allocation": {
+    "actual_diagnostic_roots": 1023,
+    "child": 1,
+    "haa_hero_separately_owned": 1,
+    "live_vfx_primaries_separately_owned": 9,
+    "manager_additions": 0,
+    "book_random_start_bounded_calls": 205,
+    "book_random_speed_uniform_calls": 102,
+    "pending_graphics": {
+      "3DGhostIdle": 49
+    },
+    "new_static_graphic_admissions": {
+      "ConstantNoUpdate": 62,
+      "Dataless": 116
+    },
+    "dynamic_graphic_whitelist": [
+      "VignetteOverlay"
+    ]
+  },
+  "renderer_seam": {
+    "selection": "SceneFrameProvider(uint32 sourceSprite, optional<SceneFrameSelection>& out, string& error), clip/frame zero-based original HDA. Actual source lifetime is mandatory.",
+    "sprite": "SceneSpriteProvider sees exact original per-frame quad before scene parallax, permits actual actor mutation/color. runtimeSuppressed prevents geometry/submission without conflating alpha.",
+    "submitted": "SceneSubmission only runs after visible retained source geometry is appended to actual GL submission.",
+    "ownership": "Callbacks installed after SceneRenderer.initialize; shutdown clears callbacks and GPU resources. Snapshot auxiliary lifetime handles only after update, render on same thread.",
+    "cache": "64MiB GPU LRU,512textures; original-frame upload synchronous. 16MiB/8frame CPU zlib cache. Source order/affine quads/frame-specific hulls preserved.",
+    "source_frame_selection": "Actual per-instance Book frame/native initialized random start/speed, not phase0/fpsMin debug clock. Original HDA bytes unchanged.",
+    "fallback": "Absent source provider retains earlier explicitly diagnostic global playback. When provider exists, absent binding remains original static image until actual owner callback suppresses/adapts it.",
+    "auxiliary_api": "ScriptRuntime.scenePrimaryAuxiliaryHandles/scenePrimaryState/sampleScenePrimaryAuxiliary; source stateForSprite bridge added. Caller provides actual finalized placement, samples synchronously before nextbankcall."
+  },
+  "native_contract": {
+    "owner_id": "Exact finite integer1..INT32_MAX, not bounded source property float.",
+    "initial_skip_update": "Obstacle.OnAnimationSet2c5e20 applies to primary only. Type3/4 bypass. Other primary adds SkipUpdate iff notScreen &&OnlyWhenVisible &&Loop. Child constructor does not separately run owner OnAnimationSet.",
+    "submit_draw": "Obstacle.SubmitDraw2c3b40 tests primary OnlyWhenVisible/type not3/4 then removes SkipUpdate from primary and entire linked child chain (1802c3bf2..c33).",
+    "location": "Default attached Animation.GetLocation296f39..fb5 yields actual Thing location plus animation attachOffset; Ignore uses own location. Marker/head special branches need real provider.",
+    "scale": "Animation.GetScale298bb0 ownbase*ownfraction*attachedBodybase*fraction, except ScaleFromOwner Ignore skips body factors; positive radius scaling retained separately.",
+    "offset": "Animation.GetDrawLocation297e2a..efa uses ownOffset plus optional parentOffset, parallax adjustment, shift, then actual owner body scale even when ScaleFromOwner Ignore. This differs from image geometry scale. ECS shake293c50 is separate; do not call it Thing.Offset. Original world-axis Thing.Offset remains source v5 anchor math.",
+    "auxiliary_image": "sampleAuxiliary only fills CRC-checked source image identity and per-axis AtlasMap ratio/trim/origin local rectangle. Caller composes actual scale/offset/angle/color/HSV/group. Door child own Hue=-.5,Scale=.75,OffsetY=-155 preserved in state; no guessed placement baked into image bank."
+  },
+  "limits": [
+    "Mac diagnostic GPU observed original frames/rendering; source RNG exercised with explicitly diagnostic varied-frame LCG, not full original Lua gameplay/Windows RNG proof.",
+    "Android ARM64 compile is not Android gameplay/performance observation. No emulator or Fold operations by this worker.",
+    "Generic Book state is live; advanced GhostHands shift/angle transitions are retained source fields but not yet typed in ScenePrimaryWorld. Constant duration metadata is retained; its full transitions/death/restart/owner callback path remains separate.",
+    "Current owner draw transforms/color/visibility and auxiliary placement belong to root adapter; exporter/resource admission alone does not prove integration.",
+    "49 obsolete3DGhostIdle primaries remain explicitly unresolved. Actual3D mesh/AI graphic replacement is not inferred from similar filenames.",
+    "Scene/HDA/HAA original packets preserved. No cosmetic replacements or original binary execution.",
+    "No owned native analysis session opened in this pass. Existing owned session was closed previously."
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "schema": "hades-actor-lighting-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "Matching native DLL/PDB static instructions and retained REA; no original execution",
+  "occluder_reports": [
+    "native-location-thing-init-occluder-static.json",
+    "native-location-occluder-setup-static.json",
+    "native-location-occluder-setup-poly-static.json",
+    "native-location-nearly-equal-static.json",
+    "native-player-thing-definition-ctor.json",
+    "native-location-light-types-v1.txt"
+  ],
+  "occluder_observed": {
+    "initial_admission": "MapThing.AttachToID>0 rejects; NearlyEqual(actualZ,0,.0001relative); mapStopsLight1 rejects,2 accepts,0inheritsThingData.StopsLight. Existing component removed on failed reinitialization.",
+    "near_zero": "NearlyEqual absolute fallback constant0x610d1c=8*float denorm_min; relative threshold0x610d34=.0001. Normal finite Z must therefore equal0.",
+    "empty_points": "ThingDataDef.OccluderPoints vectorbegin/end/capacity explicitlyzero at1800ebb31/38/3f; absent source field takes actual Thing collision polygon copy at1802bac3a.",
+    "custom_points": "Independent original ThingData.OccluderPoints, rebuildwinding/translate, actualbodyScale, flipXY, optionalnegativebodyangle whenRotateGeometry. Body squash absent from custombranch.",
+    "ownership": "Actual per-actor lifetime records, initialize/update/remove boundaries; geometry revisions returned for renderer."
+  },
+  "android_occlusion_adaptation": "Closed polygon segment intersection and filled-polygon containment are portable light-visibility adapters. They do not reproduce Windows shadow-mesh extrusion, render sorting or GPU shader output.",
+  "light_reports": [
+    "native-location-light-add-thing-static.json",
+    "native-location-light-init-thing-static.json",
+    "native-location-light-creates-shadow-static.json",
+    "native-location-light-location-static.json",
+    "native-location-light-update-static.json",
+    "native-location-light-prep-draw-static.json",
+    "native-location-light-loop-static.json",
+    "native-location-light-fraction-static.json",
+    "native-registry-constant-update.json",
+    "native-draw-color-rea.json"
+  ],
+  "light_observed": {
+    "admission": "LightSystem.AddLight(name,Thing): manager1 TryCreateCustom(name,XY0,Thing); missing named animation falls back actual texture validation/CreateDataless. Light.Init then MarkForUpdate. No manager Add for controller.",
+    "creates_shadow": "Actual live owner; MapThing.CreatesShadows tri-state1/2 overrides,0inheritsThingData.CreatesShadows.",
+    "opening_resources": {
+      "actual_owners": 63,
+      "controller_names": 8,
+      "original_images": 7,
+      "private_packet": ".local/native-assets/actor-lights-opening-v1/actor-light-frames.bin",
+      "packet_sha256": "f4705cad39183ec180271af26f61c5aafc6bf68ed6f496e09ecac11542360118"
+    },
+    "controller_types": "Seven rawtexture/Dataless names and named Constant LightTorchFlicker. FX-owned FootstepLight remains separately owned.",
+    "fraction": "AnimationFractionFromDuration152ce0 clamps1-TimeRemaining/Duration to[0,1].",
+    "loop": "Constant.UpdateInternal uses strict remaining<0 then Animation.Loop(false); resets original TimeRemaining and rerandomizes duration whenReRandomizeOnLoop (compiledtrue at18009425b). Full proprietary Windows worker completion order not claimed."
+  },
+  "validation": {
+    "ray_kernel": ".local/reports/native-actor-occlusion-smoke-v1.log",
+    "cases": 8,
+    "sanitizers": [
+      "AddressSanitizer",
+      "UndefinedBehaviorSanitizer"
+    ],
+    "compile": [
+      "Mac-Werror",
+      "NDK29arm64API26-Werror actor_lighting.cpp"
+    ],
+    "source_fixture": {
+      "path": ".local/reports/native-actor-lighting-fixture-v2.log",
+      "catalog": ".local/native-assets/opening-actors-v4/actors.lua",
+      "all_obstacle_records": 1015,
+      "remaining_map_records": "22Units, total1037",
+      "actual_occluders": 144,
+      "custom_occluders": 7,
+      "all_admitted_geometry_available": true,
+      "actor_lights": 63,
+      "initial_light_rng_draws": 12,
+      "after_first_strict_negative_loop_draws": 18,
+      "manager1_add_count": 0,
+      "original_pixels_verified": true,
+      "all_light_controllers_retired": true
+    }
+  },
+  "status": "Occluder helper implemented; parent integrating complete initial fixture set. ActorLightWorld and lua_lights resource/admission/advance/sample APIs implemented, staged-source helper+CMake integrated. Parent owns common init/phase callsites and renderer Light pass; native GPU parity not established.",
+  "bounds": [
+    "Selected namedConstantLightTorchFlicker and7sourceDataless names only; unexported genuine lights fail.",
+    "Nondefault World speed or actor time fractions/multiplier require actual native clock projection before advancing.",
+    "Renderer-facing image spans must upload before another bank sample; no normal-sprite blend mode is asserted as native Light-pass parity.",
+    "Owner packed draw color is passed from actual body; integer color stages and originalpixel data retained. Native offscreen LightSystem scheduling/Windows shadow GPU output not proven by fixture."
+  ]
+}

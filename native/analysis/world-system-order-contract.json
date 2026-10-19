@@ -1,0 +1,442 @@
+{
+  "schema": "hades-world-system-schedule-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "scope": "Fresh initialized first-room World frame, actual registered systems and native phase barriers; static/PDB/REA evidence only",
+  "observations": {
+    "three_distinct_collections": [
+      "EntityManager SystemsManager ECS vectors, native IS systems jobs",
+      "World.mThingManagers ordered Unit/Obstacle/Projectile manager vector",
+      "World.mSystems hash map containing ThingSystem per-thing vectors"
+    ],
+    "world": {
+      "function": "World::Update RVA0x314d30",
+      "gates": "If !World.Running or (World.Paused&&!World.StepFrame), clear this entity command buffer and return; none of following world phases run",
+      "phases": [
+        {
+          "sequence": 1,
+          "name": "Apply world speed transition; scaled elapsed = input elapsed * updated World.SpeedModifier",
+          "va": "180314f57..180314fdf"
+        },
+        {
+          "sequence": 2,
+          "name": "PlayerManager player vector UpdateRumble then UpdateUse",
+          "va": "180314fe3..180315065"
+        },
+        {
+          "sequence": 3,
+          "name": "World.ElapsedTime += scaled elapsed; World.Frame++",
+          "va": "180315071..180315080"
+        },
+        {
+          "sequence": 4,
+          "name": "EntityManager::SystemsManager::RunSystems(scaled elapsed)",
+          "va": "180315091"
+        },
+        {
+          "sequence": 5,
+          "name": "mThingManagers vector: UnitManager.Update, ObstacleManager.Update, ProjectileManager.Update",
+          "va": "180315096..1803150d6",
+          "registration_proof": "World::Init appends World+58(Unit),+60(Obstacle),+68(Projectile) to World+138 vector in that order"
+        },
+        {
+          "sequence": 6,
+          "name": "For dirty Things, reconcile each actual component against each ThingSystem.OfInterest; stable Remove or append Add; then clear dirty hash set",
+          "va": "1803150d8..18031539e",
+          "ordering_caution": "Dirty Things use pointer-hash bucket order. No source-ID or runtime-ID sorting is observed."
+        },
+        {
+          "sequence": 7,
+          "name": "World ThingSystem.Update per native hash iteration order",
+          "va": "1803153a5..18031540f",
+          "fresh_order": [
+            {
+              "key": 11,
+              "name": "Text"
+            },
+            {
+              "key": 12,
+              "name": "Speech"
+            },
+            {
+              "key": 1,
+              "name": "Flash"
+            },
+            {
+              "key": 2,
+              "name": "Magnetism"
+            },
+            {
+              "key": 3,
+              "name": "Shake"
+            },
+            {
+              "key": 5,
+              "name": "Translate"
+            },
+            {
+              "key": 6,
+              "name": "PlayerNearby"
+            },
+            {
+              "key": 7,
+              "name": "Vacuum"
+            },
+            {
+              "key": 8,
+              "name": "Physics"
+            },
+            {
+              "key": 9,
+              "name": "Body"
+            },
+            {
+              "key": 10,
+              "name": "Life"
+            }
+          ]
+        },
+        {
+          "sequence": 8,
+          "name": "Outline FulfillRequests then UpdateDurations",
+          "va": "180315415,180315421"
+        },
+        {
+          "sequence": 9,
+          "name": "AnimationManager.Update(scaled elapsed)",
+          "va": "180315430"
+        },
+        {
+          "sequence": 10,
+          "name": "App critical section: release/update dead/null attached-render references",
+          "va": "180315435..1803155a8",
+          "limit": "This bounded schedule review does not replace App attachment cleanup semantics"
+        },
+        {
+          "sequence": 11,
+          "name": "World.UpdateGameEvents",
+          "va": "1803155b5"
+        },
+        {
+          "sequence": 12,
+          "name": "Camera.Update(scaled elapsed)",
+          "va": "1803155c5"
+        },
+        {
+          "sequence": 13,
+          "name": "ScriptManager.Update(scaled elapsed)",
+          "va": "1803155ca"
+        },
+        {
+          "sequence": 14,
+          "name": "UseableManager.Update",
+          "va": "1803155cf"
+        },
+        {
+          "sequence": 15,
+          "name": "SystemsManager.RunPostUpdateSystems",
+          "va": "1803155de"
+        }
+      ]
+    },
+    "ecs": {
+      "initialize_rva": "0x154e50",
+      "run_rva": "0x154660",
+      "layout": {
+        "TimeModifier": 32,
+        "TimeRemaining": 40,
+        "RotateWithGravity": 48,
+        "CameraDistance": 64,
+        "IndependentVector": 72,
+        "DependentVector": 96,
+        "MainThreadVector": 120
+      },
+      "independent_submission": [
+        {
+          "name": "RotationSystem",
+          "registration_va": "0x180154f21"
+        },
+        {
+          "name": "AccelerationSystem",
+          "registration_va": "0x180155021"
+        },
+        {
+          "name": "FlasherSystem",
+          "registration_va": "0x180155121"
+        },
+        {
+          "name": "ShakeOffsetSystem",
+          "registration_va": "0x180155221"
+        },
+        {
+          "name": "WobbleOffsetZSystem",
+          "registration_va": "0x180155321"
+        },
+        {
+          "name": "GravitySystem",
+          "registration_va": "0x180155421"
+        },
+        {
+          "name": "AnimationFractionFromDurationSystem",
+          "registration_va": "0x18015558d"
+        },
+        {
+          "name": "AnimationFractionFromFrameSystem",
+          "registration_va": "0x1801556f8"
+        },
+        {
+          "name": "AnimationFractionFromSlideSystem",
+          "registration_va": "0x180155858"
+        },
+        {
+          "name": "DistanceUpdateSystem",
+          "registration_va": "0x1801559b8"
+        },
+        {
+          "name": "HeadingChangeSystem",
+          "registration_va": "0x180155a84"
+        },
+        {
+          "name": "ShiftFractionSystem",
+          "registration_va": "0x180155b51"
+        },
+        {
+          "name": "ImmunitiesSystem",
+          "registration_va": "0x180155c21"
+        }
+      ],
+      "dependent_submission": [
+        {
+          "name": "UpwardVelocitySystem",
+          "registration_va": "0x180155cf1"
+        },
+        {
+          "name": "PlaySpeedUpdateSystem",
+          "registration_va": "0x180155dae"
+        },
+        {
+          "name": "CustomUpdateSystem",
+          "registration_va": "0x180155e4f"
+        },
+        {
+          "name": "TranslationSystem",
+          "registration_va": "0x180155e71"
+        }
+      ],
+      "main_thread_order": [
+        {
+          "name": "VfxTimeSpawnerSystem",
+          "registration_va": "0x180155e93"
+        },
+        {
+          "name": "VfxDistanceSpawnerSystem",
+          "registration_va": "0x180155eb5"
+        }
+      ],
+      "run_phases": [
+        "Capture previous and current effective camera location in CameraDistanceUpdateSystem",
+        "TimeModifierSystem.RunJobs (synchronous bounded loops; no Schedule call)",
+        "TimeRemainingSystem.RunJobs (synchronous bounded loops; no Schedule call)",
+        "Submit independent vector in its registration order",
+        "Submit CameraDistanceUpdateSystem jobs",
+        "Submit dependent vector in its registration order",
+        "WaitAllAndAssist barrier (18015486b)",
+        "RotateWithGravitySystem.RunJobs (180154877)",
+        "WaitAllAndAssist barrier (18015487f)",
+        "Run main-thread vector: VFX Time then VFX Distance (180154884..1801548b6)",
+        "EntityCommandBuffer.RunCommands (1801548c3)",
+        "Schedule CacheTimeRemaining, CacheAnimFraction, CacheZLocation, CacheAnimFrame",
+        "WaitAllAndAssist barrier (180154bed)"
+      ],
+      "no_extra_barrier": "There is no WaitAll barrier between independent, camera-distance and dependent submission groups. Their names do not prove serial completion order.",
+      "schedule_rva": "0x1542a0",
+      "schedule_policy": "Batch count<33 is appended to global SMALL_BATCHES; >=33 attempts worker dispatch, with synchronous callable fallback if worker submission returns handle0; nonzero worker handles retained for wait.",
+      "execution_order_caution": "Submission order is observed; worker task completion and TLS RNG interleaving are not a single total order. VFX Time/Distance run after both explicit waits on the main-thread vector."
+    },
+    "post_update": {
+      "rva": "0x154c40",
+      "order": [
+        "Schedule CachePlayBackwards",
+        "Schedule CacheSlideFrame",
+        "WaitAllAndAssist",
+        "EntityCommandBuffer.RunCommands"
+      ],
+      "position": "After ScriptManager and UseableManager in the same World.Update"
+    },
+    "unit_manager": {
+      "rva": "0x2f8c60",
+      "order": [
+        "Process prior TO_DELETE and clear",
+        "UpdateBuffer",
+        "Process pending allegiance switches and clear",
+        "Capture ALL_UNITS initial count; iterate existing vector order calling each virtual UpdateSelf(elapsed)",
+        "If UpdateSelf returns true mark Thing.mDeleted and queue removal",
+        "Process TO_DELETE again and clear"
+      ],
+      "no_sort": "No runtime ID/source map ID sort; the ALL_UNITS vector order governs Unit::UpdateSelf and its weapon/status/AI RNG consumers."
+    },
+    "thing_system": {
+      "rva": "0x2d9d10",
+      "order": "mThings vector order, virtual UpdateThing(thing,scaled world elapsed); keep=true compacted stably; length reread after each call",
+      "add": "ThingSystem::Add2d9c30 pushes only when OfInterest returns true; append vector",
+      "remove": "ThingSystem::Remove2d9c50 stable removal of all matching Thing pointers",
+      "body_phase": "BodySystem::UpdateThing310640 runs within Body9 ThingSystem, after Physics8 and before Life10/AnimationManager/GameEvents/Camera/ScriptManager",
+      "body_updates": "For each actual active transition: remaining -= elapsed/timeMultiplier, compute clamp(1-remaining/duration,0,1), invoke actual bound member callback only if entity handle is alive, remove if duration==0 or remaining<0; Body.MarkDirty after nonempty loop",
+      "body_limit": "This is phase/iteration evidence; existing body-transition primitive should retain its own complete typed contracts."
+    },
+    "unit_self": {
+      "rva": "0x2f1460",
+      "source_report": ".local/reports/native-player-unit-self-update-order.json",
+      "living_branch_order": [
+        "UpdateMovement if UnitData.CanMove full109",
+        "Arsenal.Update if UnitData.CanAttack full10a",
+        "UpdateAnimation virtual48",
+        "UnitStatus.Update"
+      ],
+      "effective_dt": "input manager elapsed * Thing.TimeMultiplier full80",
+      "consequence": "Movement and weapons see status timers/effects before this tick decrement/expiration; do not move status.Update before weapon checks.",
+      "activation": "First OnActivationFinished occurs earlier this Unit.UpdateSelf when !mHasActivated and ActivateGraphic empty or current animation differs."
+    }
+  },
+  "inferences": {
+    "fresh_thing_system_order": {
+      "derivation": "recover_world_system_order.py from original constructor factor1/growth2, eleven exact enum keys, original prime table, exact identity hash/prepend rehash/traversal",
+      "report": ".local/reports/native-fresh-world-system-order.json",
+      "result": "Text11,Speech12,Flash1,Magnetism2,Shake3,Translate5,PlayerNearby6,Vacuum7,Physics8,Body9,Life10",
+      "limits": "Only fresh eleven-key registration. World.GetSystem is inserting operator[], so unregistered-key requests must not be assumed harmless."
+    }
+  },
+  "unknowns": [
+    "Initial Thing membership ordering depends on actual creation/component changes and dirty pointer-hash traversal; no complete original runtime trace was executed.",
+    "Broader ECS query chunk/storage allocation order and worker scheduling are not recovered by this bounded schedule audit.",
+    "No new source-ID/runtime-ID global ordering may be substituted for actual vectors.",
+    "Full general World.StepFrame/App pause clock flow belongs to existing clock/scheduler contract; this audit covers World.Update gate and scaled elapsed."
+  ],
+  "artifacts": {
+    "derivation_helper": "native/analysis/recover_world_system_order.py",
+    "contract": "native/analysis/world-system-order-contract.json"
+  },
+  "evidence": [
+    {
+      "path": ".local/reports/native-rea-systems-initialize.json",
+      "sha256": "699b8f0c445178fa5a60bae6572d3678ff357ad8beed9865fa6e91f258f802d9",
+      "evidence_id": "ev_3d4b08db87932465ca27f87cca3642cbe13921d1eb48e7ee83c3bc3bc85d5d6a",
+      "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": ".local/reports/native-rea-systems-run.json",
+      "sha256": "5be580e1c18e383e97b6169a0ea062db5df443c47a081f964237c800cc57e9c5",
+      "evidence_id": "ev_4fecd934ea00d539d9e612635d41694f64e9477c0a6940d08b8de068c576cf05",
+      "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": ".local/reports/native-rea-systems-post.json",
+      "sha256": "e4b11844dc8b524653f00534f9583d3b8f1b4e842cdede91f5587fc6d2e9f0e7",
+      "evidence_id": "ev_05165b601edec3d1bf3e52242a5b52f51548cefc8a76ffa69a49210ae565ffac",
+      "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": ".local/reports/native-rea-systems-schedule.json",
+      "sha256": "47315540028e81c77422d2691419e2f492fa59acf1e88adb9d20e27a7d08224c",
+      "evidence_id": "ev_f5166381079737225ad015c466a9314cf8b07b0bfe78761e81f70dfa3b264ef0",
+      "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": ".local/reports/native-rea-systems-world-update.json",
+      "sha256": "4410264a61827dc9a555eaa8f8b3733bd7ae6b4903bc16b3d5a78f64fce65a7e",
+      "evidence_id": "ev_0aafc3ee8c82d2d6ee46d4ea8e6f420110b9f143cc4eb2a0adbd79704047a64e",
+      "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": ".local/reports/native-rea-systems-unitmanager-update.json",
+      "sha256": "1600aa434d5e8ddb5ed80e935adf5f5161eb40645cfafae89045c1178187d9df",
+      "evidence_id": "ev_f0bc4e054e48da1e9cdd7effd2f9ec9ce467349db4ff58aae77fd12cba2fa55e",
+      "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+    },
+    {
+      "path": ".local/reports/native-systems-pdb-types.json",
+      "sha256": "6ddba882665abd65dd91c25963c88d12043dd23e7264670fb24a47e0e63835ca"
+    },
+    {
+      "path": ".local/reports/native-systems-initialize.json",
+      "sha256": "27f75a6f0b8468a168266bbff673a77bf7d1daadc78f33985914cffe41ee58aa"
+    },
+    {
+      "path": ".local/reports/native-systems-run.json",
+      "sha256": "e04d7981f4286bf2c58fbea9497ffcb5f668506b1d7d7a0fb513e99648fd22bc"
+    },
+    {
+      "path": ".local/reports/native-systems-post.json",
+      "sha256": "581a1f8d7d8e803d7910d8c40cf630a1f8c9b7a9de70b5143d046ce617393923"
+    },
+    {
+      "path": ".local/reports/native-systems-schedule.json",
+      "sha256": "4eff6285c76d91ca3481289983cba0b3a03e8469537f4cebb4fb86e19ba8e3d2"
+    },
+    {
+      "path": ".local/reports/native-systems-wait.json",
+      "sha256": "6e515227b07705179eeb7233b9be0551c365e87412382ac12c80572a61d39871"
+    },
+    {
+      "path": ".local/reports/native-systems-time-modifier.json",
+      "sha256": "12cd1f4b75a898ae016f2100fee7e34437401225b267a619090900bd941b49cb"
+    },
+    {
+      "path": ".local/reports/native-systems-time-remaining.json",
+      "sha256": "976da814cb11c237cdb0134cdd77113486d8caed4869860d4b17e8fe0c0e092f"
+    },
+    {
+      "path": ".local/reports/native-systems-world-init.json",
+      "sha256": "78f9e4665b81a951592eeb05e00dcf6108c9e0cb220465edb35cd2e682e60d55"
+    },
+    {
+      "path": ".local/reports/native-systems-world-constructor.json",
+      "sha256": "1cf7f6d0efb7356284b81af94154ad9fb762e3d130ed566bc7ec1b3cc9d2e2b2"
+    },
+    {
+      "path": ".local/reports/native-systems-thing-add.json",
+      "sha256": "09cd8c1aa191900604f3c33ac39d213ae8f24f69a5e70a2f643031018dbfb7ae"
+    },
+    {
+      "path": ".local/reports/native-systems-thing-remove.json",
+      "sha256": "a11e81f4862b82990c672962fc348915a42ff0337ade78833239796a62951626"
+    },
+    {
+      "path": ".local/reports/native-systems-thing-update.json",
+      "sha256": "493b584ffb8a97518f42036142f4bf7ce6599cb82c0e13c7eda9a13fda20f85e"
+    },
+    {
+      "path": ".local/reports/native-systems-body-update.json",
+      "sha256": "da6eae1257ddccc9b74621ebb1943237ebe8f00668b2d73ea787ac54a24d875b"
+    },
+    {
+      "path": ".local/reports/native-fresh-world-system-order.json",
+      "sha256": "9b527d02a7f543355260d66d4eaf00e8885af66eb648775bbd148cd4da8c29d8"
+    },
+    {
+      "path": ".local/reports/native-rea-systems-order-close.json",
+      "sha256": "052cc72acfb75907e9ff703ebd805df08cd7d770bdebc4c2da17cf9d10cd8447"
+    },
+    {
+      "path": ".local/reports/native-player-unit-self-update-order.json",
+      "sha256": "f5ad70b19a8370f01c989ed0de16cf92745387bd3863c29a5d0fe5783706e81e",
+      "provided_by": "weapon audit agent, original static PDB/DLL report"
+    },
+    {
+      "path": ".local/reports/native-player-unit-manager-update-order.json",
+      "sha256": "8a8a2bfb734c135e352fdb19e46ab17d7d53b176747b26436018752564598149",
+      "provided_by": "weapon audit agent, original static PDB/DLL report"
+    },
+    {
+      "path": ".local/reports/native-player-arsenal-update.json",
+      "sha256": "03b601302c833789a0e2a86970597bc3e65834c40c628c97c7c14194de91cb06",
+      "provided_by": "weapon audit agent, original static PDB/DLL report"
+    }
+  ],
+  "session": {
+    "batch": "systems-order-",
+    "closed": true,
+    "originals_modified": false,
+    "original_code_executed": false,
+    "device_operations": false
+  }
+}

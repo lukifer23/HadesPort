@@ -1,0 +1,103 @@
+{
+  "schema": "HadesNativeCameraContract1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "status": "Source-backed selected RoomOpening camera path; partial broader camera",
+  "evidence": {
+    "lock-action": {
+      "path": ".local/reports/native-rea-camera-lock-action-v1.json",
+      "evidence_id": "ev_e3a046771b34ac37d834a6cb07164fc2fce170b9d3ba18085fc9ad7bffe918e7",
+      "procedure": "0x180261080"
+    },
+    "lock-native": {
+      "path": ".local/reports/native-rea-camera-lock-native-v1.json",
+      "evidence_id": "ev_98eb146013c75be8a3e3209a2835fe7230283fe84ebefc6c4d7928d214b48d6d",
+      "procedure": "0x180301be0"
+    },
+    "pan-native": {
+      "path": ".local/reports/native-rea-camera-pan-native-v1.json",
+      "evidence_id": "ev_e5323c9652e757314eb265273ec552cf6ce91106e3ba638ebdd09754fa3b4d49",
+      "procedure": "0x1803018b0"
+    },
+    "focus-native": {
+      "path": ".local/reports/native-rea-camera-focus-native-v1.json",
+      "evidence_id": "ev_b0830f20a05e900dc698b0c1d8bfa0ac852f07da8df4aa5b9f33ab70fce19665",
+      "procedure": "0x180303240"
+    },
+    "update": {
+      "path": ".local/reports/native-rea-camera-update-v1.json",
+      "evidence_id": "ev_ad68286ec88bbd919538a34abd687cbcbca0ba71e2ba876d86c0cb7689cb8a10",
+      "procedure": "0x1803025a0"
+    }
+  },
+  "additional_native_reports": [
+    ".local/reports/native-camera-pan-action-static.json",
+    ".local/reports/native-camera-focus-action-static.json",
+    ".local/reports/native-camera-goal-static.json",
+    ".local/reports/native-camera-fraction-static.json",
+    ".local/reports/native-camera-zoom-goal-static.json",
+    ".local/reports/native-camera-tether-static.json",
+    ".local/reports/native-camera-duration-static.json",
+    ".local/reports/native-camera-fraction-args-static.json",
+    ".local/reports/native-camera-pan-setup-static.json",
+    ".local/reports/native-camera-spline-current-static.json",
+    ".local/reports/native-camera-ease-static.json",
+    ".local/reports/native-camera-smoothstep-static.json",
+    ".local/reports/native-camera-apply-clamp-static.json",
+    ".local/reports/native-camera-clamp-rectangle-static.json",
+    ".local/reports/native-camera-zoom-weight-action-static.json",
+    ".local/reports/native-camera-weighted-zoom-static.json"
+  ],
+  "source": [
+    "Content/Scripts/RoomPresentation.lua:1-33",
+    "Content/Scripts/RoomPresentation.lua:111-143",
+    "Content/Scripts/RoomPresentation.lua:1004-1011",
+    "Content/Scripts/RoomDataTartarus.lua:1903-1907"
+  ],
+  "observations": {
+    "viewport_ctor": [
+      1920,
+      1080
+    ],
+    "zoom_reset": 1,
+    "zoom_speed_reset": 1,
+    "adjust_zoom": "Execute VA18025231b..391: if Fraction != current, sets goal; if LerpTime>0 speed=abs(Fraction-current)/LerpTime else current=GetGoalZoom. Update steps zoom at speed*dt. No invented exponential smoothing.",
+    "lock": "ScriptAction261080 chooses actual active Thing set; camera301be0 tracks IDs, duration/source world time, speed and acceleration, offsets. Instant branch averages actual current world XY and clamps. Update tethers to current resolved target positions.",
+    "duration_move": "MoveFraction302530=(worldTime-start)/duration; SmoothStep21efd0 computes Hermite in double using zero endpoint tangents and clamps t.",
+    "clamp": "Exactly two RoomOpening source clamp Things40013/40014. Rectangle304dc0 truncates min XY and max-min extent to int. ApplyClamp305fc0 truncates reference viewport/zoom then half dimensions, max followed by min even inverted bounds; positive SoftClamp blends per call. Update calls clamp before and after zoom.",
+    "same_target_pan": "3018b0 returns before path generation when Retarget=false and HasSameIds. Opening ReattachCameraOnInput pans the already tethered hero, so selected path neither allocates randomized spline nor consumes spline RNG.",
+    "random_arguments": "ScriptArgs.getDuration uses range only when both MinDuration and MaxDuration nonzero; getFraction uses range when either endpoint nonzero; real recovered RNG stream consumed.",
+    "weights": "SetCameraZoomWeight2614d0 stores per-active-Thing Weight(default1); positive ZoomSpeed sets mZoomSpeed. GetWeightedZoom306820 computes sum(weight*(distance>1?1000/distance:1000))/sum(influence), live distance from camera location. GetGoalZoom multiplies source base goal by this result. Original RoomOpening targets410007=(5177.9267578125,4083.625), Weight1.25 and410008=(1726.3673095703125,5012.44140625), Weight1.0."
+  },
+  "api": {
+    "initialize": "ScriptRuntime.registerCameraActions() after previous reconstructed Lua actions",
+    "advance": "ScriptRuntime.advanceCamera(actualCameraElapsed,error)",
+    "state": "ScriptRuntime.cameraState(): native unprojected x/y, current zoom/goal/speed and live target lifetime bindings",
+    "viewport": "setCameraViewport(referenceWidth,referenceHeight,error); source default1920x1080. Preserve reference height for Android aspect adaptation."
+  },
+  "adaptations": [
+    "Camera target snapshot includes portable actual entity lifetime; stale/recycled ID does not silently acquire a replacement target.",
+    "No mouse cursor/edge follow added on Android.",
+    "Source viewport adaptation is caller-controlled; default exact constructor resolution."
+  ],
+  "explicit_unsupported": [
+    "New-target/Retarget timed Pan source randomized splines",
+    "Timed Focus randomized zoom spline/AdjustCameraFocus",
+    "LazyTether cursor zone",
+    "Multi-target DynamicZoom weighted path",
+    "Clamps wider than two source points/polygon/rail paths",
+    "Source shake/virtual cursor/walls reconstruction"
+  ],
+  "validation": {
+    "host": ".local/reports/native-camera-v2-smoke.json",
+    "lua_bridge_host_syntax": "passed",
+    "device_execution_observed": false,
+    "arm64_api26_syntax": "passed"
+  },
+  "owned_sessions_open": false,
+  "files": {
+    "native/app/native_camera.hpp": "2d6a8f010cb5ae8a6fc407ecf74b81dbf54b4e60c4db37e4b02115f0202fada3",
+    "native/app/native_camera.cpp": "768e722b0f8c89d4394d254a2dc12701681b13d0c4b58d7ad2c781256b461db2",
+    "native/app/lua_camera.cpp": "80e96f196f09d935a0f69d43efa72683fe0109147d7d4172dc2d227de1db48d7",
+    "native/analysis/native_camera_smoke.cpp": "bdd2bf1bed960461246a7b7572ab6d1dce2d5fa9d3ab4227268581b17fbbe9bd"
+  }
+}

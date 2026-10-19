@@ -1,0 +1,46 @@
+{
+  "schema": "hades-native-projectile-Thing-data-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "source_packet": ".local/native-assets/player-weapons-v12",
+  "HWA3_sha256": "647cad626570149721810f13f24b3d26efd5cfe98561d20ed2af1e6186ad920e",
+  "lua_packet": {
+    "path": "projectiles.lua",
+    "sha256": "fb3b2b0bbc7b9c6134c618b615684cc8ca8b8a18e50f3ecf9d8d3fb6ba3eb608",
+    "count": 46
+  },
+  "default_report": {
+    "path": ".local/reports/native-projectile-thing-compiled-defaults.json",
+    "sha256": "d1083b366bd9c4f65f94cada982a02e44ab99681a5ed3a3ac743d32ed591a06a",
+    "semantic_fields": 113,
+    "unknown_fields": []
+  },
+  "evidence": {
+    "ctor": ".local/reports/native-collision-thing-data-defaults.json",
+    "assignment": ".local/reports/native-collision-thing-def-assignment.json",
+    "deserialize": ".local/reports/native-player-projectile-thing-deserialize.json",
+    "nullable_strings": [
+      "Graphic",
+      "ActivateGraphic",
+      "ActivateFx",
+      "ImpulsedAnimation",
+      "ImpulsedFx",
+      "FootstepFxL",
+      "FootstepFxR",
+      "AttachToMarker",
+      "OcclusionBaseAnim",
+      "AttachedAnim",
+      "OnTouchdownFxAnim",
+      "TouchdownGraphic",
+      "Light",
+      "SpeechMeteringChannelName"
+    ],
+    "points_empty": "ThingData ctor explicitly sets end=begin at VA1800eb830..845; preserves actual explicit source points later",
+    "using_empty": "ThingData ctor sets receiver+3b8 VA1800eb7d5 and calls vector<UsingInfo>.clear VA1800eb85d"
+  },
+  "limits": [
+    "Real semantic defaults and inherited source only, not actor allocation or active World membership.",
+    "SoundCue seven padding bytes remain unknown; semantic owner/name/valid are proven.",
+    "Color source Opacity spelling retained for actual native packed-color conversion by consumer.",
+    "No runtime/device/gameplay observation in exporter pass."
+  ]
+}

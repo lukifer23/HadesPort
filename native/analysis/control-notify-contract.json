@@ -1,0 +1,40 @@
+{
+  "schema": "hades-source-control-notify-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence": {
+    "CheckControlPressed": {
+      "path": ".local/reports/native-rea-script-check-control-pressed-v1.json",
+      "sha256": "b74bc309fb33c5bc74163f13d95c552da1c3282715d370e2a6eb7f763320eab2",
+      "evidence_id": "ev_c433f5bfc9bee14df35ea92653c8a86ccf1def1777f0aea1d847eefb1c99ae59"
+    },
+    "CheckControlReleased": {
+      "path": ".local/reports/native-rea-script-check-control-released-v1.json",
+      "sha256": "a16263e2b43c40b3a858c162562421c4349566ab398f1521b393c983e47b5363",
+      "evidence_id": "ev_cce6b5af3f00f8d714c9c99c257b9ec74a027d9b9cdf94bbf6d380d93249a28c"
+    },
+    "ScriptUpdateGameEvent": {
+      "path": ".local/reports/native-rea-script-update-game-event-v1.json",
+      "sha256": "8034a6812e033ea860277cb49ec070b3b36bc44a4a1be1b90e48e731ad0cdca7",
+      "evidence_id": "ev_c1a17218d7deb02ebc9e04bdcbc5ec244f4dd9b7434175855021913b09a80460"
+    }
+  },
+  "observed_contract": [
+    "Pressed uses source PlayerIndex default1, cached Names in declared order; ordinary control pressedbit4 or AllowHold+heldbit2. Writes matching string to NotifyResultsTable[Notify].",
+    "Directional names also consult source directional edges/optionalhold. Move succeeds on any nonzero source movement input even without AllowHold.",
+    "Pressed has native EditingMode guard; Released reads releasedbit8 and has no such guard.",
+    "Shared World event success invokes existing waiters with one argument; real timeout decrements float and invokes(event,true) only at remaining<0."
+  ],
+  "implementation": [
+    "Real Android raw action states retained separately from gameplay input-block permission and per-weapon request state.",
+    "Unified ordered collision/control world event queue preserves cross-kind admission order and defers callback admissions to next update.",
+    "Joystick signs provide portable directional states; native hardware-specific digital thresholds not claimed."
+  ],
+  "limits": [
+    "Only actual local Android player slot1 supplied.",
+    "No fabricated landing notification or timed script bypass. Full gameplay coverage remains incomplete."
+  ],
+  "analysis_cleanup": {
+    "log": ".local/reports/native-rea-session.log",
+    "result": "Both analysis outputs retained. MCP client timed out waiting for close after600sec; server log subsequently confirms close_binary statusok duration980768.17ms. No remaining owned REA/Ghidra process observed. No producer repeated."
+  }
+}

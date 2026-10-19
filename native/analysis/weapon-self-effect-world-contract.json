@@ -1,0 +1,99 @@
+{
+  "schema": "hades-weapon-self-effect-world-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "implementation": [
+    "native/app/self_effect_world.hpp",
+    "native/app/self_effect_world.cpp"
+  ],
+  "dependencies": [
+    "self_effects",
+    "effect_affect",
+    "speed_effects",
+    "effect_update",
+    "unit_status",
+    "actor_runtime",
+    "weapon_catalog"
+  ],
+  "source_catalog": {
+    "path": ".local/native-assets/player-weapons-v13/weapons.bin",
+    "sha256": "000f0ac32cab780c96298a668ef4d900c051a993cf9a8d9ffc9a64c923e99aec"
+  },
+  "real_state": [
+    "per-effect lifetime allocation distinct from Thing/Unit public IDs",
+    "concrete SPEED0 or native UNKNOWN12 Tag factory with actual shared UnitStatusEffect",
+    "actual copied per-owner per-weapon EffectData lookup, retained data identity owner/weapon/index",
+    "global AllEffectsProcChance RNG draw including empty effects, matching per-effect RNG/admission, before actual synchronous callbacks and pending publication",
+    "live ActorComponents speedModifier/speedAddition/timeMultiplier commits and fresh source UnitData.SlowEffectModifier/ImmuneToStun",
+    "native pending promotion/active update/ToDelete cleanup through real UnitStatus",
+    "actual Speed reciprocal/stack/additive restore before original base Clear callback",
+    "Tag captured cooldown/Affect/Reapply/Update state",
+    "exact active-only ClearOnAttack; source-order named CancelSelfEffects pending reverse disposal and active forward deferred deletion",
+    "exact shipped XXH3 short-name IDs and source presence-sensitive refresh ID headers; genuine ToDelete/active/pending ID queries"
+  ],
+  "required_parent_operations": {
+    "affect": "Actual source operations and original OnEffectApply/OnStun; reapplied bool is explicit. Missing barrier fails. Actual owner time fields are visible before callback and fresh source data is reacquired afterwards.",
+    "onCleared": "Actual original OnEffectCleared; simple native default Clear branch marks cleared and restores elapsed time first.",
+    "updateFx": "Required only actual nonempty/expiring FX branch; existing updateBaseEffect proves exact empty branch inert.",
+    "hasRefreshOnExpireEffect": "Optional actual override; native-ID HasEffect query now implemented internally. No fixed false default.",
+    "complexBaseClear": "Required when nondefault Clear animation, FX, sound, property, weapon or other retained side effect is encountered.",
+    "complexBaseReapply": "Required for elapsed-time stacking or nonempty ReapplyFx; generic timer reset is not substituted.",
+    "getMaxStacks": "Required when actual stack cap branch is entered."
+  },
+  "schedule": [
+    "Parent advances actual Unit timers/block/allegiance native phase first",
+    "Call updateUnit(owner,actual unit elapsed,providers) once at UnitStatus effect phase",
+    "Parent calls refreshUnit after copied EffectData reflection mutation and before status CanAttack/CanMove queries",
+    "Weapon outputs ApplySelfEffects and CancelWeaponSelfEffects synchronously invoke this world with fresh actual source owner",
+    "ProjectileInit ClearOnAttack synchronously invokes clearOnAttack"
+  ],
+  "corrected_prior_claims": {
+    "weapon_proc_field": "AllEffectsProcChance is the actual source/native field; prior semantic EffectsProcChance shorthand is not a catalog key",
+    "pending_dispose": "writes Effect.UnitId=-1, not TimeRemaining=-1, VA180086be2"
+  },
+  "evidence": [
+    {
+      "id": "ev_8d8d903d0385bcb6d501c5a550c2c78e6647302ad1cd2cc98734d5d90598baca",
+      "report": ".local/reports/native-rea-effect-reapply.json"
+    },
+    {
+      "id": "ev_02dbd73d34a9df20eeb27ace97f569c07cd1fee72a8cf67c68b22e114cecb04e",
+      "report": ".local/reports/native-rea-status-effect-clear.json"
+    },
+    {
+      "id": "ev_c259fd4454e8dc590d88d053fb5f8d171483f9de98f7a96ec313eeb261f4aa1a",
+      "report": ".local/reports/native-rea-status-on-effect-cleared.json"
+    },
+    {
+      "kind": "matching-PDB bounded LLVM static, not public REA Evidence",
+      "reports": [
+        ".local/reports/native-self-effect-cancel-source.json",
+        ".local/reports/native-self-effect-clear-on-attack.json",
+        ".local/reports/native-self-effect-tag-reapply.json",
+        ".local/reports/native-self-effect-tag-update.json",
+        ".local/reports/native-self-effect-tag-dispose.json",
+        ".local/reports/native-self-effect-speed-dispose.json"
+      ]
+    }
+  ],
+  "portable_adaptations": [
+    "monotonic lifetime/data IDs, no Windows pointer/bitlayout claim",
+    "C++ owned allocations released after real status-vector references leave; at most64 retired scalar diagnostic records retained",
+    "ActorWorld/Arsenal storage must outlive this world; parent retains unregistered actor components",
+    "callbacks changing captured source vector size or reentrant iterator-invalidating cancellation fail explicitly"
+  ],
+  "limitations": [
+    "does not implement general AddEffect immunity/filter path",
+    "unsupported concrete effect factories and Tag positive Rate fail at actual admitted branch",
+    "complex Base Clear/Reapply requires actual parent consumer",
+    "original Lua/audio/FX dispatch remains parent integration; standalone debug records barriers only",
+    "no gameplay/performance or Android execution claim"
+  ],
+  "verification": {
+    "log": ".local/reports/native-self-effect-world-debug-v13-asan.log",
+    "sha256": "02651c6c2910b84b757a1ad9de4b1d42962dc44cb96e321b3fb07277019e85cb",
+    "asan_ubsan": "passed final source refresh and bounded retirement",
+    "android_arm64": "NDK29 C++20 Wall/Wextra/Werror compile passed",
+    "source_case": "SwordSelfSlowCharge Modifier=.3499999940395355 Duration=.25, repeated Reapply remains .35, pending cancellation and active expiry restore actual owner speed1"
+  },
+  "source_name_id_contract": "native/analysis/effect-native-name-id-contract.json"
+}

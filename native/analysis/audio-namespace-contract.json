@@ -1,0 +1,70 @@
+{
+  "schema": "hades-original-audio-namespace-v1",
+  "strings_bank": {
+    "path": ".local/game/base/Content/Audio/FMOD/Build/Desktop/MasterBank.strings.bank",
+    "bytes": 104160,
+    "sha256": "347084132554f10c7eef6478109fd64467327bb57e7f81106e5ffaca0438f832"
+  },
+  "string_table": {
+    "offset": 424,
+    "bytes": 103677
+  },
+  "string_table_sha256": "1050b3b5900d6c320c2e8596ca65232ac3fdefc50f1800ad43d5a177fa7afe41",
+  "guid_declarations": {
+    "path": ".local/game/base/Content/Audio/FMOD/Build/GUIDs.txt",
+    "bytes": 177893,
+    "sha256": "6dca6f27d4aadd9cbb87662dc665a8246b271e2d6305ca143e235f453dc9bcba"
+  },
+  "node_count": 3383,
+  "guid_count": 2192,
+  "declaration_matches": 2181,
+  "selected": {
+    "/EmptyCue": {
+      "lookup_path": "event:/EmptyCue",
+      "present_in_strings_bank": false,
+      "present_in_guid_declarations": false
+    },
+    "/Music/MusicExploration4_MC": {
+      "lookup_path": "event:/Music/MusicExploration4_MC",
+      "present_in_strings_bank": true,
+      "present_in_guid_declarations": true
+    },
+    "/SFX/BatGroupLoop": {
+      "lookup_path": "event:/SFX/BatGroupLoop",
+      "present_in_strings_bank": true,
+      "present_in_guid_declarations": true
+    }
+  },
+  "reference": {
+    "commit": "b7cfcfc60c93fcca7e4ffe666144e7ee3ed7ce77",
+    "files": [
+      "Metadata/StringTable.cs",
+      "Objects/FRadixTreePacked.cs",
+      "Objects/FPackedNode.cs",
+      "FModReader.cs"
+    ],
+    "scope": "Focused public source field layout corroboration. Original bank fully consumed and bounded independently."
+  },
+  "limits": [
+    "Static namespace membership; no original FMOD execution.",
+    "Native LookupEventDescription adds event: for non-VO non-GUID paths and returns null when FMOD.lookupID fails; named SoundCue validity requires a nonnull description.",
+    "No absent name is turned into a fabricated silent event."
+  ],
+  "private_full_namespace_report": ".local/reports/native-audio-namespace-v1.json",
+  "native_lookup": {
+    "report": ".local/reports/native-audio-lookup-event-static.json",
+    "observed": [
+      "Non-VO/non-GUID cue appends to event: atVA1800499bd",
+      "lookupID atVA1800499f2",
+      "Nonzero result returns null atVA180049a14..18",
+      "GetSoundCue54.5c0 final validity is description!=null; no channel allocation follows invalid cue"
+    ],
+    "inference": "Absent event:/EmptyCue in complete shipped strings radix and GUID declarations causes normal named lookup failure; no runtime FMOD execution was performed."
+  },
+  "runtime": {
+    "file": "native/app/audio_world.cpp",
+    "api": "AudioWorld.resolveCue(name,valid,error)",
+    "scope": "Complete source event-name validity distinct from bounded source graph availability; GUID and VO aliases explicit unsupported",
+    "catalog": ".local/native-assets/audio-events-opening-v3/receipt.json"
+  }
+}

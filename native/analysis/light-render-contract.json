@@ -1,0 +1,126 @@
+{
+  "schema": "hades-source-light-render-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "scope": "Live original Thing.Light textures/controller data and source Light shader/state6, with portable polygon-to-polar shadow map adapter. Windows GPU parity/full gameplay not claimed.",
+  "native_evidence": {
+    "DrawLayerNormal": "ev_536a9bea05afd525262a14aaeae72ac1f9c71745844a1674bde0a709251c595f",
+    "LightGetGroupName": "ev_7c63434debda71884725035d6d139ec1d05e0c56b4bd728e43667af22476f751"
+  },
+  "source_shaders": [
+    {
+      "path": ".local/native-assets/shader-sources-v2/4a8a364f8d98ad14-light.frag",
+      "bytes": 469,
+      "sha256": "4a8a364f8d98ad14c57ed50bafdf00933178fdbad023e0bccc3fededbe679fee"
+    },
+    {
+      "path": ".local/native-assets/shader-sources-v2/082abb1c838c01dc-lightandshadow.frag",
+      "bytes": 2376,
+      "sha256": "082abb1c838c01dc29011bd7e0903afc42d7cfe8f47d11e1c21375cd072d4fd6"
+    },
+    {
+      "path": ".local/native-assets/shader-sources-v2/7d95b77ae306ceef-shadowmap.frag",
+      "bytes": 1281,
+      "sha256": "7d95b77ae306ceef33f9a7d9243b0e3b13cf4402774ac57a746f33e40a287626"
+    }
+  ],
+  "static_observations": {
+    "LightInit": {
+      "report": {
+        "path": ".local/reports/native-light-render-init-static-v1.json",
+        "bytes": 6220,
+        "sha256": "625067c93f8fc0e2ed449bb51c5879a564460889bbe0c7506ad06f700f9c167f"
+      },
+      "shader_field_store": "1802c0678 animation+68 = 1 + CreatesShadow"
+    },
+    "DoDraw": {
+      "report": {
+        "path": ".local/reports/native-lighting-DoDraw-static.json",
+        "bytes": 122235,
+        "sha256": "7fd1b09d3108fcbd3556117328ec647378e7f34bf86236e5a7efd288b840e6bf"
+      },
+      "light_state6_store": "1802297aa / corresponding shadow branch"
+    },
+    "BlendState6": {
+      "report": {
+        "path": ".local/reports/native-composition-CreateBlendStates-static.json",
+        "bytes": 13049,
+        "sha256": "a100a44c2a311f6fc44a625645410b6a9bd45c152acc585dce58be21bd5eaf0b"
+      },
+      "source_color": 4,
+      "destination_color": 2,
+      "source_alpha": 8,
+      "destination_alpha": 6,
+      "pdb_enum": {
+        "path": ".local/reports/native-light-blend-enum-pdb-v1.txt",
+        "bytes": 1887,
+        "sha256": "dd7c31d5bbc473b860cd6623d54168fb82f6b8edd79fdf008e6fb1ee1d138ada"
+      }
+    }
+  },
+  "render": {
+    "light_rgb": "lerp(.5, original texture RGB*textureAlpha (sampler.inc PREMUL1), packed ownerRGB*ownerAlpha)",
+    "blend": "srcRGB*dstRGB + dstRGB*srcRGB, srcAlpha*dstAlpha + dstAlpha*srcAlpha",
+    "shadow_adaptation": "Actual original source polygon edges transformed into light-local normalized coordinates; nearest ray/edge hit at512 angular samples, cached by real light lifetime+geometry revision+transform. Windows occlusion texture rasterization/256 radial step quantization replaced by analytic intersections.",
+    "blur": "Original LightAndShadow9 taps/weights, distance-dependent blur and neutral .5 shadow masking",
+    "gather_order": "Actual source owner first group; lights appended after regularobjects in group. Exact native depth graph pending."
+  },
+  "gpu": {
+    "renderer": "Apple M3 Pro",
+    "log": {
+      "path": ".local/reports/native-light-gpu-v3.log",
+      "bytes": 4533,
+      "sha256": "22f7b42a681c2d4d3b1f4f71a229bbf3118e0919564a70ab93947dc724aba6fe"
+    },
+    "exit_code": 0,
+    "diagnostic_pixel": {
+      "base": [
+        72,
+        144,
+        24
+      ],
+      "lit": [
+        108,
+        181,
+        24
+      ],
+      "blocked": [
+        72,
+        144,
+        24
+      ]
+    },
+    "checks": [
+      "light shader/multiply blend",
+      "real polygon blocks correct side",
+      "cached shadow texture reuse without GL error",
+      "displacement+9+11 composition unchanged",
+      "resize/context lifecycle"
+    ],
+    "translucent_diagnostic": {
+      "rgba": [
+        61,
+        120,
+        20,
+        225
+      ],
+      "texture_rgba": [
+        192,
+        160,
+        128,
+        128
+      ],
+      "owner_color": [
+        0.8,
+        0.6,
+        0.4,
+        0.75
+      ],
+      "result": "Actual Mac GPU output passed expected premultiplication-before-neutral interpolation within2byte tolerance."
+    }
+  },
+  "limits": [
+    "Android GPU execution pending.",
+    "Native Windows shadow rasterization and exact depth interleaving are portable adaptations, not exact parity.",
+    "ActionFX-owned LightController rendering remains separate integration."
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "schema": "hades-screen-animation-v1",
+  "resource_manifest": {
+    "path": ".local/native-assets/screen-remembrance-v2/manifest.json",
+    "bytes": 112265,
+    "sha256": "ac4ced97f49ddf30dcd3da36475845b57cd7a500fa438a98dc98513e765a1c8b"
+  },
+  "source_contract": "Original UIPresentation.RunInterstitialPresentation creates rectangle01 through CreateScreenObstacle; native SpawnObstacle26f4a0 createsObstacleManager then executesUseScreenLocation action4f. PortableScreenThing ownership is explicit Android adaptation, separate from ActorWorld collision/physics. Animation.SetUseScreenLocation297830 marksflag64 on primary/children, does notmigrate manager.",
+  "original_movie_tail": "RemBGIntro original movie11frames; definitionNumFrames/EndFrame10. Only source10 decoded/played. RemBG120frames.",
+  "source_resolution": "Original bundled720p Bink andatlas; atlasScale .6666666865 mapsoriginal1920x1080 coordinates. No resampling/replacement art.",
+  "timing": "Book source24fps; originalIntroChainToRemBG, Looptrue. Caller supplies actualUIclock delta, independently ofworldmovement. Screen bodyfractions useexisting source-backedBodyTransition.",
+  "audio": "ActualAudioWorld event graph playback required. UI output adaptsnonspatial onAndroid; no nonexistent cueack. FinishFade onlyStopSoundOnFinishFade>0, exactDispose2996c5..d8.",
+  "validation": {
+    "result": "passed",
+    "original_crc_checked_frames": 131,
+    "native_screen_things": 2,
+    "source_book_chain_observed": true,
+    "source_cue_requests": 2,
+    "source_audio_fade": 0.5,
+    "decoded_screen_audio_observed": false,
+    "screen_body_fraction_transition_observed": true,
+    "deferred_disposal_observed": true,
+    "remaining_lifetimes": 0,
+    "cache_max_bytes": 16777216,
+    "android_observed": false
+  },
+  "proofs": [
+    {
+      "path": ".local/reports/native-spawn-obstacle-pdb-pseudocode.txt",
+      "bytes": 6486,
+      "sha256": "1a54b3fc46a05eb6e162a93982aa6fe0fd351b927941e3298391bc4115f19389"
+    },
+    {
+      "path": ".local/reports/native-screen-animation-dispose-static.json",
+      "bytes": 20820,
+      "sha256": "4125846b4d6aab6cf6917e86780452cbd27393f225f1e12ed90518151fe1c83a"
+    },
+    {
+      "path": ".local/reports/native-screen-animation-use-screen-static.json",
+      "bytes": 6580,
+      "sha256": "16d6b625149ec55b033846f6b36d31b4cb40ae2db29aea0c1a45bc9a30978170"
+    }
+  ],
+  "limits": [
+    "Only rectangle01 screenThing and RemBGIntro/RemBG closure implemented. OtherUIwidgets/portraits/text remainseparate.",
+    "Sourceaudio cue requests tested bydiagnosticcallback; actualscreenAudioWorld decodedmix pendingaudioexport/integration.",
+    "Source1920x1080 reference mapsfullplatformviewport asexplicitAndroiddisplay adaptation. No camera/Z projection.",
+    "Screen-created unsupportedattachment/collision branches stillfailbeforeadmission."
+  ],
+  "rea_sessions_owned_open": 0
+}

@@ -1,0 +1,57 @@
+{
+  "schema": "hades-projectile-owner-live-fields-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "fields": {
+    "Unit.mDamageOutputModifier": {
+      "offset": "0x3ec",
+      "fresh_initialized_value": 1,
+      "proof": "Unit.Defaults VA1802f13a4 qword 0x3f800000 (neighbor float0); actual Unit::Init invokes Defaults through Thing.Init virtual reset"
+    },
+    "Unit.mSpawnedBy": {
+      "offset": "0x3c8",
+      "fresh_initialized_value": 0,
+      "proof": "Unit.Defaults VA1802f13b6 qword0; Projectile.Init copies owner+3c8 atVA180069c0f"
+    },
+    "UnitStatus.mIsTraitor": {
+      "unit_offset": "0x4f0",
+      "relative_status_offset": "0x90",
+      "fresh_initialized_value": false,
+      "proof": "live Unit constructor VA1802f0d54 writes word0 at4f0; Reset.SetAsAlly keepsfalse or restores old allegiance and writesfalse at2fe39c",
+      "projectile_read": "VA180069ada copies owner+4f0 unless ProjectileData.IgnoreOwnerAllegiance; not Unit.mWasTraitor at3b9"
+    }
+  },
+  "evidence": [
+    {
+      "path": ".local/reports/native-weapon-owner-unit-constructor.json",
+      "sha256": "3039644762784736db98bdeb05063aa385dc1e983c08256ea99504229f518d43"
+    },
+    {
+      "path": ".local/reports/native-player-unit-defaults-fire-state.json",
+      "sha256": "c84668759b6ba42cfb5a6a8b9005982609295388c09405056a6bada715fd348c"
+    },
+    {
+      "path": ".local/reports/native-player-projectile-init.json",
+      "sha256": "ce09e5b8a2ef62e65f379390b14e2ad954016b314c14e06a44ae0206dbfeca5f"
+    },
+    {
+      "path": ".local/reports/native-status-reset.json",
+      "sha256": "8aeabca3234b24582fd962d2011a85ab3a12a65214c58b950628a08397b184a0"
+    },
+    {
+      "path": ".local/reports/native-player-projectile-owner-set-ally.json",
+      "sha256": "d3056c234ef23aaa3a07ae2298039adb1aaa43981c3890cf4b003e6a53bae306"
+    },
+    {
+      "path": ".local/reports/native-player-projectile-owner-unit-pdb.txt",
+      "sha256": "2f194043bc9daabce236d40a5b3c685887b55a3d0e3d8ee46ba55961a23b9585"
+    },
+    {
+      "path": ".local/reports/native-player-projectile-owner-status-pdb.txt",
+      "sha256": "f9057c3fa5f02666b4f70d92162ce20e04fd5cdb5c83b530720e489b29e48b90"
+    }
+  ],
+  "limits": [
+    "Fresh actual initialization defaults only. Runtime effects/charm/spawn scripts mutate real live fields and must be reflected in ownerState provider.",
+    "These are fields on real components, not values inferred from static UnitData or metadata query objects."
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "schema": "hades-native-effect-lifetime-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "observations": {
+    "function_rva": "0x5d220",
+    "elapsed": [
+      "Begin with supplied per-effect elapsed by reference, locally copied",
+      "If actual owner found and any data DisableAttack/Move/Rotate true, multiply by actual UnitData.StunBreakModifier full154",
+      "Else CHARM7 with CharmBreakModifier full158 !=1 multiplies by that modifier",
+      "Subtract local elapsed from effect.TimeRemaining float32",
+      "Actual UpdateFx always occurs before deadline/source-liveness decisions"
+    ],
+    "deadline": "Strict remaining<0; equality0 survives. HasRefreshOnExpireEffect true resets to current data.Duration, false selects expiry.",
+    "source_death": "If not already selected expiry, data ClearOnSourceDeath full1cc and source weapon nonnull: actual UnitManager.Get(source weapon cached ownerID) missing or !Thing.IsAlive selects expiry.",
+    "clear": "If expiring and !effect.Cleared call actual virtual Clear, then returntrue. If already cleared skip duplicate Clear and still returntrue. Nonexpired returnsfalse, even if already cleared.",
+    "refresh_lookup": "HasRefreshOnExpireEffect5d4f0 looks up actual owner then UnitStatus.HasEffect against actual data hashed IDs full58 and60; no empty-string guess replaces that lookup.",
+    "update_fx_empty_proof": {
+      "rva": "0x5dbe0",
+      "cleared": "Cleared+all three persistent FX handles null follows top cleanup loop with no actions then return",
+      "fresh_empty": "No front/back/overhead handles, no existing requested-flash state, both expiration thresholds<=0, both flashFront/Back false traverses no calls or state changes.",
+      "nonempty": "Other cases require actual UpdateFx executor; nonempty graphics are not discarded."
+    }
+  },
+  "implementation": {
+    "module": "native/app/effect_update.hpp/.cpp",
+    "callbacks": [
+      "query actual owner/break modifiers",
+      "actual nonempty UpdateFx",
+      "actual refresh-effect-ID lookup at expiration",
+      "actual source weapon owner liveness when selected",
+      "actual virtual Clear when selected"
+    ],
+    "result": "expired is native true return for parent UnitStatus toDelete; function does not remove effects or alter Lua health",
+    "test": "effect_update_smoke.cpp ASan+UBSan passes strict0 deadline, stun/charm priority, FX before refresh, data mutation, source-death after refresh, no double Clear, missing real graphics callback rejection"
+  },
+  "unit_status_phase": {
+    "module": "native/app/unit_status.hpp/.cpp advanceEffects",
+    "order": [
+      "Promote current pending entries in original order",
+      "Set updating guard and capture initial active references/count",
+      "For each actual active effect query current data.TimeModifierFraction and current owner Thing.TimeMultiplier",
+      "If fraction<1: effectElapsed=unitElapsed/(((1-ownerTimeMultiplier)*fraction)+ownerTimeMultiplier), with float32 operation boundaries",
+      "Invoke actual virtual Effect.Update using effective effectElapsed",
+      "True returns append same effect pointer to deletion queue, including original duplicate behavior",
+      "Clear updating guard then real cleanup disposal; ownerID=-1 before actual Dispose(true)"
+    ],
+    "callback_visibility": "New admissions during effects remain pending. Earlier original Clear callbacks can alter owner time multiplier for later effects. Cleanup calls during updating return without disposal.",
+    "remaining_scope": "Block-effect timer and allegiance timeout in UnitStatus.Update remain separate parent behavior; advanceEffects is the exact effect phase, not entire Update.",
+    "validation": "unit_status_effect_phase_smoke ASan+UBSan passed, old unit_status_smoke and self_effects_smoke recompiled and passed"
+  },
+  "limits": [
+    "No original binary execution.",
+    "Finite portable subset rejects nonfinite native results with explicit error.",
+    "Derived Speed/Tag/Invulnerable virtual behavior remains separate from generic base lifetime.",
+    "Status unitElapsed is already Unit.UpdateSelf effective elapsed; do not apply Thing.TimeMultiplier twice."
+  ],
+  "evidence": [
+    {
+      "path": ".local/reports/native-effect-base-update.json",
+      "sha256": "86e38a8747b244768ce61ddf0fb8f19f9ddb3e8646cf325b7a23841905228326"
+    },
+    {
+      "path": ".local/reports/native-effect-base-update-fx.json",
+      "sha256": "43d311b574dbdcc4c59414e154cc069edd1dfffec91d6e180ffe69e0d3b4f172"
+    },
+    {
+      "path": ".local/reports/native-effect-has-refresh-on-expire.json",
+      "sha256": "9f098a2fabc2049a5bd572581c7d93442d904b77a8674660893704ab31474f54"
+    },
+    {
+      "path": ".local/reports/native-rea-status-update.json",
+      "sha256": "123c3f3ff36a03935338028fab4f14efbd0f487404ad450999387a7b9c39df76"
+    }
+  ]
+}

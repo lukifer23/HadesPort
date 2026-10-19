@@ -1,0 +1,37 @@
+{
+  "schema": "hades-audio-burning-footsteps-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "source_event": "/SFX/Player Sounds/BurningFootsteps",
+  "event_guid": "3f15c3c5-2882-4f77-8cb3-d588e17e4b6f",
+  "source_report": ".local/reports/native-audio-burning-footsteps-graph-v1.json",
+  "observed": {
+    "original_variants": 7,
+    "rate": 48000,
+    "channels": 1,
+    "playlist_mode": 2,
+    "playlist_selection": 1,
+    "equal_weight": 14.285714149475098,
+    "trigger": "start0,length6000; triggered waveform continues to actual selected sample completion",
+    "decoded_pcm_bytes": 497752,
+    "encoded_wrappers_bytes": 24226,
+    "encoded_container_proof": "All7 derivedFSBs decode PCM-identically to complete original Sounds.bank with same pinned vgmstream decoder."
+  },
+  "public_reference": {
+    "commit": "b7cfcfc60c93fcca7e4ffe666144e7ee3ed7ce77",
+    "urls": [
+      "https://github.com/Masusder/FModBankParser/blob/b7cfcfc60c93fcca7e4ffe666144e7ee3ed7ce77/FModBankParser/Enums/EPlaylistPlayMode.cs",
+      "https://github.com/Masusder/FModBankParser/blob/b7cfcfc60c93fcca7e4ffe666144e7ee3ed7ce77/FModBankParser/Enums/EPlaylistSelectionMode.cs"
+    ],
+    "scope": "Enum names/layout cross-check only; does not establish proprietary FMOD RNG/history algorithm."
+  },
+  "android_adaptation": "Audio-only deterministic weighted shuffle without replacement across cue instances; exact sourceweights/order preserved. No game stream0 consumption. Selection and actual decoderopen happen at Play, not channel admission. Exact FMOD smart-random history/RNG sequence not reproduced.",
+  "runtime": "Original48k audio uses direct sourceframes;44.1k existing rational32tap resampler retained. Routing/DSP graph and actual channels reused.",
+  "validation": {
+    "all7_actual_unique": "ASan/UBSan sourceprobe",
+    "log": ".local/reports/native-audio-world-burning-probe-v1.log",
+    "existing5cue_regression": ".local/reports/native-audio-world-source-probe-sanitized-v7.log",
+    "android_compile": "NDK29arm64API26 -O2-Werror",
+    "device_audio_output_observed": false
+  },
+  "packaging": "Compressed .local/native-assets/audio-streams-burning-v1 only; private PCM debug files excluded."
+}

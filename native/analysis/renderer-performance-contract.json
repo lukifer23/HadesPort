@@ -1,0 +1,158 @@
+{
+  "schema": "hades-renderer-performance-contract-v1",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "originals": [
+    {
+      "path": ".local/native-assets/opening-fx-v5/scene-affine.bin",
+      "bytes": 111675996,
+      "sha256": "35faae7b545bf314063b3b7f0a30877398e55ec09bbbb02bf754264d31aa1799"
+    },
+    {
+      "path": ".local/native-assets/opening-fx-v5-animation/animations.bin",
+      "bytes": 245755555,
+      "sha256": "77c2d92cdadb9c7b88caed5a071110a99d18b3a25d45941a5ea98d6b1da41a6a"
+    }
+  ],
+  "implementation": [
+    "Conservative AABB view culling after original frame affine and parallax, preserves sprite/group/native-layer order.",
+    "Entire source group run still composes even if all its geometry is offscreen, retaining exact neutral-clear/final behavior.",
+    "Preallocated three-image animation texture ring per clip; glTexSubImage2D streams selected frames. Logical source texture indices stable.",
+    "Power-of-two storage with imageRegion shader scale/clamp retains frame-sized GL_CLAMP_TO_EDGE; baseline optimized outputs verified byte-identical before semantic parallax/hull changes.",
+    "Hero texture storage reused for equal dimensions. Diagnostics expose per-frame source/visible sprite count, draw/group calls, upload bytes and vertex bytes."
+  ],
+  "animation_ring_storage_bytes": 26542080,
+  "harness": "native/analysis/renderer_perf.cpp",
+  "measurement_method": "Serialized CGL OpenGL4.1 Apple M3 Pro 1600x1000 RGBA8 FBO;10 warmups then360frames; GL_TIME_ELAPSED query perframe. CPU includes submission/upload; timings are host diagnostics, not Android performance guarantees.",
+  "measurements": [
+    {
+      "path": ".local/reports/renderer-hulls-before-hero.json",
+      "variant": "before",
+      "view": "hero",
+      "frames": 360,
+      "gpu": "Apple M3 Pro",
+      "cpu_ms_mean": 1.8829555055555556,
+      "gpu_ms_mean": 1.7672795277777777,
+      "gpu_ms_median": 1.7584149999999998,
+      "wall_seconds": 0.686566,
+      "last_stats": {
+        "source_sprites": 797,
+        "visible_sprites": 333,
+        "draw_calls": 245,
+        "group_passes": 2,
+        "frame_uploads": 0,
+        "frame_upload_bytes": 0,
+        "vertex_bytes": 88176
+      }
+    },
+    {
+      "path": ".local/reports/renderer-hulls-after-hero.json",
+      "variant": "after",
+      "view": "hero",
+      "frames": 360,
+      "gpu": "Apple M3 Pro",
+      "cpu_ms_mean": 1.393698463888889,
+      "gpu_ms_mean": 1.2666972222222221,
+      "gpu_ms_median": 1.2637299999999998,
+      "wall_seconds": 0.508553,
+      "last_stats": {
+        "source_sprites": 797,
+        "visible_sprites": 333,
+        "draw_calls": 245,
+        "group_passes": 2,
+        "frame_uploads": 0,
+        "frame_upload_bytes": 0,
+        "vertex_bytes": 305052
+      }
+    },
+    {
+      "path": ".local/reports/renderer-hulls-before-room.json",
+      "variant": "before",
+      "view": "room",
+      "frames": 360,
+      "gpu": "Apple M3 Pro",
+      "cpu_ms_mean": 2.998475452777778,
+      "gpu_ms_mean": 2.8966400555555554,
+      "gpu_ms_median": 2.88271,
+      "wall_seconds": 1.09352,
+      "last_stats": {
+        "source_sprites": 797,
+        "visible_sprites": 767,
+        "draw_calls": 533,
+        "group_passes": 2,
+        "frame_uploads": 0,
+        "frame_upload_bytes": 0,
+        "vertex_bytes": 202752
+      }
+    },
+    {
+      "path": ".local/reports/renderer-hulls-after-room.json",
+      "variant": "after",
+      "view": "room",
+      "frames": 360,
+      "gpu": "Apple M3 Pro",
+      "cpu_ms_mean": 1.8086325472222222,
+      "gpu_ms_mean": 1.6803885,
+      "gpu_ms_median": 1.68015,
+      "wall_seconds": 0.658735,
+      "last_stats": {
+        "source_sprites": 797,
+        "visible_sprites": 767,
+        "draw_calls": 533,
+        "group_passes": 2,
+        "frame_uploads": 0,
+        "frame_upload_bytes": 0,
+        "vertex_bytes": 714780
+      }
+    }
+  ],
+  "coverage": ".local/reports/renderer-hulls-coverage-final.json",
+  "baseline_equivalence": [
+    ".local/reports/renderer-perf-baseline-hero.json.rgba == renderer-perf-ring-hero.json.rgba",
+    ".local/reports/renderer-perf-baseline-room.json.rgba == renderer-perf-ring-room.json.rgba"
+  ],
+  "discarded_approach": "Single persistent upload image caused sync stalls despite equal pixels; final implementation rotates3images.",
+  "asset_decode_audit": ".local/reports/native-room-bc7-independent-audit.json",
+  "asset_decode_conclusion": "All59 distinct original first-mip BC7 room atlases independently decode byte-identically; arbitrary recoloring/gamma changes unsupported.",
+  "remaining_visual_limits": [
+    "Native SortScoreSystem/IsometricSceneGraph DAG/SCC order is not current group/SortIndex/Y approximation. Requires exact actor 3D bounds/draw areas and flags.",
+    "Red/black source tint exists, but this does not authenticate every current placement/occlusion.",
+    "No reconstruction claim for all world lighting/shadows/procedural effects.",
+    "Original RNG animation speed/phase and some angle/bob interpolation remain pending."
+  ],
+  "sorting_evidence": [
+    {
+      "path": ".local/reports/native-rea-graphics-sort-score-update.json",
+      "evidence_id": "ev_e902dd38ba800003a4c502a917e09c9368ad3f51f5f1d6c95e2566c573bf0b5b"
+    },
+    {
+      "path": ".local/reports/native-rea-graphics-sort-tick.json",
+      "evidence_id": "ev_73f6b819fb156447d6d19e5dbc81ca302b53fe880b8fd809e1dc0485a4f5f5bb"
+    },
+    {
+      "path": ".local/reports/native-rea-graphics-graph-update.json",
+      "evidence_id": "ev_e74ddf852733be49b80574aebc858a3e89f6e88453de601af79b8a7e76b56849"
+    },
+    {
+      "path": ".local/reports/native-rea-graphics-graph-sort.json",
+      "evidence_id": "ev_7784bc6602eb18124fd16f0e51129d7b4745942aecb791b3563a6239045eab7b"
+    },
+    {
+      "path": ".local/reports/native-rea-graphics-bounds-calc-sort.json",
+      "evidence_id": "ev_1ba5421b9e9e93b0b6b657b35387de61c6f7a0d1e53550b9ad792e5a5b2296b6"
+    }
+  ],
+  "session_lifecycle": {
+    "owned_sessions_remaining": 0,
+    "close_reports": [
+      ".local/reports/native-rea-graphics-sort-close.json",
+      ".local/reports/native-rea-graphics-graph-close.json",
+      ".local/reports/native-rea-graphics-parallax-close.json",
+      ".local/reports/native-rea-graphics-hull-close.json"
+    ]
+  },
+  "device_operations": false
+}

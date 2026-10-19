@@ -1,0 +1,173 @@
+{
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1,
+    "scope": "Static original Win64 native code, matching PDB; portable Mac reconstruction probes are separate observations."
+  },
+  "native_lifecycle": {
+    "order": [
+      "GroupManager::Init",
+      "ScriptManager::OnPreThingCreation (trigger0, registered order)",
+      "World::CreateMapThings (per-object creation may invoke OnSpawn22)",
+      "GameDataManager::CacheAnimationTextures",
+      "World::Start",
+      "Map::Begin: OnAnyLoad2 callbacks first",
+      "Map::Begin: OnLoad1 callbacks second"
+    ],
+    "observed_call_sites": {
+      "load_task_invoker_rva": "0x31fb10",
+      "group_init_va": "0x18031fbb7",
+      "on_pre_va": "0x18031fbbc",
+      "create_map_things_va": "0x18031fbc4",
+      "cache_animation_textures_va": "0x18031fbc9",
+      "world_start_va": "0x18031fcaa",
+      "world_start_calls_map_begin_va": "0x18031112d",
+      "map_begin_rva": "0x30d650",
+      "on_any_load_protected_run_va": "0x18030d6f5",
+      "on_load_script_run_va": "0x18030d817"
+    },
+    "load_callbacks": {
+      "source_filter": "No mTriggerNames -> run; otherwise exact map-name membership in trigger names vector. Numeric trigger IDs are not consulted by Map::Begin.",
+      "arguments": "Fresh global_triggerArgs table; nonempty map name writes name. No source Thing: no triggeredById or TriggeredByTable.",
+      "dispatch": "OnAnyLoad uses Script::ProtectedRun -> Lua::ProtectedCallVoid with cached RUN_SCRIPT (original dispatch), registered callback and args. OnLoad uses Script::run and same dispatch. Callback may schedule/yield original coroutines; finishing its initial resume is not finishing its asynchronous work.",
+      "failure": "ProtectedRun false returns false immediately from Map::Begin; native World::Start creates corrupt-save error flow. ProtectedRun also has a global script-disabled guard, not reconstructed by portable probe. Lua dispatch/resume itself can handle coroutine errors, so native protected-call success alone is not proof of full callback completion."
+    },
+    "map_activation": {
+      "top_level_gate": "For each GroupManager::GetAllThings record: AttachToID>0 is skipped by top-level creation; children created through World::CreateChildren after parent. Active=false outside EditingMode goes to inactive map. Active=true with ActivateAtRange=false creates directly. ActivateAtRange=true requires first valid player, world.mFrame>1 and within ActivationRange; otherwise inactive map + GridManager::RegisterInactiveMapThing.",
+      "field_offsets": {
+        "MapThingDef.Active": "0x4b",
+        "ActivateAtRange": "0x4c",
+        "ActivationRange": "0x50",
+        "AttachToID": "0x90",
+        "World.mFrame": "0xc"
+      },
+      "do_create_boundary": "Decoded serialized DoCreate is not a MapThingDef PDB member. Loader-level DoCreate processing was not recovered in this pass; the portable staging retains it separately. Do not equate it to fully reconstructed native activation.",
+      "unknowns": [
+        "Initial world frame/player state at all native load paths",
+        "Actual allocations/components/OnSpawn side effects for original map records",
+        "Attachment recursion and range activation update loop",
+        "Physics/render/text/native component initialization during CreateThing"
+      ]
+    },
+    "on_spawn": {
+      "source_filter": "Script::isSource accepts unfiltered callbacks; otherwise any matching original map ID, group membership, virtual GetName type-name, or category token _UNIT/_OBSTACLE. Native enum category and type-name are different filters.",
+      "gate": "Thing.pThingData->mDef.mTriggerOnSpawn at ThingDataDef0x368 (ThingData+0x370) must be true. Caller can also suppress dispatch. ObstacleManager::Add tests caller boolean then passes NeedsLuaInitialization=false.",
+      "arguments": {
+        "all_matching": "NeedsLuaInitialization boolean from caller, name=Thing virtual GetName; Script::run supplies triggeredById and TriggeredByTable",
+        "units_only": "SpawnedById=Unit.mSpawnedBy; PlayerIndex only when Unit.pPlayer exists, from Player+8. UnitManager caller boolean not traced in this pass."
+      },
+      "evidence_id": "ev_438a59527ed803c8a61627df5216486f70762c950015cb7cec67500ed01d5ba5"
+    },
+    "evidence_id": "ev_9446e729a5d0aaa1a47b99e7b46bfce03243f7b9b3732a628a8131bb5953cd33",
+    "reports": [
+      "native-lifecycle-owner-31fb10.json",
+      "native-lifecycle-owner-31fff0.json",
+      "native-lifecycle-World-Start.json",
+      "native-lifecycle-Map-Begin.json",
+      "native-lifecycle-protected-run.json",
+      "native-lifecycle-CreateMapThings.json",
+      "native-lifecycle-CreateThing.json",
+      "native-lifecycle-OnSpawn.json",
+      "native-lifecycle-spawn-source.json"
+    ]
+  },
+  "portable_text": {
+    "module": [
+      "native/app/text_runtime.hpp",
+      "native/app/text_runtime.cpp"
+    ],
+    "actual_original_path": "UIScripts.lua42 OnAnyLoad iterates original TextFormats, SpawnObstacle BlankObstacle, writes Name/Id/AutoSetDataProperties=true, CreateTextBox.",
+    "native_contract": "CreateTextBox resolves real active Thing ID, creates/attaches TextComponent when absent, allocates TextSystem GUIComponentTextBox, appends component to owner. AutoSetDataProperties reflects table properties before explicit Font/FontSize/color/layout reads; bridge returns void. Empty Text/RawText still creates component.",
+    "implemented": "VM-owned named empty formatting components attached to existing active object IDs; exact explicit source property values copied by type and numeric array; native FontSize integer conversion recorded separately; multiple calls append distinct records. Owner activity reflected by snapshots.",
+    "limitations": [
+      "Nonempty Text/RawText fails explicitly: localization, token graft evaluation, font defaults/layout, glyph drawing are not reconstructed.",
+      "Missing properties stay absent; component compiled defaults and effective color/property precedence are not fabricated.",
+      "Unsupported argument/action cases fail explicitly; no DestroyTextBox/ModifyTextBox implementation claimed.",
+      "Component sequence is reconstruction-local identity, not original pooled handle."
+    ],
+    "original_callback_result": {
+      "format_count": 83,
+      "BaseFormat_source_font_size": 19.5,
+      "native_integer_font_size": 19,
+      "sources": [
+        "Color.lua",
+        "UIData.lua",
+        "exact original UIScripts OnAnyLoad formatting callback"
+      ],
+      "scope": "Isolated formatting smoke left GameState unset to avoid unrelated shrine updates; production parent host ran full GameState and proceeded."
+    },
+    "evidence_id": "ev_587f20a1a5b6b3877da7202e958a9d08f0817a9f2d4286f2d0e16b8c7361f775",
+    "reports": [
+      "native-text-create.json",
+      "native-rea-text-create.json",
+      "native-fields-ComponentDataDef.txt",
+      "native-text-format-smoke.log"
+    ]
+  },
+  "get_ids": {
+    "rva": "0x269db0",
+    "implemented_in": "native/app/object_runtime.cpp",
+    "group_resolution_rva": "0x314a30",
+    "group_index_rva": "0x1208d0",
+    "contract": [
+      "Fresh global IdsTable is also returned as dense 1-based array.",
+      "Processes singular Name then each Names array entry; duplicates across selected groups preserved. No implicit descendant group traversal.",
+      "Membership comes from active map Thing sets; no RequireAlive parameter read by native GetIds. Portable alive flag currently means undestroyed object, not health.",
+      "Optional Type is exact case-sensitive virtual Thing::GetName string, not Unit/Obstacle enum. Obstacle+0x88 vtable slot -> RVA0x2c55a0 returns Obstacle.mName0x588; Unit slot -> RVA0x69620 returns Unit.pData+8 name string.",
+      "Unknown/empty group name GetIndex=-1 resolves native MapThingGroupId::None; missing set returns shared EmptyThingSet. Portable reconstruction uses empty membership name for None; RoomOpening has no None members."
+    ],
+    "native_group_index_type": "eastl::str_equal_to<char const *> hash lookup, case-sensitive group names",
+    "portable_state": "All ObjectSnapshot.groups memberships queried; group retained as primary/fallback for old metadata. Runtime SpawnObstacle fills groups with its actual auto-created scene group. Seed order retained, runtime objects appended.",
+    "ordering_limit": "Native enumerates pointer-hash bucket order. Portable queries explicitly use metadata insertion order within each selected group, not original allocation-dependent native ordering. Later random choice/order-dependent Lua may differ.",
+    "phase_limit": "This queries loaded metadata state in load-callback probe, not proven full native map activation.",
+    "source_map_inventory": {
+      "manifest": ".local/native-assets/opening-fx-v4/scene-manifest.json",
+      "sha256": "fd7cc6e0621667a3db03efdba19a2d8df79d6531abc489c8e1d3393dbc2b6439",
+      "records": 1037,
+      "multiple_group_records": 69,
+      "SpawnPoints_ids": [
+        410000,
+        410001,
+        410002,
+        508060,
+        508061,
+        508062,
+        508063
+      ],
+      "none_group_records": 0,
+      "active_records": 1033,
+      "do_create_records": 1037
+    },
+    "focused_check": "ASan/UBSan debugger verifies insertion order, secondary membership, inactive exclusion, repeated groups duplicate results, exact type-name filter, unknown group empty in this scene, IdsTable alias."
+  },
+  "portable_phase_boundary": {
+    "confirmed_precreation": "Original 99 scripts import; real OnPre callbacks -> SetupMap69 groups, actual GameState59keys/CurrentRun50keys; phase audit no map queries on seed0 and canonical states identical with Active metadata current vs all false.",
+    "audit_report": "native-boot-phase-comparison.json",
+    "limitation": "Metadata seeded before OnPre approximates native phase; comparison covers only executed seed0 path. Other seeds may call GetMapThings(RandomSwaps). OnAnyLoad probe intentionally retains metadata; it is not complete Map::Begin nor actual map object creation.",
+    "parent_reported_run10": "Host probe executes first five matching OnAnyLoad callbacks including 83 UI formats/audio/debug/combat/presentation, then actual RoomManager callback blocks at unsupported RemoveInputBlock. Production game loop remains gated.",
+    "next_contracts": [
+      "Real input-block ownership/counting for RemoveInputBlock MapLoad",
+      "Full map activation/components and ordered OnSpawn prerequisites before claiming native Map::Begin",
+      "Remaining RoomManager CheckQuestStatus/achievements/StartRoom branches as actually reached"
+    ]
+  },
+  "sessions": {
+    "owned_REA_batch": "lifecycle-text-",
+    "close_report": "native-rea-lifecycle-text-close.json",
+    "close_result": null,
+    "owned_processes_checked_absent": [
+      41685,
+      41695,
+      41723
+    ],
+    "no_device_operations": true
+  },
+  "source_sha256": {
+    "native/app/text_runtime.hpp": "3e406e7759ee1d6f804ec84bc554536849937242e7da7070f6ffc06ce4463a67",
+    "native/app/text_runtime.cpp": "c62dfd2d2176d48c335955241b0d2abeb54904eaf4e092e29758abb0529bf9c8",
+    "native/app/object_runtime.hpp": "f6003576e83716dd2169a918d418d4ec3b9112961fc1367adab1b7437e9a7dcd",
+    "native/app/object_runtime.cpp": "208896a2c9aa6d947bec86c5b424564e354fee6d699be24ec8b0871d2a356ef7",
+    "native/analysis/text_format_smoke.cpp": "2e34bf90c03819b679f5cc5ee2d81de72400949f5f13501b2c2b2bb9662a7e77"
+  }
+}

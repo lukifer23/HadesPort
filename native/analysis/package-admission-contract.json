@@ -1,0 +1,102 @@
+{
+  "schema": "hades-native-package-admission-contract-v1",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254"
+  },
+  "scope": "Original static DLL/PDB workflow; actual file parser is native/tools/hades_assets.py. Does not prove GPU upload/audio/video availability.",
+  "equip": {
+    "call": "LoadPackageAsync(name,false,nullptr)",
+    "manifest": "Synchronously calls LoadManifest(name,false) before queueing; definition GameData lookup is independent of graphics package completion.",
+    "request": "Copies name, bool, callback into PackageItem; enqueue protected worker queue, WakeAllConditionVariable.",
+    "timing": "Equip continues before package worker reads package; no wait and no Lua success result."
+  },
+  "standalone_LoadPackages": {
+    "rva": "0x265530",
+    "name_mapping": "Each input name looked up in GameDataManager::GetUnitPackageName. Nonnull/nonempty mapped value replaces original name. That is exact-case string hash map lookup; unmapped names stay unchanged. This rewrite does not appear in EquipWeapon.",
+    "manifest_pass": "LoadManifest(mappedName,true) for all names first.",
+    "async_pass": "LoadPackageAsync(mappedName,true,callback@0x2656a0) then each callback calls Script::OnPackageLoaded(name)."
+  },
+  "worker": {
+    "rva": "0x1ebe60",
+    "order": "Pop queued PackageItem; call LoadPackage(name,bool), then if callback nonnull enqueue completion Item. No return-status test between load and completion.",
+    "completion": "GameAssetManager::Update RVA1ed150 drains completed items and calls callback(name) outside completion lock.",
+    "meaning": "A callback proves worker LoadPackage returned. It is not an independently checked success or GPU fence."
+  },
+  "files": {
+    "manifest": "LoadManifestList builds name + .pkg_manifest, reads resource directory, loads include/atlas/BinkAtlas metadata. Actual SGGv7 parser is shared with Package reader.",
+    "package": "LoadPackage builds name + .pkg then ReadPackageFile processes asset records and multi-texture atlas maps. Includes traverse package dependencies.",
+    "data_boundary": "No unit/weapon SJSON loading call occurs in bounded EquipWeapon/async package chain; Weapon::Create separately gets already registered GameData."
+  },
+  "failure_policy": {
+    "observed": "LoadManifestList errors reading file, unexpected package version and compressed manifests call Log::Write(level0x10) then cleanup/continue. ReadPackageFile missing/open failure logs Package load failed %s and returns. Async wrapper does not expose a failure return to Lua. Worker completion has no success check.",
+    "implementation_guidance": "Retain original asynchronous timing and explicit inspectable failure state. A local fail-closed error for unsupported decoding is reconstruction policy, not original Lua exception behavior. Never mark assets complete merely for inserting a package name."
+  },
+  "parser_reuse": {
+    "path": "hades/native/tools/hades_assets.py",
+    "api": "Package(path).entries() yields bounded SGGv7 entries; atlas manifest and texture package can be joined by actual texture identity.",
+    "related": "hades/native/tools/build_graphics_scene.py lines84 onward shows current Tartarus/Fx joining.",
+    "limit": "Parser availability does not establish native admission/runtime completion API."
+  },
+  "reports": [
+    {
+      "path": "hades/.local/reports/native-equip-load-package-async.json",
+      "sha256": "3e952b5e3997ded858565bab12b3a62df8c991fc22ae11f785dcebc63a8382d9"
+    },
+    {
+      "path": "hades/.local/reports/native-equip-load-packages-action.json",
+      "sha256": "50572a73e2d58ad8cd573a23fd3e4b0069532c3eab0e23cf87dacf791a77047e"
+    },
+    {
+      "path": "hades/.local/reports/native-equip-unit-package-name.json",
+      "sha256": "2501b2bc38f8fd2d6c7f7e3a040aa9765caba40865b9d6fd959995e629f1510b"
+    },
+    {
+      "path": "hades/.local/reports/native-equip-load-manifest.json",
+      "sha256": "162eb5ef69caf10eaed5de6f318c33485417dff8a2f0122b45d6f2465849885c"
+    },
+    {
+      "path": "hades/.local/reports/native-equip-load-manifest-list.json",
+      "sha256": "966be3c64cdb2254e69a9f14d9fb9eaf5d4c6cb53593a0a4205d37d2ba639691"
+    },
+    {
+      "path": "hades/.local/reports/native-equip-load-package.json",
+      "sha256": "5fd67064107be764049bc796edce512f5447556e98279f2b30a41b1980c15089"
+    },
+    {
+      "path": "hades/.local/reports/native-equip-read-package-file.json",
+      "sha256": "2a68e734e933a991093411429cbe2e89f7b5382dab046c1a3ddfe6c161aa96f8"
+    },
+    {
+      "path": "hades/.local/reports/native-equip-package-thread.json",
+      "sha256": "e276d100dc6140f83d68950643447c80f67ac4f0f7d0f6b2387fe2889ebc270a"
+    },
+    {
+      "path": "hades/.local/reports/native-equip-package-update.json",
+      "sha256": "2180f9de45cfe5256123ef08ac63d5e8027173669e21f659a79293805f7108c9"
+    },
+    {
+      "path": "hades/.local/reports/native-equip-package-callback.json",
+      "sha256": "2d5e741f139e67338518851c5d34538331fe0c64259165f265f7fe7df9b0a550"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-equip-package-thread.json",
+      "sha256": "d33ebe80f41de6d10ec785cca4f712d2ced1df6c041b6227eb5b7a79513818d3",
+      "evidence_id": "ev_f76ff905d9f86ba701b250fe2e0a70cf07a025f10237dc179a2e1386280e6b0e"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-equip-manifest-list.json",
+      "sha256": "92c90b367b948072d633c385d3e11749ea210fe17eaa39d685ebdc52ae40a014",
+      "evidence_id": "ev_4b168a44927cedc3164e89ebc60d855b67f5fd629cc063aa5d14a80bb5aac913"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-equip-load-package.json",
+      "sha256": "01c430e58d39467ead6ef95a34d96911a046636e6489e8f0b1143d75855db7b8",
+      "evidence_id": "ev_0c598c7c619cd214794122a60ebeee4007b8aa99d6c3d886f3ee3b7f67e0ed7c"
+    }
+  ],
+  "unknowns": [
+    "Boolean parameter semantic name/group-unload policy requires PDB member/type expansion.",
+    "No GPU fence/texture-ready guarantee proven after worker LoadPackage return.",
+    "Exact missing-manifest entries/cache state and retry policy need full decompiler follow-up; only logging and no Lua return are currently established."
+  ]
+}

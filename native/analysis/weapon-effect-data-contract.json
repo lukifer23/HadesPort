@@ -1,0 +1,43 @@
+{
+  "schema": "hades-weapon-effect-effective-data-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "packet": ".local/native-assets/player-weapons-v13",
+  "manifest_sha256": "04dd6c22d8460fae82fdc7dbd91124a38683b49b83b56dcc3dfd9da9d6a8a02b",
+  "effect_count": 252,
+  "defaults": {
+    "path": ".local/reports/native-effect-compiled-defaults.json",
+    "sha256": "e7bdf887bb1e2f124223639df51512092f463708f251ac4875d47775ec1a70c4",
+    "fields": 105
+  },
+  "normalization": [
+    "fresh compiled EffectData defaults",
+    "weapon effects helper preloads Trigger Fire1 before Read; original explicit Type/Trigger override",
+    "original scalar/string overrides; int32 preserved, float32 casts; nullable lower literal null clears",
+    "native/source ChangeType maps compiled mm_changeType member to public ChangeType key, ADD0/MULTIPLY1",
+    "Sound/ClearSound semantic normalization with actual asset-lookup validity still unknown for nonempty events",
+    "positive DurationFrames rewrites Duration=float32(frames)/60 after Read"
+  ],
+  "first_SwordSelfSlowCharge": {
+    "type": 0,
+    "trigger": 3,
+    "active": true,
+    "procChance": 1,
+    "duration": 0.25,
+    "modifier_float32": 0.3499999940395355,
+    "changeType": 1,
+    "stacks": false,
+    "soundName": ""
+  },
+  "integration": {
+    "admission": "projectWeaponEffectAdmission(e,dataHandle,WeaponSelfEffect,error), all source types",
+    "supported_factories": "projectWeaponEffectRuntimeData(e,dataHandle,out,error), SPEED0 and nativeUNKNOWN12->Tag; unsupported active derived type is error",
+    "provided": "base EffectAffectData, lifetime EffectUpdateData, optional SpeedEffectData, statusPrototype withouthandle/unit, nativeTagCooldown",
+    "mandatory": "Actual parent factory allocates real status/effect lifetime; admitWeaponSelfEffects executes original global and per-effect RNG gates, virtual Affect/reapply, original OnEffectApply and pending registration. Actual update/clear/dispose remain effect modules."
+  },
+  "debug": {
+    "log": ".local/reports/native-player-weapon-debug-v13-effect-asan.log",
+    "sha256": "8789470506ec07a3e6b1a2edd22b533210722492fd96ad5069919bddf82fd189",
+    "observed": "ASan+UBSan source catalog DTO and weapon frame/reload/ARC tests passed; no effect admission or gameplay claimed by projection"
+  },
+  "owned_REA_sessions": "none"
+}

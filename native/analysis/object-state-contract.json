@@ -1,0 +1,54 @@
+{
+  "recorded_at": "2026-10-17T04:27:06.274249+00:00",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "matching_pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "AttachLua": {
+    "native_action": 159,
+    "Execute_case_va": "0x180251f9d",
+    "Thing_case_va": "0x1802e3e5c",
+    "Thing_LuaTable_offset": "0x150",
+    "evidence_id": "ev_4d3b1f59bbe955bb1e4369e4272e57e0e7bab71ddd06583daccd98ced019b381",
+    "complete_bundle": ".local/reports/native-rea-thing-script-recovered-bundle.json",
+    "semantics": "Replace table by shared identity unless OnlyNullKeys=true and existing table is valid; then shallow-copy only missing supported string/int keys. False/0 are present. Owner destruction releases its table handle, other Lua aliases survive.",
+    "debug": ".local/reports/native-object-lua-debug-final.log"
+  },
+  "GetMapThings": {
+    "native_action": 274,
+    "native_case_va": "0x18025671b",
+    "evidence_id": "ev_4bd4cbc761567beeba2d3cbe8ce7b4019e5ba90304b9d7c79990fabddfb6852a",
+    "source_report": ".local/reports/native-rea-metadata-table-query.json",
+    "semantics": "Fresh MapThingsTable maps original IDs to names for any matching raw group Name/Names. Names overrides Name; no live/Active gate. Native GetAllThings traversal order remains unresolved.",
+    "runtime_limit": "Seed0 original precreation does not take the RandomSwaps branch; this API is statically corroborated, not a claim of all-seed room startup."
+  },
+  "AddToGroup": {
+    "execute_case_va": "0x18025208b",
+    "Thing_AddToGroup_rva": "0x2e4930",
+    "evidence_id": "ev_cf4153b179c3ebe8873508b50071d447b0b1ee95393cfc6918f1e747c0990af9",
+    "semantics": "Auto-create named groups; add unique memberships. First or explicit DrawGroup is promoted by swapping with index0. ScriptArgs Names overrides Name. Secondary groups remain available to action selection."
+  },
+  "FlipHorizontal": {
+    "native_action": 117,
+    "native_body_rva": "0x2b7780",
+    "source_report": ".local/reports/native-body-flip-horizontal.json",
+    "semantics": "XOR body horizontal flip, invalidate graphics, refresh body. Reconstruction retains flip plus graphics/geometry dirty state; actor render/physics consumers remain unfinished."
+  },
+  "BreakableAnimations": {
+    "original_source": "Content/Game/Animations/EnemyAnimations.sjson:341-364",
+    "names": [
+      "BreakableIdle1",
+      "BreakableIdle2",
+      "BreakableIdle3"
+    ],
+    "scope": "Original single-frame ConstantNoUpdate metadata including Scale/Offset. No actor texture rendering is claimed."
+  },
+  "PlatformAdapter": {
+    "SetRichPresence": "Original Key/Value strings stored in VM-local state; Android offline backend has no Steam/social publication. Intentional platform adapter policy."
+  },
+  "phase_boundary": "Metadata and validated creation plan now remain separate from live entities. Precreation has only two original Lua-created vignette anchors. Native actor/component initialization, OnSpawn and World::Start remain unimplemented.",
+  "native_debug_trace": ".local/reports/native-host-trace-19.json",
+  "native_debug_next_missing_action": "EquipWeapon",
+  "device_operations": false
+}

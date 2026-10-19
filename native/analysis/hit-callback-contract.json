@@ -1,0 +1,215 @@
+{
+  "schema": "hades-native-hit-callback-contract-v1",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "scope": "Original native TakeHit to Script::OnHit args, original Lua health ownership; portable args builder only. Not a collision solver or full damage multiplier port.",
+  "native_entry": {
+    "LifeComponent_TakeHit": "RVA0x2b7cd0,5588bytes",
+    "Script_OnHit": "RVA0x24d200,4105bytes",
+    "TakeHit_complexity": "Native function performs hit audiovisual effects, coverage block, effect/trait multipliers, armor/vulnerability/obstacle modifiers, damage rounding, native event/volley bookkeeping, Lua dispatch, attacker effect counters and OnHitWeapon request. Complete computation is retained as evidence and not replaced with constant damage here.",
+    "attached_table_gate": "At1802b8eaf..8ec4 require victim Thing.pAttachedLua pointer+0x150 and registryRef+0x158 both nonzero. Otherwise original OnHit callback loop is skipped.",
+    "dispatch_order": "Iterate original OnHit registrations atglobal RVA1ccfcc0..1ccfcc8; each Script::OnHit creates fresh table via Lua::NewTable(original TRIGGER_ARGS_TABLE_NAME), fills fields, then Script::run with victim and actual victim GetName. Source filter/common callback behavior is shared with opening-callback-contract.json.",
+    "early_coverage": "Certain directional coverage blocks invoke ScriptManager::OnProjectileBlock and return DamageResult before OnHit loop. Do not emit OnHit for that early-return path. Exact arc/weapon/projectile eligibility remains in retained native evidence; not yet portable.",
+    "global_invulnerability": "Thing::IsInvulnerable uses active animation invulnerable or live Life.IsInvulnerable; regular hit path passes this bool to OnHit instead of subtracting native health. Lua Damage handles its own blocking."
+  },
+  "DamageResult": {
+    "size": 28,
+    "fields": [
+      {
+        "name": "HitObstacle",
+        "offset": 0,
+        "type": "bool"
+      },
+      {
+        "name": "HitArmor",
+        "offset": 1,
+        "type": "bool"
+      },
+      {
+        "name": "HitVulnerability",
+        "offset": 2,
+        "type": "bool"
+      },
+      {
+        "name": "UsedTagMultiplier",
+        "offset": 3,
+        "type": "bool"
+      },
+      {
+        "name": "IsCrit",
+        "offset": 4,
+        "type": "bool"
+      },
+      {
+        "name": "ActualDamageAmount",
+        "offset": 8,
+        "type": "float32"
+      },
+      {
+        "name": "TotalDamageMultipliers",
+        "offset": 12,
+        "type": "float32"
+      },
+      {
+        "name": "ArmorMultiplier",
+        "offset": 16,
+        "type": "float32"
+      },
+      {
+        "name": "VulnerabilityMultiplier",
+        "offset": 20,
+        "type": "float32"
+      },
+      {
+        "name": "ObstacleMultiplier",
+        "offset": 24,
+        "type": "float32"
+      }
+    ],
+    "ownership": "Result computed by native hit state; not remaining health. TotalDamageMultipliers is retained in DTO but not exposed as a separate field by Script::OnHit."
+  },
+  "Script_OnHit_signature": {
+    "this": "Script*",
+    "args_in_pdb_order": [
+      "Thing*victim",
+      "Weapon*weapon",
+      "boolisInvulnerable",
+      "Thing*attacker",
+      "constDamageResult&",
+      "Effect*effect",
+      "Projectile*projectile",
+      "floatimpactAngleRadians",
+      "floatimpactLocationZ",
+      "floatdistanceSquared",
+      "boolinvulnerableFromCoverage",
+      "boolmeetsEffectDamageMultiplier",
+      "booleffectIsTriggered",
+      "boolfirstInVolley"
+    ],
+    "caution": "These descriptive names were mapped from actual field writes/stack slots, not recovered original parameter labels."
+  },
+  "args": {
+    "common": {
+      "name": "victim virtual GetName",
+      "triggeredById": "actual victim Thing.mId+0x6c",
+      "TriggeredByTable": "alias actual victim attached Lua table, not a copy"
+    },
+    "attacker_present": {
+      "AttackerId": "actual Thing.mId",
+      "AttackerName": "virtual GetName",
+      "AttackerTable": "alias actual attached table; nil when missing",
+      "MeetsEffectDamageMultiplier": "passed bool, present only when actual attacker Thing supplied",
+      "AttackerIsObstacle": "actual typeflag predicate mask0x121"
+    },
+    "attacker_absent_weapon_present": "If Weapon.ownerId+0x30!=-1, emit AttackerId cached owner ID and AttackerName cached owner name+0x180. No fabricated attacker table. MeetsEffectDamageMultiplier/AttackerIsObstacle absent.",
+    "weapon_present": {
+      "SourceWeapon": "WeaponData.Name",
+      "DealsDamageOrControlEffect": "Weapon::DealsDamage OR actual projectile-valid flag and projectile effect Active=true,Duration>0, any DisableAttack/Move/Rotate",
+      "IsPerfectCharge": "Weapon+0x12 actual flag"
+    },
+    "projectile_present": {
+      "SourceProjectile": "actual Projectile virtual GetName",
+      "ProjectileDeflected": "Projectile+0x4c0",
+      "BlinkWeaponActive": "Projectile+0x3b6",
+      "ProjectileAdditiveDamageMultiplier": "Projectile+0x3cc float",
+      "ProjectileVolley": "Projectile+0x3c0 int",
+      "FireIndex": "Projectile+0x3bc int",
+      "ImpactVelocity": "0 if victim has no physics or IsImmuneToForce; otherwise actual ProjectileData+0x618. Omitted entirely when no projectile."
+    },
+    "effect_present": {
+      "EffectName": "Effect.pData.Name",
+      "EffectIsTriggered": "passed bool, only emitted when effect exists"
+    },
+    "always": [
+      "IsInvulnerable",
+      "DamageAmount=DamageResult.ActualDamageAmount",
+      "IsCrit",
+      "HitArmor",
+      "ArmorMultiplier",
+      "HitVulnerability",
+      "VulnerabilityMultiplier",
+      "HitObstacle",
+      "ObstacleMultiplier",
+      "ImpactAngle",
+      "InvulnerableFromCoverage",
+      "ImpactLocationZ",
+      "UsedTag",
+      "FirstInVolley",
+      "DistanceSquared",
+      "VictimIsTraitor"
+    ],
+    "ImpactAngle": "double(radiansFloat)*exactdouble0x404ca5dc1a63c1f8, roundbackfloat32, then promote to Lua number. Equivalent C++ hexconstant0x1.ca5dc1a63c1f8p+5.",
+    "VictimIsTraitor": "actual UnitStatus.mIsTraitor atUnit+0x4f0 when Unit; false for other thing types.",
+    "presence": "Absent source kinds omit their field groups; do not manufacture empty weapon/effect/projectile names or tables."
+  },
+  "lua_ownership": {
+    "source": {
+      "path": "hades/.local/game/base/Content/Scripts/Combat.lua",
+      "sha256": "cfa5327b5af89380ca4988315d380b40026d7915a967ad905124f5dc82182341"
+    },
+    "registration": "Exactly one direct OnHit registration in bounded99-script directory search: Combat.lua2609, unfiltered.",
+    "order": "Original callback first resolves attacker/victim tables and weapon data, starts synchronous thread initial resumes for hit hooks/presentation; then calls Damage(victim,args) only if DamageAmount>0. The original scheduler owns subsequent yields.",
+    "Damage_gate": "Combat.lua722 returns when victim/table Health missing or alreadydead without PureDamage. Nonpure path blocks IsInvulnerable and Lua InvulnerableFlags/PersistentInvulnerableFlags, computes original damage multipliers/additions.",
+    "health": "Hero Health subtraction at791, enemy normal reduction at879. Do not subtract health in native builder before callback.",
+    "death": "Original Damage at812 checks Health<=0 and CannotDieFromDamage, phase/last-stand/death presentation then Kill(victim,args). Kill may call native actor destroy later; not a native pre-dispatch health loop."
+  },
+  "portable_builder": {
+    "files": [
+      "native/app/hit_arguments.hpp",
+      "native/app/hit_arguments.cpp"
+    ],
+    "api": "pushHitArguments(L,NativeHitArguments,victimTableIndex,attackerTableIndex,error)",
+    "semantics": "Each Ready creates one fresh table, aliases actual owner tables, publishes exact global_triggerArgs and leaves table on stack. Missing victim attached table returns explicit skipped status; malformed identities/text/nonfinite values return error before publishing. Parent must invoke matching original callbacks and retain each args table across yields.",
+    "limits": [
+      "DTO requires already computed native DamageResult and force/weapon/trait states. Builder cannot establish real collision or correct damage by itself.",
+      "Caller must resolve actual same-VM attached table indices; type check cannot establish that ownership by itself.",
+      "Finite/embedded-NUL validation is portable subset policy, not original rejection evidence."
+    ],
+    "test": {
+      "source": "native/analysis/hit_arguments_smoke.cpp",
+      "result": "ASan+UBSan Lua5.2 passed",
+      "kind": "Synthetic observer of alias identity, conditional fields, radians conversion, globals/stack, untouched Health and invalid-input handling; not original gameplay."
+    }
+  },
+  "remaining_unknowns": [
+    "Portable full collision admission and complete TakeHit arithmetic/crit/coverage/volley/effect branches.",
+    "Native death/destroy ordering after original Lua Kill and full combat presentation/audio.",
+    "Actual all-effect callbacks and active owner changes during hit dispatch."
+  ],
+  "reports": [
+    {
+      "path": "hades/.local/reports/native-rea-life-hit.json",
+      "sha256": "9d1890e033580fd9cef8ba5adf64119f7c5a5b82b21f92d3d98a58576de8ca98",
+      "evidence_id": "ev_65a766c571a851d1589c649081b52d50c349f1752be1c426785301d4f589872a"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-life-script-on-hit.json",
+      "sha256": "70b577b75a934e4888e3b8635aa8ccd7faf2199ada4dda50b62fd87f0598032a",
+      "evidence_id": "ev_556538289dbeb532d44ca3a37a1cb78ce6ceb40c1eabd9e89ff108c723abfe8d"
+    },
+    {
+      "path": "hades/.local/reports/native-property-life-take-hit.json",
+      "sha256": "a71ae9d2f288a82075f2f061c59efce7e244a48c0d7769e2944c4d1026b13d52"
+    },
+    {
+      "path": "hades/.local/reports/native-life-script-on-hit.json",
+      "sha256": "d9708512a9a8b3f97e0273f145c3f69c9aef4a5872ea6d4e05d57a96554f1e14"
+    },
+    {
+      "path": "hades/.local/reports/native-life-damage-result-pdb.txt",
+      "sha256": "e4c901ebc86e6dac668c73c974f46fc4f9ef9d47d55bd2f43ac8f15b00beffa1"
+    },
+    {
+      "path": "hades/.local/reports/native-property-thing-is-invulnerable.json",
+      "sha256": "ac9a9d7d72d4be162ced8020925476348a614f98af1cf577d7613e81ac509373"
+    },
+    {
+      "path": "hades/.local/reports/native-rea-status-on-effect-cleared.json",
+      "sha256": "1b3bbcb00c0ed4093f1360e24e53f4ede38ca4b4eb8264767399a9286832d944",
+      "evidence_id": "ev_c259fd4454e8dc590d88d053fb5f8d171483f9de98f7a96ec313eeb261f4aa1a"
+    }
+  ]
+}

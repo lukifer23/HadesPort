@@ -1,0 +1,37 @@
+{
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_type": "Matching PDB and LLVM bounded disassembly; no Windows runtime execution",
+  "source": [
+    {
+      "path": ".local/reports/native-execute-groups.json",
+      "sha256": "21b05d7e3dca59cd9b8ad4945d49fabeba05242729cf297fa1c2aad3455c0b12"
+    },
+    {
+      "path": ".local/reports/native-active-camera-ctor-static.json",
+      "sha256": "fb98866d9b1c3778f2b0397a4a76c846056b696beb5bdf611443da4c697d22ff"
+    },
+    {
+      "path": ".local/reports/native-active-camera-update-static.json",
+      "sha256": "07b5274a2bb72f4e42a59016a02df01142a08e8b1b292921d32d9e3dbda4b58f"
+    },
+    {
+      "path": ".local/reports/native-active-step-vector4-static.json",
+      "sha256": "a33a8b393b8b372271298593f2b47f6d7a86b16b9339440f569995cc589a5c64"
+    },
+    {
+      "path": ".local/reports/native-active-camera-reset-static.json",
+      "sha256": "03e4b0c1e76af734265cc91ce790df59fe9ba856178b17c681a1c0446fe79f2b"
+    }
+  ],
+  "native_actions": {
+    "FadeOut25": "case252281: GetColor/GetDuration, writeCamera goalRGBA +d0. Duration<=0 copiescurrentRGBA +e0 andspeed+44=0, else speed=1/duration.",
+    "FadeIn26": "case252239: setgoalAlpha0, Duration<=0currentAlpha0 andspeed0, else speed=1/duration. RGB retained.",
+    "CameraUpdate": "3026a6..3026f7: ifColorChangeSpeed!=0, StepTowardVector4(current,goal,actualCameraElapsed*speed). Scalar independent per-channel clamped step, NOT normalized vector or Body easing."
+  },
+  "implementation": "native/app/camera_fade.cpp; source Lua actions now mutate real Camera fade state. Renderer presentation/full Camera schedule still separate until active world loop.",
+  "limits": [
+    "Native GetDuration alias/random ranges not yet bound; current original first-room Duration0 handled.",
+    "Color supports actual RGBA byte arrays and R/G/B/A subset; named color lookup guarded.",
+    "Nonfinite values rejected under explicit portable policy."
+  ]
+}

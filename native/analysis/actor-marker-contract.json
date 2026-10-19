@@ -1,0 +1,48 @@
+{
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "matching PDB/LLVM static and retained REA; no supplied game execution",
+  "session": {
+    "closed": true,
+    "report": ".local/reports/native-rea-effect-leaf-close.json",
+    "gap": "first leaf import timed out; no new decompilation claimed"
+  },
+  "schema": "hades-actor-marker-contract-v1",
+  "packet": {
+    "path": ".local/native-assets/hero-markers-v1/actor-markers.bin",
+    "bytes": 1066268,
+    "sha256": "b47a128606456e273a6081bc638c535a5b1cdff18e7f9744f3d3be9f3d89012e"
+  },
+  "manifest": ".local/native-assets/hero-markers-v1/manifest.json",
+  "format": "native/tools/ACTOR_MARKER_FORMAT.md",
+  "sources": [
+    {
+      "path": "native/app/actor_marker.cpp",
+      "bytes": 5208,
+      "sha256": "677ea003bc7e1443ffb1f5597a6c6cae20156b698e6a86eb324dae85c153ea55"
+    },
+    {
+      "path": "native/app/actor_marker.hpp",
+      "bytes": 1806,
+      "sha256": "d5c72cb631dfc6ec20c667ba6764a5de1a0a6dc38141ed3cde988ed90eaec452"
+    },
+    {
+      "path": "native/tools/export_actor_markers.py",
+      "bytes": 5171,
+      "sha256": "5722a2b42ad69a12ae18fad8fe45142697fe7d2eb1db3784690eb4ff19968fb7"
+    }
+  ],
+  "validation": ".local/reports/native-actor-marker-validation.json",
+  "procedures": {
+    "FromFile": "0x18009efe0",
+    "BookMarkerOffset": "0x1802b0920",
+    "BookMarkerLocation": "0x1802b0d10",
+    "GetScale": "0x180298bb0",
+    "GetDrawAngle": "0x1802980a0"
+  },
+  "limits": [
+    "Native Vector2 marker location, not ground XYZ. Actual owner location/totalZ/shake/drawAngle required.",
+    "All multi-angle Book draw angles zero; single-angle rotating branches require actual state.",
+    "SwordDash tracks cover16 of32movieangles; native out-of-range normalized zero retained.",
+    "Actual game marker execution not observed."
+  ]
+}

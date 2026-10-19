@@ -1,0 +1,105 @@
+{
+  "schema": "hades-source-atlas-hull-contract-v1",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "originals": [
+    {
+      "path": ".local/native-assets/opening-fx-v5/scene-affine.bin",
+      "bytes": 111675996,
+      "sha256": "35faae7b545bf314063b3b7f0a30877398e55ec09bbbb02bf754264d31aa1799"
+    },
+    {
+      "path": ".local/native-assets/opening-fx-v5-animation/animations.bin",
+      "bytes": 245755555,
+      "sha256": "77c2d92cdadb9c7b88caed5a071110a99d18b3a25d45941a5ea98d6b1da41a6a"
+    }
+  ],
+  "packet": {
+    "path": ".local/native-assets/opening-hulls-v1/hulls.bin",
+    "bytes": 78560,
+    "sha256": "cdad09377351b0743930b00a4f22f8691e4c16b777e1eb6edbe1671e78e86dcd"
+  },
+  "exporter": "native/tools/export_scene_hulls.py",
+  "derived_manifest": ".local/native-assets/opening-hulls-v1/manifest.json",
+  "layout": {
+    "header": "HHL1 + 32raw sceneSHA + 32raw animationSHA + u32textureCount + u32clipCount",
+    "static": "textureCount polygons",
+    "animated": "per clip u32frameCount then frameCount polygons",
+    "polygon": "u32pointCount then pointCount*(float32u,float32v); count0 means original rectangle fallback",
+    "endianness": "little",
+    "header_bytes": 76,
+    "requires": [
+      "scene-sha256.bin",
+      "animations-sha256.bin"
+    ]
+  },
+  "recovered": {
+    "enable_hulls_default": true,
+    "eligible_mesh": "Flat0 or Vertical1, source default/current compatible rectangle, atlas hull nonempty; selected static source has no custom destination/source rectangles. Compiled Thing default MeshType=Vertical1.",
+    "normalization": "halfW=floor(width/2), halfH=floor(height/2); u=clamp(float32((x+halfW)/(2*halfW)),0,1), similarlyv. Native odd dimensions intentionally use twice integer half.",
+    "signed_area": "float32 accumulation of (previousY-y)*(x+previousX), then multiply0.5; retains only strict -1 < area < float32(-0.05), otherwise original rectangle fallback.",
+    "triangles": "Original fan: point0,pointi,pointi+1; vertices=(pointCount-2)*3.",
+    "portable_transform": "Hull UV normalized to cropped original frame. Invert HDS source UV flips to affine corner fractions; map via TL+(TR-TL)*u+(BL-TL)*v, preserving recovered scale/stretch/rotation/offset and parallax.",
+    "actual_static_hulls": 73,
+    "static_textures": 74,
+    "actual_animated_hulls": 1058,
+    "animation_frames": 1069,
+    "clips": 14
+  },
+  "native_reports": [
+    ".local/reports/native-graphics-enable-hulls-static.json",
+    ".local/reports/native-graphics-mesh-from-drawable-static.json",
+    ".local/reports/native-graphics-normalize-hull-static.json",
+    ".local/reports/native-graphics-build-hull-static.json",
+    ".local/reports/native-graphics-atlas-hull-static.json",
+    ".local/reports/native-graphics-atlas-read-static.json",
+    ".local/reports/native-graphics-hull-direct-callers.json",
+    ".local/reports/native-collision-thing-data-defaults.json"
+  ],
+  "evidence": [
+    {
+      "path": ".local/reports/native-rea-graphics-normalize-hull.json",
+      "evidence_id": "ev_f90b7ea0542367faf01b136da0836304eea8bd79eb7d29b8400554c27167256f"
+    },
+    {
+      "path": ".local/reports/native-rea-graphics-build-hull.json",
+      "evidence_id": "ev_c3dca80e0f6c9d6b9777e1a73f41746d9148cec64e508f838fc1416071494677"
+    },
+    {
+      "path": ".local/reports/native-rea-graphics-mesh-with-hull.json",
+      "evidence_id": "ev_e94068aaab6450953a59327c07b171d5d67ac591413e0758dbc8f30dfba2b1a0"
+    }
+  ],
+  "loader_bounds": {
+    "max_vertices_per_polygon": 128,
+    "max_total_points": 262144,
+    "max_clip_frames": 10000,
+    "max_total_frames": 100000,
+    "max_generated_vertices": 2000000,
+    "exact_hashes_counts_and_suffix": true,
+    "finite_normalized_UV": true
+  },
+  "validation": {
+    "all_1069_frames_drawn": ".local/reports/renderer-hulls-coverage-final.json",
+    "lifecycle_asan_ubsan": ".local/reports/native-hulls-lifecycle-check.log",
+    "visual_delta": ".local/reports/renderer-hulls-visual-delta.json",
+    "capture": ".local/reports/renderer-hulls-after.png",
+    "arm64_compile": [
+      "graphics_scene.cpp",
+      "scene_animation.cpp",
+      "scene_renderer.cpp"
+    ]
+  },
+  "limits": [
+    "Hulls largely clip transparent pixels; independent alpha audit finds at most6 solid-alpha pixels outside an individual static hull. This is not proof that missing hulls caused broad black areas.",
+    "No official engine frame comparison; static/deterministic-phase clips only. Dynamic mesh rebuilds and native scene graph ordering remain incomplete.",
+    "Original HDS3/HDA1 RGBA and geometry packets unchanged."
+  ],
+  "session_lifecycle": {
+    "owned_sessions_remaining": 0,
+    "close_report": ".local/reports/native-rea-graphics-hull-close.json"
+  }
+}

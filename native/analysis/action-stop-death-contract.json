@@ -1,0 +1,118 @@
+{
+  "schema": "HadesActionStopDeathContract1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "resources": {
+    "path": ".local/native-assets/action-effects-v3/manifest.json",
+    "bytes": 183671,
+    "sha256": "18a9a47a293fa4d605c4c82662b647a51ae129dd379fc43872a1553c82b94b77"
+  },
+  "packet": {
+    "path": ".local/native-assets/action-effects-v3/action-effect-frames.bin",
+    "bytes": 1152616,
+    "sha256": "d3ba18b8a2c6fb4ce3cad9081086361baae8e34c87671603a24a679a5c9ce814"
+  },
+  "source_behavior": {
+    "stop": "Original ZagreusSwordRunStop source frame10 VisualFx WeaponStopLightSword and frame22 WeaponStopWinkSword, original full-angle r_hand_TRACKING marker provider. Light actual time spawner emits6 WeaponStopParticlesSword, source interval/caps and retained manager admission.",
+    "audio": "Actual WingFlapMedium and PowerUpFwoosh original graphs/encoded streams, audio-events-opening-v12. Runtime factory sound path uses actual listener/3D source adapter; fixture listener2D branch.",
+    "skew": "BuildMesh239c90: IsometricSkew Y adds pi/2 to GetDrawAngle2980a0. Selected RotationZ0/PostRotateScale1 branch matrix {cos(a),0,tan(sin(a)*atan(.5)),1} applied after ScaleX/Y around projected anchor; ordinary angle reset0 avoidsdoubleapply.",
+    "death": "Random BreakableDeathAnim source factory selects actual BookA/B via bounded engine RNG, no fakeRandomallocation. Real Book\u2192persistent ConstantNoUpdate End chain, original five UrnFragments choices, typed gravity/velocity/rotation.",
+    "postcreate": "configureCreated(handle,rawZ,firstGroup,true): actual returned concrete factory object. PreferUnmodifiedTime traverses child chain only for sourceTimeModifierFraction<0. Nonnegative source overrides preserved.",
+    "owner_dispose": "preDisposeOwner(id,actualBodyState) materializes selected maintainedscale/angle, preserves last sourceworldXY/rawZ and continued FX. Does not query retired Thing. Marker-attached detachment still explicit unsupported.",
+    "copy_state": "Native295bb0 TransferCopyBody/TransferScale preserve actual selected death Body scale; TransferDrawLayer false on sourceEnd preserves FX_Terrain rather than copiedStanding."
+  },
+  "proofs": [
+    {
+      "path": ".local/reports/native-action-build-mesh-static.json",
+      "bytes": 20600,
+      "sha256": "9cf05986498efa46fc0e3f6c5db8edacd2627f7d8f5e25e0b2a886bd0a45c454"
+    },
+    {
+      "path": ".local/reports/native-action-isometric-skew-static.json",
+      "bytes": 40570,
+      "sha256": "5b3b171ba859a013e48a177081062bb40fb8f4573a4d486bfc2b932b22fb0bf9"
+    },
+    {
+      "path": ".local/reports/native-action-get-rotation-static.json",
+      "bytes": 6834,
+      "sha256": "8ccc5f719d63af961c7f1f264a1d332c7760332bbf51052f5c5317f47b2c86c5"
+    },
+    {
+      "path": ".local/reports/native-action-copy-state-static.json",
+      "bytes": 24214,
+      "sha256": "b1a43bd2bd6578e98e5602ed86abf23e549002b37d41968ac2e0e3aa7a18601b"
+    },
+    {
+      "path": ".local/reports/native-audio-death-fx-unmodified-static.json",
+      "bytes": 10351,
+      "sha256": "1186e66ef40cf07ea0f8bf873ba0d9ca34b3b1d74616d78d725ffe071b7e688f"
+    },
+    {
+      "path": ".local/reports/native-active-thing-destroy-static.json",
+      "bytes": 15211,
+      "sha256": "8c49afd9c3c674068439c210960301dd0bf0268778bad6beb26b18586d19fac5"
+    },
+    {
+      "path": ".local/reports/native-audio-death-first-group-static.json",
+      "bytes": 4559,
+      "sha256": "ada70e2ea76bec84de0650506b1027919191fc9cd5d2ec06a693f7bea5dec43b"
+    },
+    {
+      "path": ".local/reports/native-effect-setup-spawned.json",
+      "bytes": 26124,
+      "sha256": "48cb6f54faff3f2e77aa5f6f5e79e299f4b79379e811a9265050834aee78c46e"
+    }
+  ],
+  "validation": {
+    "first_sword": {
+      "path": ".local/reports/native-action-effect-world-v3-smoke.json",
+      "bytes": 464,
+      "sha256": "6580ce0c95fac07102443266c2684b3149e02c9421891f72681538fa2ba8641f"
+    },
+    "stop": {
+      "path": ".local/reports/native-action-stop-v1-smoke.json",
+      "bytes": 522,
+      "sha256": "079821301a556b61d4258bbdc4955a9feb269c205225c5ee9222d75f8201a02a"
+    },
+    "death": {
+      "path": ".local/reports/native-action-death-v3-smoke.json",
+      "bytes": 362,
+      "sha256": "92b61b2b72d4b5c0bf77ce376ba2bea04959d561474d684f47c1e0240dd7e949"
+    }
+  },
+  "limits": [
+    "Focused ASAN fixtures use diagnostic uniform/bounded sequences, not original save RNG state.",
+    "No new Android/device execution in this pass.",
+    "Native Win64 worker completion order is not claimed; defined sequential Android ECS retains source equations/phase gates.",
+    "Generic marker detach, arbitrary 3D RotationZ/PostRotateScale skew combinations remain explicit unsupported.",
+    "Original shader displacement/light GPU was not executed by these CPU fixtures.",
+    "Death source OffsetY draw transform and all generic CopyState combinations are not established as complete pixel-equivalent."
+  ],
+  "files": [
+    {
+      "path": "native/app/action_effect.hpp",
+      "bytes": 3521,
+      "sha256": "b21ad39c7329b2f3bd745dda158af671ba6c6fd218ff0be469820d2eaa472d34"
+    },
+    {
+      "path": "native/app/action_effect.cpp",
+      "bytes": 25492,
+      "sha256": "027ea62d04bff1d489a68253c222aa61f00e0ba28ebec92a0db3d9aa39cc3152"
+    },
+    {
+      "path": "native/analysis/action_stop_smoke.cpp",
+      "bytes": 6890,
+      "sha256": "255370a5c906aafcfbb2f34a78cee5b5edb7a807cab09d087e74cdcfc4e57df0"
+    },
+    {
+      "path": "native/analysis/action_death_smoke.cpp",
+      "bytes": 4337,
+      "sha256": "d480b9a8bf3675461368a116f58d34d6a8a8d6e0a2aa4bb7ae78d245c481c4f8"
+    },
+    {
+      "path": "native/tools/export_action_effects.py",
+      "bytes": 9337,
+      "sha256": "8781b649e81ddce74c60a63cf6e8b5842a31277efffecdb800a5f58966b2ed51"
+    }
+  ],
+  "owned_rea_sessions_open": false
+}

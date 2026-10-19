@@ -1,0 +1,283 @@
+{
+  "schema": "hades-actor-disposal-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "Matching original PE/PDB plus LLVM static instructions; no original execution observed",
+  "reports": {
+    "manager-update": {
+      "path": ".local/reports/native-dispose-manager-update-static.json",
+      "sha256": "d52ecacdc8f7e5e3c32245a3352d908fcf2016cdbe6abe4fc257c80c4490916f",
+      "procedure": "sgg::ObstacleManager::Update",
+      "rva": "0x2c80c0",
+      "length": 7246
+    },
+    "manager-cleanup": {
+      "path": ".local/reports/native-dispose-manager-cleanup-static.json",
+      "sha256": "df090199ff1db9a8627353ca951a83596ff08a9658b06184101b4c34034e603e",
+      "procedure": "sgg::ObstacleManager::CleanupObstacles",
+      "rva": "0x2cc5b0",
+      "length": 281
+    },
+    "manager-dispose": {
+      "path": ".local/reports/native-dispose-manager-dispose-static.json",
+      "sha256": "515848427c43d3b404078698ea268dff536ae7df6c4f5375484f370ff42884f9",
+      "procedure": "sgg::ObstacleManager::Dispose",
+      "rva": "0x2cc900",
+      "length": 1692
+    },
+    "thing-virtual": {
+      "path": ".local/reports/native-dispose-thing-virtual-static.json",
+      "sha256": "3dad62a6b633a47ccc74acf59cb0876b8a6245b375920aec162e80ef7210f16a",
+      "procedure": "sgg::Thing::Dispose",
+      "rva": "0x2dc580",
+      "length": 769
+    },
+    "thing-bool": {
+      "path": ".local/reports/native-dispose-thing-bool-static.json",
+      "sha256": "6e095fafb0c5b5329df9898368ea9fe6ee3273f937ccfe289a1fa38eba8f6563",
+      "procedure": "sgg::Thing::Dispose",
+      "rva": "0x2dc1e0",
+      "length": 917
+    },
+    "obstacle": {
+      "path": ".local/reports/native-dispose-obstacle-static.json",
+      "sha256": "a72702fc477d78046ee3e1e5b635954ae109da474494d2422b91fd5b848928e6",
+      "procedure": "sgg::Obstacle::Dispose",
+      "rva": "0x2c2a30",
+      "length": 256
+    },
+    "obstacle-destroy": {
+      "path": ".local/reports/native-dispose-obstacle-destroy-static.json",
+      "sha256": "6b865ded3b4e1b123b200d7d13a4f8dd705db2c2eb33fcbc84ccdf68a36f305f",
+      "procedure": "sgg::Obstacle::Destroy",
+      "rva": "0x2c64c0",
+      "length": 231
+    },
+    "reset-components": {
+      "path": ".local/reports/native-dispose-reset-components-static.json",
+      "sha256": "9a9f589159c764da6ff3a58a57185ab3ceb88daff6a5c3796e9224231b4194c5",
+      "procedure": "sgg::Thing::ResetComponents",
+      "rva": "0x2ddf00",
+      "length": 673
+    },
+    "world-on-disposed": {
+      "path": ".local/reports/native-dispose-world-on-disposed-static.json",
+      "sha256": "e2fb630a976ee4a0cd27cdd58a8db96ede87adbab980fa5545f7022f3dce3d68",
+      "procedure": "sgg::World::OnDisposed",
+      "rva": "0x312ba0",
+      "length": 999
+    },
+    "thing-dtor": {
+      "path": ".local/reports/native-dispose-thing-dtor-static.json",
+      "sha256": "5f86d9865b39a70637574075f040d59227627c1e42ed5642994acdf477f485ac",
+      "procedure": "sgg::Thing::~Thing",
+      "rva": "0x2e4ad0",
+      "length": 2229
+    },
+    "obstacle-copy-values": {
+      "path": ".local/reports/native-dispose-obstacle-copy-values-static.json",
+      "sha256": "a1f0c135d3cffb718d9837da8583b82413b97254af332c40d66160585ce24b35",
+      "procedure": "sgg::Obstacle::CopyValues",
+      "rva": "0x2c1bd0",
+      "length": 455
+    },
+    "animation-attached-pre": {
+      "path": ".local/reports/native-dispose-animation-attached-pre-static.json",
+      "sha256": "d31e0d614a1f28ffcc5de48e7d7a99501ce4b5936a9e8d2810241d3dcb004c28",
+      "procedure": "sgg::Animation::OnAttachedToPreDispose",
+      "rva": "0x29a280",
+      "length": 830
+    },
+    "thing-defaults": {
+      "path": ".local/reports/native-dispose-thing-defaults-static.json",
+      "sha256": "949dc5b07f83a4a46f027ba38d0fa877ad95dd191fce9cafbf08abafdb3c3c51",
+      "procedure": "sgg::Thing::Defaults",
+      "rva": "0x2dbbb0",
+      "length": 739
+    },
+    "thing-init": {
+      "path": ".local/reports/native-dispose-thing-init-static.json",
+      "sha256": "dd18c96fb6e54a8471beb25f257d5286b1571c9e6bbca519da31cdcc2434fa7d",
+      "procedure": "sgg::Thing::Init",
+      "rva": "0x2dbea0",
+      "length": 253
+    },
+    "obstacle-defaults": {
+      "path": ".local/reports/native-dispose-obstacle-defaults-static.json",
+      "sha256": "efe79c4bb797e121e935cc60fd7464278903387cd179355b6308571ec7fa1803",
+      "procedure": "sgg::Obstacle::Defaults",
+      "rva": "0x2c2630",
+      "length": 137
+    }
+  },
+  "observations": [
+    {
+      "contract": "Destroy admission",
+      "details": "Thing.Destroy without Life writes mIsMarkedDead(+0x238) only. Obstacle.Destroy no-Life/empty death graphic queues its actual handle into manager sorted set+0xa0. Registration, components, attached Lua and active World lookup survive this call.",
+      "addresses": [
+        "0x1802e2175",
+        "0x1802c6558",
+        "0x1802c659c"
+      ]
+    },
+    {
+      "contract": "Manager boundary",
+      "details": "ObstacleManager.Update processes scheduled destroy set near its end, queues handles into deletion vector+0x60, and invokes CleanupObstacles at0x1802c9ca8. Already-marked-dead updated obstacles also enter deletion vector at0x1802c89b7. Cleanup invokes manager.Dispose in deletion-vector order.",
+      "addresses": [
+        "0x1802c9c22",
+        "0x1802c9c83",
+        "0x1802c9ca8",
+        "0x1802cc5f8"
+      ]
+    },
+    {
+      "contract": "Structural traversal",
+      "details": "Manager.Dispose removes the entry obstacle from its parent children vector, enqueues entry on FIFO, then for each valid lifetime enqueues its structural children in vector order before Thing.Dispose(). Generic attached Things are not structural children.",
+      "addresses": [
+        "0x1802cc945",
+        "0x1802cc992",
+        "0x1802cc9b8",
+        "0x1802ccc50",
+        "0x1802ccc62",
+        "0x1802ccc76"
+      ]
+    },
+    {
+      "contract": "Dispose() versus Dispose(bool)",
+      "details": "Noargs Thing.Dispose2dc1e0 returns if already disposed. It first invokes attached-animation OnAttachedToPreDispose and processes front/back DieWithOwner flags; then virtual Dispose(true)slot0x140; after return writes mIsDisposed(+0x63)=true, destroys remaining raw components, and nulls pointers.",
+      "addresses": [
+        "0x1802dc243",
+        "0x1802dc2ad",
+        "0x1802dc31a",
+        "0x1802dc358",
+        "0x1802dc365",
+        "0x1802dc50f"
+      ]
+    },
+    {
+      "contract": "Virtual obstacle and Thing cleanup",
+      "details": "Obstacle.Dispose(bool) removes DrawGrid record then calls Thing.Dispose(bool). Thing optional Life.Dispose is first, marks dead, calls ClearGridRecord virtual0x148, removes AutoLockable/useable/interaction, stops ambient, Audio.OnOwnerDeath, releases primary animation, clears attached/front/back collections, removes light, ResetComponents, group removal, World.OnDisposed, then clears Thing.mEntity. Obstacle then removes own AutoLockable flag entry, clears structural children/parent, disposes occlusion footprint.",
+      "addresses": [
+        "0x1802c2a65",
+        "0x1802c2a71",
+        "0x1802dc61d",
+        "0x1802dc67d",
+        "0x1802dc6ed",
+        "0x1802dc6f5",
+        "0x1802dc706",
+        "0x1802dc793",
+        "0x1802dc854",
+        "0x1802dc85e",
+        "0x1802c2acd"
+      ]
+    },
+    {
+      "contract": "ResetComponents",
+      "details": "Calls component virtual slots0x08 and0x28 from Thing.mComponents list in order; preserves/ensures Body, deletes non-Body component allocations including Physics and Text, releases refcounted component, clears component list. Noargs Dispose later destroys remaining Body.",
+      "addresses": [
+        "0x1802ddf50",
+        "0x1802ddf59",
+        "0x1802ddf62",
+        "0x1802ddf71",
+        "0x1802de0f2",
+        "0x1802de190"
+      ]
+    },
+    {
+      "contract": "World.OnDisposed",
+      "details": "Removes all sorting graph nodes and sort map, outline, active-thing map/group memberships/dirty set, then invokes registered World system virtual OnDisposed hooks. Thing entity is still intact during this callback; cleared by Thing.Dispose immediately afterward.",
+      "addresses": [
+        "0x180312c27",
+        "0x180312cda",
+        "0x180312cfa",
+        "0x180312dc3",
+        "0x180312edc",
+        "0x180312f3a"
+      ]
+    },
+    {
+      "contract": "Lua ownership",
+      "details": "Ordinary Thing.Dispose() and Dispose(bool) do not luaL_unref mAttachedLua(+0x150 state/+0x158 ref). Thing destructor explicitly unreferences at0x1802e5339; manager pool-reset Obstacle.CopyValues is obstacle-specific and does not copy or clear mAttachedLua. Do not unref on ordinary Destroy/dispose without a separate proven reset/reuse owner.",
+      "addresses": [
+        "0x1802e531c",
+        "0x1802e5328",
+        "0x1802e5339"
+      ]
+    },
+    {
+      "contract": "Handle and ECS retirement",
+      "details": "After noargs Dispose, removes entity\u2192obstacle handle mapping, increments manager handle generation, copies a default Obstacle-specific state into retired storage, then increments ECS entity generation and removes component data. Windows packed storage and numeric handles are not reused as source actor IDs.",
+      "addresses": [
+        "0x1802ccc7b",
+        "0x1802ccd1b",
+        "0x1802cce22",
+        "0x1802cced1",
+        "0x1802ccf0d"
+      ]
+    },
+    {
+      "contract": "Attached animation pre-dispose",
+      "details": "Valid animation/data required. DieWithOwner(fullData0xb1) marks disposed and marks owner dirty when DisableOwnerInput(full0x83). Otherwise preserves transform by copying attached current location if !LocationFromOwner(full0xc2), adding attached body angle if !AngleFromOwner(full0xc0), multiplying scale if !ScaleFromOwner(full0xbe); can inherit group and sorting state. Finally clears attachedTo/owner pointers, optional owned cull rectangle, and AttachedToTimeMultiplier ECS component.",
+      "addresses": [
+        "0x18029a2c0",
+        "0x18029a2f6",
+        "0x18029a323",
+        "0x18029a352",
+        "0x18029a4e8",
+        "0x18029a55d"
+      ]
+    },
+    {
+      "contract": "Pooled Lua reset",
+      "details": "Thing.Init calls virtual Defaults(slot0x160). Obstacle.Defaults calls Thing.Defaults. Thing.Defaults calls luaL_unref only when attached state nonnull and ref nonzero, then zeros both fields. This proves next Init/reset clears the retained table; ordinary Dispose does not.",
+      "addresses": [
+        "0x1802dbec3",
+        "0x1802c2639",
+        "0x1802dbda2",
+        "0x1802dbdbf",
+        "0x1802dbdc4",
+        "0x1802dbdcb"
+      ]
+    }
+  ],
+  "implementation": {
+    "files": [
+      "native/app/actor_lifecycle.hpp",
+      "native/app/actor_lifecycle.cpp"
+    ],
+    "scope": "No-Life actual Obstacle tree; Life-bearing descendant rejected before any mutation. Provider callbacks are mandatory for every external stage and receive actual component/lifetime metadata. Sticky fault retains partial state and prevents repeated cleanup. Actor storage and attached Lua owner remain retained.",
+    "adaptations": [
+      "Portable monotonic actor lifetime keys provide deferred sorted manager order. Numeric Windows recycled handles/packed allocation layout are not reproduced; exact cross-lifetime reuse ordering remains outside this bounded adapter.",
+      "No rollback is invented for provider failure; reconstruction stops with sticky diagnostic."
+    ],
+    "tests": [
+      "native/analysis/actor_lifecycle_smoke.cpp"
+    ],
+    "validation": {
+      "result": "passed",
+      "sanitizers": [
+        "AddressSanitizer",
+        "UndefinedBehaviorSanitizer"
+      ],
+      "log": ".local/reports/native-actor-lifecycle-smoke-v3.log",
+      "source_catalog_path": ".local/native-build/assets/actors.lua",
+      "source_catalog_sha256": "ae8fc2e5c28225ff1ad9ede4cc76194b0b90b45a5b77cdae8d5919b721c5e93b",
+      "coverage": [
+        "real source-derived BlankObstacle creation",
+        "Destroy remains registered until manager cleanup",
+        "three descendant FIFO disposal",
+        "48 ordered callback boundaries",
+        "surviving parent mutation",
+        "disposed/component/ECS boundaries",
+        "idempotent subsequent pump",
+        "partial failure and sticky no retry"
+      ],
+      "limits": [
+        "Callbacks in this focused orchestration test validate boundaries; they do not exercise real renderer/audio/text provider cleanup."
+      ]
+    }
+  },
+  "unknowns": [
+    "Actual external animation/audio/text/grid/system providers must implement stages or prove component absence; this orchestration alone does not establish original-resource disposal.",
+    "Life-bearing death animation/audio admission remains outside the module."
+  ]
+}

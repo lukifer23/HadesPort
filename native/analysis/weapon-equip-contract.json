@@ -1,0 +1,175 @@
+{
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "scope": "Bounded static preparation only; no new runtime weapon/no-op, no new Ghidra session, no device work.",
+  "first_original_request": {
+    "original_first_lua_call": "EquipWeapon({ Name = \"ArmorBreakAttack\", DestinationId = currentRun.Hero.ObjectId })",
+    "source": "Scripts/UpgradeManager.lua640",
+    "inheritance_chain": {
+      "1_BaseWeapon": {
+        "Name": "1_BaseWeapon"
+      },
+      "1_BaseMagicWeapon": {
+        "Name": "1_BaseMagicWeapon",
+        "InheritFrom": "1_BaseWeapon",
+        "LockTriggerForCharge": true,
+        "AutoLock": true,
+        "AutoLockRange": 650,
+        "AutoLockArcDistance": 90,
+        "ReloadOnCreation": false,
+        "FullyAutomatic": true,
+        "IgnoreOwnerAttackDisabled": true,
+        "IgnoreForceCooldown": true,
+        "AllowMultiFireRequest": true
+      },
+      "ArmorBreakAttack": {
+        "Name": "ArmorBreakAttack",
+        "InheritFrom": "1_BaseMagicWeapon",
+        "Type": "GUN",
+        "Projectile": "null",
+        "Effect": {
+          "Name": "ArmorBreakStun",
+          "Duration": 1.0,
+          "DisableMove": true,
+          "DisableRotate": true,
+          "DisableAttack": true,
+          "Active": true,
+          "CanAffectInvulnerable": true,
+          "Cancelable": false
+        }
+      }
+    },
+    "source_merged_explicit_fields": {
+      "Name": "ArmorBreakAttack",
+      "InheritFrom": "1_BaseMagicWeapon",
+      "LockTriggerForCharge": true,
+      "AutoLock": true,
+      "AutoLockRange": 650,
+      "AutoLockArcDistance": 90,
+      "ReloadOnCreation": false,
+      "FullyAutomatic": true,
+      "IgnoreOwnerAttackDisabled": true,
+      "IgnoreForceCooldown": true,
+      "AllowMultiFireRequest": true,
+      "Type": "GUN",
+      "Projectile": "null",
+      "Effect": {
+        "Name": "ArmorBreakStun",
+        "Duration": 1.0,
+        "DisableMove": true,
+        "DisableRotate": true,
+        "DisableAttack": true,
+        "Active": true,
+        "CanAffectInvulnerable": true,
+        "Cancelable": false
+      }
+    },
+    "sources": [
+      {
+        "path": "hades/.local/game/base/Content/Game/Weapons/Weapons.sjson",
+        "sha256": "227fa22f44657029503cc745d3642a9030a2ad223df8b5244f6ba83a41a05a61"
+      },
+      {
+        "path": "hades/.local/game/base/Content/Game/Weapons/PlayerWeapons.sjson",
+        "sha256": "7b51214ee3b9221959d0e801d71737609a0d6baaf5a7f8b3c9f7c0fc38b12582"
+      }
+    ],
+    "limits": [
+      "Static explicit source inheritance merge only; omitted compiled WeaponData defaults are not invented. Projectile=\"null\" is literal sentinel string, not JSON null."
+    ]
+  },
+  "observed_host_boundary": {
+    "log": "native-host-run-19.log",
+    "detail": "Original UpgradeManager.lua640 blocked at EquipWeapon after SetupHeroObject/AttachLua/AddToGroup. Does not establish combat execution."
+  },
+  "native_action": {
+    "id": 4,
+    "return": "Void",
+    "dispatch_case_rva": "0x251e73",
+    "handler_call_va": "0x180251e76",
+    "handler_rva": "0x25c5e0",
+    "handler_bytes": 673,
+    "selectors": "ScriptArgs DestinationIDs + DestinationNames resolved through World::GetActiveMapThings; loops every requested Names entry and selected active Thing.",
+    "steps": [
+      "LoadPackages bool defaultfalse: when true requests asynchronous asset package named after each weapon. First original call omitsit.",
+      "Native selected Thing must pass flags check ((~thingFieldAt8)&0x221)==0. Unit.mArsenal at0x428 is then used. Semantic decoding of full type flags is outside this pass.",
+      "HasWeapon(name) true -> no duplicate creation/reload.",
+      "Weapon::Create(name,arsenal.pOwner) looks up GameDataManager::GetWeaponData and allocates appropriate subclass pool; absent data returnsnull.",
+      "Arsenal::AddWeapon(newWeapon,false) performs actual controls/arsenal/bundled dependency state changes.",
+      "If weaponData.mDef.ReloadOnEquip true (WeaponData+0x8bc), reload then cooldown(-1)."
+    ],
+    "ignored_not_fabricated": "Action does not expose a success return. A reconstruction should report missing data/state rather than treat unknown weapon creation as successful."
+  },
+  "delegated_routines": {
+    "Weapon::Create_name": "0x84fd0,283bytes",
+    "Weapon::Create_data": "0x850f0,1301bytes; actual GunWeapon pool selected forGUN, vtable assignment at0x1800854da",
+    "Weapon::init": "0x88b60,751bytes",
+    "Weapon::SetupControls": "0x86220,256bytes",
+    "WeaponArsenal::HasWeapon": "0x2fec20,231bytes",
+    "WeaponArsenal::AddWeapon": "0x2fe900,466bytes",
+    "Weapon::getBundledWeapons": "0x85d10,637bytes",
+    "Weapon::reload": "0x85830,161bytes",
+    "Weapon::cooldown": "0x876e0,182bytes",
+    "Weapon::onReloadFinished": "0x87640,150bytes"
+  },
+  "required_state": {
+    "owner": "Existing selected live unit and distinct WeaponArsenal {pOwner,mWeapons,mControllableWeapons}; no global fake weapon list.",
+    "per_instance": "Weapon owns a copy of WeaponData/definition, mOwnerId and cached ownername, four resolved controls, projectile/spawned projectile data and validity flags, mAmmo, mClipShotsRemaining, mChargeTimeRemaining, mCooldownTimeRemaining, mReloadTimeRemaining, clip regen time, charging state.",
+    "controls": "SetupControls resolves Control/AlternateControl/SecondaryControl/DisallowedControl strings from original global RemappableControl table. Null control pointers are possible; default controllable classification requires pControl nonnull, DefaultControl true, ControlWindow<=0 and nonbundledAdd.",
+    "arsenal_add": "Sets up controls, appends weapon to mWeapons, recursively creates missing bundled named weapons. Adds to mControllableWeapons only under recovered control/default/window conditions. It also iterates native effect entries of type8 to add referenced weapons; full effect-type semantics not decoded here.",
+    "bundled_names_in_native_order": [
+      "SwapOnFire",
+      "AddOnFire",
+      "SwapOnRelease",
+      "CollisionWeapon",
+      "PostFireWeapon",
+      "MovingWeapon",
+      "CooldownWeapon"
+    ],
+    "initialization": "Weapon::init copies data/def, sets controls/owner identity, looks up and copies original projectile data, initializes charge/clip/ammo fields from definitions, handles ReloadOnCreation and InitialCooldown. Exact omitted compiled WeaponData defaults are still required.",
+    "reload_cooldown": "reload picks ReloadTime or native RNG range[min,max], writes mReloadTimeRemaining, immediately onReloadFinished when<=0. cooldown picks configured cooldown or native RNG range then positive explicit argument override, max with existing remaining. -1 uses configured cooldown, not forcedzero."
+  },
+  "recommended_next_implementation_scope": [
+    "Export SHA-bound ArmorBreakAttack + its full inherited native WeaponData defaults and effect metadata; preserve literal null projectile sentinel and native missing-projectile/validity handling rather than inventing a projectile.",
+    "Implement VM-owned/per-unit WeaponArsenal and real weapon instance initialization, duplicate detection, control references and dependency graph first; expose inspectable snapshots.",
+    "Keep unsupported fire/projectile/hit/effect execution explicit until native fire/update/hit contracts recovered. Equip must produce actual initialized state, not imply working combat."
+  ],
+  "remaining_unknowns": [
+    "Compiled defaults for omitted ArmorBreakAttack fields: controls, DefaultControl, ReloadOnEquip, ClipSize, ammo, timings and bundled references.",
+    "Complete WeaponData effect singular-to-array loading behavior and native effect-type8 dependency interpretation.",
+    "Weapon pool/reference lifecycle and complete update/fire/damage/effect behavior.",
+    "Actual first request is utility ArmorBreakAttack; successful equip alone would not establish player attack input or visible sword combat.",
+    "Bounded text search of Content/Game/Projectiles found no Name=\"null\" definition. Weapon::init checks GetProjectileData result and skips projectile-copy branch if null; no claim that a real null projectile exists."
+  ],
+  "reports": [
+    "native-weapon-equip-action.json",
+    "native-weapon-create-name.json",
+    "native-weapon-create-data.json",
+    "native-weapon-init.json",
+    "native-weapon-arsenal-add.json",
+    "native-weapon-hasweapon.json",
+    "native-weapon-setup-controls.json",
+    "native-weapon-bundled.json",
+    "native-weapon-reload.json",
+    "native-weapon-cooldown.json",
+    "native-weapon-reload-finished.json",
+    "native-fields-Weapon.txt",
+    "native-fields-WeaponDataDef.txt",
+    "native-fields-WeaponArsenal.txt"
+  ],
+  "source_bound_reports_sha256": {
+    "native-weapon-equip-action.json": "8d0ac688954c1d7402e48227cf3b1c181dbbd1702fa5003073a656dcad5f5e82",
+    "native-weapon-init.json": "7bfcb51f68fd5902853f5df0124fe3ac96c976ef7c687a114121d336c9854c51",
+    "native-weapon-arsenal-add.json": "e809e24a62c514b6e0ea320bb6cbc6ba922464da318e62b21762d0c5630cff4d",
+    "native-weapon-first-definition.json": "7988f33001672b6ef8ed94cdd2b32ae546029e6515ab9251c7ab80f57e1f87b0"
+  },
+  "resolved_followups": {
+    "effect_container_and_trigger": "native/analysis/weapon-effect-normalization-contract.json",
+    "component_runtime": "native/analysis/weapon-component-contract.json",
+    "integration_report": ".local/reports/native-unit-arsenal-pass.json",
+    "note": "Earlier normalization gap resolved; full effect behavior, live actor activation and actual combat remain incomplete."
+  }
+}

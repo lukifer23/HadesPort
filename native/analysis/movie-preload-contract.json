@@ -1,0 +1,171 @@
+{
+  "schema": "hades-native-compressed-movie-preload-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "observations": {
+    "action": {
+      "rva": "0x2657c0",
+      "arguments": "Cache string default empty; exact WeaponCache chooses category1, all others Stream0. Reset bool defaultfalse. ScriptArgs.Names preserves helper result order.",
+      "sequence": [
+        "Reset only selected cache when requested",
+        "For each requested name call Bink::Preload synchronously"
+      ]
+    },
+    "bink_preload": {
+      "rva": "0x1e02a0",
+      "sequence": [
+        "Actual AssetManager.GetBink(base name); if absent optional assert/log then return",
+        "Mark actual base movie cache category and preload it",
+        "Lookup name+actual mMaskSuffix(_mask); if present preload same category; absent mask is quiet"
+      ],
+      "file_extension": "Exact original mFileExtension initializer .bik; BinkFile.CreateBinkFile constructs filename requestedName+.bik at1801dfcfb..1801dfd29"
+    },
+    "movie": {
+      "rva": "0x1e0740",
+      "sequence": "Marks BinkFile cache category, pushes BinkFile copy to selected cache deque, immediately calls BinkStreamPreLoad; no pixel decoding in this chain"
+    },
+    "compressed_cache": {
+      "rva": "0x1e4880",
+      "key": "Actual BinkFile filename, case-sensitive hashed string",
+      "sequence": [
+        "Pop one queued BinkFile",
+        "Already cached filename skips allocation/read",
+        "Native PlatformFile.FileSize -> round size up to16-byte allocation",
+        "Admit only oldUsed+alignedSize<capacity (strict equality rejection)",
+        "Reserve arena offset BEFORE actual ReadAllBytes; failed short read does not roll back offset",
+        "Only exact complete ReadAllBytes byte count publishes filename\u2192pointer"
+      ],
+      "reset": "Reset1e4d60 clears cache map and arena used0; no GPU/decoded readiness follows",
+      "compiled_budgets": {
+        "Stream": 587202560,
+        "WeaponCache": 157286400,
+        "provenance": "ConfigOptions initializers11b60/11bf0; constructor Init1e0430 passes both selected args independently"
+      }
+    },
+    "runtime_representation": "Separate lazy compressed byte vectors preserve native per-category accounting/reservation/generation; native contiguous pointer ABI is not claimed"
+  },
+  "implementation": {
+    "module": "native/app/movie_preload.hpp/.cpp",
+    "exporter": "native/tools/export_movie_preloads.py",
+    "catalog": ".local/native-assets/movie-preloads-v1/movie-preloads.lua",
+    "schema": "hades-native-movie-preload-v1",
+    "assets": "movie-preloads/<source-sha256>.bik",
+    "validation": [
+      "movie_preload_smoke ASan+UBSan passed strict bounds, duplicates, independent reset, failed-read reservation and integrity rejection",
+      "movie_preload_source_probe ASan+UBSan read actual original compressed copies; all source bases available"
+    ],
+    "actual_probe": {
+      "exit_code": 0,
+      "stream_movies": 17,
+      "stream_reserved": 120217024,
+      "weapon_movies": 7,
+      "weapon_reserved": 86425936,
+      "actual_resident_compressed_bytes": 206642824
+    },
+    "export": {
+      "base_request_names": 23,
+      "exported_movies": 23,
+      "raw_compressed_bytes": 198411592
+    },
+    "missing_bases": [],
+    "missing_optional_masks": [
+      "ZagreusIdle_Bink_mask",
+      "ZagreusOnHit_Bink_mask",
+      "ZagreusStart_Bink_mask",
+      "ZagreusStop_Bink_mask",
+      "ZagreusRun_Bink_mask",
+      "ZagreusStun_Bink_mask",
+      "ZagreusInteractionFishing_Bink_mask",
+      "ZagreusInteractionFishingFail_Bink_mask",
+      "ZagreusWalk_Bink_mask",
+      "ZagreusWalkStop_Bink_mask",
+      "ZagreusHeroLanding_Bink_mask",
+      "ZagreusInteractEquip_Bink_mask",
+      "RoomTransition_mask",
+      "ZagreusDash_Bink_mask",
+      "ZagreusDashVFX_Bink_mask",
+      "ZagreusSwordParry_Bink_mask",
+      "ZagreusRangedWeapon_Bink_mask",
+      "ZagreusWrath_Bink_mask",
+      "ZagreusSword_Bink_mask",
+      "ZagreusSwordReturnToIdle_Bink_mask",
+      "ZagreusSwordDashAttack_Bink_mask",
+      "ZagreusSwordRun_Bink_mask",
+      "ZagreusSwordRunStop_Bink_mask"
+    ]
+  },
+  "limits": [
+    "Compressed original bytes only: no image/movie decoder, video playback, texture install, or GPU readiness.",
+    "Exporter records actual original SHA256 and runtime verifies copied length+CRC32; runtime SHA256 recomputation is not implemented.",
+    "Portable provenance mismatch explicitly records integrity_mismatch; native cache merely checks read count.",
+    "Compiled default budgets retained; source configuration override if any remains caller responsibility.",
+    "Movie/File borrowed views expire at selected-cache reset; no native pointer lifetime claimed.",
+    "Ahead-of-call weapon list is an explicit source declaration, not fabricated reached original runtime call.",
+    "No original game/installer/Windows binary executed; no device operations."
+  ],
+  "evidence": [
+    {
+      "path": ".local/reports/native-active-preload-binks-static.json",
+      "sha256": "e6b9d7fe7c5fbfe56b696ba1074efdd34f27830c51ade32566f5efe72ae8ec9f"
+    },
+    {
+      "path": ".local/reports/native-active-bink-preload-static.json",
+      "sha256": "ea26051c33b309bf6f2df5ec9edb0a84e470bc1c9794d8d80750791acedd7697"
+    },
+    {
+      "path": ".local/reports/native-active-stream-preload-static.json",
+      "sha256": "aca1efcd893cd3d8028558360b988cb199d575e0d2586ae6718ac2694c091446"
+    },
+    {
+      "path": ".local/reports/native-active-movie-preload-static.json",
+      "sha256": "c64f5026d54d6f1054929dabc2ab08ce9191944a5e9688932cfa54332d726951"
+    },
+    {
+      "path": ".local/reports/native-movie-stream-budget-default.json",
+      "sha256": "d1ac63ada438ea430cb5d0aa9cf97df1a808b1afa8d48c86dfa1a5acaad42789"
+    },
+    {
+      "path": ".local/reports/native-movie-weapon-budget-default.json",
+      "sha256": "5d9ccf042937fdf68f55b3fb5faad38ed5b025462545a77255302367d293c106"
+    },
+    {
+      "path": ".local/reports/native-movie-cache-init.json",
+      "sha256": "94cc42f2f641dec381db303f7d68540225b93d4b0b05a6f1f92f58904a40f521"
+    },
+    {
+      "path": ".local/reports/native-movie-stream-constructor.json",
+      "sha256": "cf8470478e9b1dd2a9e1054c6fb3274312b2f75b4f8ef99708e7092481b2fba6"
+    },
+    {
+      "path": ".local/reports/native-movie-stream-reset.json",
+      "sha256": "8ff1369a131cfff093b4b93ccd63f30c43ea902ee8a6f744145982bc459ebadf"
+    },
+    {
+      "path": ".local/reports/native-movie-mask-suffix.json",
+      "sha256": "8fe88288d0e879899e408793e10afdf654070fb1079501ed1ad55bb67bf6688a"
+    },
+    {
+      "path": ".local/reports/native-movie-file-extension.json",
+      "sha256": "c5d3a03b17943efb9270cce8e2158ea7618a870399932cdbfcecf0622ff8e526"
+    },
+    {
+      "path": ".local/reports/native-movie-get-bink.json",
+      "sha256": "54e1322c667a71baeb9f65e37b0e5cfc4edb4054bd90be37ba0b6a477d4b0876"
+    },
+    {
+      "path": ".local/reports/native-movie-create-file.json",
+      "sha256": "f7d7fdb9d0528cf909aa7b5e57fb0e9ea222ce07d89936796ca7789233d89f1d"
+    },
+    {
+      "path": ".local/reports/native-movie-read-file.json",
+      "sha256": "987235630040c36f9867abefc58ea10a82f81c9db4fd7e1b75fa75a5f16e2b5f"
+    },
+    {
+      "path": ".local/reports/native-movie-read-atlas.json",
+      "sha256": "67a2fc435b5c252e0e395384df4a5ff36e3cb21cb2666537909059b3ba5bf2c9"
+    },
+    {
+      "path": ".local/reports/native-movie-preload-source-probe.json",
+      "sha256": "ae1c09bbd1d18f6678ea8941267a5dc57ee09b68c7aaaef022708bb7ea5fd870"
+    }
+  ]
+}

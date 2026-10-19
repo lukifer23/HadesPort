@@ -1,0 +1,15 @@
+#include "../host/file_assets.hpp"
+#include "../app/screen_animation.hpp"
+#include <iostream>
+#include <set>
+extern "C" {
+#include <lua.h>
+#include <lauxlib.h>
+}
+using namespace hades;
+int main(int argc,char**argv){try{if(argc!=2)throw std::runtime_error("screen_transition_smoke ORIGINAL_SCREEN_ASSETS");FileAssets assets(argv[1]);auto bank=std::make_shared<ActorAnimationBank>();bank->load(assets,"actor-animations.bin");auto*L=luaL_newstate();if(luaL_loadfile(L,(std::string(argv[1])+"/screen-animations.lua").c_str())||lua_pcall(L,0,1,0))throw std::runtime_error("Original screen transition source");SourceValue source;std::string e;if(!readSourceValue(L,-1,source,e))throw std::runtime_error(e);lua_close(L);auto registry=std::make_shared<AnimationRegistry>();ScreenAnimationWorld world;auto need=[&](bool ok){if(!ok)throw std::runtime_error(e);};need(world.load(source,bank,registry,e));ScreenAnimationSound sound;sound.worldFrame=1200;sound.play=[](const std::string&,uint32_t&,std::string&e){e="Source transition must not invent audio";return false;};ObjectSnapshot b;b.id=2000001;b.entityHandle=1001;b.name="BlankObstacle";b.group="Overlay";b.screenSpace=true;b.x=960;b.y=540;need(world.create(b,{1,1,1,1},sound,e));need(world.setAnimation(b.id,"RoomTransitionOut",sound,e));const auto out=bank->find("RoomTransitionOut");if(!out||bank->clips()[*out].slides.front().originalFrame!=20||bank->clips()[*out].slides.back().originalFrame!=1||!registry->find(world.thing(b.id)->primary)->onlyWhenVisible)throw std::runtime_error("Actual backward source order/visible-only allocation missing");
+ std::set<uint32_t> original;unsigned samples=0;for(unsigned n=0;n<60;++n){if(world.thing(b.id)->primary){ActorVisual v;need(world.visual(b.id,v,e));original.insert(world.thing(b.id)->playback.originalFrame());if(!v.screenSpace||v.x!=960||v.y!=540||v.frame.rgba.empty())throw std::runtime_error("Actual source screen visual missing");++samples;}need(world.advance(1.f/60,sound,e));}
+ if(original.size()!=20||registry->allocationCount()!=0||!b.alive||!b.animation.empty()||world.thing(b.id)->primary)throw std::runtime_error("Source finite transition primary/retained BlankObstacle lifecycle mismatch");
+ need(world.setAnimation(b.id,"RoomTransitionIn",sound,e));for(unsigned n=0;n<60;++n)need(world.advance(1.f/60,sound,e));if(registry->allocationCount()!=1||world.thing(b.id)->playback.originalFrame()!=20)throw std::runtime_error("Source HoldLastFrame transition not retained");need(world.markDead(b.id,e));need(world.advance(0,sound,e));if(registry->allocationCount()||b.alive)throw std::runtime_error("Actual screen deferred cleanup leak");
+ std::cout<<"{\"result\":\"passed\",\"original_transition_frames\":20,\"actual_screen_samples\":"<<samples<<",\"source_Backwards_20_to_1\":true,\"source_Book_30fps\":true,\"source_OnlyWhenVisible_retained\":true,\"finite_primary_retired\":true,\"BlankObstacle_anchor_survives_completion\":true,\"HoldLastFrame_original20_retained\":true,\"deferred_destroy_releases_lifetime\":true,\"android_observed\":false}\n";
+ }catch(const std::exception&e){std::cerr<<e.what()<<'\n';return 1;}}

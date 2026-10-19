@@ -1,0 +1,69 @@
+{
+  "schema": "hades-collision-notify-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "source_evidence": {
+    "notify-on-collide-check-v1": {
+      "path": ".local/reports/native-rea-notify-on-collide-check-v1.json",
+      "sha256": "cdb67d036a6e1d40b3eb54e2189b730dcf67d4f6352917613ad9beb0bc8a360b",
+      "evidence_ids": [
+        "ev_508b85e30145946f557961c7fda2712fe7f22d1a7abfc7ea38438cdb2aeab8ca"
+      ]
+    },
+    "notify-not-colliding-check-v1": {
+      "path": ".local/reports/native-rea-notify-not-colliding-check-v1.json",
+      "sha256": "4f30fb6a39c4e26aec298b3ff10b8107a6b271a52e236c8d953d1b10f19d1a4b",
+      "evidence_ids": [
+        "ev_1c8f2f1d3b44ddee135be5adcf35fce0c91a10a3e3b8e632d077da2a2bb8688d"
+      ]
+    },
+    "notify-callback-capture-v1": {
+      "path": ".local/reports/native-rea-notify-callback-capture-v1.json",
+      "sha256": "793bbd7b711dae9ab332e30c398c8400030089f6549e73b5992cf0c1c1352a6e",
+      "evidence_ids": [
+        "ev_50ac587e7a49abf5639093a26102be8aaf26190279dab64cdd65b891b5c058f3"
+      ]
+    },
+    "notify-manager-add-v1": {
+      "path": ".local/reports/native-rea-notify-manager-add-v1.json",
+      "sha256": "d499cb6088124fc126388e8abb3d9391f2d0ecc5aca795fc6ce893330033f603",
+      "evidence_ids": [
+        "ev_d258d15c51230f7f6c5cfec58875e18e9b6a3fccc2d0dcd67c817e9a3c147441"
+      ]
+    },
+    "script-update-game-event-v1": {
+      "path": ".local/reports/native-rea-script-update-game-event-v1.json",
+      "sha256": "8034a6812e033ea860277cb49ec070b3b36bc44a4a1be1b90e48e731ad0cdca7",
+      "evidence_ids": [
+        "ev_c1a17218d7deb02ebc9e04bdcbc5ec244f4dd9b7434175855021913b09a80460"
+      ]
+    },
+    "notify-source-ids-v1": {
+      "path": ".local/reports/native-rea-notify-source-ids-v1.json",
+      "sha256": "94c3d69ddb7ab7fd49eaec328bad0861c99ec44587f457a9b26793e05f4a3ca3",
+      "evidence_ids": [
+        "ev_145347e9477b59d3f17729093f3df357ee32c4cae793fef4903118e860e62cd0"
+      ]
+    }
+  },
+  "observed_contract": [
+    "Execute cases0x9b/0x9c test both cached ScriptArgs ID vectors and return without allocating or notifying when either is empty.",
+    "ScriptArgs copy keeps a strong reference to the original table plus parsed list caches.",
+    "World.UpdateGameEvents runs after component updates and before Camera.Update and ScriptManager.Update. New admissions are moved to active before checks; admissions from callbacks remain for next update.",
+    "OnCollide uses 2D polygon intersection, or PointOnly tests destination world XY against source polygon. No Z/team/stop-property gates at this call. First colliding destination ID goes to NotifyResultsTable[Notify].",
+    "NotColliding succeeds when no selected live pair intersects, including when selections no longer resolve. It ignores PointOnly.",
+    "Success invokes original notifyExistingWaiters(event) with no timeout argument. Failed predicate decrements float Timeout and invokes existing waiters(event,true) only at remaining<0; compiled default atVA180611134 is FLT_MAX."
+  ],
+  "implementation": [
+    "Real source/destination ID caches, retained original args table, native phase queue, original scheduler notification, timeout and result table.",
+    "Actual live ActorWorld geometry; shared portable edge/containment narrowphase. No fabricated startup notification."
+  ],
+  "limits": [
+    "Named group cache adapter explicitly unsupported when nonempty ID admission also supplies names.",
+    "Polygon narrowphase is the existing portable movement edge/containment implementation, not a claim of bit-exact native SAT boundary behavior.",
+    "No complete gameplay or full World phase coverage established."
+  ],
+  "integration": {
+    "report": ".local/reports/native-active-room-48.json",
+    "result": "Previous NotifyOnCollide stop passed. Next actual unsupported action SwapSound at Art.lua49."
+  }
+}

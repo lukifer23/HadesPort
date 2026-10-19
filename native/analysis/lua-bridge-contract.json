@@ -1,0 +1,2881 @@
+{
+  "identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_sha256": "a75edd9c15ebbd4caa7a89ce2e3197cfb96cecb1e5a750f62a950caff48fcace",
+  "lua_version_observed": "5.2.2",
+  "registration_function_rva": "0x285190",
+  "registration_evidence": "Native InitLua resizes 71 trigger closures and 319 action closures, classifies return kind using decoded switch tables at RVAs 0x286548/0x286558 and 0x286644/0x286658, calls TriggerToString/ActionToString, and writes Lua globals. Action 148 is renamed LoadMapInternal at instruction RVA 0x2858c2. Matching PDB supplies enum identities.",
+  "actions": [
+    {
+      "id": 0,
+      "name": "Activate",
+      "lua_name": "Activate",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 1,
+      "name": "Destroy",
+      "lua_name": "Destroy",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 2,
+      "name": "SwapName",
+      "lua_name": "SwapName",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 3,
+      "name": "SwapWeapon",
+      "lua_name": "SwapWeapon",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25bfe0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 4,
+      "name": "EquipWeapon",
+      "lua_name": "EquipWeapon",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25c5e0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 5,
+      "name": "UnequipWeapon",
+      "lua_name": "UnequipWeapon",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25c890",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 6,
+      "name": "SwitchAllegiance",
+      "lua_name": "SwitchAllegiance",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 7,
+      "name": "PauseGame",
+      "lua_name": "PauseGame",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 8,
+      "name": "ResumeGame",
+      "lua_name": "ResumeGame",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 9,
+      "name": "PlaySound",
+      "lua_name": "PlaySound",
+      "return_kind": "Float",
+      "native_handler_rva": "0x26fd20",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 10,
+      "name": "StopSound",
+      "lua_name": "StopSound",
+      "return_kind": "Void",
+      "native_handler_rva": "0x275a30",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 11,
+      "name": "SetVolume",
+      "lua_name": "SetVolume",
+      "return_kind": "Void",
+      "native_handler_rva": "0x275d60",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 12,
+      "name": "SetPitch",
+      "lua_name": "SetPitch",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 13,
+      "name": "SetSoundPosition",
+      "lua_name": "SetSoundPosition",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 14,
+      "name": "SetSoundSource",
+      "lua_name": "SetSoundSource",
+      "return_kind": "Void",
+      "native_handler_rva": "0x275f70",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 15,
+      "name": "PlaySpeech",
+      "lua_name": "PlaySpeech",
+      "return_kind": "Float",
+      "native_handler_rva": "0x257160",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 16,
+      "name": "PlaySpeechNow",
+      "lua_name": "PlaySpeechNow",
+      "return_kind": "Float",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 17,
+      "name": "PauseSpeech",
+      "lua_name": "PauseSpeech",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25dc30",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 18,
+      "name": "ResumeSpeech",
+      "lua_name": "ResumeSpeech",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25dec0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 19,
+      "name": "StopSpeech",
+      "lua_name": "StopSpeech",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25e150",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 20,
+      "name": "SetAudioListener",
+      "lua_name": "SetAudioListener",
+      "return_kind": "Void",
+      "native_handler_rva": "0x260510",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 21,
+      "name": "ClearAudioListener",
+      "lua_name": "ClearAudioListener",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 22,
+      "name": "SetAudioEffectState",
+      "lua_name": "SetAudioEffectState",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 23,
+      "name": "StopAmbientSound",
+      "lua_name": "StopAmbientSound",
+      "return_kind": "Void",
+      "native_handler_rva": "0x2606e0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 24,
+      "name": "PlayAmbientSound",
+      "lua_name": "PlayAmbientSound",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 25,
+      "name": "FadeOut",
+      "lua_name": "FadeOut",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 26,
+      "name": "FadeIn",
+      "lua_name": "FadeIn",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 27,
+      "name": "SetSoundCueValue",
+      "lua_name": "SetSoundCueValue",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25ce80",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 28,
+      "name": "PauseSound",
+      "lua_name": "PauseSound",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25d470",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 29,
+      "name": "ResumeSound",
+      "lua_name": "ResumeSound",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25d860",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 30,
+      "name": "KeyOffSoundCue",
+      "lua_name": "KeyOffSoundCue",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 31,
+      "name": "SwapSound",
+      "lua_name": "SwapSound",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25ccd0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 32,
+      "name": "SwapAnimation",
+      "lua_name": "SwapAnimation",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 33,
+      "name": "SetMetering",
+      "lua_name": "SetMetering",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 34,
+      "name": "CreateMeteringEntry",
+      "lua_name": "CreateMeteringEntry",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 35,
+      "name": "DestroyMeteringEntry",
+      "lua_name": "DestroyMeteringEntry",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 36,
+      "name": "AdjustBrightness",
+      "lua_name": "AdjustBrightness",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 37,
+      "name": "AdjustFullscreenBloom",
+      "lua_name": "AdjustFullscreenBloom",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 38,
+      "name": "AdjustRadialBlurStrength",
+      "lua_name": "AdjustRadialBlurStrength",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 39,
+      "name": "AdjustRadialBlurDistance",
+      "lua_name": "AdjustRadialBlurDistance",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 40,
+      "name": "AdjustColorGrading",
+      "lua_name": "AdjustColorGrading",
+      "return_kind": "Void",
+      "native_handler_rva": "0x260a00",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 41,
+      "name": "PanCamera",
+      "lua_name": "PanCamera",
+      "return_kind": "Void",
+      "native_handler_rva": "0x260bf0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 42,
+      "name": "FocusCamera",
+      "lua_name": "FocusCamera",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 43,
+      "name": "MovingHoldCamera",
+      "lua_name": "MovingHoldCamera",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 44,
+      "name": "AdjustCameraFocus",
+      "lua_name": "AdjustCameraFocus",
+      "return_kind": "Void",
+      "native_handler_rva": "0x260e50",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 45,
+      "name": "AdjustZoom",
+      "lua_name": "AdjustZoom",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 46,
+      "name": "LockCamera",
+      "lua_name": "LockCamera",
+      "return_kind": "Void",
+      "native_handler_rva": "0x261080",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 47,
+      "name": "UnlockCamera",
+      "lua_name": "UnlockCamera",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 48,
+      "name": "SetCameraTetherWeight",
+      "lua_name": "SetCameraTetherWeight",
+      "return_kind": "Void",
+      "native_handler_rva": "0x2612e0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 49,
+      "name": "SetCameraTetherWeightRaw",
+      "lua_name": "SetCameraTetherWeightRaw",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 50,
+      "name": "ClearCameraTetherWeights",
+      "lua_name": "ClearCameraTetherWeights",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 51,
+      "name": "SetCameraZoomWeight",
+      "lua_name": "SetCameraZoomWeight",
+      "return_kind": "Void",
+      "native_handler_rva": "0x2614d0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 52,
+      "name": "DynamicZoomCamera",
+      "lua_name": "DynamicZoomCamera",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 53,
+      "name": "SetCameraClamp",
+      "lua_name": "SetCameraClamp",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 54,
+      "name": "ClearCameraClamp",
+      "lua_name": "ClearCameraClamp",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 55,
+      "name": "SetCameraRail",
+      "lua_name": "SetCameraRail",
+      "return_kind": "Void",
+      "native_handler_rva": "0x261700",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 56,
+      "name": "ClearCameraRail",
+      "lua_name": "ClearCameraRail",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 57,
+      "name": "HaltCamera",
+      "lua_name": "HaltCamera",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 58,
+      "name": "ShakeScreen",
+      "lua_name": "ShakeScreen",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 59,
+      "name": "ClearUseTarget",
+      "lua_name": "ClearUseTarget",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 60,
+      "name": "AddInputBlock",
+      "lua_name": "AddInputBlock",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 61,
+      "name": "RemoveInputBlock",
+      "lua_name": "RemoveInputBlock",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 62,
+      "name": "TeleportCursor",
+      "lua_name": "TeleportCursor",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25e3d0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 63,
+      "name": "CursorSelectInDirection",
+      "lua_name": "CursorSelectInDirection",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25e760",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 64,
+      "name": "ToggleMove",
+      "lua_name": "ToggleMove",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 65,
+      "name": "Rumble",
+      "lua_name": "Rumble",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 66,
+      "name": "SetLightBarColor",
+      "lua_name": "SetLightBarColor",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 67,
+      "name": "SetAnimation",
+      "lua_name": "SetAnimation",
+      "return_kind": "Void",
+      "native_handler_rva": "0x261a10",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 68,
+      "name": "CreateAnimation",
+      "lua_name": "CreateAnimation",
+      "return_kind": "Void",
+      "native_handler_rva": "0x261ff0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 69,
+      "name": "CreateAnimations",
+      "lua_name": "CreateAnimations",
+      "return_kind": "Void",
+      "native_handler_rva": "0x262640",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 70,
+      "name": "PlayPropertyAnimation",
+      "lua_name": "PlayPropertyAnimation",
+      "return_kind": "Void",
+      "native_handler_rva": "0x262fa0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 71,
+      "name": "StopAnimation",
+      "lua_name": "StopAnimation",
+      "return_kind": "Void",
+      "native_handler_rva": "0x2632e0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 72,
+      "name": "SetAnimationFrameTarget",
+      "lua_name": "SetAnimationFrameTarget",
+      "return_kind": "Void",
+      "native_handler_rva": "0x263770",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 73,
+      "name": "BlockVfx",
+      "lua_name": "BlockVfx",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 74,
+      "name": "UnblockVfx",
+      "lua_name": "UnblockVfx",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 75,
+      "name": "StopLoopingAnimation",
+      "lua_name": "StopLoopingAnimation",
+      "return_kind": "Void",
+      "native_handler_rva": "0x263a50",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 76,
+      "name": "ColorAnimation",
+      "lua_name": "ColorAnimation",
+      "return_kind": "Void",
+      "native_handler_rva": "0x264010",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 77,
+      "name": "StopUnattachedAnimations",
+      "lua_name": "StopUnattachedAnimations",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 78,
+      "name": "CreateAnimationsBetween",
+      "lua_name": "CreateAnimationsBetween",
+      "return_kind": "Void",
+      "native_handler_rva": "0x2642a0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 79,
+      "name": "DrawScreenRelative",
+      "lua_name": "DrawScreenRelative",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 80,
+      "name": "DrawWorldRelative",
+      "lua_name": "DrawWorldRelative",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 81,
+      "name": "SetGroupVisibility",
+      "lua_name": "SetGroupVisibility",
+      "return_kind": "Bool",
+      "native_handler_rva": "0x2579c0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 82,
+      "name": "InsertGroupBehind",
+      "lua_name": "InsertGroupBehind",
+      "return_kind": "Void",
+      "native_handler_rva": "0x257bc0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 83,
+      "name": "InsertGroupInFront",
+      "lua_name": "InsertGroupInFront",
+      "return_kind": "Void",
+      "native_handler_rva": "0x257d80",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 84,
+      "name": "CreateGroup",
+      "lua_name": "CreateGroup",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 85,
+      "name": "HasGroup",
+      "lua_name": "HasGroup",
+      "return_kind": "Bool",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 86,
+      "name": "Teleport",
+      "lua_name": "Teleport",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 87,
+      "name": "IgnoreGravity",
+      "lua_name": "IgnoreGravity",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 88,
+      "name": "ObeyGravity",
+      "lua_name": "ObeyGravity",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 89,
+      "name": "PutDownGently",
+      "lua_name": "PutDownGently",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 90,
+      "name": "Move",
+      "lua_name": "Move",
+      "return_kind": "Void",
+      "native_handler_rva": "0x274230",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 91,
+      "name": "Shift",
+      "lua_name": "Shift",
+      "return_kind": "Void",
+      "native_handler_rva": "0x274fb0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 92,
+      "name": "Track",
+      "lua_name": "Track",
+      "return_kind": "Void",
+      "native_handler_rva": "0x2755d0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 93,
+      "name": "Stop",
+      "lua_name": "Stop",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 94,
+      "name": "Halt",
+      "lua_name": "Halt",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 95,
+      "name": "Attach",
+      "lua_name": "Attach",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25f7e0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 96,
+      "name": "Unattach",
+      "lua_name": "Unattach",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 97,
+      "name": "UpdateSortScore",
+      "lua_name": "UpdateSortScore",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 98,
+      "name": "AddChild",
+      "lua_name": "AddChild",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25eb20",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 99,
+      "name": "AdjustZLocation",
+      "lua_name": "AdjustZLocation",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 100,
+      "name": "SetParallax",
+      "lua_name": "SetParallax",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25fc10",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 101,
+      "name": "SetInvulnerable",
+      "lua_name": "SetInvulnerable",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 102,
+      "name": "SetVulnerable",
+      "lua_name": "SetVulnerable",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 103,
+      "name": "SetRed",
+      "lua_name": "SetRed",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 104,
+      "name": "SetGreen",
+      "lua_name": "SetGreen",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 105,
+      "name": "SetBlue",
+      "lua_name": "SetBlue",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 106,
+      "name": "SetAlpha",
+      "lua_name": "SetAlpha",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 107,
+      "name": "SetRGB",
+      "lua_name": "SetRGB",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 108,
+      "name": "SetColor",
+      "lua_name": "SetColor",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 109,
+      "name": "SetHSV",
+      "lua_name": "SetHSV",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 110,
+      "name": "SetScale",
+      "lua_name": "SetScale",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 111,
+      "name": "SetScaleX",
+      "lua_name": "SetScaleX",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 112,
+      "name": "SetScaleY",
+      "lua_name": "SetScaleY",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 113,
+      "name": "MultiplyScale",
+      "lua_name": "MultiplyScale",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 114,
+      "name": "SetAngle",
+      "lua_name": "SetAngle",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 115,
+      "name": "SetGoalAngle",
+      "lua_name": "SetGoalAngle",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 116,
+      "name": "AngleTowardTarget",
+      "lua_name": "AngleTowardTarget",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 117,
+      "name": "FlipHorizontal",
+      "lua_name": "FlipHorizontal",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 118,
+      "name": "FlipVertical",
+      "lua_name": "FlipVertical",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 119,
+      "name": "SetTargetable",
+      "lua_name": "SetTargetable",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 120,
+      "name": "SetUntargetable",
+      "lua_name": "SetUntargetable",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 121,
+      "name": "Flash",
+      "lua_name": "Flash",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 122,
+      "name": "StopFlashing",
+      "lua_name": "StopFlashing",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 123,
+      "name": "Shake",
+      "lua_name": "Shake",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 124,
+      "name": "AddOutline",
+      "lua_name": "AddOutline",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25fe80",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 125,
+      "name": "RemoveOutline",
+      "lua_name": "RemoveOutline",
+      "return_kind": "Void",
+      "native_handler_rva": "0x260330",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 126,
+      "name": "CreateTextBox",
+      "lua_name": "CreateTextBox",
+      "return_kind": "Void",
+      "native_handler_rva": "0x2701e0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 127,
+      "name": "ModifyTextBox",
+      "lua_name": "ModifyTextBox",
+      "return_kind": "Void",
+      "native_handler_rva": "0x258270",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 128,
+      "name": "ModifySubtitles",
+      "lua_name": "ModifySubtitles",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 129,
+      "name": "DestroyTextBox",
+      "lua_name": "DestroyTextBox",
+      "return_kind": "Void",
+      "native_handler_rva": "0x257f40",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 130,
+      "name": "HideTopMenuScreenTooltips",
+      "lua_name": "HideTopMenuScreenTooltips",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 131,
+      "name": "FadeObstacleIn",
+      "lua_name": "FadeObstacleIn",
+      "return_kind": "Void",
+      "native_handler_rva": "0x258600",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 132,
+      "name": "HideObstacle",
+      "lua_name": "HideObstacle",
+      "return_kind": "Void",
+      "native_handler_rva": "0x258990",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 133,
+      "name": "AdjustContrast",
+      "lua_name": "AdjustContrast",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 134,
+      "name": "AdjustSaturation",
+      "lua_name": "AdjustSaturation",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 135,
+      "name": "FireWeaponFromUnit",
+      "lua_name": "FireWeaponFromUnit",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 136,
+      "name": "ReloadWeapon",
+      "lua_name": "ReloadWeapon",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 137,
+      "name": "OverrideWeaponFire",
+      "lua_name": "OverrideWeaponFire",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 138,
+      "name": "ProjectileExists",
+      "lua_name": "ProjectileExists",
+      "return_kind": "Bool",
+      "native_handler_rva": "0x258ca0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 139,
+      "name": "BlockProjectileSpawns",
+      "lua_name": "BlockProjectileSpawns",
+      "return_kind": "Void",
+      "native_handler_rva": "0x2596b0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 140,
+      "name": "ExpireProjectiles",
+      "lua_name": "ExpireProjectiles",
+      "return_kind": "Void",
+      "native_handler_rva": "0x258f10",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 141,
+      "name": "CancelWeaponFireRequests",
+      "lua_name": "CancelWeaponFireRequests",
+      "return_kind": "Void",
+      "native_handler_rva": "0x2594c0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 142,
+      "name": "EndRamWeapons",
+      "lua_name": "EndRamWeapons",
+      "return_kind": "Void",
+      "native_handler_rva": "0x2599b0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 143,
+      "name": "HasEffect",
+      "lua_name": "HasEffect",
+      "return_kind": "Bool",
+      "native_handler_rva": "0x269b70",
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 144,
+      "name": "ClearEffect",
+      "lua_name": "ClearEffect",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 145,
+      "name": "AddEffectImmunity",
+      "lua_name": "AddEffectImmunity",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 146,
+      "name": "BlockEffect",
+      "lua_name": "BlockEffect",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 147,
+      "name": "ModifyEffect",
+      "lua_name": "ModifyEffect",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 148,
+      "name": "LoadMap",
+      "lua_name": "LoadMapInternal",
+      "return_kind": "Void",
+      "native_handler_rva": "0x265950",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 149,
+      "name": "Use",
+      "lua_name": "Use",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 150,
+      "name": "UseableOn",
+      "lua_name": "UseableOn",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 151,
+      "name": "UseableOff",
+      "lua_name": "UseableOff",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 152,
+      "name": "ToggleUseable",
+      "lua_name": "ToggleUseable",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 153,
+      "name": "ApplyForce",
+      "lua_name": "ApplyForce",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25a370",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 154,
+      "name": "ApplyUpwardForce",
+      "lua_name": "ApplyUpwardForce",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25a600",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 155,
+      "name": "ApplyEffectFromWeapon",
+      "lua_name": "ApplyEffectFromWeapon",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25a800",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 156,
+      "name": "AddToGroup",
+      "lua_name": "AddToGroup",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 157,
+      "name": "RemoveFromGroup",
+      "lua_name": "RemoveFromGroup",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 158,
+      "name": "ClearGroup",
+      "lua_name": "ClearGroup",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 159,
+      "name": "AttachLua",
+      "lua_name": "AttachLua",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 160,
+      "name": "AdjustFrame",
+      "lua_name": "AdjustFrame",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 161,
+      "name": "SwitchActiveUnit",
+      "lua_name": "SwitchActiveUnit",
+      "return_kind": "Void",
+      "native_handler_rva": "0x271790",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 162,
+      "name": "GetEffectTimeRemaining",
+      "lua_name": "GetEffectTimeRemaining",
+      "return_kind": "Float",
+      "native_handler_rva": "0x267520",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 163,
+      "name": "GetWeaponMaxAmmo",
+      "lua_name": "GetWeaponMaxAmmo",
+      "return_kind": "Float",
+      "native_handler_rva": "0x267760",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 164,
+      "name": "GetWeaponEffectiveRange",
+      "lua_name": "GetWeaponEffectiveRange",
+      "return_kind": "Float",
+      "native_handler_rva": "0x2679b0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 165,
+      "name": "IsWeaponAmmoFull",
+      "lua_name": "IsWeaponAmmoFull",
+      "return_kind": "Bool",
+      "native_handler_rva": "0x267270",
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 166,
+      "name": "GetUnitDataValue",
+      "lua_name": "GetUnitDataValue",
+      "return_kind": "Object",
+      "native_handler_rva": "0x266220",
+      "native_dispatch": "sgg::ScriptAction::ExecuteObject"
+    },
+    {
+      "id": 167,
+      "name": "GetThingDataValue",
+      "lua_name": "GetThingDataValue",
+      "return_kind": "Object",
+      "native_handler_rva": "0x266450",
+      "native_dispatch": "sgg::ScriptAction::ExecuteObject"
+    },
+    {
+      "id": 168,
+      "name": "GetInteractDataValue",
+      "lua_name": "GetInteractDataValue",
+      "return_kind": "Object",
+      "native_handler_rva": "0x266640",
+      "native_dispatch": "sgg::ScriptAction::ExecuteObject"
+    },
+    {
+      "id": 169,
+      "name": "GetLifeDataValue",
+      "lua_name": "GetLifeDataValue",
+      "return_kind": "Object",
+      "native_handler_rva": "0x266870",
+      "native_dispatch": "sgg::ScriptAction::ExecuteObject"
+    },
+    {
+      "id": 170,
+      "name": "GetWeaponDataValue",
+      "lua_name": "GetWeaponDataValue",
+      "return_kind": "Object",
+      "native_handler_rva": "0x267c00",
+      "native_dispatch": "sgg::ScriptAction::ExecuteObject"
+    },
+    {
+      "id": 171,
+      "name": "GetEffectDataValue",
+      "lua_name": "GetEffectDataValue",
+      "return_kind": "Object",
+      "native_handler_rva": "0x267f20",
+      "native_dispatch": "sgg::ScriptAction::ExecuteObject"
+    },
+    {
+      "id": 172,
+      "name": "GetBaseDataValue",
+      "lua_name": "GetBaseDataValue",
+      "return_kind": "Object",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteObject"
+    },
+    {
+      "id": 173,
+      "name": "GetUnitProperty",
+      "lua_name": "GetUnitProperty",
+      "return_kind": "Object",
+      "native_handler_rva": "0x266aa0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteObject"
+    },
+    {
+      "id": 174,
+      "name": "GetWeaponProperty",
+      "lua_name": "GetWeaponProperty",
+      "return_kind": "Object",
+      "native_handler_rva": "0x266cd0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteObject"
+    },
+    {
+      "id": 175,
+      "name": "GetProjectileProperty",
+      "lua_name": "GetProjectileProperty",
+      "return_kind": "Object",
+      "native_handler_rva": "0x266fa0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteObject"
+    },
+    {
+      "id": 176,
+      "name": "SetThingProperty",
+      "lua_name": "SetThingProperty",
+      "return_kind": "Void",
+      "native_handler_rva": "0x272960",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 177,
+      "name": "SetLifeProperty",
+      "lua_name": "SetLifeProperty",
+      "return_kind": "Void",
+      "native_handler_rva": "0x272da0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 178,
+      "name": "SetObstacleProperty",
+      "lua_name": "SetObstacleProperty",
+      "return_kind": "Void",
+      "native_handler_rva": "0x273230",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 179,
+      "name": "SetInteractProperty",
+      "lua_name": "SetInteractProperty",
+      "return_kind": "Void",
+      "native_handler_rva": "0x273550",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 180,
+      "name": "SetUnitProperty",
+      "lua_name": "SetUnitProperty",
+      "return_kind": "Void",
+      "native_handler_rva": "0x273850",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 181,
+      "name": "SetWeaponProperty",
+      "lua_name": "SetWeaponProperty",
+      "return_kind": "Void",
+      "native_handler_rva": "0x271b40",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 182,
+      "name": "SetProjectileProperty",
+      "lua_name": "SetProjectileProperty",
+      "return_kind": "Void",
+      "native_handler_rva": "0x272030",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 183,
+      "name": "SetEffectProperty",
+      "lua_name": "SetEffectProperty",
+      "return_kind": "Void",
+      "native_handler_rva": "0x2725a0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 184,
+      "name": "RunThingMethod",
+      "lua_name": "RunThingMethod",
+      "return_kind": "Object",
+      "native_handler_rva": "0x2680c0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteObject"
+    },
+    {
+      "id": 185,
+      "name": "RunPhysicsMethod",
+      "lua_name": "RunPhysicsMethod",
+      "return_kind": "Object",
+      "native_handler_rva": "0x268290",
+      "native_dispatch": "sgg::ScriptAction::ExecuteObject"
+    },
+    {
+      "id": 186,
+      "name": "RunInteractMethod",
+      "lua_name": "RunInteractMethod",
+      "return_kind": "Object",
+      "native_handler_rva": "0x2688d0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteObject"
+    },
+    {
+      "id": 187,
+      "name": "RunWeaponMethod",
+      "lua_name": "RunWeaponMethod",
+      "return_kind": "Object",
+      "native_handler_rva": "0x268b70",
+      "native_dispatch": "sgg::ScriptAction::ExecuteObject"
+    },
+    {
+      "id": 188,
+      "name": "RunDebugFunction",
+      "lua_name": "RunDebugFunction",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 189,
+      "name": "DisableComponent",
+      "lua_name": "DisableComponent",
+      "return_kind": "Void",
+      "native_handler_rva": "0x273cd0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 190,
+      "name": "EnableComponent",
+      "lua_name": "EnableComponent",
+      "return_kind": "Void",
+      "native_handler_rva": "0x273f80",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 191,
+      "name": "UnlockAchievement",
+      "lua_name": "UnlockAchievement",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 192,
+      "name": "SetRichPresence",
+      "lua_name": "SetRichPresence",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 193,
+      "name": "OpenMenu",
+      "lua_name": "OpenMenu",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 194,
+      "name": "ExitMenu",
+      "lua_name": "ExitMenu",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25ae70",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 195,
+      "name": "SetMenuOptions",
+      "lua_name": "SetMenuOptions",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25b140",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 196,
+      "name": "InsertComponentInFront",
+      "lua_name": "InsertComponentInFront",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25b680",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 197,
+      "name": "InsertComponentBehind",
+      "lua_name": "InsertComponentBehind",
+      "return_kind": "Void",
+      "native_handler_rva": "0x25bb30",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 198,
+      "name": "AdjustSimulationSpeed",
+      "lua_name": "AdjustSimulationSpeed",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 199,
+      "name": "LockMovement",
+      "lua_name": "LockMovement",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 200,
+      "name": "UnlockMovement",
+      "lua_name": "UnlockMovement",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 201,
+      "name": "AddAutoLockTarget",
+      "lua_name": "AddAutoLockTarget",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 202,
+      "name": "RemoveAutoLockTarget",
+      "lua_name": "RemoveAutoLockTarget",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 203,
+      "name": "ToggleControl",
+      "lua_name": "ToggleControl",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 204,
+      "name": "CreateCameraWalls",
+      "lua_name": "CreateCameraWalls",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 205,
+      "name": "DestroyCameraWalls",
+      "lua_name": "DestroyCameraWalls",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 206,
+      "name": "SaveCheckpoint",
+      "lua_name": "SaveCheckpoint",
+      "return_kind": "Void",
+      "native_handler_rva": "0x264e00",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 207,
+      "name": "LoadCheckpoint",
+      "lua_name": "LoadCheckpoint",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 208,
+      "name": "HasSaveFile",
+      "lua_name": "HasSaveFile",
+      "return_kind": "Bool",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 209,
+      "name": "SaveProfile",
+      "lua_name": "SaveProfile",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 210,
+      "name": "ValidateCheckpoint",
+      "lua_name": "ValidateCheckpoint",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 211,
+      "name": "SetConfigOption",
+      "lua_name": "SetConfigOption",
+      "return_kind": "Void",
+      "native_handler_rva": "0x265080",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 212,
+      "name": "LoadPackages",
+      "lua_name": "LoadPackages",
+      "return_kind": "Void",
+      "native_handler_rva": "0x265530",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 213,
+      "name": "UnloadPackages",
+      "lua_name": "UnloadPackages",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 214,
+      "name": "PreLoadBinks",
+      "lua_name": "PreLoadBinks",
+      "return_kind": "Void",
+      "native_handler_rva": "0x2657c0",
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 215,
+      "name": "DebugMessage",
+      "lua_name": "DebugMessage",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 216,
+      "name": "DebugPrint",
+      "lua_name": "DebugPrint",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 217,
+      "name": "DebugAssert",
+      "lua_name": "DebugAssert",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 218,
+      "name": "DebugException",
+      "lua_name": "DebugException",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 219,
+      "name": "PerfStartCapture",
+      "lua_name": "PerfStartCapture",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 220,
+      "name": "PerfStopCapture",
+      "lua_name": "PerfStopCapture",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 221,
+      "name": "IsAlive",
+      "lua_name": "IsAlive",
+      "return_kind": "Bool",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 222,
+      "name": "IsInvulnerable",
+      "lua_name": "IsInvulnerable",
+      "return_kind": "Bool",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 223,
+      "name": "IsMoving",
+      "lua_name": "IsMoving",
+      "return_kind": "Bool",
+      "native_handler_rva": "0x276440",
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 224,
+      "name": "IsImpulsing",
+      "lua_name": "IsImpulsing",
+      "return_kind": "Bool",
+      "native_handler_rva": "0x276600",
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 225,
+      "name": "IsLocationBlocked",
+      "lua_name": "IsLocationBlocked",
+      "return_kind": "Bool",
+      "native_handler_rva": "0x276810",
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 226,
+      "name": "IsHorizontallyFlipped",
+      "lua_name": "IsHorizontallyFlipped",
+      "return_kind": "Bool",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 227,
+      "name": "IsIdle",
+      "lua_name": "IsIdle",
+      "return_kind": "Bool",
+      "native_handler_rva": "0x276a50",
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 228,
+      "name": "IsUseable",
+      "lua_name": "IsUseable",
+      "return_kind": "Bool",
+      "native_handler_rva": "0x276c30",
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 229,
+      "name": "IsInputAllowed",
+      "lua_name": "IsInputAllowed",
+      "return_kind": "Bool",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 230,
+      "name": "IsControlDown",
+      "lua_name": "IsControlDown",
+      "return_kind": "Bool",
+      "native_handler_rva": "0x277c70",
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 231,
+      "name": "IsTextComplete",
+      "lua_name": "IsTextComplete",
+      "return_kind": "Bool",
+      "native_handler_rva": "0x277ee0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 232,
+      "name": "IsScreenOpen",
+      "lua_name": "IsScreenOpen",
+      "return_kind": "Bool",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 233,
+      "name": "HelpTextExists",
+      "lua_name": "HelpTextExists",
+      "return_kind": "Bool",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 234,
+      "name": "IdExists",
+      "lua_name": "IdExists",
+      "return_kind": "Bool",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 235,
+      "name": "CanAttack",
+      "lua_name": "CanAttack",
+      "return_kind": "Bool",
+      "native_handler_rva": "0x276de0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 236,
+      "name": "CanMove",
+      "lua_name": "CanMove",
+      "return_kind": "Bool",
+      "native_handler_rva": "0x2772f0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 237,
+      "name": "IsCharmed",
+      "lua_name": "IsCharmed",
+      "return_kind": "Bool",
+      "native_handler_rva": "0x277760",
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 238,
+      "name": "GetCharmDuration",
+      "lua_name": "GetCharmDuration",
+      "return_kind": "Float",
+      "native_handler_rva": "0x277ab0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 239,
+      "name": "NumAlive",
+      "lua_name": "NumAlive",
+      "return_kind": "Float",
+      "native_handler_rva": "0x265bb0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 240,
+      "name": "GetClosest",
+      "lua_name": "GetClosest",
+      "return_kind": "Float",
+      "native_handler_rva": "0x278180",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 241,
+      "name": "GetFarthest",
+      "lua_name": "GetFarthest",
+      "return_kind": "Float",
+      "native_handler_rva": "0x2787c0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 242,
+      "name": "GetDistance",
+      "lua_name": "GetDistance",
+      "return_kind": "Float",
+      "native_handler_rva": "0x279380",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 243,
+      "name": "IsHeadedToward",
+      "lua_name": "IsHeadedToward",
+      "return_kind": "Bool",
+      "native_handler_rva": "0x27ef40",
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 244,
+      "name": "NotifyOnStopped",
+      "lua_name": "NotifyOnStopped",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 245,
+      "name": "NotifyOnRotationComplete",
+      "lua_name": "NotifyOnRotationComplete",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 246,
+      "name": "NotifyWithinDistance",
+      "lua_name": "NotifyWithinDistance",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 247,
+      "name": "NotifyWithinDistanceAny",
+      "lua_name": "NotifyWithinDistanceAny",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 248,
+      "name": "NotifyOutsideDistance",
+      "lua_name": "NotifyOutsideDistance",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 249,
+      "name": "NotifyOutsideDistanceAll",
+      "lua_name": "NotifyOutsideDistanceAll",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 250,
+      "name": "NotifyOnCollide",
+      "lua_name": "NotifyOnCollide",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 251,
+      "name": "NotifyNotColliding",
+      "lua_name": "NotifyNotColliding",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 252,
+      "name": "NotifyOnAllDead",
+      "lua_name": "NotifyOnAllDead",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 253,
+      "name": "NotifyOnProjectilesDead",
+      "lua_name": "NotifyOnProjectilesDead",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 254,
+      "name": "NotifyOnPlayerInput",
+      "lua_name": "NotifyOnPlayerInput",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 255,
+      "name": "NotifyOnControlPressed",
+      "lua_name": "NotifyOnControlPressed",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 256,
+      "name": "NotifyOnControlReleased",
+      "lua_name": "NotifyOnControlReleased",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 257,
+      "name": "NotifyOnInteract",
+      "lua_name": "NotifyOnInteract",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 258,
+      "name": "NotifyOnAnimationTimeRemaining",
+      "lua_name": "NotifyOnAnimationTimeRemaining",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 259,
+      "name": "NotifyOnFramePassed",
+      "lua_name": "NotifyOnFramePassed",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 260,
+      "name": "NotifyOnTextBoxComplete",
+      "lua_name": "NotifyOnTextBoxComplete",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 261,
+      "name": "NotifyOnEffectExpired",
+      "lua_name": "NotifyOnEffectExpired",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 262,
+      "name": "NotifyOnCanAttack",
+      "lua_name": "NotifyOnCanAttack",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 263,
+      "name": "NotifyOnWeaponCharge",
+      "lua_name": "NotifyOnWeaponCharge",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 264,
+      "name": "GetClosestUnitOfType",
+      "lua_name": "GetClosestUnitOfType",
+      "return_kind": "Float",
+      "native_handler_rva": "0x278c10",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 265,
+      "name": "GetIds",
+      "lua_name": "GetIds",
+      "return_kind": "Table",
+      "native_handler_rva": "0x269db0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteTable"
+    },
+    {
+      "id": 266,
+      "name": "GetClosestIds",
+      "lua_name": "GetClosestIds",
+      "return_kind": "Table",
+      "native_handler_rva": "0x26a720",
+      "native_dispatch": "sgg::ScriptAction::ExecuteTable"
+    },
+    {
+      "id": 267,
+      "name": "GetIntersectingIds",
+      "lua_name": "GetIntersectingIds",
+      "return_kind": "Table",
+      "native_handler_rva": "0x26af00",
+      "native_dispatch": "sgg::ScriptAction::ExecuteTable"
+    },
+    {
+      "id": 268,
+      "name": "GetIdsWithSubGroups",
+      "lua_name": "GetIdsWithSubGroups",
+      "return_kind": "Table",
+      "native_handler_rva": "0x26b360",
+      "native_dispatch": "sgg::ScriptAction::ExecuteTable"
+    },
+    {
+      "id": 269,
+      "name": "GetGroupWithSubGroups",
+      "lua_name": "GetGroupWithSubGroups",
+      "return_kind": "Table",
+      "native_handler_rva": "0x26b9b0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteTable"
+    },
+    {
+      "id": 270,
+      "name": "GetAttachedIds",
+      "lua_name": "GetAttachedIds",
+      "return_kind": "Table",
+      "native_handler_rva": "0x26b620",
+      "native_dispatch": "sgg::ScriptAction::ExecuteTable"
+    },
+    {
+      "id": 271,
+      "name": "GetIdsByType",
+      "lua_name": "GetIdsByType",
+      "return_kind": "Table",
+      "native_handler_rva": "0x26bb40",
+      "native_dispatch": "sgg::ScriptAction::ExecuteTable"
+    },
+    {
+      "id": 272,
+      "name": "GetInactiveIds",
+      "lua_name": "GetInactiveIds",
+      "return_kind": "Table",
+      "native_handler_rva": "0x26bd50",
+      "native_dispatch": "sgg::ScriptAction::ExecuteTable"
+    },
+    {
+      "id": 273,
+      "name": "GetInactiveIdsByType",
+      "lua_name": "GetInactiveIdsByType",
+      "return_kind": "Table",
+      "native_handler_rva": "0x26c0e0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteTable"
+    },
+    {
+      "id": 274,
+      "name": "GetMapThings",
+      "lua_name": "GetMapThings",
+      "return_kind": "Table",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteTable"
+    },
+    {
+      "id": 275,
+      "name": "GetMapThingsByType",
+      "lua_name": "GetMapThingsByType",
+      "return_kind": "Table",
+      "native_handler_rva": "0x26bf00",
+      "native_dispatch": "sgg::ScriptAction::ExecuteTable"
+    },
+    {
+      "id": 276,
+      "name": "GetActiveUnitId",
+      "lua_name": "GetActiveUnitId",
+      "return_kind": "Float",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 277,
+      "name": "GetAttachedToId",
+      "lua_name": "GetAttachedToId",
+      "return_kind": "Float",
+      "native_handler_rva": "0x26c300",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 278,
+      "name": "GetSpawnedById",
+      "lua_name": "GetSpawnedById",
+      "return_kind": "Float",
+      "native_handler_rva": "0x26c4d0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 279,
+      "name": "IsPS4",
+      "lua_name": "IsPS4",
+      "return_kind": "Bool",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 280,
+      "name": "GetConfigOptionValue",
+      "lua_name": "GetConfigOptionValue",
+      "return_kind": "Object",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteObject"
+    },
+    {
+      "id": 281,
+      "name": "GetLanguage",
+      "lua_name": "GetLanguage",
+      "return_kind": "String",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteString"
+    },
+    {
+      "id": 282,
+      "name": "GetUsername",
+      "lua_name": "GetUsername",
+      "return_kind": "String",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteString"
+    },
+    {
+      "id": 283,
+      "name": "GetTime",
+      "lua_name": "GetTime",
+      "return_kind": "Float",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 284,
+      "name": "GetDate",
+      "lua_name": "GetDate",
+      "return_kind": "Float",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 285,
+      "name": "GetControllerIndex",
+      "lua_name": "GetControllerIndex",
+      "return_kind": "Float",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 286,
+      "name": "GetMouseControllerIndex",
+      "lua_name": "GetMouseControllerIndex",
+      "return_kind": "Float",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 287,
+      "name": "GetNumConnectedControllers",
+      "lua_name": "GetNumConnectedControllers",
+      "return_kind": "Float",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 288,
+      "name": "GetName",
+      "lua_name": "GetName",
+      "return_kind": "String",
+      "native_handler_rva": "0x26e900",
+      "native_dispatch": "sgg::ScriptAction::ExecuteString"
+    },
+    {
+      "id": 289,
+      "name": "GetGroupName",
+      "lua_name": "GetGroupName",
+      "return_kind": "String",
+      "native_handler_rva": "0x26e180",
+      "native_dispatch": "sgg::ScriptAction::ExecuteString"
+    },
+    {
+      "id": 290,
+      "name": "GetAnimationName",
+      "lua_name": "GetAnimationName",
+      "return_kind": "String",
+      "native_handler_rva": "0x26e520",
+      "native_dispatch": "sgg::ScriptAction::ExecuteString"
+    },
+    {
+      "id": 291,
+      "name": "GetTopScreenName",
+      "lua_name": "GetTopScreenName",
+      "return_kind": "String",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteString"
+    },
+    {
+      "id": 292,
+      "name": "GetMenuComponentValue",
+      "lua_name": "GetMenuComponentValue",
+      "return_kind": "Object",
+      "native_handler_rva": "0x26e710",
+      "native_dispatch": "sgg::ScriptAction::ExecuteObject"
+    },
+    {
+      "id": 293,
+      "name": "GetCurrentTargetId",
+      "lua_name": "GetCurrentTargetId",
+      "return_kind": "Float",
+      "native_handler_rva": "0x266050",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 294,
+      "name": "GetBloomSettingName",
+      "lua_name": "GetBloomSettingName",
+      "return_kind": "String",
+      "native_handler_rva": "0x269380",
+      "native_dispatch": "sgg::ScriptAction::ExecuteString"
+    },
+    {
+      "id": 295,
+      "name": "GetMapName",
+      "lua_name": "GetMapName",
+      "return_kind": "String",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteString"
+    },
+    {
+      "id": 296,
+      "name": "GetAmbientLightColor",
+      "lua_name": "GetAmbientLightColor",
+      "return_kind": "Table",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteTable"
+    },
+    {
+      "id": 297,
+      "name": "GetCameraZoom",
+      "lua_name": "GetCameraZoom",
+      "return_kind": "Float",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 298,
+      "name": "GetCameraDynamicZoom",
+      "lua_name": "GetCameraDynamicZoom",
+      "return_kind": "Float",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 299,
+      "name": "GetLocation",
+      "lua_name": "GetLocation",
+      "return_kind": "Table",
+      "native_handler_rva": "0x26c690",
+      "native_dispatch": "sgg::ScriptAction::ExecuteTable"
+    },
+    {
+      "id": 300,
+      "name": "GetZLocation",
+      "lua_name": "GetZLocation",
+      "return_kind": "Float",
+      "native_handler_rva": "0x26cbd0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 301,
+      "name": "GetVelocity",
+      "lua_name": "GetVelocity",
+      "return_kind": "Float",
+      "native_handler_rva": "0x26cdd0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 302,
+      "name": "GetAngle",
+      "lua_name": "GetAngle",
+      "return_kind": "Float",
+      "native_handler_rva": "0x26cfd0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 303,
+      "name": "GetAngleBetween",
+      "lua_name": "GetAngleBetween",
+      "return_kind": "Float",
+      "native_handler_rva": "0x26d1d0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 304,
+      "name": "HasLineOfSight",
+      "lua_name": "HasLineOfSight",
+      "return_kind": "Bool",
+      "native_handler_rva": "0x26d960",
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 305,
+      "name": "IsCameraTrackingPlayer",
+      "lua_name": "IsCameraTrackingPlayer",
+      "return_kind": "Bool",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 306,
+      "name": "SpawnUnit",
+      "lua_name": "SpawnUnit",
+      "return_kind": "Float",
+      "native_handler_rva": "0x26eca0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 307,
+      "name": "InitUnit",
+      "lua_name": "InitUnit",
+      "return_kind": "Float",
+      "native_handler_rva": "0x26f1e0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 308,
+      "name": "SpawnObstacle",
+      "lua_name": "SpawnObstacle",
+      "return_kind": "Float",
+      "native_handler_rva": "0x26f4a0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 309,
+      "name": "InitObstacle",
+      "lua_name": "InitObstacle",
+      "return_kind": "Float",
+      "native_handler_rva": "0x26f9c0",
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 310,
+      "name": "GetMixingId",
+      "lua_name": "GetMixingId",
+      "return_kind": "Float",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 311,
+      "name": "GetSoundCueValue",
+      "lua_name": "GetSoundCueValue",
+      "return_kind": "Float",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 312,
+      "name": "HasDisplayName",
+      "lua_name": "HasDisplayName",
+      "return_kind": "Bool",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteBool"
+    },
+    {
+      "id": 313,
+      "name": "GetDisplayName",
+      "lua_name": "GetDisplayName",
+      "return_kind": "String",
+      "native_handler_rva": "0x269570",
+      "native_dispatch": "sgg::ScriptAction::ExecuteString"
+    },
+    {
+      "id": 314,
+      "name": "GetWeaponChargeFraction",
+      "lua_name": "GetWeaponChargeFraction",
+      "return_kind": "Float",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 315,
+      "name": "GetAvgFps",
+      "lua_name": "GetAvgFps",
+      "return_kind": "Float",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::ExecuteFloat"
+    },
+    {
+      "id": 316,
+      "name": "ProfileZoneStart",
+      "lua_name": "ProfileZoneStart",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 317,
+      "name": "ProfileZoneEnd",
+      "lua_name": "ProfileZoneEnd",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    },
+    {
+      "id": 318,
+      "name": "SendSaveFileEmail",
+      "lua_name": "SendSaveFileEmail",
+      "return_kind": "Void",
+      "native_handler_rva": null,
+      "native_dispatch": "sgg::ScriptAction::Execute"
+    }
+  ],
+  "triggers": [
+    {
+      "id": 0,
+      "name": "OnPreThingCreation"
+    },
+    {
+      "id": 1,
+      "name": "OnLoad"
+    },
+    {
+      "id": 2,
+      "name": "OnAnyLoad"
+    },
+    {
+      "id": 3,
+      "name": "OnEnter"
+    },
+    {
+      "id": 4,
+      "name": "OnGroupEnter"
+    },
+    {
+      "id": 5,
+      "name": "OnProjectileDeath"
+    },
+    {
+      "id": 6,
+      "name": "OnHit"
+    },
+    {
+      "id": 7,
+      "name": "OnHealed"
+    },
+    {
+      "id": 8,
+      "name": "OnDodge"
+    },
+    {
+      "id": 9,
+      "name": "OnTakeoff"
+    },
+    {
+      "id": 10,
+      "name": "OnRising"
+    },
+    {
+      "id": 11,
+      "name": "OnFalling"
+    },
+    {
+      "id": 12,
+      "name": "OnTouchdown"
+    },
+    {
+      "id": 13,
+      "name": "OnFall"
+    },
+    {
+      "id": 14,
+      "name": "OnComeToRest"
+    },
+    {
+      "id": 15,
+      "name": "OnAutoUseQueued"
+    },
+    {
+      "id": 16,
+      "name": "OnAutoUseFailed"
+    },
+    {
+      "id": 17,
+      "name": "OnActiveUseTarget"
+    },
+    {
+      "id": 18,
+      "name": "OnActiveUseTargetLost"
+    },
+    {
+      "id": 19,
+      "name": "OnUsed"
+    },
+    {
+      "id": 20,
+      "name": "OnMouseOver"
+    },
+    {
+      "id": 21,
+      "name": "OnMouseOff"
+    },
+    {
+      "id": 22,
+      "name": "OnSpawn"
+    },
+    {
+      "id": 23,
+      "name": "OnActivationFinished"
+    },
+    {
+      "id": 24,
+      "name": "OnSoundComplete"
+    },
+    {
+      "id": 25,
+      "name": "OnMusicMarker"
+    },
+    {
+      "id": 26,
+      "name": "OnPlayerMoveStarted"
+    },
+    {
+      "id": 27,
+      "name": "OnPlayerMoveStopped"
+    },
+    {
+      "id": 28,
+      "name": "OnPlayerInput"
+    },
+    {
+      "id": 29,
+      "name": "OnPlayerDeath"
+    },
+    {
+      "id": 30,
+      "name": "OnActiveUnitChanged"
+    },
+    {
+      "id": 31,
+      "name": "OnFinishedPath"
+    },
+    {
+      "id": 32,
+      "name": "OnCollisionReaction"
+    },
+    {
+      "id": 33,
+      "name": "OnObstacleCollision"
+    },
+    {
+      "id": 34,
+      "name": "OnMovementReaction"
+    },
+    {
+      "id": 35,
+      "name": "OnUnitCollision"
+    },
+    {
+      "id": 36,
+      "name": "OnCollisionEnd"
+    },
+    {
+      "id": 37,
+      "name": "OnWeaponEquipped"
+    },
+    {
+      "id": 38,
+      "name": "OnWeaponUnequipped"
+    },
+    {
+      "id": 39,
+      "name": "OnWeaponCharging"
+    },
+    {
+      "id": 40,
+      "name": "OnWeaponChargeCanceled"
+    },
+    {
+      "id": 41,
+      "name": "OnWeaponFired"
+    },
+    {
+      "id": 42,
+      "name": "OnRamWeaponComplete"
+    },
+    {
+      "id": 43,
+      "name": "OnWeaponFailedToFire"
+    },
+    {
+      "id": 44,
+      "name": "OnWeaponTriggerRelease"
+    },
+    {
+      "id": 45,
+      "name": "OnPerfectChargeWindowEntered"
+    },
+    {
+      "id": 46,
+      "name": "OnProjectileReflect"
+    },
+    {
+      "id": 47,
+      "name": "OnProjectileBlock"
+    },
+    {
+      "id": 48,
+      "name": "OnAllegianceFlip"
+    },
+    {
+      "id": 49,
+      "name": "OnEffectApply"
+    },
+    {
+      "id": 50,
+      "name": "OnEffectStackDecrease"
+    },
+    {
+      "id": 51,
+      "name": "OnEffectCanceled"
+    },
+    {
+      "id": 52,
+      "name": "OnEffectCleared"
+    },
+    {
+      "id": 53,
+      "name": "OnEffectDelayedKnockbackForce"
+    },
+    {
+      "id": 54,
+      "name": "OnOutOfAmmo"
+    },
+    {
+      "id": 55,
+      "name": "OnPlayerDistance"
+    },
+    {
+      "id": 56,
+      "name": "OnPlayerDistanceAny"
+    },
+    {
+      "id": 57,
+      "name": "OnPlayerDistanceAll"
+    },
+    {
+      "id": 58,
+      "name": "OnKeyPressed"
+    },
+    {
+      "id": 59,
+      "name": "OnControlPressed"
+    },
+    {
+      "id": 60,
+      "name": "OnControlReleased"
+    },
+    {
+      "id": 61,
+      "name": "OnControlHotSwap"
+    },
+    {
+      "id": 62,
+      "name": "OnMapPreloaded"
+    },
+    {
+      "id": 63,
+      "name": "OnPackageLoaded"
+    },
+    {
+      "id": 64,
+      "name": "OnMenuOpened"
+    },
+    {
+      "id": 65,
+      "name": "OnMenuClosed"
+    },
+    {
+      "id": 66,
+      "name": "OnMenuCloseFinished"
+    },
+    {
+      "id": 67,
+      "name": "OnMenuComponentClicked"
+    },
+    {
+      "id": 68,
+      "name": "OnMenuButtonPressed"
+    },
+    {
+      "id": 69,
+      "name": "OnTooltipViewed"
+    },
+    {
+      "id": 70,
+      "name": "OnTooltipClicked"
+    }
+  ],
+  "return_kind_counts": {
+    "Void": 218,
+    "Float": 35,
+    "Bool": 28,
+    "Object": 16,
+    "Table": 13,
+    "String": 9
+  },
+  "extra_globals": [
+    "random",
+    "randomint",
+    "randomseed",
+    "randomgaussian",
+    "newFunctionCall",
+    "verboseLogging"
+  ],
+  "boot_scripts": [
+    "Main.lua",
+    "RoomManager.lua"
+  ],
+  "cached_lua_callbacks": [
+    "update",
+    "print",
+    "dispatch"
+  ],
+  "limits": [
+    "API inventory is exact for this base engine build, not a recovery of all function semantics.",
+    "Lua Object return category is native eastl::any and requires further value-conversion recovery.",
+    "Unknown startup imports and Using preprocessing are unresolved until focused Load decompilation completes."
+  ]
+}

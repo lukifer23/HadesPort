@@ -1,0 +1,190 @@
+{
+  "schema": "hades-projectile-initialization-v1",
+  "target_dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence": [
+    {
+      "path": "hades/.local/reports/native-player-projectile-rea-init.json",
+      "sha256": "aa0bea0816baddd03ea9826140b645cea8dfd4db090460a6298f073abc9f4293",
+      "id": "ev_b9f9777ef7cf335c9a82e24fd15d507d86f839ad6b4e0864ebb0b4a39bba5d92",
+      "procedure": "Projectile::Init",
+      "rva": "0x69910"
+    },
+    {
+      "path": "hades/.local/reports/native-player-projectile-rea-manager-create.json",
+      "sha256": "a04b17f4cd670b6f5354faee50a4fbdbd3713eea26250f14c87a193ad2182d79",
+      "id": "ev_e1309fd47b85c24815448e62b72cb177af186c3c45be528a6d08f16705568a47",
+      "procedure": "ProjectileManager::Create",
+      "rva": "0x79d40"
+    }
+  ],
+  "supporting_matching_pdb_static": [
+    {
+      "path": "hades/.local/reports/native-player-projectile-defaults-vtable.json",
+      "sha256": "c7d03dd5f6f554c53bffe082f992050aae79d8a4bf77ad7ad941923be6972f14"
+    },
+    {
+      "path": "hades/.local/reports/native-player-projectile-thing-init.json",
+      "sha256": "dd18c96fb6e54a8471beb25f257d5286b1571c9e6bbca519da31cdcc2434fa7d"
+    },
+    {
+      "path": "hades/.local/reports/native-player-projectile-body-types.txt",
+      "sha256": "069e278448c6ec68255e3e3289553a73f7ab7c1bfa1f1352ccab337b10059bcd"
+    },
+    {
+      "path": "hades/.local/reports/native-player-projectile-live-defaults.json",
+      "sha256": "c3237b242af33c1ae69c6744ef64ee10bb87b1530a36578ec99a3102bd314a44"
+    },
+    {
+      "path": "hades/.local/reports/native-player-projectile-get-fuse.json",
+      "sha256": "ab246c30a88bc66109ea3cdacef5c0ab3268c6221819643f44b1dcae8dc58e23"
+    },
+    {
+      "path": "hades/.local/reports/native-player-gun-range-multiplier.json",
+      "sha256": "b32c491cb4e1b886e82ba1954fb0a633a014404f9367349a4237db6381438f36"
+    },
+    {
+      "path": "hades/.local/reports/native-player-gun-speed-multiplier.json",
+      "sha256": "28ef81ffd47a38c18f5d26095001f2bee9dcdcc8e74b05eeaaa3865d25123ee3"
+    },
+    {
+      "path": "hades/.local/reports/native-player-projectile-create-start-fx.json",
+      "sha256": "3960cc78f2506bc0d8a278b93fd0bf77f6beae671ca775eacb0a2ab350cb0d17"
+    },
+    {
+      "path": "hades/.local/reports/native-player-projectile-homing-adjust-bonus.json",
+      "sha256": "418d5b155046fac3d9f943dcfbbf4e667b6d1cff10387be04138afd65c50e0fe"
+    },
+    {
+      "path": "hades/.local/reports/native-player-weapon-set-projectile-property.json",
+      "sha256": "890e8adbde83354d5bbde56a7cee1a1c10b2564a394923eac7563d6069e02ddc"
+    },
+    {
+      "path": "hades/.local/reports/native-player-weapon-set-projectile-data.json",
+      "sha256": "e3104c10941e58209b7ea363c40e567428784e9f886253e947566da725c9363e"
+    },
+    {
+      "path": "hades/.local/reports/native-player-action-set-projectile-property.json",
+      "sha256": "3e25efb6c81b62bd9782771ce77b0a4cb838a9b550cbee49079de91e700257d3"
+    }
+  ],
+  "observations": {
+    "dispatch": {
+      "0": "STRAIGHT/base",
+      "1": "HOMING/base Init + derived Defaults + target finalization",
+      "5": "ARC/base Init"
+    },
+    "public_id": "Thing::Defaults writes -1; covered Create/Init never writes a new public ID. Entity lifetime allocation is separate.",
+    "data_identity": "Projectile.pData points to firing weapon per-instance copied ProjectileData, not a new per-projectile definition. Firing weapon ref retained. Resolve current copied data on resume/update; frozen planning DTO is not authoritative active data.",
+    "prefix_order": [
+      "store ProjectileData + entity handle",
+      "virtual Thing.Init incl subclass Defaults, Thing, Physics, graphics",
+      "spawn angle/Physics IgnoreGravity",
+      "indices, counters, owner allegiance, start delay",
+      "Body alpha transition target = delay>0 ? 0 : (AlphaOverride==0 ? 1 : AlphaOverride); start1, duration0 or .2",
+      "OffsetFromOwnerZ",
+      "retain firing Weapon, owner/spawned-by IDs",
+      "source map group",
+      "weapon WasLastFirePerfectCharge; conditional perfect/final-shot graphics and perfect attached animation",
+      "conditional attached animation DamageRadius",
+      "mandatory global RandomDouble for speed variance even zero",
+      "bounce/jump/penetration/range/max-speed/acceleration",
+      "fuse direct or independent RandomDouble, optional .01 blast radius",
+      "TotalFuse/life and MoveInterval",
+      "SetupGeometry, SetLocation(current local,false), SetAngle",
+      "owner ClearOnAttackEffects synchronous",
+      "GUN damage/range/speed/scale modifiers, SetupGeometry",
+      "active RAM scan if configured",
+      "CreateStartFx incl marker and two animation lookup attempts at fireIndex0",
+      "target location (zero fallback uses Thing.mSpawnLocation + source Range, not modified Range)",
+      "optional attach/match-body",
+      "optional per-animation radial offsets/RNG"
+    ],
+    "after_init_manager_order": [
+      "HOMING target link finalization",
+      "append PROJECTILES_TO_ADD",
+      "inherit owner elapsed-time multiplier + animation time",
+      "copy owner memberships",
+      "opacity-dirty global flag if configured"
+    ],
+    "queue_boundary": "PROJECTILES_TO_ADD is pending. It is not ALL_PROJECTILES and does not establish update/collision activation.",
+    "projectile_effects": "Projectile AddReplace constructs fresh EffectData Trigger0 per entry, replaces every matching existing name in-place, appends unmatched, retains other inherited names. Weapon effect loader instead clears vector and preloads Fire1."
+  },
+  "implementation": {
+    "files": [
+      "native/app/projectile_runtime.hpp",
+      "native/app/projectile_runtime.cpp"
+    ],
+    "prefix_progress": "BeforeWeaponModifiers",
+    "tail_progress": "PendingQueueSetupFinished",
+    "requires_real_consumers": [
+      "Thing initialization including virtual subclass Defaults",
+      "Body/physics state",
+      "retained weapon identity",
+      "scene groups",
+      "animation creation/radius/marker and PreferUnmodifiedTime",
+      "geometry/transform",
+      "UnitStatus::ClearOnAttackEffects",
+      "attachment/owner body matching",
+      "pending manager queue/time/group inheritance"
+    ],
+    "RNG_protocol": "Each RequestRandomDouble must be consumed synchronously, then exactly one finite [0,1) reply passed to next advance. Missing/unrequested replies fail. Stack-captured speed/fuse inputs retained across RNG operation.",
+    "no_world_invention": true
+  },
+  "unresolved_or_explicitly_rejected": [
+    "Beam/Lob/Sky/Instant specialized initialization",
+    "real target entity links and Homing target arbitration",
+    "nonempty PROJECTILE_EFFECTORS Homing default adjust-rate bonus unless parent supplies exact implementation",
+    "active RAM/blink owner-arsenal scan",
+    "SetAnimRadialOffset attached-animation traversal and individual RNG",
+    "full Thing/Physics/Body/FX consumers are parent-owned prerequisites, not implemented by cursor",
+    "pending-to-active manager update/removal and projectile movement/hit/detonation lifetime",
+    "full projectile source Thing fallback property normalization",
+    "SetProjectileProperty Type/vector/spawn-name dependency mutation",
+    "Lua filtered ProjectileName/ExcludeProjectileName setter branch"
+  ],
+  "property_api": {
+    "lookup": "WeaponArsenal::projectileData(weapon,bool spawned,error), reacquire after every equip/mutation/callback",
+    "transactional_edit": "editProjectileData creates new COW future-plan DTO only after successful pure mutation; source catalog unchanged",
+    "script_scalar_setter": "setScriptProjectileProperty covers unfiltered primary + valid spawned scalar fields, lowercase literal null normalization, shared native primitive conversion. Primary/spawned are committed together. Complex handlers reject.",
+    "multiply_base": "ProjectileData source reflection numeric value*(incomingFloat-1), then native Add; not generic WeaponData zero-base behavior."
+  },
+  "source_packet": {
+    "path": ".local/native-assets/player-weapons-v10/weapons.bin",
+    "schema": "HWA3",
+    "sha256": "95519e610ceb63b7ed21ef5ad5b20e12081ef40163525af8cfb07dc6a9fe86f1",
+    "weapon_count": 54,
+    "projectile_count": 46
+  },
+  "verification": {
+    "kind": "focused native C++ ASan/UBSan debug, no game or device execution",
+    "result": "passed",
+    "log": "hades/.local/reports/native-player-weapon-debug-v10-asan.log",
+    "log_sha256": "a21e2d3aa7b0aba51452e3388a2f9363fef87872417eec0bf577eed5966697d9",
+    "checks": [
+      "source HWA3 loading,54weapon/46projectile catalog",
+      "native ARC/HOMING typed dispatch",
+      "original Sword projectile init scalar/callback/RNG order",
+      "missing RNG reply rejected",
+      "native GUN modifier and pending queue inheritance order",
+      "per-owner projectile MultiplyBase/source catalog unchanged",
+      "unknown property rejection",
+      "existing charge/common-fire/ammo/control/timer checks"
+    ]
+  },
+  "owned_rea_session": {
+    "closed": true,
+    "close_record": {
+      "path": "hades/.local/reports/native-player-projectile-rea-close.json",
+      "sha256": "052cc72acfb75907e9ff703ebd805df08cd7d770bdebc4c2da17cf9d10cd8447"
+    },
+    "helper_exit_code": 0,
+    "known_owned_pids_absent": [
+      25011,
+      25013,
+      25027,
+      25157,
+      25158,
+      25159
+    ]
+  }
+}

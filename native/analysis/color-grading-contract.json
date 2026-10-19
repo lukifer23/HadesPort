@@ -1,0 +1,62 @@
+{
+  "schema": "hades-native-color-grading-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "status": "Source CPU transition, lossless original volume packet and shared GLES3/desktop GL shader integrated; full game remains incomplete.",
+  "evidence": {
+    "script-adjust-color-grading-v2": {
+      "report": ".local/reports/native-rea-script-adjust-color-grading-v2.json",
+      "evidence_id": "ev_47db28acbb52bbbb3c5981e27eb68038fc659005800045256dda00e1ca82372f"
+    },
+    "color-grading-set-v2": {
+      "report": ".local/reports/native-rea-color-grading-set-v2.json",
+      "evidence_id": "ev_077abf7762a47485b32a47882888177c8f1624ab8b14a46b1d4a204572e02711"
+    },
+    "color-grading-draw-v2": {
+      "report": ".local/reports/native-rea-color-grading-draw-v2.json",
+      "evidence_id": "ev_c9ac7647c3faab61eb04b86c5c61c5a23128ed25f9ecb7c3a62563db26aaa5cc"
+    },
+    "color-grading-load-v2": {
+      "report": ".local/reports/native-rea-color-grading-load-v2.json",
+      "evidence_id": "ev_b794121bc716e0f5f5a99416aefbc9fc32dd13ff67d29d647fbbe14506fcf5e6"
+    },
+    "app-update-color-grading-v2": {
+      "report": ".local/reports/native-rea-app-update-color-grading-v2.json",
+      "evidence_id": "ev_f7f3158f52bee935c7f8e220382fe1ef31f0a4c9d5aee8324d4644efd861731d"
+    }
+  },
+  "static_order_evidence": [
+    ".local/reports/native-fullscreen-effects-static-v1.json",
+    ".local/reports/native-config-DrawColorGrading-static-v1.json",
+    ".local/reports/native-rea-composition-world-draw-bundle.json"
+  ],
+  "runtime_contract": {
+    "script": "First ScriptArgs name; case-insensitive original ColorGradingData lookup, basename asset key; unknown name selects Off. Source Duration/MinDuration/MaxDuration and UseWorldTime default true.",
+    "transition": "Previous=current before resolving target; duration/startTime/useWorldTime retained, lerp=0 if positive duration else1. Post-script App update computes clamp((selectedTime-start)/duration,0,1), or1 for nonpositive duration. Interrupted transition retains prior target rather than synthesized blended volume.",
+    "should_draw": "Native DrawColorGrading defaulttrue; current LUT present, or previous present and fraction<1. ColorGradingScreenshot debug branch not implemented.",
+    "shader": "Each actual3D LUT samples offset=1/(2*size) + inputRGB*(size-1)/size. OriginalRGBA output interpolation between previous/current graded color; absent volume uses actual raw input.",
+    "placement": "Shared SceneRenderer invokes fullscreen effects after actual visible configured source group (defaultVignette), before later groups; absent/disabled selected group falls back after all groups. This matches retained World.Draw DoFullscreenEffects gate/fallback.",
+    "gpu_storage": "GL_RGBA8 16/32cube linear clamp sampler, per-slot actual source identity cache. Copy currently drawn RGBA framebuffer avoids read/write feedback. Resource recreation supported."
+  },
+  "resources": ".local/native-assets/color-grading-v1/manifest.json",
+  "checks": {
+    "ASAN_UBSAN_GPU": ".local/reports/native-color-grading-gpu-v1.log",
+    "result": "56 real source volume pixel comparisons within1RGBAbyte; Dusk/Off and actual16\u219232 table transitions, world/screenclock choice, interrupted-target semantics, GLresource recreation.",
+    "live_replay": ".local/reports/native-active-room-56.json",
+    "live_result": "Original AdjustColorGrading(Dusk,0) succeeded; next actual action AdjustFullscreenBloom at RoomPresentation861."
+  },
+  "limits": [
+    "No Android runtime measurement yet.",
+    "Original native text/image group depth interleaving remains pending; text rendering currently follows scene groups.",
+    "Native screenshot debug rendering branch is unsupported.",
+    "Original Windows render target precision/color-management may differ from current RGBA8 portable route; numerical shader sample fixture does not prove complete pipeline identity.",
+    "Bloom/blur run after source color grading in DoFullscreenEffects; still under reconstruction."
+  ],
+  "source_files": {
+    "native/app/color_grading.hpp": "b6a007a98955603702ba3cc1e06c2f7dbcb11f033b648f9a90915f3a9c554de4",
+    "native/app/color_grading.cpp": "a2aec8ea3a15bbe30efb774699ea4697c161bc743ea518ec5c8c248f0dd31e64",
+    "native/app/color_grading_renderer.hpp": "a28e16dcb5dca74a32f7b678b0b84dd7af09286f3beb06e71e2fae90f9e60491",
+    "native/app/color_grading_renderer.cpp": "8c0bd347a751b0085b347548af1b547ae969d01e9798782b9557bb60237e6e89",
+    "native/app/lua_color_grading.cpp": "bcf296e31e72c148fbccab564bcdbe9254d38e6d364a262d3a62eafdf411025e",
+    "native/tools/export_color_grading.py": "121930aaf3783365bc1cc1ceea308f28f59bbe5ec487d33ce7132eea49088a00"
+  }
+}
