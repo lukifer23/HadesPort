@@ -155,13 +155,13 @@ bool WeaponFirePrefix::advance(const WeaponOwnerFrame& owner,const WeaponBlinkRe
             // BlinkWeapon::Fire7d7d0 both reach common Weapon::Fire88f00.
             if(d.type!=0&&d.type!=1){error="Common Fire prefix requires native GUN/BLINK subclass";return false;}
             if(!std::isfinite(owner.worldTime)||!std::isfinite(owner.angle)||!std::isfinite(request_.angle)){error="Nonfinite common Fire frame";return false;}
-            if(request_.targetId!=-1||request_.fromX!=0||request_.fromY!=0){error="Common Fire explicit entity/from-location branch not recovered";return false;}
+            if(request_.targetId!=-1&&!request_.targetLifetime){error="Common Fire requires actual target entity-generation link";return false;}
             if(!flag("FireOnRelease",b))return false;if(b){error="Trigger-release path required before common Fire";return false;}
             if(!flag("RandomFireAngle",b))return false;if(b){error="RandomFireAngle needs synchronous random result continuation";return false;}
             if(!flag("SpendAmmoPerProjectile",b))return false;if(b){error="Ammo-per-projectile path belongs to Gun continuation";return false;}
             if(!d.shareAmmoWeapon.empty()){error="Recursive shared-ammo callbacks require a separate resumable depletion path";return false;}
             for(const auto* key:{"FireFromObstacle","FireToObstacle"}){if(!text(key,s))return false;if(!s.empty()){error="Common Fire actual targeted obstacle destruction/search required";return false;}}
-            {auto cue=d.cues.find("FireSound");if(cue==d.cues.end()||!cue->second.validityKnown||cue->second.valid){error="Common Fire real audio cue unresolved";return false;}}
+            if(!d.cues.contains("FireSound")){error="Common Fire source SoundCue unavailable";return false;}
             // HandleTriggerDown VA180086480: FireGraphic only when WeaponData mType != BLINK.
             if(d.type==1){phase_=20;continue;}
             ++phase_;continue;
@@ -206,7 +206,10 @@ bool WeaponFirePrefix::advance(const WeaponOwnerFrame& owner,const WeaponBlinkRe
             if(!text("FireGraphic",s))return false;if(!s.empty())return yield(WeaponOutputKind::SetOwnerAnimation,s);
             ++phase_;continue;
         case 2:
-            if(!arsenal_->fireOrigin(name_,owner,request_.angle,origin_,error))return false;
+            // FireRequest.GetFromLocation8302f..3119: explicit nonzero
+            // from-location precedes owner location plus GetFireOffset.
+            if(request_.fromX!=0||request_.fromY!=0)origin_={request_.fromX,request_.fromY};
+            else if(!arsenal_->fireOrigin(name_,owner,request_.angle,origin_,error))return false;
             if(!text("PreFireAnimation",s))return false;if(!s.empty())return yield(WeaponOutputKind::SetOwnerAnimation,s);
             ++phase_;continue;
         case 3:
@@ -230,9 +233,10 @@ bool WeaponFirePrefix::advance(const WeaponOwnerFrame& owner,const WeaponBlinkRe
             if(w->clipShotsRemaining==d.clipSize){if(!text("ClipStartFx",s))return false;if(!s.empty())return yield(WeaponOutputKind::CreateWeaponWorldAnimation,s);}
             ++phase_;continue;
         case 7:
-            // FireSound is proven invalid for this bounded branch. It creates
-            // no event ID. A property setter cannot silently enable playback.
-            ++phase_;continue;
+            // Weapon.Fire89126..89167 constructs the source SoundCue,
+            // PlayCue3D(owner, ..., true, 0, ...) and stores returned channel
+            // in Weapon+148. Parent resolves actual event validity/audio.
+            return yield(WeaponOutputKind::PlayFireSound,d.cues.at("FireSound").name);
         case 8:
             if(!flag("CancelMovement",b))return false;if(b)return yield(WeaponOutputKind::CancelOwnerMovement,"fire");
             ++phase_;continue;
@@ -262,7 +266,7 @@ bool WeaponGunExecution::advance(const WeaponOwnerFrame& owner,const WeaponGunRe
     if(!owner.exists){next.progress=WeaponGunProgress::OwnerMissing;output=next;finished_=true;return true;}
     WeaponSnapshot* w=nullptr;for(auto& candidate:arsenal_->weapons_)if(candidate.definition.name==name_){w=&candidate;break;}
     if(!w||w->definition.type!=0){error="Native GUN continuation lacks actual owned GUN";return false;}
-    if(!std::isfinite(request_.angle)||request_.targetId!=-1||request_.fromX!=0||request_.fromY!=0){error="Native GUN continuation target/from-location branch not reconstructed";return false;}
+    if(!std::isfinite(request_.angle)||(request_.targetId!=-1&&!request_.targetLifetime)){error="Native GUN continuation target entity-generation link unavailable";return false;}
     auto number=[&](const auto& fields,const char* key,float& value){auto f=fields.find(key);
         if(f==fields.end()||!std::holds_alternative<double>(f->second)){error=std::string("Missing native GUN number ")+key;return false;}
         value=static_cast<float>(std::get<double>(f->second));if(!std::isfinite(value)){error="Nonfinite native GUN data";return false;}return true;};
@@ -296,7 +300,8 @@ bool WeaponGunExecution::advance(const WeaponOwnerFrame& owner,const WeaponGunRe
         case 0:
             if(!w->validProjectileData){next.progress=WeaponGunProgress::GunBodyFinished;next.nativeVirtualFireResult=true;output=next;finished_=true;return true;}
             // Recomputed after common Fire and its synchronous Lua/physics.
-            if(!arsenal_->fireOrigin(name_,owner,request_.angle,origin_,error))return false;
+            if(request_.fromX!=0||request_.fromY!=0)origin_={request_.fromX,request_.fromY};
+            else if(!arsenal_->fireOrigin(name_,owner,request_.angle,origin_,error))return false;
             if(!number(d.fields,"ActiveProjectileCap",f)||!flag(d.fields,"RefreshProjectileOnFire",b))return false;
             if(f>0||b){error="Native GUN cap/refresh path requires actual projectile-manager query";return false;}
             if(w->volley==INT32_MAX){error="Native GUN volley counter overflow outside portable subset";return false;}

@@ -77,3 +77,25 @@ int ScriptRuntime::spawnUnit(lua_State* L){
     catch(const std::exception& e){std::snprintf(message,sizeof(message),"%s",e.what());}
     if(!ok)return luaL_error(L,"%s",message);lua_pushnumber(L,id);return 1;
 }
+
+// ScriptAction.targets259db9..25a06d, Execute case135: this produces an actual
+// Weapon.RequestFire; it does not execute a synthetic shot or start AI itself.
+bool ScriptRuntime::fireWeaponFromUnitImpl(lua_State* L,std::string& error){try{
+    if(!lua_istable(L,1))throw std::runtime_error("FireWeaponFromUnit requires argument table");
+    const auto number=[&](const char* key,double fallback){lua_getfield(L,1,key);const double v=lua_isnumber(L,-1)?lua_tonumber(L,-1):fallback;lua_pop(L,1);if(!std::isfinite(v))throw std::runtime_error(std::string("FireWeaponFromUnit finite field: ")+key);return v;};
+    const auto flag=[&](const char* key){lua_getfield(L,1,key);const bool v=lua_isboolean(L,-1)&&lua_toboolean(L,-1);lua_pop(L,1);return v;};
+    for(const char* key:{"Name","Names","Ids","DestinationName","DestinationNames","DestinationIds"}){lua_getfield(L,1,key);const bool many=!lua_isnil(L,-1);lua_pop(L,1);if(many)throw std::runtime_error("FireWeaponFromUnit multi-Thing target traversal not reconstructed");}
+    const double raw=number("Id",-1);if(raw<INT32_MIN||raw>INT32_MAX)return true;const int32_t id=int32_t(raw);auto* a=actorWorld_.actor(id);
+    if(!a||!a->registered||!a->definition||a->definition->kind!="Unit"||!a->arsenal)return true;
+    if(flag("ClearAllFireRequests"))for(const auto& w:a->arsenal->snapshot())if(!a->arsenal->clearFireRequest(w.definition.name,error))return false;
+    lua_getfield(L,1,"Weapon");const std::string name=lua_isstring(L,-1)?lua_tostring(L,-1):"";lua_pop(L,1);
+    std::string detail;if(!a->arsenal->weaponState(name,detail)){if(!flag("AutoEquip"))return true;if(!a->arsenal->equip(name,error))return false;}
+    if(flag("ReloadInstantly"))throw std::runtime_error("FireWeaponFromUnit ReloadInstantly requires native reload-finished continuation");
+    if(flag("PreferMouseOver")&&a->object->playerControlled)throw std::runtime_error("FireWeaponFromUnit actual mouse-over entity provider unavailable");
+    hades::WeaponFireRequest request;request.angle=float(number("Angle",-1));
+    const double dest=number("DestinationId",-1);if(dest>=INT32_MIN&&dest<=INT32_MAX){const auto* target=actorWorld_.actor(int32_t(dest));if(target&&target->registered&&target->object){request.targetId=target->id;request.targetLifetime=target->entityHandle;if(flag("FireFromTarget")&&!actorWorld_.location(target->id,request.fromX,request.fromY,error))return false;}}
+    float speed=0;if(!configurationFloat("SpeedMultiplier",speed,error))return false;hades::WeaponOwnerFrame frame;if(!actorWorld_.weaponOwnerFrame(id,worldTime_,speed,false,inputAllowed(),frame,error))return false;
+    if(!a->arsenal->requestFire(name,request,frame,error)&&!error.empty())return false;
+    return true;
+}catch(const std::exception& e){error=e.what();return false;}}
+int ScriptRuntime::fireWeaponFromUnitAction(lua_State* L){char message[2048]{};bool ok=false;{std::string error;ok=runtime(L)->fireWeaponFromUnitImpl(L,error);if(!ok)std::snprintf(message,sizeof(message),"%s",error.c_str());}if(!ok)return luaL_error(L,"%s",message);return 0;}

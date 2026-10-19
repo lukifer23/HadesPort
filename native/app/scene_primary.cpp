@@ -78,7 +78,7 @@ bool ScenePrimaryWorld::initialize(const std::string& name,const ScenePrimaryRec
 }
 bool ScenePrimaryWorld::create(int32_t id,const std::string& name,const EffectOwnerState& owner,const EffectAnimationRandom& random,const EffectBoundedRandom& integers,uint64_t& handle,std::string& error){try{
  if(faulted_||!registry_||!owner.lifetime||states_.size()>100000){error="Source primary world/lifetime unavailable";return false;}const auto* r=recipe(id);ScenePrimaryRecipe dynamic;
- if(!r){bool allowed=false;if(const auto* graphics=catalog_.get("DynamicGraphics"))for(const auto& graphic:graphics->array())allowed|=graphic.text()==name;if(!allowed||id<=0){error="Original primary owner recipe unavailable";return false;}dynamic.ownerId=id;dynamic.graphic=name;dynamic.named=true;dynamic.type=type(text(definitions_.at(name),"Type"));r=&dynamic;}
+ if(!r){bool allowed=false;if(const auto* graphics=catalog_.get("DynamicGraphics"))for(const auto& graphic:graphics->array())allowed|=graphic.text()==name;if(!allowed||id<=0){error="Original primary owner recipe unavailable";return false;}dynamic.ownerId=id;dynamic.graphic=name;dynamic.named=definitions_.contains(name);dynamic.type=dynamic.named?type(text(definitions_.at(name),"Type")):NativeAnimationType::Dataless;r=&dynamic;}
  if(r->externalHaa&&name==r->graphic){error="HAA primary has its own source playback owner";return false;}
  if(!initialize(name,*r,owner,0,random,integers,handle,error)){faulted_=true;return false;}return true;
  }catch(const std::exception& e){faulted_=true;error=e.what();return false;}}

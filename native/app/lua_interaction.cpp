@@ -152,9 +152,26 @@ bool ScriptRuntime::consumeInteractionOperation(const hades::InteractionUseOpera
         break; // zero-magnitude PhysicsComponent::ApplyForce/ApplyUpwardForce adds nothing
     case K::UserFaceTarget:{auto* a=actorWorld_.actor(op.user.id);if(!a){error="UserFaceTarget user unavailable";return false;}
         error="Interact UserFaceTarget (Unit::SetGoalAngle 0x2f85f0) not wired";return false;}
-    case K::UserFx:case K::VisualFx:case K::UsedFrontFx:case K::UsedBackFx:case K::UnuseableAnimation:
-        if(!text().empty()){error="Interact FX/animation operation not reconstructed: "+text();return false;}
-        break; // AnimationManager::Create with an empty name creates nothing
+    case K::UnuseableAnimation:{const auto name=text();if(!name.empty()&&!setActorAnimation(op.owner.id,name,error))return false;break;}
+    case K::UserFx:case K::VisualFx:case K::UsedFrontFx:case K::UsedBackFx:{
+        const auto name=text();if(name.empty())break;
+        const bool userFx=op.kind==K::UserFx,grouped=op.kind==K::UsedFrontFx||op.kind==K::UsedBackFx;
+        const auto key=userFx?op.user:op.owner;const auto* actor=actorWorld_.actor(key.id);
+        if(!actor||!actor->registered||actor->entityHandle!=key.lifetime||!actor->object){error="Interact FX actual owner lifetime expired";return false;}
+        // Interact.Use2bfcd0: UserFx/VisualFx use the explicit XY factory
+        // (29e410); UsedFront/BackFx use the owner factory29e350 then set
+        // that allocation's draw group to the owner's actual first group.
+        // Only UserFx calls PreferUnmodifiedTime29a5c0.
+        std::optional<std::array<float,3>> position;
+        if(!grouped)position=std::array<float,3>{op.x,op.y,0};
+        uint64_t handle=0;if(!createActionEffect(name,key.id,position,handle,error))return false;
+        if(handle&&userFx&&!actionEffects_.preferUnmodifiedTime(handle,error))return false;
+        if(handle&&grouped){
+            if(actor->object->groups.empty()){error="Interact UsedFront/BackFx first GroupId0 adapter unavailable";return false;}
+            const auto* state=actionEffects_.state(handle);if(!state){error="Interact FX factory lost its actual animation";return false;}
+            if(!actionEffects_.configureCreated(handle,state->ownZ,actor->object->groups.front(),false,error))return false;
+        }
+        break;}
     case K::OnHeal:
         if(number()>0){error="Interact HealAmount (ScriptManager::OnHealed 0x289550) not wired";return false;}
         break; // OnHealed returns when amount <= 0
@@ -167,10 +184,23 @@ bool ScriptRuntime::consumeInteractionOperation(const hades::InteractionUseOpera
         break;}
     case K::UseSound:{
         const auto& v=op.value;
-        if(std::holds_alternative<std::string>(v.value)&&!v.text().empty()){error="Interact UseSound cue not wired: "+v.text();return false;}
-        if(const auto* valid=v.get("valid");valid&&std::holds_alternative<bool>(valid->value)&&valid->boolean()){error="Interact UseSound cue not wired";return false;}
+        std::string cue;if(std::holds_alternative<std::string>(v.value))cue=v.text();else if(const auto* name=v.get("name"))cue=name->text();
+        if(cue.empty()||cue=="null")break;
+        const auto* owner=actorWorld_.actor(op.owner.id);if(!owner||!owner->registered||owner->entityHandle!=op.owner.lifetime){error="Interact UseSound owner lifetime expired";return false;}
+        // Native Use copies Cue by value and calls PlayCue3D4a690(owner,
+        // empty parameter list, play=true, managerCap=0). The caller does
+        // not test descriptor.valid or attach a synthetic completion callback.
+        std::array<float,3> location{};if(!actorWorld_.location(op.owner.id,location[0],location[1],error))return false;
+        uint32_t channel=0;if(!playAudioCue(cue,op.owner.id,location,channel,error))return false;break;}
+    case K::DestroyOwner:{
+        // Interact::Use2bfcd0 invokes owner virtual Destroy (slot0xc0) only
+        // on first use, before UserFireWeapon/DisableOnUse. Thing.Destroy
+        // queues genuine death FX and deferred manager disposal; it does not
+        // erase this retained Interact while Use is still executing.
+        const auto* owner=actorWorld_.actor(op.owner.id);
+        if(!owner||!owner->registered||owner->entityHandle!=op.owner.lifetime){error="Interact DestroyOnUse owner lifetime expired";return false;}
+        if(!markThingDead(op.owner.id,false,error))return false;
         break;}
-    case K::DestroyOwner:error="Interact DestroyOnUse not reconstructed";return false;
     case K::UserFireWeapon:error="Interact UserFireWeapon not reconstructed";return false;
     }
     error.clear();return true;

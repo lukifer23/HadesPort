@@ -14,6 +14,7 @@ namespace hades {
 struct EffectOwnerState {
     uint64_t lifetime=0;
     float x=0,y=0,z=0,scale=1,angle=0;
+    std::array<float,2> scaleVector{1,1}; // Body+60/+64 x live +140/+1a0 helpers.
     bool hasPrimaryAnimation=false,isUnit=false;
     // Absent means the owning Thing has no PhysicsComponent (Thing+0xd8).
     std::optional<std::array<float,2>> velocity;

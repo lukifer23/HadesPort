@@ -108,7 +108,11 @@ bool ScriptRuntime::advanceUnitEffects(float dt,std::string& error){
     for(auto id:actorWorld_.registrationOrder()){
         auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered||!actor->status)continue;
         const auto* stun=actorWorld_.currentProperty(id,"StunBreakModifier");if(!stun){error="Unit status requires actual StunBreakModifier";return false;}
-        if(!actor->status->advanceDisableTimers(dt,float(stun->number()),error)||!selfEffects_.updateUnit(id,dt,providers,error))return false;
+        // Unit.UpdateSelf2f1497 captures manager elapsed x live Thing+80
+        // before its UnitStatus.Update call (2f1624). Effect's own fraction
+        // then operates relative to that Unit multiplier inside UnitStatus.
+        const float elapsed=dt*actor->timeMultiplier;
+        if(!actor->status->advanceDisableTimers(elapsed,float(stun->number()),error)||!selfEffects_.updateUnit(id,elapsed,providers,error))return false;
     }
     return true;
 }

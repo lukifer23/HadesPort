@@ -29,7 +29,7 @@ public:
     bool load(SourceValue,std::shared_ptr<ActorAnimationBank>,std::shared_ptr<AnimationRegistry>,std::string&);
     bool admit(int32_t,const ActorRandom& stream0,std::string&);
     bool locationChanged(int32_t,std::string&);
-    bool advanceControllers(float,const ActorRandom& stream0,std::string&);
+    bool advanceControllers(float,float worldModifier,const ActorRandom& stream0,std::string&);
     bool visual(int32_t,const std::array<uint8_t,4>& actualOwnerDrawColor,ActorLightVisual&,std::string&);
     bool remove(int32_t,std::string&);
     const ActorLightState* state(int32_t)const;

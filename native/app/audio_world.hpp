@@ -31,6 +31,9 @@ public:
     // Name validity from original complete strings.bank namespace, separately
     // from whether this bounded asset catalog exports its actual event graph.
     bool resolveCue(const std::string& name,bool& valid,std::string& error,bool applySwaps=false)const;
+    // Portable resource preflight: no channel, sample stream, RNG or playback.
+    // Checks exported graph coverage after actual native namespace/swaps.
+    bool prepareCueCoverage(const std::string& name,std::string& error,bool applySwaps=false)const;
     size_t allocatedChannelCount()const;
     bool voiceCue(const std::string& name,bool& voice,std::string& error)const;
     bool subtitleText(const std::string& name,std::string& text,std::string& error)const;

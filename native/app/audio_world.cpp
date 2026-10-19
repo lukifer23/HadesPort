@@ -277,6 +277,14 @@ bool AudioWorld::resolveCue(const std::string& name,bool& valid,std::string& err
  error="Original complete audio namespace is unavailable for "+normalized;return false;
 }
 size_t AudioWorld::allocatedChannelCount()const{auto& w=*impl_;std::lock_guard lock(w.mutex);return w.events.size();}
+bool AudioWorld::prepareCueCoverage(const std::string& requested,std::string& error,bool applySwaps)const{
+ bool valid=false;if(!resolveCue(requested,valid,error,applySwaps))return false;if(!valid)return true;
+ auto& w=*impl_;std::lock_guard lock(w.mutex);std::string name=requested;if(!name.empty()&&name.front()!='/'&&name.front()!='{')name='/'+name;
+ if(applySwaps){const auto swap=w.cueSwaps.find(name);if(swap!=w.cueSwaps.end()){if(!swap->second.valid){error.clear();return true;}name=swap->second.name;}}
+ if(field(w.catalog,"events").get(name)){error.clear();return true;}
+ const auto* why=w.catalog.get("unsupported_events");const auto* reason=why?why->get(name):nullptr;
+ error=reason?"Original audio event graph unsupported: "+name+" ("+reason->text()+")":"Original audio event outside derived coverage catalog: "+name;return false;
+}
 bool AudioWorld::voiceCue(const std::string& name,bool& voice,std::string& error)const{
  auto& w=*impl_;std::lock_guard lock(w.mutex);voice=false;if(w.faulted){error=w.fault;return false;}if(!w.loaded){error="Original audio catalog unavailable";return false;}
  if(name.rfind("/VO/",0)==0){const auto* table=w.catalog.get("voice_namespace");if(!table){error="Original VO.h namespace unavailable";return false;}std::string key=name.substr(name.find_last_of('/')+1);for(char& c:key)if(c>='A'&&c<='Z')c=char(c-'A'+'a');voice=table->get(key)!=nullptr;}

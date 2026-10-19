@@ -111,6 +111,8 @@ bool applyProjectileGunModifiers(ProjectileInitialState&,const WeaponSnapshot&,
     const ProjectileGunOwnerFrame&,float& bodyScale,std::string& error);
 struct ProjectileInitializationTailFrame {
     ProjectileGunOwnerFrame gunOwner;
+    bool targetLinkChecked=false,targetExists=false;
+    float targetX=0,targetY=0; // Live FireRequest target lookup, refreshed after synchronous callbacks.
     // Actual Thing.GetLocation and mSpawnLocation after any marker operation.
     float worldX=0,worldY=0,spawnX=0,spawnY=0;
     float ownerElapsedTimeMultiplier=0;

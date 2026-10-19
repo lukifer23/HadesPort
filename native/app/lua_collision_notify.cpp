@@ -53,8 +53,9 @@ bool ScriptRuntime::advanceNativeNotifies(float dt,std::string& error){
         bool allDeadDone=false;if(pending.allDead&&!checkAllDeadNotify(pending,allDeadDone,error))return false;
         bool distanceDone=false;if(pending.distance&&!checkDistanceNotify(pending,distanceDone,error))return false;
         bool stoppedDone=false;if(pending.stopped&&!checkStoppedNotify(pending,stoppedDone,error))return false;
+        bool unitStateDone=false;if(pending.unitState&&!checkUnitStateNotify(pending,unitStateDone,error))return false;
         if(pending.playerInput){overlap=playerInputThisFrame_;}
-        else if(!pending.control&&!pending.distance&&!pending.stopped&&!pending.allDead)for(int32_t sourceId:pending.sources){auto* source=actorWorld_.actor(sourceId);if(!available(source))continue;
+        else if(!pending.control&&!pending.distance&&!pending.stopped&&!pending.allDead&&!pending.unitState)for(int32_t sourceId:pending.sources){auto* source=actorWorld_.actor(sourceId);if(!available(source))continue;
             if(!actorWorld_.refreshGeometry(sourceId,error))return false;
             for(int32_t destinationId:pending.destinations){auto* destination=actorWorld_.actor(destinationId);if(!available(destination))continue;
                 bool collided=false;
@@ -70,7 +71,7 @@ bool ScriptRuntime::advanceNativeNotifies(float dt,std::string& error){
                 if(collided){overlap=true;hit=destinationId;break;}
             }if(overlap)break;
         }
-        const bool satisfied=pending.allDead?allDeadDone:pending.stopped?stoppedDone:pending.distance?distanceDone:pending.control?controlMatched:(pending.whenSeparated?!overlap:overlap);
+        const bool satisfied=pending.unitState?unitStateDone:pending.allDead?allDeadDone:pending.stopped?stoppedDone:pending.distance?distanceDone:pending.control?controlMatched:(pending.whenSeparated?!overlap:overlap);
         if(!satisfied)pending.timeout-=dt;
         const bool timeout=!satisfied&&pending.timeout<0;if(!satisfied&&!timeout)continue;
         const int top=lua_gettop(state_);lua_rawgeti(state_,LUA_REGISTRYINDEX,pending.arguments);lua_getfield(state_,-1,"Notify");
@@ -289,3 +290,121 @@ bool ScriptRuntime::checkAllDeadNotify(const WorldNotify& pending,bool& done,std
     }))return fail(inner);
     lua_settop(L,top);done=!alive;error.clear();return true;
 }
+
+bool ScriptRuntime::unitAttackAllowed(int32_t id,bool editing,bool primaryGate,bool& allowed,std::string& error){
+    allowed=false;const auto* actor=actorWorld_.actor(id);
+    if(!actor||!actor->registered||!actor->object||!actor->definition||actor->definition->kind!="Unit")return true;
+    if(!actor->status){error="Actual UnitStatus unavailable for CanAttack";return false;}
+    const auto* immune=actorWorld_.currentProperty(id,"ImmuneToStun");
+    if(!immune){error="Actual CanAttack ImmuneToStun unavailable";return false;}
+    // ScriptAction.CanAttack276f51..27702f is UnitStatus.CanAttack(false),
+    // without UnitData.CanAttack or the animation gate. CheckCanAttack27ea8d
+    // additionally rejects current primary DisableOwnerWeapons(+84).
+    if(primaryGate){
+        if(actor->animation.active()){if(actor->animation.clip()->flags&hades::ActorDisableWeapons)return true;}
+        else if(actor->primaryAnimationLifetime||actor->primaryEffectAnimation){if(!actor->primaryDisableWeapons){error="NotifyOnCanAttack actual primary weapon flag unavailable";return false;}if(*actor->primaryDisableWeapons)return true;}
+    }
+    allowed=actor->status->canAttack(editing,immune->boolean(),false);return true;
+}
+bool ScriptRuntime::unitAIQueryImpl(lua_State* L,int table,int mode,bool& result,std::string& error){try{
+    table=lua_absindex(L,table);if(!lua_istable(L,table))throw std::runtime_error("Native Unit query requires argument table");result=false;
+    bool editing=false;if(mode==0){const int top=lua_gettop(L);lua_getglobal(L,"GetConfigOptionValue");lua_newtable(L);lua_pushliteral(L,"EditingMode");lua_setfield(L,-2,"Name");if(lua_pcall(L,1,1,0)!=LUA_OK){error=lua_tostring(L,-1);lua_settop(L,top);return false;}if(!lua_isboolean(L,-1)){lua_settop(L,top);throw std::runtime_error("Actual EditingMode boolean unavailable");}editing=lua_toboolean(L,-1);lua_settop(L,top);}
+    const auto check=[&](int32_t id){if(result)return true;const auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->definition||a->definition->kind!="Unit")return true;
+        // ScriptAction.IsCharmed2778c0 reads UnitStatus.mIsTraitor(+90),
+        // live Unit+4f0. Neither query tests life status or weapon cooldown.
+        if(mode==1){if(!a->status){error="Actual UnitStatus unavailable for IsCharmed";return false;}result=a->status->isTraitor;return true;}
+        return unitAttackAllowed(id,editing,false,result,error);};
+    lua_getfield(L,table,"Id");const bool numeric=lua_isnumber(L,-1);const auto id=numeric?lua_tointeger(L,-1):0;lua_pop(L,1);
+    if(numeric){if(id>=INT32_MIN&&id<=INT32_MAX&&!check(int32_t(id)))return false;}
+    else if(!eachId(L,table,"Ids",check))return false;
+    return true;
+}catch(const std::exception& e){error=e.what();return false;}}
+int ScriptRuntime::unitAIQueryAction(lua_State* L){char message[2048]{};bool ok=false,result=false;{std::string error;ok=runtime(L)->unitAIQueryImpl(L,1,int(lua_tointeger(L,lua_upvalueindex(2))),result,error);if(!ok)std::snprintf(message,sizeof(message),"%s",error.c_str());}if(!ok)return luaL_error(L,"%s",message);lua_pushboolean(L,result);return 1;}
+int ScriptRuntime::unitStateNotifyAction(lua_State* L){
+    auto* self=runtime(L);if(!self||!lua_istable(L,1))return luaL_error(L,"Native Unit notification requires argument table");
+    WorldNotify pending;pending.unitState=uint8_t(lua_tointeger(L,lua_upvalueindex(2)));pending.timeout=tableFloat(L,1,"Timeout",std::numeric_limits<float>::max());
+    if(!std::isfinite(pending.timeout)||self->worldNotifies_.size()>=10000)return luaL_error(L,"Native Unit notification timeout/queue bounds");
+    lua_pushvalue(L,1);pending.arguments=luaL_ref(L,LUA_REGISTRYINDEX);self->worldNotifies_.push_back(std::move(pending));return 0;
+}
+bool ScriptRuntime::checkUnitStateNotify(const WorldNotify& pending,bool& done,std::string& error){
+    const int top=lua_gettop(state_);lua_rawgeti(state_,LUA_REGISTRYINDEX,pending.arguments);const int table=lua_absindex(state_,-1);
+    const auto fail=[&](const std::string& detail){error=detail;lua_settop(state_,top);return false;};
+    if(!lua_istable(state_,table))return fail("Native Unit notification argument table unavailable");
+    if(pending.unitState==2){
+        // CheckRotationComplete279a40: singular Id only. A missing source
+        // completes. Unit requires exact body==goal; Cosmetic additionally
+        // waits for actual cosmetic angle unless CosmeticallyTargetPlayerUnit.
+        lua_getfield(state_,table,"Id");const auto id=lua_tointeger(state_,-1);lua_pop(state_,1);const auto* a=id>=INT32_MIN&&id<=INT32_MAX?actorWorld_.actor(int32_t(id)):nullptr;done=true;
+        if(a&&a->registered&&a->object){
+            if(!a->definition||a->definition->kind!="Unit")return fail("NotifyOnRotationComplete non-Unit Body angular transition check not reconstructed");
+            const auto movement=localMovement_.find(a->entityHandle);const float goal=movement==localMovement_.end()?a->object->angle:movement->second.goalAngle;
+            done=a->object->angle==goal;
+            const auto* targetsPlayer=actorWorld_.currentProperty(a->id,"CosmeticallyTargetPlayerUnit");if(!targetsPlayer)return fail("Actual cosmetic targeting flag unavailable");
+            if(done&&!targetsPlayer->boolean()&&tableBool(state_,table,"Cosmetic",false))done=(movement==localMovement_.end()?a->object->angle:movement->second.cosmeticAngle)==a->object->angle;
+        }
+        lua_settop(state_,top);return true;
+    }
+    // CheckCanAttack27e960 selects actual active MapThings by IDs/names,
+    // ignores non-Units, and finishes only when EVERY selected Unit permits
+    // attacking. An empty selection completes, unlike CanAttack's any query.
+    done=true;std::vector<int32_t> selected,members;std::string detail;
+    // ScriptArgs.Ids2818f0 / Names2817f0 select the plural key when present,
+    // otherwise the singular key. They do not union both spellings.
+    lua_getfield(state_,table,"Ids");const bool pluralIds=!lua_isnil(state_,-1);lua_pop(state_,1);const char* idKey=pluralIds?"Ids":"Id";
+    lua_getfield(state_,table,idKey);const bool idList=lua_istable(state_,-1);if(lua_isnumber(state_,-1)){const auto id=lua_tointeger(state_,-1);if(id>=INT32_MIN&&id<=INT32_MAX)selected.push_back(int32_t(id));}else if(!lua_isnil(state_,-1)&&!idList){lua_pop(state_,1);return fail("Native Unit notification IntList nonnumeric-string selector not reconstructed");}lua_pop(state_,1);
+    if(idList&&!eachId(state_,table,idKey,[&](int32_t id){selected.push_back(id);return true;}))return fail("Unit notification ID selection failed");
+    const auto names=[&](const std::string& name){if(!activeMapThingGroup(state_,name,members,detail))return false;selected.insert(selected.end(),members.begin(),members.end());return true;};
+    lua_getfield(state_,table,"Names");const bool pluralNames=!lua_isnil(state_,-1);lua_pop(state_,1);const char* nameKey=pluralNames?"Names":"Name";
+    lua_getfield(state_,table,nameKey);const bool nameList=lua_istable(state_,-1);if(lua_isstring(state_,-1)){const std::string name=lua_tostring(state_,-1);if(!names(name)){lua_pop(state_,1);return fail(detail);}}lua_pop(state_,1);
+    if(nameList&&!eachName(state_,table,nameKey,names))return fail(detail);
+    lua_getglobal(state_,"GetConfigOptionValue");lua_newtable(state_);lua_pushliteral(state_,"EditingMode");lua_setfield(state_,-2,"Name");if(lua_pcall(state_,1,1,0)!=LUA_OK)return fail(lua_tostring(state_,-1));if(!lua_isboolean(state_,-1))return fail("Actual EditingMode boolean unavailable");const bool editing=lua_toboolean(state_,-1);lua_pop(state_,1);
+    for(const auto id:selected){const auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->object||!a->object->active||!a->definition||a->definition->kind!="Unit")continue;bool allowed=false;if(!unitAttackAllowed(id,editing,true,allowed,detail))return fail(detail);if(!allowed){done=false;break;}}
+    lua_settop(state_,top);return true;
+}
+
+bool ScriptRuntime::distanceQueryImpl(lua_State* L,float& result,std::string& error){try{
+    if(!lua_istable(L,1))throw std::runtime_error("GetDistance requires argument table");
+    // ScriptAction.GetDistance279380: arithmetic means of existing source
+    // and destination Things, projected Y-=Z*0.8660254 on BOTH sets when
+    // UseLocationZ; OnlyX precedes OnlyY; missing either set returns zero.
+    for(const char* key:{"Name","Names","DestinationName","DestinationNames"}){lua_getfield(L,1,key);const bool named=!lua_isnil(L,-1);lua_pop(L,1);if(named)throw std::runtime_error("GetDistance named selector diagnostic branch not reconstructed");}
+    const bool useZ=tableBool(L,1,"UseLocationZ",false);float sx=0,sy=0,dx=0,dy=0;int sn=0,dn=0;
+    const auto mean=[&](const char* one,const char* many,float& x,float& y,int& count){
+        const auto add=[&](int32_t id){const auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->object)return true;float px=0,py=0,z=0;if(!actorWorld_.location(id,px,py,error)||!actorWorld_.zLocation(id,z,error))return false;x+=px;y+=py;if(useZ)y-=z*0.8660254f;++count;return true;};
+        lua_getfield(L,1,many);const bool plural=!lua_isnil(L,-1);lua_pop(L,1);const char* key=plural?many:one;
+        lua_getfield(L,1,key);const bool list=lua_istable(L,-1);if(lua_isnumber(L,-1)){const auto id=lua_tointeger(L,-1);lua_pop(L,1);if(id>=INT32_MIN&&id<=INT32_MAX)return add(int32_t(id));return true;}if(!lua_isnil(L,-1)&&!list){lua_pop(L,1);error="GetDistance native IntList nonnumeric-string selector not reconstructed";return false;}lua_pop(L,1);return !list||eachId(L,1,key,add);
+    };
+    result=0;if(!mean("Id","Ids",sx,sy,sn))return false;if(!sn)return true;if(!mean("DestinationId","DestinationIds",dx,dy,dn))return false;if(!dn)return true;
+    sx/=float(sn);sy/=float(sn);dx/=float(dn);dy/=float(dn);
+    if(tableBool(L,1,"OnlyX",false))result=std::abs(sx-dx);else if(tableBool(L,1,"OnlyY",false))result=std::abs(sy-dy);else{const float x=sx-dx,y=sy-dy;result=std::sqrt(x*x+y*y);}return true;
+}catch(const std::exception& e){error=e.what();return false;}}
+int ScriptRuntime::distanceQueryAction(lua_State* L){char message[2048]{};bool ok=false;float result=0;{std::string error;ok=runtime(L)->distanceQueryImpl(L,result,error);if(!ok)std::snprintf(message,sizeof(message),"%s",error.c_str());}if(!ok)return luaL_error(L,"%s",message);lua_pushnumber(L,result);return 1;}
+
+bool ScriptRuntime::intersectingIdsImpl(lua_State* L,std::vector<int32_t>& result,std::string& error){try{
+    if(!lua_istable(L,1))throw std::runtime_error("GetIntersectingIds requires argument table");
+    const auto selected=[&](const char* one,const char* many,const char* name,const char* names,std::vector<int32_t>& out){
+        const auto add=[&](int32_t id){const auto* a=actorWorld_.actor(id);if(a&&a->registered&&a->object&&a->object->active&&!a->object->queryProxy&&std::find(out.begin(),out.end(),id)==out.end())out.push_back(id);return true;};
+        lua_getfield(L,1,many);const bool plural=!lua_isnil(L,-1);lua_pop(L,1);const char* idKey=plural?many:one;
+        lua_getfield(L,1,idKey);const bool list=lua_istable(L,-1);if(lua_isnumber(L,-1)){const auto id=lua_tointeger(L,-1);if(id>=INT32_MIN&&id<=INT32_MAX)add(int32_t(id));}else if(!lua_isnil(L,-1)&&!list){lua_pop(L,1);error="GetIntersectingIds IntList nonnumeric-string selector not reconstructed";return false;}lua_pop(L,1);if(list&&!eachId(L,1,idKey,add))return false;
+        const auto group=[&](const std::string& n){std::vector<int32_t> members;if(!activeMapThingGroup(L,n,members,error))return false;for(auto id:members)add(id);return true;};
+        lua_getfield(L,1,names);const bool pluralNames=!lua_isnil(L,-1);lua_pop(L,1);const char* nameKey=pluralNames?names:name;
+        lua_getfield(L,1,nameKey);const bool nameList=lua_istable(L,-1);if(lua_isstring(L,-1)){const std::string n=lua_tostring(L,-1);if(!group(n)){lua_pop(L,1);return false;}}lua_pop(L,1);return !nameList||eachName(L,1,nameKey,group);
+    };
+    std::vector<int32_t> sources,destinations;if(!selected("Id","Ids","Name","Names",sources)||!selected("DestinationId","DestinationIds","DestinationName","DestinationNames",destinations))return false;
+    result.clear();
+    // GetIntersectingIds26af00 copies each SOURCE Thing polygon and tests
+    // each DESTINATION Thing.GetLocation as a point; it is not polygon overlap.
+    // Native PointInPolygon2ceaf0 uses these exact >= half-open crossings.
+    for(auto source:sources){if(!actorWorld_.refreshGeometry(source,error))return false;const auto* a=actorWorld_.actor(source);if(!a->geometryAvailable){error="GetIntersectingIds actual source polygon unavailable";return false;}const auto& p=a->geometry;if(p.empty())continue;
+        for(auto destination:destinations){float x=0,y=0;if(!actorWorld_.location(destination,x,y,error))return false;bool inside=false;auto previous=p.back();bool previousAbove=previous.y>=y;
+            for(const auto& current:p){const bool above=current.y>=y;if(previousAbove!=above){const float lhs=(previous.x-current.x)*(current.y-y),rhs=(previous.y-current.y)*(current.x-x);if((lhs>=rhs)==above)inside=!inside;}previous=current;previousAbove=above;}
+            if(inside)result.push_back(destination);
+        }
+    }
+    // Native nested source/destination pointer-hash traversal appends matches,
+    // including repeats across sources. Preserve that uncertainty explicitly
+    // when return ordering can affect downstream Destroy callbacks/RNG.
+    if(result.size()>1){error="GetIntersectingIds multiple matches require original pointer-hash traversal order";return false;}
+    return true;
+}catch(const std::exception& e){error=e.what();return false;}}
+int ScriptRuntime::intersectingIdsAction(lua_State* L){char message[2048]{};bool ok=false;{std::string error;std::vector<int32_t> ids;ok=runtime(L)->intersectingIdsImpl(L,ids,error);if(!ok)std::snprintf(message,sizeof(message),"%s",error.c_str());else{lua_newtable(L);lua_pushvalue(L,-1);lua_setglobal(L,"IdsTable");for(size_t i=0;i<ids.size();++i){lua_pushinteger(L,ids[i]);lua_rawseti(L,-2,lua_Integer(i+1));}}}if(!ok)return luaL_error(L,"%s",message);return 1;}

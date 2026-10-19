@@ -25,8 +25,8 @@ int main(int argc,char** argv){try{
   for(const auto id:ids)if(!lightWorld.admit(id,random,error))throw std::runtime_error(std::to_string(id)+": "+error);
   const auto sourceLights=lightWorld.snapshot();if(sourceLights.size()!=63||draws!=12||registry->managerCount(1)!=0)throw std::runtime_error("Original actor light count/RNG/customownership mismatch");
   for(const auto& light:sourceLights){ActorLightVisual visual;if(!lightWorld.visual(light.ownerId,world.actor(light.ownerId)->baseColorBytes,visual,error))throw std::runtime_error(error);if(visual.image.frame.rgba.empty())throw std::runtime_error("Missing original light pixels");}
-  if(!lightWorld.advanceControllers(.6f,random,error)||draws!=12)throw std::runtime_error("Source strict light expiry boundary");
-  if(!lightWorld.advanceControllers(.0001f,random,error)||draws!=18)throw std::runtime_error("Source duration rerandomization count");
+  if(!lightWorld.advanceControllers(.6f,1,random,error)||draws!=12)throw std::runtime_error("Source strict light expiry boundary");
+  if(!lightWorld.advanceControllers(.0001f,1,random,error)||draws!=18)throw std::runtime_error("Source duration rerandomization count");
   for(const auto& light:sourceLights)if(!lightWorld.remove(light.ownerId,error))throw std::runtime_error(error);
   if(registry->allocationCount()!=0)throw std::runtime_error("Leaked actor light controller");
   std::cout<<"ACTOR_LIGHT_SOURCE actors=63 images=7 initRng=12 afterOneLoopRng=18 managerAdd=0 realPixels=true retirement=true\n";

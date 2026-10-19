@@ -5,7 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from build_room_scene import Sjson,merge
 from lua_static import LuaFile,top_level_tables
-from export_actor_animations import export,merged,string,identity
+from export_actor_animations import export,merged,string,identity,native_slide,SLIDE_EVENTS
 
 def strings(value):
  if isinstance(value,str):yield value
@@ -102,7 +102,7 @@ def main(a):
   if not d.get('VideoTexture')or d.get('Type')not in ['Slide','Book']:rejected[name]='Nonmovie animation belongs to existing action/scene banks';continue
   unsupported=[k for k in ['PlayBackwards','LoopFramesOnly','PingPong','StartRed','StartGreen','StartBlue','DurationFrames','Duration','StartAlpha','EndAlpha','Color']if d.get(k)]
   if unsupported:rejected[name]='Movie primary operation not reconstructed: '+','.join(unsupported);continue
-  extra={k for slide in d.get('Slides',[])for k in slide}-{'DurationFrames','Sound','FootstepSound','FootstepFxR','FootstepFxL','VisualFx','RandomDurationFramesMin','RandomDurationFramesMax'}
+  extra={k for slide in d.get('Slides',[])for k in native_slide(slide)}-SLIDE_EVENTS
   if extra:rejected[name]='Movie slide operation not reconstructed: '+','.join(sorted(extra));continue
   if d.get('Type')=='Book'and d.get('Slides'):rejected[name]='Authored Book slide-event expansion not reconstructed';continue
   admitted.append(name)
@@ -111,7 +111,10 @@ def main(a):
    if target and target!='null'and target in animations:roots.setdefault(target,[]).append({'kind':key,'name':name});queue.append(target)
  coverage={'room':closure['room'],'encounter':closure['encounter'],'units':unit_names,'roots':roots,'admitted':admitted,'rejected':rejected,'sources':proof,'limits':['Bounded to forced encounter units and their Lua/native weapon options.','Unimplemented movie operations remain explicit; action-bank resources retain their own admission.']}
  a.decode_output.parent.mkdir(parents=True,exist_ok=True)
- export(SimpleNamespace(content=a.content,decoder=a.decoder,output=a.decode_output,directions=8,sources=sources,names=admitted,unit_scale=1))
+ existing={clip['name']for clip in json.loads((a.base/'manifest.json').read_text())['clips']}
+ missing=[name for name in admitted if name not in existing]
+ if not missing:raise ValueError('Encounter movie closure already complete')
+ export(SimpleNamespace(content=a.content,decoder=a.decoder,output=a.decode_output,directions=8,sources=sources,names=missing,unit_scale=1,existing_names=existing))
  report=append_banks(a.base,a.decode_output,a.output,coverage);print(json.dumps(report['statistics']))
 
 if __name__=='__main__':

@@ -10,6 +10,7 @@ bool ScriptRuntime::advanceVfx(float dt,std::string& error){
  try{
     if(!state_||!std::isfinite(dt)||dt<0||dt>1){error="Native VFX clock/provider unavailable or outside bound";return false;}
     const auto registry=effects_.registry();
+    if(!actionEffects_.faultReason().empty()){error=actionEffects_.faultReason();return false;}
     if(!registry||!registry->allAllocationsInitialized()||!permanentVfxCovered()){
         error="Actual initialized shared VFX allocation/ordered-manager coverage incomplete";return false;
     }
@@ -43,6 +44,36 @@ bool ScriptRuntime::advanceVfx(float dt,std::string& error){
             if(!setActorAnimation(old.ownerId,next,error))return false;
         }else{
             if(!scenePrimaries_.destroy(handle,error))return false;
+            actor->primaryAnimationLifetime=0;actor->object->animation.clear();actor->object->graphicsDirty=true;
+        }
+    }
+    // The action bank is another resource backend for the same native Thing
+    // primary, not a different manager ownership policy. Retain old state until
+    // SetAnimation can transfer it, including the actual owner/lifetime links.
+    for(const auto handle:actionEffects_.completedPrimaries()){
+        const auto* source=actionEffects_.state(handle);if(!source)continue;
+        const auto old=*source;
+        if(old.ownerId<0)continue; // projectile Thing.UpdateAnimation below
+        auto* actor=actorWorld_.actor(old.ownerId);
+        if(!actor||!actor->registered||actor->entityHandle!=old.ownerLifetime||actor->primaryAnimationLifetime!=handle){error="Action primary completion owner lifetime mismatch: "+old.name;return false;}
+        const auto* chain=old.preventChain?nullptr:old.definition.get("ChainTo");std::string next=chain?chain->text():"";
+        if(next.empty()||next=="null"){const auto* graphic=actorWorld_.currentProperty(old.ownerId,"Thing.Graphic");if(!graphic){error="Action primary completion fallback Graphic unavailable";return false;}next=graphic->text();}
+        if(!next.empty()&&next!="null"){
+            if(actionEffects_.admits(next)){
+                if(!setActionPrimaryAnimation(old.ownerId,next,error,true))return false;
+            }else if(animationBank_->find(next)){
+                // The HAA backend currently has immutable per-clip animation
+                // Body state. Identity transfers are exact: location is the
+                // same attached Thing and all transferred fields remain their
+                // native defaults. Never silently drop nondefault live state.
+                const auto flag=[&](const char*k){const auto*v=old.definition.get(k);return v&&v->boolean();};
+                if(old.ownScale!=1||old.scaleVector!=std::array<float,2>{1,1}||old.rotationComponent||old.ownZ!=0||old.addedOffsetZ!=0||old.scaleRadius!=0||old.playSpeedMultiplier!=1||old.flipX||old.flipY||old.randomX!=0||old.randomY!=0||(old.attachOffset&&*old.attachOffset!=std::array<float,2>{0,0})||old.parallax!=1||old.runtimeGroup||flag("TransferChildren")||flag("TransferAngle")||flag("TransferFrameFromThis")){
+                    error="Action primary to HAA requires nondefault Animation.CopyState fields: "+old.name+" -> "+next;return false;
+                }
+                if(!setActorAnimation(old.ownerId,next,error))return false;
+            }else{error="Action primary completion across resource backends requires CopyState: "+old.name+" -> "+next;return false;}
+        }else{
+            if(!actionEffects_.destroy(handle,error))return false;
             actor->primaryAnimationLifetime=0;actor->object->animation.clear();actor->object->graphicsDirty=true;
         }
     }

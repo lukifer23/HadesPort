@@ -42,7 +42,7 @@ bool ScriptRuntime::advanceFlashes(float elapsed,std::string&error){
 }
 std::array<float,4> ScriptRuntime::flashColorForOwner(int32_t id,uint64_t lifetime)const{const auto it=flashes_.find(id);return it!=flashes_.end()&&it->second.lifetime==lifetime?it->second.opacityColor():std::array<float,4>{};}
 bool ScriptRuntime::samplePresentation(const VisualKey&key,hades::ActorVisual&out,std::string&error){
-    if(!samplePresentationImpl(key,out,error))return false;if(key.kind==VisualKey::Kind::Light)return true;
+    if(!samplePresentationImpl(key,out,error)||!applyShakePresentation(key,out,error))return false;if(key.kind==VisualKey::Kind::Light)return true;
     const auto*body=findObjectSnapshot(state_,key.owner);if(!body)return true;
     const auto color=flashColorForOwner(key.owner,body->entityHandle);if(color[3]==0)return true;
     const hades::SourceValue*definition=nullptr;

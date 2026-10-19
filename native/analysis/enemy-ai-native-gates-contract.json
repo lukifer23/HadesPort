@@ -1,0 +1,62 @@
+{
+  "schema": "hades-enemy-ai-native-gates-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence": {
+    "can_attack": ".local/reports/takeover-enemy-script-can-attack-static.json",
+    "is_charmed": ".local/reports/takeover-enemy-script-is-charmed-static.json",
+    "attack_notify": ".local/reports/takeover-enemy-check-can-attack-static.json",
+    "rotation_notify": ".local/reports/takeover-enemy-check-rotation-static.json",
+    "ids": ".local/reports/takeover-enemy-script-ids-static.json",
+    "names": ".local/reports/takeover-enemy-script-names-static.json",
+    "distance": ".local/reports/takeover-enemy-get-distance-static.json",
+    "fire_producer": ".local/reports/takeover-enemy-action-targets-static.json",
+    "fire_origin": ".local/reports/takeover-enemy-request-from-location-static.json",
+    "fire_sound": ".local/reports/takeover-enemy-common-fire-static.json",
+    "intersecting_ids": ".local/reports/takeover-enemy-intersecting-static.json",
+    "book_marker_fallback": ".local/reports/takeover-enemy-book-marker-static.json",
+    "animation_defaults": ".local/reports/takeover-enemy-animation-defaults-static.json",
+    "animation_init_data": ".local/reports/takeover-enemy-animation-init-data-static.json"
+  },
+  "facts": [
+    "ScriptAction.CanAttack276de0 uses a numeric singular Id when provided, otherwise iterates Ids; result is true when any selected Unit passes UnitStatus.CanAttack(false).",
+    "CanAttack checks EditingMode, attack-disable timer and both pending/active DisableAttack effects with ImmuneToStun/self-applied semantics. It does not query weapon cooldown or the primary animation weapon-disable flag.",
+    "ScriptAction.IsCharmed277760 uses the same Id/Ids any-selection shape and reads live UnitStatus.mIsTraitor at Unit+4f0.",
+    "CheckCanAttack27e960 resolves actual active MapThings by ScriptArgs IDs/names, ignores non-Units, and returns ready only when every selected Unit passes. Empty selection completes.",
+    "CheckCanAttack27ea8d additionally rejects actual primary DisableOwnerWeapons at AnimationData+84 before status gates.",
+    "ScriptArgs.Ids2818f0 and Names2817f0 prefer plural keys when present, falling back to singular keys. Their spelling variants are not unioned.",
+    "CheckRotationComplete279a40 reads singular Id. Missing source completes. Unit body angle must equal goal exactly; Cosmetic also requires actual cosmetic angle equal body unless CosmeticallyTargetPlayerUnit is true.",
+    "GetDistance279380 averages existing source and destination Thing locations, subtracts Z*0.8660254 on both sides when UseLocationZ, returns zero if either side has no existing Things, and tests OnlyX before OnlyY before planar Euclidean distance.",
+    "ScriptAction.targets259be0..25a06d FireWeaponFromUnit uses actual singular Unit ID and weapon, ClearAllFireRequests/AutoEquip, live DestinationId entity link, optional FireFromTarget vector and Angle default-1; actual RequestFire decides admission.",
+    "FireRequest.GetFromLocation83020 uses a nonzero explicit from-vector before owner location plus native weapon fire offset. A target link does not replace that owner-origin branch.",
+    "Projectile.Init69910 resolves the request entity generation when deriving target location at+3fc/+400; invalid links use captured target vector, then native forward Range fallback only when that vector is zero.",
+    "Weapon.Fire89126..89167 constructs the current source SoundCue, invokes owner PlayCue3D and records actual returned channel at Weapon+148.",
+    "GetIntersectingIds26af00 tests each destination location as a point against each source polygon with native PointInPolygon2ceaf0 >= crossing/boundary rules, returning destination IDs and preserving duplicate matches across source polygons.",
+    "Book.GetMarkerLocation2b0d10 first obtains actual Animation.GetLocation; absent frame-data dataset delegates to an actual child if present (2b0fa9), else returns that cached base location (2b0fc6).",
+    "When a frame dataset exists but GetDataForMarker returns null,2b0dc4 directly returns cached base location without child delegation.",
+    "Both fallback branches skip full marker angle/dimensions/owner-Z projection/shake-offset calculation, rather than sampling a fabricated zero marker track.",
+    "Animation.InitData2923db stores authored OffsetX/Y at draw offsets+90/+94; Book only adds them on the full marker-data branch. These are distinct from native mAttachOffset+a0/+a4 used by Animation.GetLocation.",
+    "Animation.Defaults291a50 clears mAttachOffset. InitData2930dd adds actual random/radial initialization offsets to it; zero source random/radial values leave it zero. Named HAA SetAnimation attach-offset overrides are not currently admitted."
+  ],
+  "implementation": [
+    "Native bindings share actual registered Unit/status data, original retained notification arguments, live property overrides and existing native event timeout/notification pump.",
+    "No room-name, enemy-name, input-replay or fixed-delay gates are used.",
+    "Fire requests now retain actual actor lifetime identity and parent resolvers refresh target location after synchronous callbacks; no target is replaced with a null link.",
+    "Common/Gun origin honors actual explicit from-vector; original common Fire audio runs through a typed operation, native owner audio admission and actual channel storage.",
+    "HAA actor marker provider distinguishes source dataset/marker absence and uses real Maintain primary base location for initialized zero attach offsets. It never invents marker pixels/data."
+  ],
+  "limits": [
+    "Non-Unit Body rotation transition notification branch remains explicit unsupported.",
+    "IntList nonnumeric-string conversion is retained as an explicit unsupported branch in this bounded notification consumer.",
+    "Current portable world grouping still differs from complete native per-Unit manager interleaving.",
+    "FireWeaponFromUnit multi-Thing selector traversal, ReloadInstantly continuation and player mouse-over targeting remain explicit unsupported branches.",
+    "GetDistance named selectors and IntList nonnumeric-string selectors remain explicit unsupported.",
+    "GetIntersectingIds admits exact empty or sole-match results; multiple appended matches remain explicit until original pointer-hash traversal order can be represented.",
+    "Linked-target Homing retarget/impact behavior remains explicit if reached; no straight-projectile substitute is used.",
+    "Book fallback recursive owner marker/tip policies, child delegation and nonzero random/radial initialization attach offsets remain explicit until their actual initialized components are available."
+  ],
+  "validation": {
+    "build": ".local/reports/takeover-enemy-ai-build-r20.log",
+    "replay": ".local/reports/takeover-enemy-ai-mixed-r5.json",
+    "result": "Fresh strict original mixed-combat replay reached actual HeavyMelee damage to hero at2544 (health50 to40), original PlayerHitSpark plus standalone screen BloodFrame, then subsequent released hero Sword fire2578 (enemy100 to80). No held input/request/strafe remained at2580. Replay first failed2598 on original OnTouchdown unknown source weapon RubbleFall, immediately before four-cardinal input sequence2600. All-cardinal recovery and full projectile disposal remain unverified until that source weapon closure is staged."
+  }
+}

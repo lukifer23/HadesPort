@@ -74,7 +74,7 @@
     "optional_size": 48,
     "weapon_current_offset": "0xa8",
     "weapon_previous_offset": "0xd8",
-    "portable_target_boundary": "only no target targetId=-1; native EntityLinkedObject generation/identity must be supplied before non-null targets"
+    "portable_target_boundary": "Native pointer/entity-ID pair is represented by actual ActorWorld Thing ID plus entity lifetime; parent producer/resolver must supply the matching real generation. Stale target lifetime uses the native captured-vector fallback when consumed by Projectile.Init."
   },
   "request_gate_order": [
     "owner UnitManager lookup",

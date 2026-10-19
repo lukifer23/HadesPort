@@ -124,3 +124,5 @@ target_compile_options(hades-config-file-smoke PRIVATE -Wall -Wextra -Wpedantic)
 # --- end original settings/bindings persistence ---
 
 target_sources(hades-debug PRIVATE ../app/native_flash.cpp ../app/lua_flash.cpp)
+
+target_sources(hades-debug PRIVATE ../app/native_shake.cpp ../app/lua_shake.cpp ../app/lua_clock.cpp)

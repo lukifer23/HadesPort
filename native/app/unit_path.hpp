@@ -10,7 +10,8 @@ struct UnitPathConfig {
  float nodeDistance=32,nodeSuccessDistance=4,lookAheadDistance=256,lookAheadMultiplier=1;
  float successDistance=32,repathDelayMin=.1f,repathDelayMax=.3f,repathTargetMoveDistance=200;
  int32_t nodeCountLimit=INT32_MAX,skippedNodeLimit=4;
- bool stopToRotate=false,slowToRotate=true;
+ bool stopToRotate=false,slowToRotate=true,moveWithoutPath=false;
+ float avoidLocationDistance=0;
 };
 struct UnitPathNode {int32_t x=0,y=0,cost=0,distance=0;bool alternate=false;};
 struct UnitPathState {
@@ -19,10 +20,10 @@ struct UnitPathState {
  bool initialized=false,rotationPending=false;
 };
 // Native Pathfinder::CalcPath VA1802e9930, AddNode2ea520,
-// BuildMoveList2ea9b0. Caller MUST establish collision-disabled Unit path
-// obstacle parameters, and an actual Unit candidate preflight; no camera/LOS gate,
+// BuildMoveList2ea9b0. The callback runs the actual collision query and
+// distinguishes ordinary blocked nodes from an unsupported query; no camera/LOS gate,
 // no alternate nodes/FinishAtGoal; other branches remain explicit blockers.
-bool planCollisionFreeUnitPath(float x,float y,float goalX,float goalY,
- const UnitPathConfig&,const std::function<bool(float,float,std::string&)>& validateNode,
+bool planUnitPath(float x,float y,float goalX,float goalY,
+ const UnitPathConfig&,const std::function<bool(float,float,bool& blocked,std::string&)>& validateNode,
  std::vector<UnitPathNode>& backwards,std::string& error);
 }

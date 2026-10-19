@@ -12,6 +12,9 @@ struct ActionEffectProviders {
  uint64_t worldFrame=0;
  // Concrete Animation.InitData sound branch, attached3D/standalone3DWithCap.
  std::function<bool(const std::string&,int32_t,const std::array<float,3>&,uint32_t,uint32_t&,std::string&)> sound;
+ // Portable immutable coverage check before allocating any animation in the
+ // source dependency graph. Does not play or reserve audio, or consume RNG.
+ std::function<bool(const std::string&,std::string&)> prepareSound;
  // Source ModifiedTime/TimeModifierFraction adapter. Must use actual clocks.
  std::function<bool(int32_t,float,bool,float,float&,std::string&)> elapsed;
  // AnimationManager::CreateAndInit 0x18029fd65: RequiresUnblocked (data+0x64)
@@ -26,7 +29,7 @@ struct ActionEffectState {
  size_t imageClip=0,slide=0;float frame=1,remaining=0,duration=0,playSpeed=0,fraction=0,frameTarget=0;
  std::array<float,3> position{},spawnPosition{};
  EffectOwnerState ownerSnapshot;
- bool detached=false,preferUnmodified=false;
+ bool detached=false,preferUnmodified=false,useScreenLocation=false;
  std::optional<std::string> runtimeGroup;
  std::array<float,2> scaleVector{1,1};
  float ownScale=1,heading=0,rotation=0,speed=0,acceleration=0,headingSpeed=0,timeRemaining=0;
@@ -63,6 +66,7 @@ struct ActionEffectState {
 struct ActionAnimationSetup {
  float scale=1,scaleRadius=0,duration=0,offsetX=0,offsetY=0,offsetZ=0;
  bool mirrorOffsetX=false;
+ bool useScreenLocation=false;
  std::optional<float> angleDegrees;
  std::optional<std::array<uint8_t,4>> color; // packed RGBA bytes (LuaTableExtensions::GetColor)
  std::optional<std::string> group;           // "" = MapThingGroupId::None
@@ -72,6 +76,8 @@ struct ActionAnimationSetup {
 class ActionEffectWorld {
  SourceValue catalog_;std::map<std::string,SourceValue> definitions_;
  std::shared_ptr<ActorAnimationBank> bank_;std::shared_ptr<AnimationRegistry> registry_;
+ std::string fault_;
+ void retainFault(std::string& error){if(!faulted_){fault_=error.empty()?"Action FX failed after native allocation/mutation":error;faulted_=true;}error=fault_;}
  std::map<uint64_t,ActionEffectState> states_;bool faulted_=false,mutating_=false,primaryRequest_=false,guiLineRequest_=false;
  // Property coverage review: exporter rejections and, per admitted
  // definition, source fields with no reconstructed consumer (fail on use)
@@ -100,6 +106,8 @@ public:
  // Thing::SetAnimation with an action-bank definition as the owner primary.
  bool createPrimary(const std::string&,int32_t,const ActionEffectProviders&,uint64_t&,std::string&);
  bool retiredPrimary(uint64_t h)const{return retiredPrimaries_.contains(h);}
+ const std::string& faultReason()const{return fault_;}
+ std::vector<uint64_t> completedPrimaries()const;
  bool setup(uint64_t,const ActionAnimationSetup&,std::string&);
  // Animation::SetRadius 0x1802974e0: pChildAnimation first, then each created
  // animation named by CreateAnimation/CreateAnimations, then self mScaleRadius.

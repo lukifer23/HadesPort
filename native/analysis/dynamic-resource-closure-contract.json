@@ -1,0 +1,62 @@
+{
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "scope": "Shared class algorithms; selected source closure remains fresh-save sword/Tartarus maps and forced encounters. No room-name behavior special cases.",
+  "entity_resources": {
+    "producer": "native/tools/animation_coverage.py",
+    "method": [
+      "Resolve native and Lua inheritance before traversing original obstacle namespace references; retain source field paths. Exclude visual field namespaces from obstacle-reference edges.",
+      "Reachable Lua obstacle classes admit all native named AnimationData fields and raw Thing.Graphic resources, even when another instance of that class is map-placed. Recursively follow dynamic referenced obstacle classes.",
+      "Named AnimationData follows children, VFX, Random, ChainTo, CreateAnimationOnEnd and slide-event dependencies. Raw graphics retain actual atlas pixels and use the native Dataless factory.",
+      "FxStyles maps are animation-valued containers: collect every style member from resolved scoped hero/enemy data. CombatPresentation.GetDamagedFx selects projectile style then Default; leaf labels such as Default do not change the resource namespace."
+    ],
+    "runtime_evidence": "native/analysis/animation-manager-ownership-contract.json",
+    "unresolved_raw_graphics": [
+      "BoonSlotGift",
+      "UpgradeCunning",
+      "UpgradeHealth",
+      "UpgradeSuper",
+      "Tilesets\\House\\House_Cage_02",
+      "Tilesets\\House\\House_Desk_01"
+    ],
+    "raw_limit": "Missing source manifests and unsupported original sprite transforms remain explicit rejections, never blank substitutes.",
+    "damaged_fx_consumer": "CombatPresentation.lua3814\u20133820 and RoomManager.lua1023; latest coverage16/action20 adds PlayerHitSpark and BloodImpactRandom/A/B. Selected pack promotion requires a no-reader stage window."
+  },
+  "inline_symbols": {
+    "producer": "native/tools/export_text_resources.py",
+    "source_class": "Scripts/UIData.lua IconData; original UIScripts.lua copies TexturePath into Icons",
+    "method": "Export every literal TexturePath in original IconData, independent of room or selected icon. Retain localized and Lua string-token reference provenance and original atlas trim/scale.",
+    "selected_result": {
+      "records": 158,
+      "literal_textures": 140,
+      "exported_textures": 135
+    },
+    "limits": "Five textures absent GUI package are explicitly reported; eight original fonts and English DisplayName records remain the admitted text scope.",
+    "native_trim": "Atlas.Read VA1801f3d48..1f3d80 reads trimXY then originalWH; entry+18/+1c receives originalWH at1f4199/1f41a1. Native text symbol advance uses full original width. Crop quad top-left = native center + (trimXY - originalWH/2)*symbolScale; retain cropped original RGBA and scale1 requirement. Evidence takeover-text-symbol-parse-native.json, takeover-text-symbol-draw-native.json, takeover-text-symbol-size-native.json, native-graphics-atlas-read-static.json.",
+    "native_justification": "Native original atlas width feeds truncated DrawLine advance and measured line extent. Existing glyph+symbol line extent now drives Start/Center/End x0 placement with the same width; Alerted centered symbol passed actual strict replay."
+  },
+  "movie_slides": {
+    "producer": "native/tools/export_actor_animations.py and extend_actor_animations.py",
+    "source": "PDB SlideDataDef complete members; SGD_Deserialize(SlideData) RVA0xe8980 length2340; SGD_Deserialize_Additive<SlideData> RVA0x9d000; SlideStart RVA0x2b4080; Animation.DoSlideEffects RVA0x29afb0",
+    "method": "Normalize source slide keys to exact finite native deserializer key class. Unknown keys advance at VA0x1800e91f4 without assigning any native field. Preserve raw definitions and enumerate ignored slide fields in the derived manifest. Known unimplemented native slide operations remain rejected.",
+    "danger_distance": "DangerDistance is a real top-level AnimationData field. It is absent the complete SlideDataDef and slide deserializer key class, so authored per-slide DangerDistance does not become a runtime operation. This admits the original source-derived EnemyWretchThugAttackCharge schedule without inventing a danger effect.",
+    "evidence": [
+      ".local/reports/takeover-slide-record-deserialize-native.json",
+      ".local/reports/takeover-slide-data-deserialize-native.json",
+      ".local/reports/native-primary-slide-fields.json",
+      ".local/reports/native-actor-animation-slide-start.json",
+      ".local/reports/takeover-animation-do-slide-effects-native.json"
+    ]
+  },
+  "voices": {
+    "producer": "native/tools/export_function_voice_audio.py",
+    "method": "Select complete original HeroVoiceLines/GlobalVoiceLines tables referenced literally by source presentation function bodies, then preserve every original Cue alternative, source subtitle, actor definition and decoded sample. Prior audio banks remain cumulative.",
+    "selected_consumer": "CannotUseDoorPresentation",
+    "selected_tables": [
+      "HeroVoiceLines.InteractionBlockedVoiceLines",
+      "HeroVoiceLines.ExitBlockedByEnemiesVoiceLines",
+      "HeroVoiceLines.ExitBlockedByHealthVoiceLines"
+    ],
+    "limits": "Runtime-selected indirect table keys and unrelated voice consumers require separately derived scope; no fabricated subtitle or silent cue substitution."
+  },
+  "verification": "Fresh action20/audio24/actor8/text7/primary6/room6 boot and repeated-melee contained replay completed6600worldupdates with empty presentation error. Actual source Sword damage lowered enemyHealth160\u21920 at2626, luaDead1/nativeLife0. Original Kill aborted at MoneyPileA action-primary ChainTo ownership guard before required-enemy cleanup/corpse; later waves/reward remain unproven. Report .local/reports/takeover-sustained-melee-contained-v2.json/log."
+}

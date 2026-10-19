@@ -15,15 +15,18 @@ struct TextFont {
  int32_t lineSpacing=0;float spacing=0;std::vector<uint8_t> rgba;
  std::map<uint32_t,TextGlyph> glyphs;
 };
-struct TextGlyphQuad {float x=0,y=0,w=0,h=0,u0=0,v0=0,u1=0,v1=0;uint32_t codepoint=0;};
+struct TextGlyphQuad {float x=0,y=0,w=0,h=0,u0=0,v0=0,u1=0,v1=0;uint32_t codepoint=0;uint32_t style=0;};
 // Inline original atlas image placed by GUIComponentTextBox::ParseImage ("@path").
-struct TextSymbolQuad {float x=0,y=0,w=0,h=0;std::string texture;};
-struct TextSymbol {std::string texture;uint32_t width=0,height=0;std::vector<uint8_t> rgba;};
+struct TextSymbolQuad {float x=0,y=0,w=0,h=0;std::string texture;uint32_t style=0;};
+struct TextSymbol {std::string texture;uint32_t width=0,height=0,originalWidth=0,originalHeight=0,trimX=0,trimY=0;std::vector<uint8_t> rgba;};
 // Parsed text run: plain text or one inline symbol (original texture path).
-struct TextPiece {bool symbol=false;std::string text;};
+struct TextPiece {bool symbol=false;std::string text;uint32_t style=0;};
+// GUIComponentTextBox Line::mFormatter: a format break continues the same
+// physical line with a different font, size and symbol advance.
+struct TextLayoutStyle {std::string font;float size=0,textSymbolScale=1;};
 struct TextVisual {
  uint64_t sequence=0;int32_t ownerId=0;std::string font,group,text;
- bool screenSpace=false;float ownerX=0,ownerY=0,ownerZ=0;
+ bool screenSpace=false,locationZWithOwner=true;float ownerX=0,ownerY=0,ownerZ=0;
  bool caption=false;std::string sourceWidget;
  // Shadow/outline alpha already includes source FancyText global vertex alpha.
  std::array<float,4> color{1,1,1,1},shadowColor{0,0,0,0},outlineColor{0,0,0,0};
@@ -37,6 +40,7 @@ struct TextLayoutRequest {
  TextJustification horizontal=TextJustification::Center,vertical=TextJustification::Center;
  // When nonempty, replaces text: parsed runs including inline symbols.
  std::vector<TextPiece> pieces;float textSymbolScale=1; // data TextSymbolScale (tb+0x13c)
+ std::vector<TextLayoutStyle> styles;
 };
 // Original UFN1/Alpha8 glyphs. Paragraph word wrapping is an explicit portable
 // layout policy; per-glyph ABC/cropping/line spacing follows matching DrawInto.

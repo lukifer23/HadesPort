@@ -33,6 +33,7 @@
 #include "audio_output.hpp"
 #include "save_runtime.hpp"
 #include "native_flash.hpp"
+#include "native_shake.hpp"
 #include <map>
 #include <string>
 #include <unordered_set>
@@ -46,6 +47,13 @@ class ScriptRuntime {
     std::unordered_set<std::string> loaded_;
     std::string error_;
     std::map<int32_t,hades::NativeFlash> flashes_;
+    std::map<int32_t,hades::NativeShake> shakes_;
+    std::vector<int32_t> shakeOrder_;
+    void registerShakeAction();
+    static int shakeAction(lua_State*);
+    bool shakeActionImpl(lua_State*,std::string&);
+    bool advanceShakes(float,std::string&);
+    std::array<float,2> shakeOffsetForOwner(int32_t,uint64_t)const;
     void registerFlashActions();
     static int flashAction(lua_State*);
     bool flashActionImpl(lua_State*,bool,std::string&);
@@ -186,6 +194,7 @@ class ScriptRuntime {
         bool control=false,released=false,playerInput=false;
         bool allDead=false; // ScriptAction::CheckOnAllDead27ce60.
         bool stopped=false; // ScriptAction::CheckStopped 0x2797f0 (NotifyOnStopped, action 244).
+        uint8_t unitState=0; // CheckCanAttack27e960 / CheckRotationComplete279a40.
         bool whenSeparated=false,pointOnly=false;
         uint8_t distance=0; // 1 WithinDistanceAverage, 2 WithinDistanceAny, 3 OutsideDistanceAverage.
         float timeout=0;
@@ -202,6 +211,15 @@ class ScriptRuntime {
     bool checkDistanceNotify(const WorldNotify&,bool&,std::string&);
     static int stoppedNotifyAction(lua_State*);
     bool checkStoppedNotify(const WorldNotify&,bool&,std::string&);
+    static int unitAIQueryAction(lua_State*);
+    bool unitAIQueryImpl(lua_State*,int,int,bool&,std::string&);
+    bool unitAttackAllowed(int32_t,bool,bool,bool&,std::string&);
+    static int unitStateNotifyAction(lua_State*);
+    bool checkUnitStateNotify(const WorldNotify&,bool&,std::string&);
+    static int distanceQueryAction(lua_State*);
+    bool distanceQueryImpl(lua_State*,float&,std::string&);
+    static int intersectingIdsAction(lua_State*);
+    bool intersectingIdsImpl(lua_State*,std::vector<int32_t>&,std::string&);
     static int thingQueryAction(lua_State*);
     bool thingQueryImpl(lua_State*,int mode,double&,std::string&);
     std::vector<std::string> rawControlsDown_,rawControlsPressed_,rawControlsReleased_;
@@ -217,6 +235,10 @@ class ScriptRuntime {
     std::map<uint64_t,hades::UnitMovementState> localMovement_;
 
     float worldSpeedModifier_=1; // Matching World constructor +0x20.
+    float worldSpeedTarget_=1,worldSpeedRate_=1,worldSpeedRemaining_=0; // World+24/+28/+2c.
+    static int simulationSpeedAction(lua_State*);
+    bool simulationSpeedImpl(lua_State*,std::string&);
+    bool advanceWorldSpeed(float,std::string&);
     bool physicsFaulted_=false;
     std::string physicsFault_;
     std::function<bool(int32_t,std::string&)> physicsTouchdownWeapon_;
@@ -259,6 +281,8 @@ class ScriptRuntime {
     bool runWeaponMethodImpl(lua_State*,std::string&);
     static int spawnUnit(lua_State*);
     bool spawnUnitImpl(lua_State*,int32_t&,std::string&);
+    static int fireWeaponFromUnitAction(lua_State*);
+    bool fireWeaponFromUnitImpl(lua_State*,std::string&);
     static int spawnObstacle(lua_State*);
     bool spawnObstacleImpl(lua_State*,int32_t&,std::string&);
     static int setUnitProperty(lua_State*);
@@ -299,6 +323,8 @@ class ScriptRuntime {
     bool blinkUpdate(const hades::WeaponOutput&,std::string&);
     bool unitSetLocation(int32_t,float x,float y,std::string&);
     bool unitLocationValid(int32_t,float x,float y,bool& valid,std::string&);
+    bool unitPathNodeBlocked(int32_t,float x,float y,bool preferAvoid,bool& blocked,std::string&);
+    bool unitLineOfMovement(int32_t,float x,float y,bool preferAvoid,bool& clear,std::string&);
     bool spawnPointBlocked(float x,float y,bool&,std::string&);
     bool closestNonBlockedLocation(float x,float y,float& outX,float& outY,std::string&);
     bool gridLineBlocked(float x0,float y0,float x1,float y1,bool& blocked,std::string&);
@@ -327,6 +353,7 @@ class ScriptRuntime {
     bool advanceWeapons(float,std::string&);
     bool advanceLife(float,std::string&);
     bool primaryCombatFlags(int32_t,bool& invulnerable,bool& noArmorCoverage,bool& noInvulnerableCoverage,std::string&)const;
+    bool primaryUntargetable(int32_t,bool&,std::string&)const;
     bool retirePrimaryAnimation(uint64_t,std::string&);
     bool applyWeaponPhysics(const hades::WeaponOutput&,bool execute,std::string&);
     bool weaponAnimationRadius(const hades::WeaponOutput&,bool execute,std::string&);
@@ -362,10 +389,11 @@ class ScriptRuntime {
 
     bool setActorAnimation(int32_t,const std::string&,std::string&);
     float actorAnimationFacing(const hades::ActorComponents&)const;
-    bool setActionPrimaryAnimation(int32_t,const std::string&,std::string&);
+    bool setActionPrimaryAnimation(int32_t,const std::string&,std::string&,bool copyPrevious=false);
     bool worldAnimationArgs(int32_t,const std::string&,lua_State*,std::string&);
     bool actorSlideEvent(int32_t,const hades::ActorAnimationClip&,const hades::ActorAnimationSlide&,std::string&);
     bool advanceActorAnimations(float,std::string&);
+    bool advanceUnitActivations(std::string&);
     bool loadActorDefinitions();
     bool loadActorLightDefinitions();
     bool initializeActorLight(int32_t,std::string&);
@@ -479,6 +507,7 @@ public:
     bool sampleScreenPresentation(int32_t,hades::ActorVisual&,std::string&);
     bool samplePresentation(const VisualKey&,hades::ActorVisual&,std::string&);
     bool samplePresentationImpl(const VisualKey&,hades::ActorVisual&,std::string&);
+    bool applyShakePresentation(const VisualKey&,hades::ActorVisual&,std::string&)const;
     bool serviceAssets(size_t textureBudget=1);
     bool assetsPending()const{return packages_.pending();}
     bool startAudio();

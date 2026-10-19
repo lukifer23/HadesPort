@@ -38,6 +38,7 @@
   ],
   "validation": {
     "build": ".local/reports/takeover-cast-graphics-build-r14.log",
-    "result": "Fast host target linked successfully. Existing first-hit input path is being replayed; no gameplay or hitstop recovery claim is made from compilation."
+    "result": "Host linked. Original first-hit path reaches frame2373 OnHit but stops at the next actual world-Thing SetScaleX/SetScaleY consumer before nondefault primary clock advancement can be demonstrated. Subsequent replay after native Unit activation restoration reaches previously dormant enemy AggroAI at2157 and its missing InvisibleTarget primary; no actual hitstop recovery claim yet.",
+    "first_hit_replay": ".local/reports/takeover-first-hit-clock-r2.json"
   }
 }

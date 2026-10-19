@@ -74,6 +74,8 @@ def export(content,stream_manifest,output,extra_streams=(),mixing_control=False,
  if output.exists()or output.is_symlink():raise ValueError('Audio event output must be new')
  content=content.resolve();output=output.resolve()
  if output.is_relative_to(content.parent):raise ValueError('Never export into originals')
+ from animation_audio_binding import from_stream
+ animation_closures=[closure for path in [stream_manifest,*extra_streams]if(closure:=from_stream(path))is not None]
  raw,stream_id=read_original(stream_manifest);streams=json.loads(raw)['catalog'];additional=[];unsupported=dict(streams.get('rejected',{}))
  for path in extra_streams:
   raw,identity=read_original(path);other=json.loads(raw)['catalog'];additional.append(identity);unsupported.update(other.get('rejected',{}))
@@ -268,9 +270,10 @@ def export(content,stream_manifest,output,extra_streams=(),mixing_control=False,
  namespace=audit_namespace(content,['/EmptyCue'])
  event_names={k.removeprefix('event:'):v for k,v in namespace['namespace'].items()if k.startswith('event:')}
  out={'schema':'hades-native-audio-events-v1','timeline_rate':48000,'samples':streams['samples'],'events':events,'buses':buses,'effects':effects,'event_namespace':event_names,'namespace_source':namespace['strings_bank'],'source_banks':sources,'guids':guids_id,'stream_manifest':stream_id,'additional_stream_manifests':additional,'unsupported_events':{k:v for k,v in sorted(unsupported.items())if k not in events},'adaptations':['Android mixer/resampler/DSP use source graph and original parameters with documented portable approximations.','FMOD bitwise PCM equivalence after event DSP is not claimed.'],'playback_ready':False}
+ if animation_closures:out['selected_animation_audio_closures']=animation_closures
  if snapshot is not None:out['mixing_control']={'name':'/Control/MixingControl','reverb':snapshot}
  if 'voice_namespace' in streams:out.update(voice_namespace=streams['voice_namespace'],voice_header=streams['voice_header'],voice_subtitles=streams['voice_subtitles'],actor_definitions=streams['actor_definitions'])
- output.mkdir(parents=True);(output/'audio-events.lua').write_text('return '+literal(out)+'\n');(output/'manifest.json').write_text(json.dumps(out,indent=2)+'\n');(output/'receipt.json').write_text(json.dumps({'schema':'hades-native-audio-event-receipt-v1','catalog':read_original(output/'audio-events.lua')[1],'manifest':read_original(output/'manifest.json')[1]},indent=2)+'\n')
+ output.mkdir(parents=True);(output/'audio-events.lua').write_text('return '+literal(out)+'\n');(output/'manifest.json').write_text(json.dumps(out,indent=2)+'\n');(output/'receipt.json').write_text(json.dumps({'schema':'hades-native-audio-event-receipt-v1','selected_animation_audio_closures':animation_closures,'catalog':read_original(output/'audio-events.lua')[1],'manifest':read_original(output/'manifest.json')[1]},indent=2)+'\n')
  return {'output':str(output),'events':len(events),'unsupported_events':len(out['unsupported_events']),'buses':len(buses),'effects':len(effects),'samples':len(streams['samples'])}
 def main():
  root=Path(__file__).resolve().parents[2];p=argparse.ArgumentParser(description=__doc__);p.add_argument('--content',type=Path,default=root/'.local/game/base/Content');p.add_argument('--streams',type=Path,required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--extra-streams',type=Path,action='append',default=[]);p.add_argument('--mixing-control',action='store_true');p.add_argument('--tolerate-unsupported',action='store_true',help='record (not abort on) source graph features the event player does not reproduce');a=p.parse_args();print(json.dumps(export(a.content,a.streams,a.output,a.extra_streams,a.mixing_control,a.tolerate_unsupported),indent=2))

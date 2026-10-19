@@ -53,15 +53,15 @@ def export(bank, output, version=1):
         definition = clip['definition']
         props = {}
         values = 0
-        for bit, key in ([(1, 'OwnerImmobile'), (2, 'BlockNewOwnerAnims')]+([(8,'OwnerInvulnerable'),(16,'OwnerNoArmorCoverage'),(32,'OwnerNoInvulnerableCoverage')]if version>=3 else [])+([(64,'DisableOwnerInteract'),(128,'DisableOwnerManualInteract')]if version>=4 else [])+([(256,'UseAttachedFlasher')]if version>=5 else [])):
-            value = definition.get(key, key=='UseAttachedFlasher')
+        for bit, key in ([(1, 'OwnerImmobile'), (2, 'BlockNewOwnerAnims')]+([(8,'OwnerInvulnerable'),(16,'OwnerNoArmorCoverage'),(32,'OwnerNoInvulnerableCoverage')]if version>=3 else [])+([(64,'DisableOwnerInteract'),(128,'DisableOwnerManualInteract')]if version>=4 else [])+([(256,'UseAttachedFlasher')]if version>=5 else [])+([(512,'UseAttachedShake')]if version>=6 else [])):
+            value = definition.get(key, key in ('UseAttachedFlasher','UseAttachedShake'))
             if type(value) is not bool:
                 raise ValueError(f'Untyped {key}')
             values |= bit if value else 0
             props[key] = {'value': value, 'provenance': 'resolved-source' if key in definition else 'native-compiled-default'}
         book = bool(clip['flags'] & 512)
         sequence = clip['source_sequence']
-        data += struct.pack('<III', 511 if version>=5 else(255 if version>=4 else(63 if version>=3 else(7 if version==2 else 3))), values, len(sequence))
+        data += struct.pack('<III', 1023 if version>=6 else(511 if version>=5 else(255 if version>=4 else(63 if version>=3 else(7 if version==2 else 3)))), values, len(sequence))
         if version>=2:
             # Later explicit constructor override after the zero-template copy.
             if '180094273:' not in ctor['assembly'] or '0x42c80000, 0x2a8(%rdi)' not in ctor['assembly']:
@@ -71,6 +71,19 @@ def export(bank, output, version=1):
                 raise ValueError('Untyped/out-of-bounds AirborneZ')
             data += struct.pack('<f',value)
             props['AirborneZ']={'value':value,'provenance':'resolved-source' if 'AirborneZ' in definition else 'native-compiled-default','def_offset':592,'full_data_offset':680}
+        if version>=6:
+            # Native fullData+0x5f true at180094205; LocationFromOwner+0xc2
+            # explicitly0 at1800941aa; ScaleVectorFromOwner+0xbf zeroed by
+            # wordstore1800940fa. Preserve actual owner enums, not aliases.
+            if not all(t in ctor['assembly'] for t in ['180094205:', '1800941aa:', '1800940fa:']):
+                raise ValueError('Missing native owner shake/location/scale vector defaults')
+            for key in ['LocationFromOwner','ScaleVectorFromOwner']:
+                value=definition.get(key,'Maintain')
+                value={'Maintain':0,'Take':1,'Ignore':2}.get(value,value)
+                if type(value) is not int or value not in (0,1,2):
+                    raise ValueError('Invalid native owner enum: '+key)
+                data += struct.pack('<I',value)
+                props[key]={'value':value,'provenance':'resolved-source' if key in definition else 'native-compiled-default'}
         slides = []
         for step in sequence:
             frame = step['original_frame']
@@ -93,7 +106,7 @@ def export(bank, output, version=1):
     report = {'schema': 'hades-primary-animation-properties-v'+str(version), 'packet': identity(target),
               'bank': identity(packet), 'source_manifest': identity(bank / 'manifest.json'),
               'dll_sha256': DLL_SHA, 'records': records,
-              'format': 'HAP'+str(version)+' + raw32 HAA SHA + u32 clipCount; per clip u32 knownMask/valueMask/slideCount; '+('float AirborneZ;' if version>=2 else '')+' per slide u32 originalFrame1/u32 airborne(0 unknown,1 false,2 true). Property mask OwnerImmobile=1,BlockNewOwnerAnims=2'+(',OwnerInvulnerable=8,OwnerNoArmorCoverage=16,OwnerNoInvulnerableCoverage=32'if version>=3 else '')+(',DisableOwnerInteract=64,DisableOwnerManualInteract=128'if version>=4 else '')+(',UseAttachedFlasher=256' if version>=5 else '')+(',AirborneZ-known=4.' if version>=2 else '.'),
+              'format': 'HAP'+str(version)+' + raw32 HAA SHA + u32 clipCount; per clip u32 knownMask/valueMask/slideCount; '+('float AirborneZ;' if version>=2 else '')+' per slide u32 originalFrame1/u32 airborne(0 unknown,1 false,2 true). Property mask OwnerImmobile=1,BlockNewOwnerAnims=2'+(',OwnerInvulnerable=8,OwnerNoArmorCoverage=16,OwnerNoInvulnerableCoverage=32'if version>=3 else '')+(',DisableOwnerInteract=64,DisableOwnerManualInteract=128'if version>=4 else '')+(',UseAttachedFlasher=256' if version>=5 else '')+(',UseAttachedShake=512; HAP6 stores u32 LocationFromOwner then u32 ScaleVectorFromOwner after AirborneZ' if version>=6 else '')+(',AirborneZ-known=4.' if version>=2 else '.'),
               'evidence': [identity(reports / n) for n in [
                   'native-active-animation-data-ctor-static.json', 'native-fields-AnimationDataDef.txt',
                   'native-primary-slide-fields.json', 'native-primary-slide-fill-default-static.json',
@@ -108,6 +121,6 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--bank', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
-    p.add_argument('--version',type=int,choices=[1,2,3,4,5],default=1)
+    p.add_argument('--version',type=int,choices=[1,2,3,4,5,6],default=1)
     a = p.parse_args()
     export(a.bank, a.output,a.version)

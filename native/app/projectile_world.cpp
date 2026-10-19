@@ -339,6 +339,8 @@ bool ProjectileWorld::initializeShot(ProjectileInitializationRequest request,Wea
             frame.worldTime=providers.worldTime;frame.thingInitialized=entity->thingInitialized;
             frame.hasBody=entity->bodyPending;frame.hasPhysics=bool(entity->physics);
             frame.ownerExists=actual&&actual->registered&&actual->object&&actual->arsenal.get()==&arsenal;
+            end.targetLinkChecked=true;end.targetExists=false;
+            if(request.fire.targetId!=-1){const auto* target=world.actor(request.fire.targetId);end.targetExists=target&&target->registered&&target->object&&target->entityHandle==request.fire.targetLifetime;if(end.targetExists&&!world.location(target->id,end.targetX,end.targetY,error))return false;}
             if(!frame.ownerExists){error="Projectile initialization owner disappeared across native callback";return false;}
             if(!world.zLocation(request.ownerId,frame.ownerTotalZ,error))return false;
             if(!providers.ownerState(*actual,end.gunOwner.damageOutputModifier,frame.ownerSpawnedById,frame.ownerTraitor,error))return false;
@@ -358,7 +360,7 @@ bool ProjectileWorld::initializeShot(ProjectileInitializationRequest request,Wea
             case K::AddOwnerZ:case K::RetainFiringWeapon:case K::AddToGroup:case K::SetWeaponLastFirePerfectCharge:
             case K::RequestRandomDouble:case K::SetupGeometry:case K::RefreshLocation:case K::SetAngle:
             case K::SetBodyScale:case K::QueuePendingProjectile:case K::CopyOwnerGroups:return true;
-            case K::FinalizeHomingTargetLink:return request.fire.targetId==-1;
+            case K::FinalizeHomingTargetLink:return request.fire.targetId==-1||request.fire.targetLifetime!=0;
             case K::SetProjectileNumOpacityFlag:return true;
             case K::AttachToOwner:return true;
             case K::SetAnimation:return bool(providers.thing.setAnimation);
@@ -409,8 +411,8 @@ bool ProjectileWorld::initializeShot(ProjectileInitializationRequest request,Wea
                 // ProjectileManager::Create VA180079d40 copies the
                 // FireRequest Thing entity link; a null link stays null and
                 // Homing.Move performs native closest-target acquisition.
-                if(request.fire.targetId!=-1){error="Homing FireRequest target link requires actual entity lifetime resolver";return false;}
-                entity->homing.linkedTargetId=-1;entity->homing.linkedTargetLifetime=0;return true;
+                if(request.fire.targetId!=-1&&!request.fire.targetLifetime){error="Homing FireRequest target entity-generation link unavailable";return false;}
+                entity->homing.linkedTargetId=request.fire.targetId;entity->homing.linkedTargetLifetime=request.fire.targetLifetime;return true;
             case K::AttachToOwner:{
                 // Init VA180069f2b..: GetFireOffset86010(weapon, Body?Body.mAngle:0),
                 // vslot0x108 Thing::AttachTo2e59f0(UnitManager::Get(weapon owner), offset)
@@ -829,7 +831,8 @@ bool ProjectileWorld::homingTargetEligible(const ProjectileActor& p,int32_t id,b
     eligible=false;const auto* a=liveUnit(*p.firingWorld,id);if(!a||!a->hasLife)return true;
     const auto* homing=p.firingWorld->currentProperty(id,"Life.HomingEligible");
     if(!homing){error="Homing target Life.HomingEligible unavailable";return false;}
-    if(!homing->boolean()||!a->targetable)return true;
+    if(!homing->boolean())return true;
+    bool targetable=false;if(!p.firingWorld->isTargetable(id,targetable,error))return false;if(!targetable)return true;
     bool allow=false;if(!dataBool(p,"AllowTargetInvulnerable",allow,error))return false;
     bool invulnerable=a->invulnerable,noCoverage=false;
     if(a->animation.active()||a->primaryAnimationLifetime||a->primaryEffectAnimation){

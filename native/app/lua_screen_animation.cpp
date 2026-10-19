@@ -124,7 +124,7 @@ bool ScriptRuntime::screenActionImpl(lua_State*L,int mode,std::string&e){
   if(screenArg(v,"MinFraction")!=0||screenArg(v,"MaxFraction")!=0||(screenArg(v,"MinDuration")!=0&&screenArg(v,"MaxDuration")!=0)){e="Native random SetScaleX/Y fraction/duration requires engine RNG adapter";return false;}
   std::vector<int32_t> ids;if(const auto*p=v.get("Id")){ids=screenIds(v,"Id","");}else ids=screenIds(v,"","Ids");
   const auto o=screenOptions(v);const float f=screenArg(v,"Fraction");
-  for(auto id:ids){if(worldThing(id)){e="SetScaleX/SetScaleY on world Thing not reconstructed";return false;}if(!live(id))continue;if(!screenAnimations_.adjustChannel(id,mode==1?2:3,f,o,e))return false;}
+  for(auto id:ids){if(worldThing(id)){if(!actorWorld_.adjustScaleAxis(id,mode==1?0:1,f,o,e))return false;continue;}if(!live(id))continue;if(!screenAnimations_.adjustChannel(id,mode==1?2:3,f,o,e))return false;}
   return true;
  }
  // FadeObstacleIn 0x258600 / HideObstacle 0x258990.

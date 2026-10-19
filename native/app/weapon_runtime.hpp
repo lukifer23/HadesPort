@@ -72,9 +72,10 @@ struct WeaponDefinition {
     std::map<std::string,WeaponSoundCue> cues;
 };
 struct WeaponFireRequest {
-    // Portable entity identity; the initial bounded path accepts no target.
-    // Parent must provide native live entity-link semantics before target IDs.
+    // Portable Thing ID plus actual entity generation replace native pointer
+    // and EntityLinkedObject ID; the parent resolves both after callbacks.
     int32_t targetId=-1;
+    uint64_t targetLifetime=0; // Actual parent entity-generation link, validated by the producer/resolver.
     float fromX=0,fromY=0,targetX=0,targetY=0,angle=0;
     bool applySelfEffects=true;
 };
@@ -117,7 +118,7 @@ struct WeaponSnapshot : WeaponSimulationState {
     // affected template (copy on write), rather than mutate catalog storage.
     std::shared_ptr<const ProjectileDefinition> projectileSource,spawnedProjectileSource;
 };
-enum class WeaponOutputKind { SetOwnerAnimation, RemoveWeaponControl, ScriptCallback, ApplySelfEffects, ProjectileSpawn, CheckInvulnerableBarrelImpact, ApplyOwnerPhysics, SetOwnerAngle, SetOwnerCompleteAngle, CancelOwnerMovement, CancelOwnerDisables, CancelOwnerRotateDisables, CreateAttachedAnimation, ConsumeRandomChance, CreateWeaponWorldAnimation, RequestRandomDouble, FinalizeGunProjectile, SetWeaponWorldAnimationRadius, CancelWeaponSelfEffects, RootOwnerMovement, ExtendOwnerDisables, BlinkTeleport, BlinkUpdate, CancelAttachedProjectiles, QueryNearbyDanger, ShowAimLine };
+enum class WeaponOutputKind { SetOwnerAnimation, RemoveWeaponControl, ScriptCallback, ApplySelfEffects, ProjectileSpawn, CheckInvulnerableBarrelImpact, ApplyOwnerPhysics, SetOwnerAngle, SetOwnerCompleteAngle, CancelOwnerMovement, CancelOwnerDisables, CancelOwnerRotateDisables, CreateAttachedAnimation, ConsumeRandomChance, CreateWeaponWorldAnimation, RequestRandomDouble, FinalizeGunProjectile, SetWeaponWorldAnimationRadius, CancelWeaponSelfEffects, RootOwnerMovement, ExtendOwnerDisables, BlinkTeleport, BlinkUpdate, CancelAttachedProjectiles, QueryNearbyDanger, ShowAimLine, PlayFireSound };
 struct WeaponOutput {
     WeaponOutputKind kind=WeaponOutputKind::ScriptCallback;
     int32_t ownerId=0;std::string weaponName,name;
@@ -212,6 +213,7 @@ public:
     // Input/control producer boundary: clears current request only; previous
     // remains for native HandleTriggerRelease during Weapon::Update.
     bool clearFireRequest(const std::string&,std::string& error);
+    bool recordFireSound(const std::string&,uint32_t,std::string&);
     // UnitArsenal.RemoveWeaponControl2ff510 removes every membership and clears
     // the current request before its optional, separately executed CancelCharge.
     bool removeWeaponControl(const std::string&,bool& cancelCharge,std::string& error);

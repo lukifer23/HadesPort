@@ -28,10 +28,46 @@ void axisSetNewTarget(hades::ObstacleMoveAxis&a,float end,float duration){if(a.e
 void axisUpdate(hades::ObstacleMoveAxis&a,float dt,float worldModifier){if(a.tmf<1.f)dt/=((1.f-worldModifier)*a.tmf+worldModifier);a.remaining-=dt/a.rate;float f=1.f-a.remaining/a.duration;f=f>0.f?f:0.f;f=f<1.f?f:1.f;a.fraction=f;}
 int32_t motionId(const hades::SourceValue&v){const double n=v.number();if(n<1||n>INT32_MAX||n!=std::trunc(n))throw std::runtime_error("Actual script motion Thing ID bounds");return int32_t(n);}
 }
-void ScriptRuntime::registerActorMotionActions(){const char*names[]{"Teleport","AdjustZLocation","Move","Stop","AngleTowardTarget","SetAngle","SetGoalAngle"};for(int mode=0;mode<7;++mode){lua_pushlightuserdata(state_,this);lua_pushinteger(state_,mode);lua_pushcclosure(state_,actorMotionAction,2);lua_setglobal(state_,names[mode]);}}
+void ScriptRuntime::registerActorMotionActions(){const char*names[]{"Teleport","AdjustZLocation","Move","Stop","AngleTowardTarget","SetAngle","SetGoalAngle","Shift","Unattach"};for(int mode=0;mode<9;++mode){lua_pushlightuserdata(state_,this);lua_pushinteger(state_,mode);lua_pushcclosure(state_,actorMotionAction,2);lua_setglobal(state_,names[mode]);}}
 int ScriptRuntime::actorMotionAction(lua_State*L){char message[2048]{};bool ok=false;{auto*self=runtime(L);std::string error;ok=self&&self->actorMotionActionImpl(L,int(lua_tointeger(L,lua_upvalueindex(2))),error);if(!ok)std::snprintf(message,sizeof(message),"%s",error.empty()?"Native actor motion runtime unavailable":error.c_str());}if(!ok){lua_pushstring(L,message);return lua_error(L);}return 0;}
 bool ScriptRuntime::actorMotionActionImpl(lua_State*L,int mode,std::string&error){try{
  hades::SourceValue args;if(!hades::readSourceValue(L,1,args,error))return false;
+ if(mode==8){
+  // Thing.RunScriptAction2e4166..4255: AttachedToId is the optional parent
+  // filter; DestinationId is not read. Native Detach is virtual slot0x110.
+  std::vector<int32_t> selected;if(!resolveObjectTargets(L,false,selected,error))return false;
+  int32_t expected=0;if(const auto* value=args.get("AttachedToId")){const double n=value->number();if(!std::isfinite(n)||n<INT32_MIN||n>INT32_MAX)throw std::runtime_error("Native Unattach AttachedToId integer bounds");expected=int32_t(n);}
+  for(const auto id:selected){auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->object)continue;
+   const auto* parent=actorWorld_.actor(a->attachedParent);
+   if(expected>0&&parent&&parent->registered&&parent->entityHandle==a->attachedParentLifetime&&parent->id!=expected)continue;
+   bool detached=false;if(!actorWorld_.detach(id,detached,error))return false;
+   if(detached&&a->physics){auto& p=*a->physics;
+    // Physics.Halt2bcd20 clears MoveShift/Velocity, upward velocity and
+    // last-self-applied flag, preserving acceleration/spin/footing state.
+    p.moveShift=p.velocity={};p.upVelocity=0;p.lastForceSelfApplied=false;
+    if(p.impulsingSoundId&&!audio_.stop(uint32_t(p.impulsingSoundId),false,error))return false;p.impulsingSoundId=0;
+    p.ignoreGravity=false;a->physicsPending=true;
+   }
+   if(motionFlag(args,"CenterGeometry"))throw std::runtime_error("Native Unattach CenterGeometry polygon-center mutation not reconstructed");
+  }
+  error.clear();return true;
+ }
+ // ScriptAction.Shift274fb0: each selected Thing target=GetLocation+Offset,
+ // virtual MoveTo(slot31), speed/easing/duration/tmf identical to Move. No centroid.
+ if(mode==7){
+  if(args.get("Name")||args.get("Names"))throw std::runtime_error("Native Shift name selection not reconstructed");
+  if(motionNumber(args,"MinDuration")!=0&&motionNumber(args,"MaxDuration")!=0)throw std::runtime_error("Native Shift randomized duration requires exact engine RNG");
+  auto screenArgs=args;std::get<hades::SourceValue::Object>(screenArgs.value)["ShiftThingsByOffset"].value=true;
+  bool screen=false;if(!screenMoveImpl(screenArgs,screen,error))return false;
+  std::vector<int32_t> selected;if(!resolveObjectTargets(L,false,selected,error))return false;
+  for(auto id:selected){auto*a=actorWorld_.actor(id);if(!a||!a->registered||!a->object)continue;
+   if(!a->definition||a->definition->kind!="Obstacle")throw std::runtime_error("Native Unit Shift MoveTo branch not reconstructed");
+   float x=0,y=0;if(!actorWorld_.location(id,x,y,error))return false;
+   const float duration=args.get("Duration")?motionNumber(args,"Duration"):motionNumber(args,"DurationSeconds");
+   if(!obstacleMoveTo(id,x+motionNumber(args,"OffsetX"),y+motionNumber(args,"OffsetY"),duration,motionNumber(args,"Speed"),motionFlag(args,"SmoothStep"),motionNumber(args,"EaseIn"),motionNumber(args,"EaseOut"),motionNumber(args,"TimeModifierFraction",1),error))return false;
+  }
+  error.clear();return true;
+ }
  // Screen (UseScreenLocation) obstacles are not ActorWorld actors: Move takes
  // the Obstacle::MoveTo screen branch; other modes fail rather than no-op.
  {bool screen=false;if(mode==2){if(!screenMoveImpl(args,screen,error))return false;if(screen){error.clear();return true;}}
@@ -91,19 +127,21 @@ bool ScriptRuntime::actorMotionActionImpl(lua_State*L,int mode,std::string&error
   if(!obstacles.empty()){if(!obstacleMoveImpl(args,sources,obstacles,targets,error))return false;sources=std::move(others);if(sources.empty()){error.clear();return true;}}}
  if(mode==2||mode==4){if(targets.empty()){error.clear();return true;}for(const auto*k:{"Name","Names","DestinationName","DestinationNames","LiveOffsetFromId","LiveOffsetDistance","LiveOffsetAngle","Duration","EaseIn","EaseOut","SmoothStep","Speed","Distance","Angle","TimeModifierFraction","DestinationIsScreenRelative"})if(args.get(k)&&!(mode==4&&(std::string_view(k)=="Duration"||std::string_view(k)=="EaseIn"||std::string_view(k)=="EaseOut"||std::string_view(k)=="SmoothStep")))throw std::runtime_error(std::string("Uncovered selected native motion argument: ")+k);float x=motionNumber(args,"OffsetX"),y=motionNumber(args,"OffsetY"),sumX=0,sumY=0;for(auto id:targets){float tx=0,ty=0;if(!actorWorld_.location(id,tx,ty,error))return false;sumX+=tx;sumY+=ty;}x+=sumX/targets.size();y+=sumY/targets.size();for(auto id:sources){auto*a=actorWorld_.actor(id);if(mode==4&&!(a->definition&&a->definition->kind=="Unit"))continue;if(a->definition->kind!="Unit"||a->attachedParent)throw std::runtime_error("Script Unit target requires unparented actual Unit");auto&move=localMovement_[a->entityHandle];if(!move.initialized){move.initialized=true;move.goalAngle=move.cosmeticAngle=move.cosmeticAngleTarget=a->object->angle;move.lastMoveStartX=a->object->x;move.lastMoveStartY=a->object->y;}if(mode==2){
  const auto* sourceMode=args.get("Mode");const bool precise=sourceMode&&strcasecmp(sourceMode->text().c_str(),"Precise")==0;
- const auto* collision=actorWorld_.currentProperty(id,"CollideWithObstacles");if(!collision||collision->boolean())throw std::runtime_error("Native script Move colliding path-node provider not reconstructed");
- hades::ActorMoveOrder order{id,a->entityHandle,x,y,precise};
- if(!precise){
+ hades::ActorMoveOrder order{id,a->entityHandle,x,y,precise,{},{}};
+ order.path.repathRemaining=actorMotion_.pathRepathDelays[a->entityHandle];
+ {
   // MoveAIData ctor VA1800d3310 plus source-authored MoveAI data. The
   // destination is still passed through original CalcPath's integer graph.
   const auto* ai=a->definition->properties.get("MoveAI");auto& c=order.pathConfig;
   const auto num=[&](const char*k,float fallback){return ai?motionNumber(*ai,k,fallback):fallback;};
   const auto flag=[&](const char*k,bool fallback){return ai?motionFlag(*ai,k,fallback):fallback;};
-  for(const auto*k:{"StayOnCamera","FinishAtGoal","RequiresLoS","MoveWithoutPath"})if(flag(k,false))throw std::runtime_error(std::string("Native default Move data branch not reconstructed: ")+k);
+  for(const auto*k:{"StayOnCamera","FinishAtGoal","RequiresLoS"})if(flag(k,false))throw std::runtime_error(std::string("Native default Move data branch not reconstructed: ")+k);
   if(ai&&ai->get("OnFailBehavior"))throw std::runtime_error("Native authored MoveAI OnFailBehavior parser not reconstructed");
+  if(ai&&ai->get("Algorithm"))throw std::runtime_error("Native authored MoveAI Algorithm parser not reconstructed");
   if(num("AlternateNodeDistance",0)!=0||num("NodeSuccessDistanceRequiresLoS",0)!=0||num("TargetHeadingShift",0)!=0)throw std::runtime_error("Native alternate/LOS/heading path state not reconstructed");
-  c.nodeDistance=num("NodeDistance",c.nodeDistance);c.nodeSuccessDistance=num("NodeSuccessDistance",c.nodeSuccessDistance);c.lookAheadDistance=num("LookAheadDistance",c.lookAheadDistance);c.lookAheadMultiplier=motionNumber(args,"LookAheadMultiplier",num("LookAheadMultiplier",c.lookAheadMultiplier));
-  c.successDistance=num("SuccessDistance",c.successDistance);if(motionNumber(args,"SuccessDistance")>0)c.successDistance=motionNumber(args,"SuccessDistance");
+  c.nodeDistance=num("NodeDistance",c.nodeDistance);c.nodeSuccessDistance=num("NodeSuccessDistance",c.nodeSuccessDistance);c.lookAheadDistance=num("LookAheadDistance",c.lookAheadDistance);c.lookAheadMultiplier=motionNumber(args,"LookAheadMultiplier",1.f);
+  c.successDistance=num("SuccessDistance",c.successDistance);if(motionNumber(args,"SuccessDistance")>0)c.successDistance=motionNumber(args,"SuccessDistance");if(precise)c.successDistance=32.f;
+  c.moveWithoutPath=flag("MoveWithoutPath",false);c.avoidLocationDistance=num("AvoidLocationDistance",0);
   c.repathDelayMin=num("RepathDelayMin",c.repathDelayMin);c.repathDelayMax=num("RepathDelayMax",c.repathDelayMax);c.repathTargetMoveDistance=num("RepathTargetMoveDistance",c.repathTargetMoveDistance);c.stopToRotate=flag("StopToRotate",c.stopToRotate);c.slowToRotate=flag("SlowToRotate",c.slowToRotate);
   if(ai&&ai->get("NodeCountLimit"))c.nodeCountLimit=int32_t(motionNumber(*ai,"NodeCountLimit"));if(ai&&ai->get("SkippedNodeLimit"))c.skippedNodeLimit=int32_t(motionNumber(*ai,"SkippedNodeLimit"));
   if(c.repathTargetMoveDistance<0||c.repathDelayMin<0||c.repathDelayMax<c.repathDelayMin)throw std::runtime_error("Native default Move repath bounds");
@@ -155,7 +193,7 @@ bool ScriptRuntime::advanceActorMotion(float dt,std::string&error){try{
  // (1802c8862); clear both when (X.duration==0||X.remaining<0)&&(Y...) (1802c8867..ae).
  // Approximation: runs at this point of the Android world step; the native
  // manager-list position relative to Unit movement is not recovered.
- {const float managerDt=dt*worldSpeedModifier_;
+ {const float managerDt=dt; // Incoming elapsed is already World-scaled.
   for(auto i=actorMotion_.obstacles.begin();i!=actorMotion_.obstacles.end();){auto&m=i->second;auto*a=actorWorld_.actor(m.ownerId);
    if(!a||!a->registered||a->isDisposed||a->entityHandle!=m.lifetime||!a->object){i=actorMotion_.obstacles.erase(i);continue;}
    if(!(m.x.active&&m.y.active)){i=actorMotion_.obstacles.erase(i);continue;}
@@ -168,69 +206,65 @@ bool ScriptRuntime::advanceActorMotion(float dt,std::string&error){try{
  const auto number=[&](int32_t id,const char*k){const auto*p=actorWorld_.currentProperty(id,k);if(!p)throw std::runtime_error(std::string("Script Move actual property unavailable: ")+k);const float n=float(p->number());if(!std::isfinite(n))throw std::runtime_error("Script Move nonfinite source property");return n;};
  const auto boolean=[&](int32_t id,const char*k){const auto*p=actorWorld_.currentProperty(id,k);if(!p)throw std::runtime_error(std::string("Script Move actual flag unavailable: ")+k);return p->boolean();};
  for(auto i=actorMotion_.moves.begin();i!=actorMotion_.moves.end();){auto& order=i->second;auto*a=actorWorld_.actor(order.ownerId);if(!a||!a->registered||a->entityHandle!=order.lifetime||!a->object||!a->object->alive){i=actorMotion_.moves.erase(i);continue;}
-  if(!a->physics)throw std::runtime_error("Script Move actual Physics allocation missing");if(boolean(a->id,"CollideWithObstacles"))throw std::runtime_error("Script Move direct-path adaptation requires collision-disabled source actor");
   float x=0,y=0;if(!actorWorld_.location(a->id,x,y,error))return false;auto& move=localMovement_[a->entityHandle];
+  // Same strict success check as default Move; precise changes only its
+  // radius to 32 (FindPath VA1802e8da0..2e8e27), before CalcPath and RNG.
+  const float goalDx=order.goalX-x,goalDy=order.goalY-y;
+  if(goalDx*goalDx+goalDy*goalDy<order.pathConfig.successDistance*order.pathConfig.successDistance){move.speedFraction=0;i=actorMotion_.moves.erase(i);continue;}
+  if(!a->physics)throw std::runtime_error("Script Move actual Physics allocation missing");
   float targetX=order.goalX,targetY=order.goalY;
-  if(!order.precise){
-   auto& path=order.path;const auto& c=order.pathConfig;path.repathRemaining-=dt;
+  bool directFallback=false;
+  {
+   auto& path=order.path;const auto& c=order.pathConfig;path.repathRemaining-=dt;actorMotion_.pathRepathDelays[a->entityHandle]=path.repathRemaining;
    if(path.rotationPending){if(a->object->angle!=move.goalAngle){++i;continue;}path.rotationPending=false;}
-   const float gx=order.goalX-x,gy=order.goalY-y;
-   // MoveAIPathfind::FindPath VA1802e8e22 strict success comparison,
-   // before CalcPath / RNG. RequiresLoS is gated at action admission.
-   if(gx*gx+gy*gy<c.successDistance*c.successDistance){move.speedFraction=0;i=actorMotion_.moves.erase(i);continue;}
+   bool freshPath=false;
    const float movedX=path.lastGoalX-order.goalX,movedY=path.lastGoalY-order.goalY;
    if(!path.initialized||path.nodes.empty()||movedX*movedX+movedY*movedY>=c.repathTargetMoveDistance*c.repathTargetMoveDistance){
     if(path.repathRemaining<=0){
-     const auto validateNode=[&](float nx,float ny,std::string& detail){
-      // CalcPath VA1802e9f13..ea0f6 -> GridSquare::detectCollisions30ae10:
-      // a node with no candidate Unit rectangles needs no Unit narrowphase.
-      // Reuse the existing ApplyShift representation of mRectangle (polygon
-      // AABB; documented Android approximation). A real rectangle candidate
-      // stays a blocker until native per-Unit path filters are reconstructed.
-      if(!boolean(a->id,"CollideWithUnits")||hades::actorOwnerHasNoCollision(*a)){detail.clear();return true;}
-      if(!actorWorld_.refreshGeometry(a->id,detail))return false;if(a->geometry.empty()){detail="Native path Unit rectangle unavailable";return false;}
-      float minX=a->geometry.front().x,maxX=minX,minY=a->geometry.front().y,maxY=minY;for(const auto& p:a->geometry){minX=std::min(minX,p.x);maxX=std::max(maxX,p.x);minY=std::min(minY,p.y);maxY=std::max(maxY,p.y);}
-      const int width=int(maxX-minX),height=int(maxY-minY),left=int(nx-float(width)*.5f),top=int(ny-float(height)*.5f);
-      for(const auto other:actorWorld_.registrationOrder()){const auto* unit=actorWorld_.actor(other);if(other==a->id||!unit||!unit->registered||unit->isDisposed||!unit->object||!unit->object->alive||unit->definition->kind!="Unit")continue;
-       if(unit->geometry.empty())continue;float x0=unit->geometry.front().x,x1=x0,y0=unit->geometry.front().y,y1=y0;for(const auto& p:unit->geometry){x0=std::min(x0,p.x);x1=std::max(x1,p.x);y0=std::min(y0,p.y);y1=std::max(y1,p.y);}
-       const int ox=int(x0),oy=int(y0),ow=int(x1-x0),oh=int(y1-y0);if(left<=ox+ow&&ox<=left+width&&top<=oy+oh&&oy<=top+height){detail="Native Pathfinder actual Unit candidate filters not reconstructed: "+std::to_string(other);return false;}
-      }
-      detail.clear();return true;
-     };
-     if(!hades::planCollisionFreeUnitPath(x,y,order.goalX,order.goalY,c,validateNode,path.nodes,error))return false;
+     const auto validateNode=[&](float nx,float ny,bool& blocked,std::string& detail){return unitPathNodeBlocked(a->id,nx,ny,c.avoidLocationDistance>0,blocked,detail);};
+     if(!hades::planUnitPath(x,y,order.goalX,order.goalY,c,validateNode,path.nodes,error))return false;
+     freshPath=true;
      double draw=0;if(!nextRecoveredEngineRandom(state_,draw))throw std::runtime_error("Native MoveAI repath RNG unavailable");
      volatile float scaled=float(draw)*(c.repathDelayMax-c.repathDelayMin);path.repathRemaining=scaled+c.repathDelayMin;
+     actorMotion_.pathRepathDelays[a->entityHandle]=path.repathRemaining;
      path.lastGoalX=order.goalX;path.lastGoalY=order.goalY;path.initialized=true;
      hades::log(hades::Severity::Info,"HadesLua","NATIVE_UNIT_PATH owner=%d nodes=%zu from=%.2f,%.2f goal=%.2f,%.2f",a->id,path.nodes.size(),x,y,order.goalX,order.goalY);
     }
-    // Native MoveWithoutPath=false: an empty list while the repath delay
-    // runs produces no MoveInput this frame (FindPath return1).
-    if(path.nodes.empty()){++i;continue;}
    }
-   // SetNextDestination VA1802e914b..9214: CollideWithObstacles=false
-   // collapses the real computed backward path to its first node. This is
-   // a native post-search branch, never a replacement for CalcPath.
-   auto node=path.nodes.back();const float nodeDx=float(node.x)-x,nodeDy=float(node.y)-y;
-   if(nodeDx*nodeDx+nodeDy*nodeDy<c.nodeSuccessDistance*c.nodeSuccessDistance)path.nodes.pop_back();
-   if(!path.nodes.empty()){node=path.nodes.front();path.nodes.assign(1,node);}
-   targetX=float(node.x);targetY=float(node.y);
+   // FindPath2e8f01: an exhausted search is not an engine failure. Authored
+   // MoveWithoutPath admits direct MoveInput only when the real list is empty.
+   if(path.nodes.empty()){if(!c.moveWithoutPath){++i;continue;}directFallback=true;}
+   else{
+    // SetNextDestination2e8f90: retain current node until strict arrival;
+    // after arrival or a fresh search, try the native swept-polygon shortcut
+    // to the first(end) node. Collision-disabled actors take that shortcut.
+    auto node=path.nodes.back();const float ndx=float(node.x)-x,ndy=float(node.y)-y;
+    const bool arrived=ndx*ndx+ndy*ndy<c.nodeSuccessDistance*c.nodeSuccessDistance;
+    if(arrived)path.nodes.pop_back();
+    if(freshPath||arrived){if(!path.nodes.empty()){
+      bool clear=!boolean(a->id,"CollideWithObstacles");
+      if(!clear&&!unitLineOfMovement(a->id,float(path.nodes.front().x),float(path.nodes.front().y),c.avoidLocationDistance>0,clear,error))return false;
+      if(clear){const auto end=path.nodes.front();path.nodes.assign(1,end);}
+      node=path.nodes.back();
+    }}
+    targetX=float(node.x);targetY=float(node.y);
+   }
   }
   const float dx=targetX-x,dy=targetY-y,distance=std::hypot(dx,dy);
-  if(order.precise&&distance*distance<.0001f){move.speedFraction=0;i=actorMotion_.moves.erase(i);continue;}
   if(!selfEffects_.refreshUnit(a->id,error))return false;bool canMove=false;if(!actorWorld_.unitCanMove(a->id,config,canMove,error))return false;
   float elapsed=0;if(!hades::physicsComponentElapsed(dt,worldSpeedModifier_,a->timeModifierFraction,a->timeMultiplier,elapsed,error))return false;
   hades::UnitMoveData data;data.canMove=canMove;data.onlyForward=boolean(a->id,"CanOnlyMoveForward");data.playerControlled=a->object->playerControlled;data.speed=a->speed;data.speedAddition=a->speedAddition;data.speedModifier=a->speedModifier;data.playerSpeedMultiplier=config;data.acceleration=number(a->id,"Acceleration");data.ownerAngle=a->object->angle;
   constexpr float tau=6.2831854820251465f;const float raw=std::atan2(-dy,dx),angle=raw-std::floor(raw/tau)*tau;
-  // Android direct-path adaptation: exact original target, source speed and
-  // Unit.MoveInput force equations. Full Windows path nodes/repath RNG and
-  // MoveAI SlowToRotate routing are not claimed by this collision-free path.
+  // Native SetNextDestination uses source speed, angle and elapsed in its
+  // SlowToRotate fraction; the empty-list MoveWithoutPath branch skips it.
   const float maximum=(data.speed+data.speedAddition)*data.speedModifier*(data.playerControlled?config:1.f);const float step=maximum*elapsed;float fraction=step>distance&&step>0?distance/step:1.f;
-  if(!order.precise){const auto& c=order.pathConfig;const float difference=std::abs(std::remainder(angle-a->object->angle,tau));
+  if(!directFallback){const auto& c=order.pathConfig;const float difference=std::abs(std::remainder(angle-a->object->angle,tau));
    bool rotateOnly=c.stopToRotate&&difference>.0001f;
    if(!c.slowToRotate)fraction=1;
    else if(step<=distance&&maximum>0){float rotation=number(a->id,"RotationSpeed");if(a->status)for(const auto handle:a->status->snapshot().pending){const auto* effect=selfEffects_.effectData(handle,error);if(!effect)return false;const auto multiplier=effect->fields.find("RotationMultiplier");if(multiplier==effect->fields.end())throw std::runtime_error("Native MoveAI pending rotation modifier unavailable");rotation*=float(std::get<double>(multiplier->second));}rotateOnly=rotateOnly||(rotation>0&&difference/rotation>distance/maximum*.5f);}
    if(rotateOnly){move.goalAngle=angle;order.path.rotationPending=true;++i;continue;}
   }
+  if(directFallback)fraction=1;
   move.goalAngle=angle;
   // ApplyDirectForce 0x1802bcffb multiplies ThingData+0x1fc = mSpinFactor (Thing.SpinFactor); no ImpactRotation field exists. Evidence: .local/reports/native-impact-rotation-default-recovery.json
   hades::PhysicsForceOwner force;force.impactRotation=number(a->id,"Thing.SpinFactor");hades::PhysicsForceCallbacks callbacks;callbacks.onForce=[this,a](float,std::string&detail){return onActorForce(a->id,true,detail);};callbacks.addComponent=[a](std::string&){a->physicsPending=true;return true;};

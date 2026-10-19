@@ -11,7 +11,8 @@
     "ScriptManager::OnHealed": "RVA 0x289550; returns when amount <= 0 or user has no Lua table",
     "Script::isSource": "RVA 0x24ea10; unfiltered accepts; else ID, group membership, GetName, _UNIT/_OBSTACLE",
     "PlayerUnitInput use target": "FUN_18020f6c0: lose target when no selection or input disabled and !UseableWhileInputDisabled (InteractData+0x3b); on change Lost(old), OnActiveUseTarget(new), not useable -> AutoUseFailedAnimation (+0x100) + OnAutoUseFailed; auto (+0x10 / +0x11 gamepad) uses within AutoUseDistance (+0xc), else CurrentUseTargetAnimation (+0xe8)",
-    "manual use reach": "FUN_18020fa20 adds Unit pData(+0x3c0)+0x308 to range for manual Interacts"
+    "manual use reach": "FUN_18020fa20 adds Unit pData(+0x3c0)+0x308 to range for manual Interacts",
+    "pickup_consumers": "Interact.Use2bfcd0 uses first-use owner virtual Destroy before UserFireWeapon/DisableOnUse; the portable consumer invokes existing Thing death/FX and deferred manager disposal, retaining the executing Interact. UserFx/VisualFx use explicit owner/user XY, UserFx alone PreferUnmodifiedTime29a5c0. UsedFront/BackFx use owner-based factory29e350 and original first draw group. UseSound copies the cue to PlayCue3D4a690 with owner, no params, play=true, cap0. UnuseableAnimation is owner primary SetAnimation, not a standalone FX."
   },
   "approximations": {
     "A1": "UnitData+0x308 use reach not named/recovered; 0",
@@ -20,5 +21,15 @@
     "A4": "use-target update and manual Use in one stage after local player input; UseableManager::Update at its start",
     "A5": "useMouse=false on Android"
   },
-  "fail_loudly": ["UserVelocity/UserUpwardVelocity != 0", "UserFaceTarget", "non-empty UserFx/VisualFx/UsedFront/BackFx/UnuseableAnimation", "HealAmount > 0", "AttachOnUse", "UseSound cue", "DestroyOnUse", "UserFireWeapon", "owner with text boxes (UseTextBoxes)", "RequiresAttached/RequiresMissingAmmoWeapon/RequiresTouch providers", "isSource comparison tokens"]
+  "fail_loudly": [
+    "UserVelocity/UserUpwardVelocity != 0",
+    "UserFaceTarget",
+    "HealAmount > 0",
+    "AttachOnUse",
+    "UserFireWeapon",
+    "owner with text boxes (UseTextBoxes)",
+    "RequiresAttached/RequiresMissingAmmoWeapon/RequiresTouch providers",
+    "isSource comparison tokens",
+    "Interact FX whose actual definition is outside the rebuilt ActionEffectWorld factory remains an explicit factory/coverage failure; no invented empty group when UsedFront/BackFx owner has no group"
+  ]
 }

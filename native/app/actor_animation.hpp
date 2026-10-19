@@ -58,7 +58,7 @@ class ActorAnimationBank {
     struct Facing {bool isometric=false,mirror=false,ignoreOwner=false;float ownAngle=0,angleOffset=0;int32_t angleNumOffset=0;};
     std::vector<Facing> facing_;
     std::vector<float> inverseAngleTable_;
-    struct Properties {uint32_t known=0,values=0;float airborneZ=0;std::vector<uint8_t> airborne;};
+    struct Properties {uint32_t known=0,values=0,locationFromOwner=0,scaleVectorFromOwner=0;float airborneZ=0;std::vector<uint8_t> airborne;};
     std::vector<Properties> properties_;
     std::vector<Cached> cache_;
     std::vector<uint8_t> compressed_;
@@ -85,6 +85,9 @@ public:
     std::optional<bool> exactOwnerNoArmorCoverage(size_t clip)const;
     std::optional<bool> exactOwnerNoInvulnerableCoverage(size_t clip)const;
     std::optional<bool> exactUseAttachedFlasher(size_t clip)const;
+    std::optional<bool> exactUseAttachedShake(size_t clip)const;
+    std::optional<uint32_t> exactLocationFromOwner(size_t clip)const;
+    std::optional<uint32_t> exactScaleVectorFromOwner(size_t clip)const;
     std::optional<bool> exactAirborne(size_t clip,size_t slide)const;
     // Native AnimationDataDef.mAirborneZ; only contributes to Unit.GetTotalZ
     // when the actual primary is Slide and its current SlideData.Airborne.

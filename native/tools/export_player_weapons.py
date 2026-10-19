@@ -164,6 +164,30 @@ def export(output,projectile_defaults='native-player-projectile-compiled-default
                 if key in result:raise ValueError('Duplicate Lua data root '+key)
                 result[key]=(value,{**source,'root':key,'line':line})
         return result
+    # Physics invokes the original OnTouchdown script for every obstacle. Its
+    # inherited OnTouchdown.Weapon is a weapon producer independently of unit
+    # startup slots. Admit the whole original field class, retaining record
+    # and source provenance, then reuse native weapon/projectile closure.
+    obstacle_tables=lua_tables('ObstacleData*.lua')
+    obstacle_data={};obstacle_sources={}
+    for root,(value,proof) in obstacle_tables.items():
+        if root!='ObstacleData' or not isinstance(value,dict):continue
+        for name,record in value.items():
+            if isinstance(record,dict):obstacle_data[name]=record;obstacle_sources[name]=proof
+    def obstacle(name,stack=()):
+        if name in stack:raise ValueError('Obstacle Lua inheritance cycle')
+        own=obstacle_data[name];out={};parents=own.get('InheritFrom',[])
+        for parent in ([parents]if isinstance(parents,str)else parents):out=merge(out,obstacle(parent,stack+(name,)))
+        return merge(out,own)
+    touchdown_rows=[]
+    for name in sorted(obstacle_data):
+        value=obstacle(name).get('OnTouchdown',{})
+        if not isinstance(value,dict)or 'Weapon'not in value:continue
+        weapon=value['Weapon']
+        if not isinstance(weapon,str):raise ValueError('Original OnTouchdown.Weapon requires literal source name')
+        if weapon and weapon!='null':requests.append(weapon)
+        touchdown_rows.append({'obstacle':name,'weapon':weapon,'field':'OnTouchdown.Weapon','source':obstacle_sources[name],'inheritance':'original parent-then-own Lua merge'})
+    touchdown_provenance={'class':'ObstacleData.OnTouchdown.Weapon','records':touchdown_rows,'consumer':'Original obstacle OnTouchdown callback reached from native physics; original table inheritance resolved before lookup.'}
     if encounter_room:
         room_tables=lua_tables('RoomData*.lua');matches=[(value[encounter_room],proof)for value,proof in room_tables.values()if isinstance(value,dict)and encounter_room in value]
         if len(matches)!=1:raise ValueError('Forced encounter room not uniquely source-bound: '+encounter_room)
@@ -229,6 +253,7 @@ def export(output,projectile_defaults='native-player-projectile-compiled-default
         if package.is_file():packages.append({'name':w['name'],'path':str(package.relative_to(ROOT)),'sha256':sha(package),'bytes':package.stat().st_size,'manifest':{'path':str(manifest.relative_to(ROOT)),'sha256':sha(manifest)}if manifest.is_file()else None})
     data={'schema':'hades-player-weapons-v1','target_sha256':TARGET,'source_integrity':sources,'weapons':weapons,'projectiles':projectiles,'controls':[{'name':n,'native_index':i}for n,i in [('Attack1',21),('Attack2',22),('Attack3',23),('Rush',25)]],'unit_loadouts':[{'unit_name':'_PlayerUnit','inheritance_base_to_leaf':initial,'explicit_initial_slots':startup,'lua_initial_requests':requests[len(startup):]}],'hero_weapon_sets':hero_sets,'hero_weapon_sets_source':set_source,'missing_lua_packages':missing_packages,'missing_lua_packages_source':missing_source,'available_weapon_packages':packages,'current_default_sword_equip_requests':['ArmorBreakAttack','RushWeapon','RangedWeapon','SwordParry','SwordWeapon']+hero_sets['SwordWeapon'],'known_missing_weapons':['','null']+sorted(missing_weapons),'known_missing_projectiles':['','null']+sorted(missing_projectiles),'limits':['Initialization and source catalog only. No firing, effects, projectile actor simulation or live unit creation.','Seven native startup slots are identified; omitted UnitData strings are not promoted without default provenance.','Full typed effective properties retain source/compiled provenance; complex unknown defaults remain explicit.','Effect order follows source inheritance replacement; no effect execution or omitted effect defaults claimed.','Nested Thing source objects retain inherited source fields; compiled ThingData defaults and postprocessing remain outside this export.']}
     data['forced_encounter_closure']=encounter_provenance
+    data['obstacle_touchdown_weapon_closure']=touchdown_provenance
     # Same AddControls +8 Index assignment mechanism as Attack1/2/3/Rush.
     # Use is5 (VA18018e6f1), not the adjacent weapon-control index24.
     data['controls'].append({'name':'Use','native_index':5})
@@ -293,7 +318,7 @@ def export(output,projectile_defaults='native-player-projectile-compiled-default
         u(len(data[key]))
         for name in data[key]:text(name)
     path=output/'weapons.bin';path.write_bytes(packet)
-    manifest={'schema':'hades-player-weapons-runtime-v3','catalog_sha256':sha(source),'packet_sha256':sha(path),'packet_bytes':len(packet),'weapon_count':len(weapons),'projectile_count':len(projectiles),'projectile_effect_count':sum(len(p['effects'])for p in projectiles),'names':[w['name']for w in weapons],'forced_encounter_closure':encounter_provenance,'hero_weapon_sets':hero_sets,'available_weapon_packages':packages,'default_sword_requested_packages':['SwordParry','SwordWeapon'],'weapon_effect_packet':{'path':'effects.lua','sha256':sha(output/'effects.lua'),'count':effect_count},'projectile_thing_packet':{'path':'projectiles.lua','sha256':sha(output/'projectiles.lua'),'count':len(thing_rows)},'limits':data['limits']}
+    manifest={'schema':'hades-player-weapons-runtime-v3','catalog_sha256':sha(source),'packet_sha256':sha(path),'packet_bytes':len(packet),'weapon_count':len(weapons),'projectile_count':len(projectiles),'projectile_effect_count':sum(len(p['effects'])for p in projectiles),'names':[w['name']for w in weapons],'forced_encounter_closure':encounter_provenance,'obstacle_touchdown_weapon_closure':touchdown_provenance,'hero_weapon_sets':hero_sets,'available_weapon_packages':packages,'default_sword_requested_packages':['SwordParry','SwordWeapon'],'weapon_effect_packet':{'path':'effects.lua','sha256':sha(output/'effects.lua'),'count':effect_count},'projectile_thing_packet':{'path':'projectiles.lua','sha256':sha(output/'projectiles.lua'),'count':len(thing_rows)},'limits':data['limits']}
     (output/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n');print(json.dumps(manifest,indent=2))
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);p.add_argument('--projectile-defaults',default='native-player-projectile-compiled-defaults.json');p.add_argument('--encounter-room',default='RoomSimple01');a=p.parse_args();export(a.output,a.projectile_defaults,a.encounter_room)

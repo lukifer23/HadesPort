@@ -217,6 +217,7 @@ bool ScriptRuntime::weaponOperationSupported(const hades::WeaponOutput& op,std::
     using K=hades::WeaponOutputKind;
     switch(op.kind){
     case K::ShowAimLine:return weaponAimLine(op,false,error);
+    case K::PlayFireSound:{const auto* a=actorWorld_.actor(op.ownerId);if(!a||!a->registered||!a->arsenal){error="Fire sound actual owner/arsenal unavailable";return false;}return true;}
     case K::SetOwnerCompleteAngle:case K::CancelOwnerMovement:case K::CancelOwnerDisables:case K::CancelOwnerRotateDisables:case K::RemoveWeaponControl:case K::ExtendOwnerDisables:case K::RootOwnerMovement:{
         const auto* actor=actorWorld_.actor(op.ownerId);
         if(!actor||!actor->registered||!actor->object||!actor->arsenal||!actor->status){error="Weapon owner operation requires actual registered Unit/body/status/arsenal";return false;}
@@ -257,6 +258,7 @@ bool ScriptRuntime::consumeWeaponOperation(const hades::WeaponOutput& op,hades::
     using K=hades::WeaponOutputKind;
     switch(op.kind){
     case K::ShowAimLine:return weaponAimLine(op,true,error);
+    case K::PlayFireSound:{auto* a=actorWorld_.actor(op.ownerId);if(!a||!a->registered||!a->arsenal){error="Fire sound actual owner/arsenal unavailable";return false;}std::array<float,3> position{};if(!actorWorld_.location(op.ownerId,position[0],position[1],error)||!actorWorld_.zLocation(op.ownerId,position[2],error))return false;uint32_t sound=0;if(!playAudioCue(op.name,op.ownerId,position,sound,error))return false;return a->arsenal->recordFireSound(op.weaponName,sound,error);}
     case K::CancelOwnerMovement:{
         if(!weaponOperationSupported(op,error))return false;
         // Unit.StopMoving2ebd00, virtual+188: no velocity/shift cancellation.
@@ -456,9 +458,9 @@ bool ScriptRuntime::advanceWeapons(float dt,std::string& error){
                 if(!continuous||!priority){error="Actual Unit arsenal ordering data unavailable";return false;}
                 frame.continuousWeapon=continuous->text();frame.priorityWeapon=priority->text();
                 hades::WeaponArsenalFrameStep step;
-                if(!execution.advance(frame,reply,support,step,error)){error="Arsenal.Update owner="+std::to_string(id)+" frame="+std::to_string(worldFrame_)+" operationIndex="+std::to_string(operation)+" detail="+error;return false;}reply={};
+                if(!execution.advance(frame,reply,support,step,error)){error="Arsenal.Update owner="+std::to_string(id)+" operationIndex="+std::to_string(operation)+" detail="+error;return false;}reply={};
                 if(step.progress!=hades::WeaponArsenalFrameProgress::Yielded){done=true;break;}
-                if(!consumeWeaponOperation(step.operation,reply,error)){error="Weapon.operation owner="+std::to_string(id)+" weapon="+step.operation.weaponName+" operation="+step.operation.name+" kind="+std::to_string(int(step.operation.kind))+" frame="+std::to_string(worldFrame_)+" detail="+error;return false;}
+                if(!consumeWeaponOperation(step.operation,reply,error)){error="Weapon.operation owner="+std::to_string(id)+" weapon="+step.operation.weaponName+" operation="+step.operation.name+" kind="+std::to_string(int(step.operation.kind))+" detail="+error;return false;}
                 if(!step.expectsRandomReply)reply.randomDouble.reset();
                 if(!step.expectsProjectileReply)reply.createdProjectile.reset();
                 if(!step.expectsAnimationReply)reply.createdAnimation.reset();
@@ -769,6 +771,90 @@ bool shiftHas(const std::vector<std::pair<int32_t,uint64_t>>& set,uint64_t lifet
     for(const auto& e:set)if(e.second==lifetime)return true;return false;
 }
 }
+// Unit.CreatePathCollisionParameters2f2190 -> GridManager.DetectCollisions309dd0
+// dispatches mIsPathCheck to GridSquare.DetectCollisionsPath30b850 (NOT the
+// ordinary ApplyShift query). Both candidate kinds use PolygonCollisionOpt;
+// only minimum Z is tested and destructible DieOnCollision obstacles are skipped.
+// Rectangle representation retains ApplyShift's labelled integer polygon-AABB
+// approximation. Boolean occupancy is independent of portable candidate order.
+bool ScriptRuntime::unitPathNodeBlocked(int32_t id,float x,float y,bool preferAvoid,bool& blocked,std::string& error){try{
+    blocked=false;auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->object)throw std::runtime_error("Native path owner unavailable");
+    const auto prop=[&](int32_t n,const char* k)->const hades::SourceValue&{const auto* p=actorWorld_.currentProperty(n,k);if(!p)throw std::runtime_error(std::string("Native path source field unavailable: ")+k);return *p;};
+    const auto collisionUnit=[&](const hades::ActorComponents& u){
+        if(!prop(u.id,"CollideWithUnits").boolean()||hades::actorOwnerHasNoCollision(u))return false;
+        if(u.status)for(const auto h:u.status->snapshot().active){const auto* e=selfEffects_.effectData(h,error);if(!e)throw std::runtime_error(error);const auto f=e->fields.find("NoUnitCollision");if(f==e->fields.end()||!std::holds_alternative<bool>(f->second))throw std::runtime_error("Native path EffectData.NoUnitCollision unavailable");if(std::get<bool>(f->second))return false;}
+        return true;
+    };
+    const bool units=collisionUnit(*a),obstacles=prop(id,"CollideWithObstacles").boolean()&&!hades::actorOwnerHasNoCollision(*a);
+    if(!units&&!obstacles){error.clear();return true;}
+    if(!actorWorld_.refreshGeometry(id,error))return false;
+    float ox=0,oy=0,z=0;if(!actorWorld_.location(id,ox,oy,error)||!actorWorld_.zLocation(id,z,error))return false;
+    bool airborne=false;if(!actorWorld_.unitAirborne(id,airborne,error))return false;
+    if(airborne){const auto air=animationBank_->exactAnimationZ(a->animation.clipIndex());if(!air)throw std::runtime_error("Native path current AirborneZ unavailable");z+=*air;}
+    const auto bounds=[](const auto& points){hades::SpatialBounds b{};if(points.empty())return b;b={points[0].x,points[0].y,points[0].x,points[0].y};for(const auto& p:points){b.minX=std::min(b.minX,p.x);b.minY=std::min(b.minY,p.y);b.maxX=std::max(b.maxX,p.x);b.maxY=std::max(b.maxY,p.y);}return b;};
+    const auto ownBounds=bounds(a->geometry);const int w=int(ownBounds.maxX-ownBounds.minX),h=int(ownBounds.maxY-ownBounds.minY),rx=int(x-float(w)*.5f),ry=int(y-float(h)*.5f);
+    const auto overlaps=[&](const auto& points){if(points.empty())return false;const auto b=bounds(points);const int bx=int(b.minX),by=int(b.minY),bw=int(b.maxX-b.minX),bh=int(b.maxY-b.minY);return rx<=bx+bw&&bx<=rx+w&&ry<=by+bh&&by<=ry+h;};
+    std::vector<hades::MovementPoint> A,current;for(const auto& p:a->geometry){A.push_back({p.x+x-ox,p.y+y-oy});current.push_back({p.x,p.y});}
+    if(units)for(const auto n:actorWorld_.registrationOrder()){
+        auto* u=actorWorld_.actor(n);if(n==id||!u||!u->registered||u->isDisposed||!u->object||u->definition->kind!="Unit")continue;
+        // The coordinate-only Target made by ScriptAction.Move has no Thing
+        // link (Unit.GetTargetThing8df70 returns null), so only owner is ignored.
+        if(preferAvoid&&prop(n,"PathfindersPreferAvoid").boolean()){
+            if(!actorWorld_.refreshGeometry(n,error))return false;
+            // DetectCollisionsPath30baf4..bb95 permits an owner already
+            // overlapping this avoid polygon to leave it. No Z/collision flag
+            // gate is applied on this separate PreferAvoid branch.
+            const float radius=float(prop(n,"PathfindersPreferAvoidOverrideRadius").number());
+            if(radius>0){float ux=0,uy=0;if(!actorWorld_.location(n,ux,uy,error))return false;const float offset=float(prop(n,"PathfindersPreferAvoidOverrideOffset").number());ux+=std::cos(u->object->angle)*offset;uy-=std::sin(u->object->angle)*offset;
+                if(x+float(w)*.5f>=ux-radius&&x-float(w)*.5f<=ux+radius&&y+float(h)*.5f>=uy-radius&&y-float(h)*.5f<=uy+radius)throw std::runtime_error("Native path PreferAvoid override-circle consumer not reconstructed: "+std::to_string(n));
+                continue;}
+            std::vector<hades::MovementPoint> B;for(const auto& p:u->geometry)B.push_back({p.x,p.y});
+            if(shiftPolygonCollision(polygonAxisCache_,A,B,0,0).willIntersect&&!shiftPolygonCollision(polygonAxisCache_,current,B,0,0).willIntersect){blocked=true;error.clear();return true;}
+            continue;
+        }
+        if(!collisionUnit(*u))continue;
+        float uz=0;if(!actorWorld_.zLocation(n,uz,error))return false;if(z>uz+float(prop(n,"Thing.Tallness").number()))continue;
+        if(!actorWorld_.refreshGeometry(n,error))return false;if(!overlaps(u->geometry))continue;
+        std::vector<hades::MovementPoint> B;for(const auto& p:u->geometry)B.push_back({p.x,p.y});
+        const auto hit=shiftPolygonCollision(polygonAxisCache_,A,B,0,0);if(hit.x!=0||hit.y!=0){blocked=true;error.clear();return true;}
+    }
+    if(obstacles){std::vector<int32_t> candidates;if(!actorWorld_.spatialObstacleCandidates({float(rx),float(ry),float(rx+w),float(ry+h)},hades::ObstacleGridCategory::StopsUnits,candidates,error))return false;
+        for(const auto n:candidates){auto* o=actorWorld_.actor(n);if(!o||!o->registered||!o->object)continue;
+            bool stops=false;if(!actorWorld_.obstacleStops(n,false,stops,error))return false;if(!stops)continue;
+            if(o->hasLife&&prop(n,"Life.DieOnCollision").boolean())continue;
+            float oz=0;if(!actorWorld_.zLocation(n,oz,error))return false;if(z>oz+float(prop(n,"Thing.Tallness").number()))continue;
+            if(!actorWorld_.refreshGeometry(n,error))return false;if(!overlaps(o->geometry))continue;
+            std::vector<hades::MovementPoint> B;for(const auto& p:o->geometry)B.push_back({p.x,p.y});
+            const auto hit=shiftPolygonCollision(polygonAxisCache_,A,B,0,0);if(hit.x!=0||hit.y!=0){blocked=true;error.clear();return true;}
+        }
+    }
+    error.clear();return true;
+}catch(const std::exception& e){error=e.what();return false;}}
+// Thing.HasLineOfMovementAccurate2e0100, called with checkUnits/checkObstacles
+// true by SetNextDestination2e8f90. This is a swept source polygon, not a ray.
+// Units use CollideWithUnits/primary/active-effect filters, with PreferAvoid
+// admission when AvoidLocationDistance>0. Obstacles use StopsUnits and the
+// native moverZ<=candidate.mTallness gate (2e04da), independently of node tests.
+bool ScriptRuntime::unitLineOfMovement(int32_t id,float x,float y,bool preferAvoid,bool& clear,std::string& error){try{
+    clear=true;auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->object)throw std::runtime_error("Native movement line owner unavailable");
+    const auto prop=[&](int32_t n,const char* k)->const hades::SourceValue&{const auto* p=actorWorld_.currentProperty(n,k);if(!p)throw std::runtime_error(std::string("Native movement line field unavailable: ")+k);return *p;};
+    if(!actorWorld_.refreshGeometry(id,error))return false;float ox=0,oy=0,z=0;if(!actorWorld_.location(id,ox,oy,error)||!actorWorld_.zLocation(id,z,error))return false;
+    const float dx=x-ox,dy=y-oy;std::vector<hades::MovementPoint> A;hades::SpatialBounds bounds{ox,oy,ox,oy};
+    for(const auto& p:a->geometry){A.push_back({p.x,p.y});bounds.minX=std::min({bounds.minX,p.x,p.x+dx});bounds.minY=std::min({bounds.minY,p.y,p.y+dy});bounds.maxX=std::max({bounds.maxX,p.x,p.x+dx});bounds.maxY=std::max({bounds.maxY,p.y,p.y+dy});}
+    for(const auto n:actorWorld_.registrationOrder()){auto* u=actorWorld_.actor(n);if(n==id||!u||!u->registered||u->isDisposed||!u->object||u->definition->kind!="Unit")continue;
+        bool collides=prop(n,"CollideWithUnits").boolean()&&!hades::actorOwnerHasNoCollision(*u);
+        if(collides&&u->status)for(const auto h:u->status->snapshot().active){const auto* e=selfEffects_.effectData(h,error);if(!e)throw std::runtime_error(error);const auto f=e->fields.find("NoUnitCollision");if(f==e->fields.end()||!std::holds_alternative<bool>(f->second))throw std::runtime_error("Native movement line NoUnitCollision unavailable");if(std::get<bool>(f->second)){collides=false;break;}}
+        if(!collides&&!(preferAvoid&&prop(n,"PathfindersPreferAvoid").boolean()))continue;
+        if(!actorWorld_.refreshGeometry(n,error))return false;std::vector<hades::MovementPoint> B;for(const auto& p:u->geometry)B.push_back({p.x,p.y});
+        const auto hit=shiftPolygonCollision(polygonAxisCache_,A,B,dx,dy);if(hit.intersect||hit.willIntersect){clear=false;error.clear();return true;}
+    }
+    std::vector<int32_t> candidates;if(!actorWorld_.spatialObstacleCandidates(bounds,hades::ObstacleGridCategory::All,candidates,error))return false;
+    for(const auto n:candidates){auto* o=actorWorld_.actor(n);if(!o||!o->registered||!o->object)continue;bool stops=false;if(!actorWorld_.obstacleStops(n,false,stops,error))return false;if(!stops||z>float(prop(n,"Thing.Tallness").number()))continue;
+        if(!actorWorld_.refreshGeometry(n,error))return false;std::vector<hades::MovementPoint> B;for(const auto& p:o->geometry)B.push_back({p.x,p.y});
+        const auto hit=shiftPolygonCollision(polygonAxisCache_,A,B,dx,dy);if(hit.intersect||hit.willIntersect){clear=false;error.clear();return true;}
+    }
+    error.clear();return true;
+}catch(const std::exception& e){error=e.what();return false;}}
 // Unit::ApplyFullShift2f76d0 (.local/reports/native-combat5-unit-apply-full-shift-pseudocode.c):
 // |shift|^2<64 -> one ApplyShift(loc); else n=1-int(-|shift|*0.125) steps of shift/n from the live
 // location, stopping early when stopOnCollision and ApplyShift reports a stopping collision. Then
@@ -901,7 +987,22 @@ bool ScriptRuntime::unitApplyShift(int32_t id,float nx,float ny,float sx,float s
     if(px!=0||py!=0){const float l=std::sqrt(py*py+px*px),s=py*0.25f,l2=std::sqrt(s*s+px*px);qx=(1.f/l2)*px*l;qy=s*(1.f/l2)*l;}
     auto& sets=unitCollisionSets_[a->entityHandle];sets.lastTranslationX+=qx;sets.lastTranslationY+=qy;
     if(!std::isfinite(qx)||!std::isfinite(qy))throw std::runtime_error("ApplyShift nonfinite push -> Random::RandomDouble54f80 jitter not reconstructed");
-    if((qx!=0||qy!=0)&&!a->object->playerControlled)throw std::runtime_error("ApplyShift Unit+0x418 mAI collision notify (vtable+0x28) not reconstructed");
+    if((qx!=0||qy!=0)&&!a->object->playerControlled){
+        // ApplyShift2f80c3 -> mAI.OnDestinationInvalid2e8620: remember first
+        // collision time; a later invalid location strictly beyond
+        // source RepathTimeout clears the move list. SetTarget leaves this
+        // timer untouched; it is owned by the actual AI, not the request.
+        const auto* ai=a->definition->properties.get("MoveAI");
+        if(ai&&ai->get("Algorithm"))throw std::runtime_error("Native collision notify authored AI Algorithm parser not reconstructed");
+        float timeout=2.f;if(ai)if(const auto* value=ai->get("RepathTimeout"))timeout=float(value->number());
+        if(!std::isfinite(timeout))throw std::runtime_error("Native AI RepathTimeout numeric bounds");
+        auto [time,_]=actorMotion_.pathCollisionTimes.try_emplace(a->entityHandle,std::numeric_limits<float>::max());
+        time->second=std::min(worldTime_,time->second);
+        if(worldTime_>time->second+timeout){
+            if(auto move=actorMotion_.moves.find(a->entityHandle);move!=actorMotion_.moves.end())move->second.path.nodes.clear();
+            time->second=std::numeric_limits<float>::max();
+        }
+    }
     float damage=0;
     for(const auto o:hits){
         if(!unitOnObstacleCollision(id,o,sx,sy,qx,qy,damage,error))return false;

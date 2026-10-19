@@ -1,7 +1,7 @@
 {
   "schema": "HadesActorScriptMotionContract1",
   "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
-  "status": "Selected original entrance actions implemented; Windows pathfinder not reconstructed",
+  "status": "Native six-neighbor default/Precise MoveAI paths with actual translated-polygon collision queries and swept-polygon shortcut; advanced branches remain explicit.",
   "source": {
     "path": "Content/Scripts/RoomPresentation.lua",
     "sha256": "e686ec7a3d3b67c692754d69dfe2e7bd9057856285477129023723563994d4d4",
@@ -96,6 +96,26 @@
     {
       "path": ".local/reports/native-script-motion-z-update-static.json",
       "sha256": "ed47e720d7fec7f0c692f2afda768d889f2db7377bcf0a7cd7e9fb5e370c93e1"
+    },
+    {
+      "path": ".local/reports/takeover-move-set-next.json",
+      "sha256": "e06c3f2b91f5f9777425a954372de5d83e796ba2a74365478d25a94ec67d991e"
+    },
+    {
+      "path": ".local/reports/takeover-path-line-movement.json",
+      "sha256": "dab94d0344702aa90a5588e4854a1b4e3cdd94fa8aa9378ba0d4cd10f12a4fd7"
+    },
+    {
+      "path": ".local/reports/takeover-path-cell-detect.json",
+      "sha256": "089e4505b60108afa0ce4dd9d1e05b301c33c0aa30cb032f6bc2360b8aeb5dbc"
+    },
+    {
+      "path": ".local/reports/takeover-path-invalid.json",
+      "sha256": "c131fdd31fc601299380ca78b2eb9fdfea844c061bde23834ebfbf0088178291"
+    },
+    {
+      "path": ".local/reports/takeover-path-set-target.json",
+      "sha256": "9efc278d0ed6e8111db690a234c632d1a0fcc9fb7ac22d00edcf9e62979c80f1"
     }
   ],
   "observed_native": {
@@ -109,7 +129,7 @@
   "implemented": {
     "Teleport": "Actual source/destination Thing selection, averaged world XY and offsets, real body/geometry/properties state; selected unparented Unit branch.",
     "AdjustZLocation": "Actual lifetime-bound rawZ game-clock transitions and actual source MaxZ; selected world UndoModifier1.",
-    "Move": "Default collision-disabled path: original graph offsets, costs, EASTL heap tie order, predecessor relaxation, BuildMoveList compression and partial paths, stream0 repath timing, native rotation wait/slow-turn policy and actual movement/animation speed. Precise adapter retains existing approximation.",
+    "Move": "Default and Precise use the original six-neighbor A* graph and actual translated-polygon collision occupancy, source swept-polygon shortcut, native success/rotation/fallback policy and stream0 repath timing. Precise forces success radius32.",
     "Stop": "Lifetime target removal, source speedFraction0 and optional rotation stop; no fabricated velocity halt.",
     "AngleTowardTarget": "Live actual target world XY, goalAngle; CompleteAngle invokes actual ActorWorld.setAngle and cosmetic angle state."
   },
@@ -119,31 +139,32 @@
     "ownership": "ActorMotionWorld holds source-created target and Z-transition state keyed by actual entity lifetime; stale lifetimes are erased."
   },
   "android_adaptations": [
-    "Precise Move retains direct source XY/final-step fraction approximation. Default Move uses the recovered A* graph; collision-disabled SetNextDestination collapses that real list. Native manager scheduling remains the portable sequential phase order.",
-    "Portable defined sequential script-motion/physics/body phases; not a claim of identical Windows ECS thread completion ordering."
+    "Portable defined sequential script-motion/physics/body phases; not a claim of identical Windows ECS thread completion ordering.",
+    "Native manager scheduling uses the portable sequential phase order; rectangles retain integer polygon AABBs and sparse obstacle broadphase membership."
   ],
   "unsupported": [
-    "Obstacle-colliding script Move path-node provider; default path node overlapping any Unit pending actual path collision filters.",
     "Attached actor target-relative setters",
     "Obstacle Teleport/ShiftZ callback branches",
     "Name-query/relative/screen-space Teleport branches",
     "Non-unit Move",
     "Script Z transition modified event UndoModifier",
-    "Authored alternate/LOS/camera/FinishAtGoal/MoveWithoutPath and nondefault OnFailBehavior branches."
+    "Authored alternate/LOS/camera/FinishAtGoal and nondefault OnFailBehavior branches."
   ],
   "validation": {
     "host_syntax": "passed",
     "arm64_api26_syntax": "passed",
     "actual_intro_replay": "Strict replay reaches actual Hero exit target and queues RoomSimple01 at frame2104; first transition failures tracked by retained-VM map consumer. Host evidence does not establish device gameplay.",
-    "device_execution_observed": false
+    "device_execution_observed": false,
+    "collision_move_revision": "Host link v3 passed. Actual AI replay is owned by the gameplay coordinator; no new synthetic fixture establishes device behavior."
   },
   "owned_sessions_open": false,
   "files": {
-    "native/app/actor_motion.hpp": "5c26bc1ebf53ea57faa0654e78c354a7802c21bdeeb61ebeb79dd84b242111b6",
-    "native/app/lua_actor_motion.cpp": "e042eb9bb9b4562ac848f70fe82329a6fd1be3fd25aa5763c5399faac3566d65",
-    "native/app/lua_player_input.cpp": "d37a3c8535021f03c05ea29cf6d4d119436b8cb2fe8b6399965f3d3a7fd2fab3",
-    "native/app/unit_path.hpp": "a6df83a0f046c34d2f155f8f06c3a2eaf4ec38a274d98db33e215b9bc221c36e",
-    "native/app/unit_path.cpp": "de43c65cb15a8268942ab76636c28e2ef3af828dba30ce4d3d64a21d1901021b"
+    "native/app/actor_motion.hpp": "607371c1a7bf1fd7a4a0d3fd4e1dbc9ce41532e5056497ea7e7533f28c770951",
+    "native/app/lua_actor_motion.cpp": "b8ebe5c04e649da928f1e8459522d945b0f81ddefdd6322f09f999bf3e1947a8",
+    "native/app/lua_player_input.cpp": "ea2985a3c33496537ed64f46ddd7999083eaff1347f7969b9058395f09d6235f",
+    "native/app/unit_path.hpp": "d315df9079781d2900a9ee76fa96204521af8111e2bc1b0a4121d00371152ba6",
+    "native/app/unit_path.cpp": "b78082c77a95d1153134b71f4441c912d4ab8499ba03d78e0512031f571e73b9",
+    "native/app/lua_combat.cpp": "2fcd43618f3fe301f2dbac401b5b4ea9bae2bd795bbd902de273ed82603d8880"
   },
   "binary_reports_extra": [
     {
@@ -158,5 +179,59 @@
       "path": ".local/reports/takeover-door-CalcPath-rea.json",
       "observation": "CalcPath original native decompilation retained locally; graph consumer facts cited in unit_path.cpp."
     }
-  ]
+  ],
+  "move_path_revision": {
+    "binary_functions": {
+      "MoveAIPathfind.FindPath": "0x1802e8b80",
+      "MoveAIPathfind.SetNextDestination": "0x1802e8f90",
+      "Pathfinder.CalcPath": "0x1802e9930",
+      "Unit.CreatePathCollisionParameters": "0x1802f2190",
+      "GridManager.DetectCollisions": "0x180309dd0",
+      "GridSquare.DetectCollisionsPath": "0x18030b850",
+      "Thing.HasLineOfMovementAccurate": "0x1802e0100",
+      "MoveAIPathfind.OnDestinationInvalid": "0x1802e8620"
+    },
+    "facts": [
+      "Precise selects the same pathfinder with strict successDistance32 before the grid query and repath RNG.",
+      "Blocked popped nodes continue the original six-neighbor search. Exhausted queue clears the move list.",
+      "Path query uses translated source polygons for Units and obstacles, minimum-Z-only gates, primary/active NoUnitCollision filters and StopsUnits. DieOnCollision obstacles are omitted.",
+      "PreferAvoid polygon query blocks entry but permits escape from an already-overlapping polygon. Override-circle branch remains explicit.",
+      "SetNextDestination tests the source swept polygon shortcut to the end node only on new path or current-node arrival.",
+      "MoveWithoutPath is the original authored empty-list fallback. It never replaces a nonempty computed path.",
+      "AI collision notify remembers the earliest collision time and clears the move list strictly after source RepathTimeout. This timer and repath delay survive SetTarget and Stop."
+    ],
+    "approximations": [
+      "Unit/obstacle rectangles retain the shared portable integer polygon-AABB representation.",
+      "Portable sparse obstacle broadphase and Unit iteration differ from native clamped grid membership/order. Boolean SAT occupancy does not depend on candidate order."
+    ],
+    "explicit_boundaries": [
+      "StayOnCamera",
+      "FinishAtGoal",
+      "RequiresLoS",
+      "NodeSuccessDistanceRequiresLoS",
+      "AlternateNodeDistance",
+      "TargetHeadingShift",
+      "authored OnFailBehavior enum",
+      "PreferAvoid override circle",
+      "authored Algorithm enum"
+    ]
+  },
+  "unattach": {
+    "runScriptAction": "VA1802e4166..4255",
+    "baseDetach": "VA1802e5ad0",
+    "obstacleDetach": "VA1802c5470",
+    "physicsHalt": "VA1802bcd20",
+    "facts": [
+      "AttachedToId is the optional actual-parent filter. DestinationId is not read.",
+      "Detach captures effective XY/Z before unlinking, zeros attachment offsets, preserves world position through actual owner setters.",
+      "Physics.Halt clears MoveShift, Velocity, UpwardVelocity and LastForceIsSelfApplied; preserves acceleration, spin and footing state. Stop impulsing cue, clear IgnoreGravity, admit Physics component.",
+      "Obstacle draw/useable dirty propagation uses actual LocationChanged provider."
+    ],
+    "boundary": "CenterGeometry polygon-center mutation remains explicit."
+  },
+  "set_animation_argument_policy": {
+    "native": "ScriptAction.SetAnimation VA180261a10",
+    "observation": "Complete function reads named fields independently; unconsumed keys ignored. Group is not read by SetAnimation; SetupAnimation/CreateAnimation consumes it.",
+    "implementation": "Removed unsupported-extra-key whitelist for this fully recovered action; all actual consumed branches retain their existing runtime checks."
+  }
 }

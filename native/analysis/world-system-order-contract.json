@@ -136,7 +136,14 @@
           "name": "SystemsManager.RunPostUpdateSystems",
           "va": "1803155de"
         }
-      ]
+      ],
+      "simulation_speed_action": {
+        "rva": "Execute198 branch2540e3..25415c",
+        "fields": "World+24 target=getFraction; +28 rate=LerpTime>0 ? reciprocal :999; +2c Duration default4. Does not assign current+20 immediately.",
+        "update": "World314f57..314fdf decrements remaining in real time only while current!=1; strict negative restores target1/rate1; StepToward(current,target,realDelta*rate); scales input elapsed once before World.Time/manager/ECS.",
+        "clock_consumers": "Screen clock remains separate; Shake consumes real elapsed; Body consumes worldDelta/WorldSpeed; animation uses own TimeModifierFraction and only the actual owner multiplier link. Unit weapon/status manager delta multiplies Thing+80; physics fraction is not applied again.",
+        "boundary": "Nonpositive speed and randomized fractions remain explicit unsupported until exact zero-clock/RNG projection is reconstructed. Portable grouped manager ordering remains an approximation."
+      }
     },
     "ecs": {
       "initialize_rva": "0x154e50",

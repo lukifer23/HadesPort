@@ -211,7 +211,7 @@ class Coverage:
             found += [(n, origin + ':' + '.'.join(path) + ' ' + value) for n in self.binks[value]]
         elif isinstance(value, str) and value in self.anims:
             key = path[-1] if path else ''
-            if not keyed or ANIM_KEY.search(key) or (len(path) >= 2 and path[-2] == 'Using'):
+            if not keyed or ANIM_KEY.search(key) or any(part.endswith('FxStyles') for part in path[:-1]) or (len(path) >= 2 and path[-2] == 'Using'):
                 found.append((value, origin + ':' + '.'.join(path)))
         return found
 
@@ -240,6 +240,22 @@ class Coverage:
         elif isinstance(value, str):
             yield value
 
+    def obstacle_references(self, value, path=()):
+        # Resolved native/Lua obstacle data can name runtime spawn/swap,
+        # crush and destruction targets. Follow the original namespace,
+        # retaining each field path; Name/InheritFrom describe this record
+        # rather than a runtime reference to a newly created obstacle.
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if not path and key in ('Name', 'InheritFrom'): continue
+                if ANIM_KEY.search(str(key)): continue
+                yield from self.obstacle_references(item, path + (str(key),))
+        elif isinstance(value, list):
+            for index, item in enumerate(value):
+                yield from self.obstacle_references(item, path + (str(index + 1),))
+        elif isinstance(value, str) and value in self.things['Obstacles']:
+            yield value, '.'.join(path)
+
     def run(self):
         roots = {}
         self.universe = set()
@@ -261,6 +277,7 @@ class Coverage:
                 (obstacles if obj['DataType'] == 1 else units).add(obj['Name'])
                 callback_selectors.update(g for g in obj['GroupNames'] if g)
         map_placed = set(obstacles)
+        dynamic_obstacles = defaultdict(list)
         enemy_sets = self.lua_table('EnemySets') if 'EnemySets' in self.data else {}
         for s in ENEMY_SETS:
             units.update(x for x in enemy_sets.get(s, []) if isinstance(x, str))
@@ -307,6 +324,21 @@ class Coverage:
             for k, v in sorted(self.lua_table('StatusAnimations').items()):
                 if v in self.anims: add(v, f'StatusAnimations.{k} (RoomManager.lua PlayStatusAnimation)')
             for kind, key, rec in records:
+                if kind in ('Obstacles', 'ObstacleData'):
+                    for target, field in self.obstacle_references(rec):
+                        origin = f'{kind}.{key}:{field} -> Obstacles.{target}'
+                        if origin not in dynamic_obstacles[target]: dynamic_obstacles[target].append(origin)
+                        if target not in obstacles:
+                            obstacles.add(target); changed = True; self.entity_origin[target] = origin
+                        # Dynamic Thing primaries need reusable original bytes
+                        # even when the same graphic is also placed in another
+                        # scoped map. That map's scene cannot supply this owner.
+                        target_data = self.thing('Obstacles', target)
+                        for name, source in self.walk_values(target_data, origin, keyed=True): add(name, source)
+                        graphic = target_data.get('Thing', {}).get('Graphic')
+                        if isinstance(graphic, str) and graphic and graphic not in self.anims and graphic != 'null':
+                            raw_origin = f'{origin} {target}.Thing.Graphic'
+                            if raw_origin not in self.obstacle_graphics.setdefault(graphic, []): self.obstacle_graphics[graphic].append(raw_origin)
                 combat = kind in COMBAT_KINDS
                 for s in self.edge_strings(rec) if combat else ():
                     if s in self.things['Weapons'] or s in weapon_data:
@@ -341,6 +373,7 @@ class Coverage:
                     v = rec.get(field)
                     if isinstance(v, str) and v in self.anims: add(v, f'LootData.{key}.{field} (RoomPresentation.lua CreateDoorRewardPreview)')
         scope.update(units=sorted(units), weapons=sorted(weapons), projectiles=sorted(projectiles), obstacles=sorted(obstacles))
+        scope['dynamic_obstacle_references'] = dict(sorted(dynamic_obstacles.items()))
         # Native interaction dispatch enters anonymous top-level registrations,
         # outside StartRoom's named-function graph. Derive event kinds from the
         # actual bridge, and selectors from scoped map groups/entities/data.
@@ -436,7 +469,7 @@ class Coverage:
                         groups[o].setdefault(tk.value, f'{fname}:{tk.line} {o} {call_at[i]}')
                     if tk.value in self.functions: refs[o].add(tk.value)
                     if tk.value in self.anims: lits[o].append((tk.value, f'{fname}:{tk.line} {o}'))
-                    elif tk.value in self.things['Obstacles']: obst[o].append((tk.value, f'{fname}:{tk.line} {o}'))
+                    if tk.value in self.things['Obstacles']: obst[o].append((tk.value, f'{fname}:{tk.line} {o}'))
                     if ((t[i + 1].kind == 'op' and t[i + 1].value == '..') or (t[i - 1].kind == 'op' and t[i - 1].value == '..')) and len(tk.value) >= 4 and (call_at[i] or len(tk.value) >= 6):
                         suffix = t[i - 1].value == '..' and t[i - 1].kind == 'op'
                         concat[o].append((tk.value, suffix, f'{fname}:{tk.line} {o} {call_at[i] or "<expr>"}'))
@@ -490,10 +523,20 @@ class Coverage:
             dynamic += dyn.get(fn, [])
             # SpawnObstacle/CreateScreenObstacle names: a Thing.Graphic that is
             # a sprite path (no AnimationData) is a native Dataless animation.
-            for obstacle, origin in obst.get(fn, []):
-                graphic = self.thing('Obstacles', obstacle).get('Thing', {}).get('Graphic')
+            pending = list(obst.get(fn, [])); spawned = set()
+            for obstacle, origin in pending:
+                if obstacle in spawned: continue
+                spawned.add(obstacle)
+                record = self.thing('Obstacles', obstacle)
+                # Runtime-spawned instances cannot borrow a different placed
+                # owner's scene primary: both named and Dataless resources are
+                # reusable roots, regardless of their presence in a scoped map.
+                sites.extend(self.walk_values(record, origin + ' Obstacles.' + obstacle, keyed=True))
+                graphic = record.get('Thing', {}).get('Graphic')
                 if isinstance(graphic, str) and graphic and graphic not in self.anims and graphic != 'null':
                     self.obstacle_graphics.setdefault(graphic, []).append(f'{origin} {obstacle}.Thing.Graphic')
+                for target, field in self.obstacle_references(record):
+                    pending.append((target, origin + ' Obstacles.' + obstacle + ':' + field))
         self.reach_universe = universe
         self.reachable_groups = {g:origin for fn in sorted(seen) for g,origin in groups[fn].items()}
         return seen, sites, dynamic

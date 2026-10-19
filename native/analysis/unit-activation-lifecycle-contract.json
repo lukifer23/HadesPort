@@ -1,0 +1,34 @@
+{
+  "schema": "hades-unit-activation-lifecycle-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence": {
+    "unit_update": ".local/reports/native-player-unit-self-update-order.json",
+    "unit_defaults": ".local/reports/native-player-unit-defaults-fire-state.json",
+    "trigger_name": ".local/reports/native-active-unit-trigger-to-string.json"
+  },
+  "facts": [
+    "Unit.Defaults2f144c clears the word at+3bb, including mHasActivated+3bc.",
+    "Unit.UpdateSelf2f14af..1507 skips activation when mHasActivated is true or nonempty UnitData.ActivateGraphic equals the actual primary animation name.",
+    "Otherwise2f150d..1590 executes original OnActivationFinished scripts in registration order with Script.isSource and actual Unit Lua table.",
+    "Only after those callbacks return does2f1597 set mHasActivated=true, before the alive check and movement/arsenal/status phases.",
+    "Original RoomManager.lua OnActivationFinished sets ActivationFinished and invokes SetupAI; starting AI directly at SpawnUnit would bypass this lifecycle."
+  ],
+  "implementation": [
+    "Real registered Unit lifetimes store hasActivated=false; manager tick snapshots registration order before dispatch.",
+    "The activation phase compares the actual primary registry name, dispatches the original callback with Thing matching, then records activation on the surviving matching lifetime."
+  ],
+  "adaptations": [
+    "The existing portable world update groups unit phases rather than interleaving each complete native Unit.UpdateSelf. Activation is restored before the grouped unit work; full manager phase equivalence is not claimed."
+  ],
+  "observed_before": {
+    "report": ".local/reports/takeover-enemy-ai-approach-r1.json",
+    "world_frames_completed": 2700,
+    "enemy": 1000001,
+    "result": "Hero approached within roughly190 units and stopped; SimpleMelee had ActivationFinished/IsAggroed/AIThreadName nil and no AI coroutine despite a successful supported replay."
+  },
+  "validation": {
+    "build": ".local/reports/takeover-enemy-ai-build-r2.log",
+    "result": "Host linked. Identical no-player-attack replay now invokes original OnActivationFinished, SetupAI and AggroAI; frame2157 reaches a real missing Dev\\InvisibleTarget primary resource at original EnemyAI.lua:1760. Enemy attack behavior remains unverified beyond this new reached boundary.",
+    "replay": ".local/reports/takeover-enemy-ai-approach-r2.json"
+  }
+}

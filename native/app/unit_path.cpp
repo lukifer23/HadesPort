@@ -17,9 +17,9 @@ void push(std::vector<Item>& heap,Item value){size_t hole=heap.size();heap.push_
 Item pop(std::vector<Item>& heap){const Item result=heap.front(),value=heap.back();heap.pop_back();if(heap.empty())return result;size_t hole=0,child=2;while(child<heap.size()){if(heap[child].priority>heap[child-1].priority)--child;heap[hole]=heap[child];hole=child;child=hole*2+2;}if(child==heap.size()){heap[hole]=heap[child-1];hole=child-1;}while(hole){const size_t parent=(hole-1)/2;if(heap[parent].priority<=value.priority)break;heap[hole]=heap[parent];hole=parent;}heap[hole]=value;return result;}
 int32_t distance(float x,float y,float gx,float gy){const float dx=x-gx,dy=y-gy;return int32_t(std::sqrt(dx*dx+dy*dy));}
 }
-bool planCollisionFreeUnitPath(float x,float y,float gx,float gy,const UnitPathConfig& c,const std::function<bool(float,float,std::string&)>& validateNode,std::vector<UnitPathNode>& out,std::string& error){try{
- for(const float v:{x,y,gx,gy,c.nodeDistance,c.nodeSuccessDistance,c.lookAheadDistance,c.lookAheadMultiplier,c.successDistance})if(!std::isfinite(v)||std::abs(v)>1e7f)throw std::runtime_error("Native collision-free path numeric bounds");
- if(c.nodeDistance<=0||c.successDistance<=0||c.lookAheadDistance<0||c.lookAheadMultiplier<0||c.nodeCountLimit<1||c.skippedNodeLimit<0)throw std::runtime_error("Native collision-free path configuration bounds");
+bool planUnitPath(float x,float y,float gx,float gy,const UnitPathConfig& c,const std::function<bool(float,float,bool&,std::string&)>& validateNode,std::vector<UnitPathNode>& out,std::string& error){try{
+ for(const float v:{x,y,gx,gy,c.nodeDistance,c.nodeSuccessDistance,c.lookAheadDistance,c.lookAheadMultiplier,c.successDistance})if(!std::isfinite(v)||std::abs(v)>1e7f)throw std::runtime_error("Native Unit path numeric bounds");
+ if(c.nodeDistance<=0||c.successDistance<=0||c.lookAheadDistance<0||c.lookAheadMultiplier<0||c.nodeCountLimit<1||c.skippedNodeLimit<0)throw std::runtime_error("Native Unit path configuration bounds");
  out.clear();const int32_t initialDistance=distance(x,y,gx,gy),success=int32_t(c.successDistance);
  if(initialDistance<success){error.clear();return true;}
  UnitPathNode start{int32_t(std::round(x)),int32_t(std::round(y)),0,initialDistance,false};
@@ -33,7 +33,7 @@ bool planCollisionFreeUnitPath(float x,float y,float gx,float gy,const UnitPathC
  while(!heap.empty()){
   auto n=pop(heap).node;++tested;
   if(key(n)==roundedGoal){end=n;found=true;break;}
-  if(n.cost>0&&(!validateNode||!validateNode(float(n.x),float(n.y),error)))return false;
+  if(n.cost>0){bool blocked=false;if(!validateNode||!validateNode(float(n.x),float(n.y),blocked,error))return false;if(blocked)continue;}
   if(n.distance<=success){end=n;found=true;break;}
   // Native default partial paths retain the last popped graph node.
   if(n.distance>maxDistance||n.cost>=maxCost||tested>=c.nodeCountLimit){
@@ -53,7 +53,8 @@ bool planCollisionFreeUnitPath(float x,float y,float gx,float gy,const UnitPathC
    push(heap,{int64_t(n.cost+next.distance*11/10),next});
   }
  }
- if(!found)throw std::runtime_error("Native Pathfinder exhausted graph without reconstructed failure policy");
+ // CalcPath VA1802ea2a6..2db: exhausted queue clears the move list, return4.
+ if(!found){error.clear();return true;}
  // BuildMoveList VA1802eaa10..abd5: walk predecessors backwards, retain turns
  // and at most SkippedNodeLimit consecutive equal-direction omissions.
  int32_t previousDx=0,previousDy=0,skipped=0;

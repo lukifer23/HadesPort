@@ -22,9 +22,9 @@ focused on controls, animation recovery, cast, actual enemy combat and progressi
 Main coordinates Android builds/installs; the user drives the device. No injected
 input during manual play. All game-derived packs/captures/reports remain ignored.
 
-Current selected packs: opening-actors-v13, actor-simple-v4 via room-packs-v4,
-actor-actions-v7, actor-markers-v7, actor-properties-v11 (HAP5),
-player-weapons-v23, action-effects-v15, screen-opening-v12, audio-events-v23.
+Current selected packs: opening-actors-v13, actor-simple-v4 via room-packs-v6,
+actor-actions-v8, actor-markers-v8, actor-properties-v13 (HAP6),
+player-weapons-v24, action-effects-v20, screen-opening-v12, original-text-v7, audio-events-v26.
 RoomOpening and RoomSimple01 have validated original assets; no fallback scene.
 
 The latest installed/verified result is in the device table. Iteration8 allowed
@@ -71,15 +71,34 @@ Focused evidence (all private/local):
 
 | Work | Owner | Current boundary |
 |---|---|---|
-| Device/builds, defense mapping, weapon clocks, logs, UI controls, docs/remote | main | Iteration9 packaging/install; world health-bar frame targets and AddAmmo in source; SetScaleX/IdExists/Shift remain |
-| Cast and primary clocks; actual enemy AI | movement_controls | Strict cast/pickup/recast passed; tracing original AggroAI/AttackerAI waits and live enemy arsenal |
-| Room/encounter resources, FX source matrices | progression_coverage | Dynamic obstacle/rubble dependency closure next; actual next map is chosen only after encounter and Athena reward |
-| Native hit effects | door_runtime | Flash/HAP5 rebuilt and linked; original Thing Shake component/draw inheritance next |
+| Device/builds, shared combat lifecycle, clocks, diagnostics, docs/remote | main | Iteration10a preserved; iteration11 candidate includes shared primary completion, hitstop and pre-allocation sound coverage checks |
+| Actual enemy AI and mixed combat recovery | movement_controls | Original enemy FireWeaponFromUnit/HeavyMelee OnHit reached; strict post-hit recovery against final selected resources pending |
+| Room/encounter resources and progression | progression_coverage | Selected action20/audio26 source closure; actual enemy Health160→0 proven; checking original Kill cleanup after money primary repair |
+| Native path, attachment and styled text | door_runtime | Shared path/repath, Unattach, owner-Z text and real format runs saved; reached prompt verification pending |
+
+Candidate evidence distinguishes reached source operations, strict completion,
+contained diagnostics and actual device play:
+
+- Strict mixed combat r5: actual enemy hit lowers hero50→40; hit-stun clears,
+  Sword2578 damages enemy100→80, held/requests empty and strafe0. Enemy projectile
+  fully disposes2597; FX/audio worlds fault0. Weapon24 closes the original inherited ObstacleData touchdown-weapon class
+  (all prior57 weapons/49 projectiles unchanged). The next strict stop2599 is
+  RubbleFall Type INSTANT6 subclass initialization, before final cardinals.
+- Strict death v4: original enemy Health160→0 at2626, native death and cleanup
+  continue, money pickup passes former DestroyOnUse fence. Second-wave spawn is
+  attempted2689; owner invulnerability/untargetability gates are now reconstructed. The remaining
+  next-wave dependency is a child-owned movie Book, requiring real ownership and
+  presentation support across resource banks.
+- Full forced encounter, Athena reward and next-room transition remain unproven.
+  These candidate repairs have not yet been installed on the device.
 
 ## Device (Galaxy Z Fold, `$HADES_DEVICE_SERIAL`)
 
 | Date / time | APK sha256 (prefix) | Result |
 |---|---|---|
+| 2026-10-18 23:09 | e15269e9 (iteration10a) | Full non-incremental user0 install, installed SHA verified and launched. Shared same-name cross-weapon effect reapplication, world scale axes, IdExists/Shift/stale Destroy selection, native Shake/HAP6, dynamic rubble/raw graphics, Unit activation/CanAttack/state notifications and precise arrival. Mixed2750-frame contained replay logs actual cross-source OnHitStun and all4 directions recover with requests/effects empty and strafe0. User confirms improved controls; enemy attack/death and progression still fail. Screenshot and12second passive video retained locally. Subsequent source repairs are not yet device verified. |
+| 2026-10-18 22:54 | ca356a17 (iteration9) | Full non-incremental user0 install and on-device SHA verified, launched. Real RoomSimple01 screenshot captured; user repeated attacks exposes projectile frame335/weapon frame366 cross-source victim Reapply guard. Released SwordWeapon3 stays queued, strafe1 and disable effects recur, reproducing control lock. Source repair retains original effect identity per native Reapply; not yet device verified. |
+| 2026-10-18 22:45 | 851a3be5 (iteration8) | Full install/SHA verified. Real hit then projectile defense Reflection lookup interrupts firing cleanup; corrected ReflectAddition in iteration9. |
 | 2026-10-18 22:28 | 3c0732dc (iteration6) | Full install/hash verified. Includes actual victim HitSound, actor scale correction, action13 PostRead normalization and original room VO. Continue restores actual RoomSimple01 assets, then fails at frame1 because timed missing audio parameters incorrectly poison the audio system. Host reproduces from actual device checkpoint; source repair underway. Strict melee additionally reaches original enemy hit FX cap fields; cast reaches actual ammo primary/marker disposal. |
 | 2026-10-18 22:19–22:22 | 3e4ebc1d (iteration5) | Full install and installed SHA verified. User enters RoomSimple01 without immediate crash; guarded screenshot/video confirm actual SimpleMelee visible. Released attack repeats because reached enemy HitSound consumer interrupts firing before request cleanup; source fixes the consumer. Original room VO missing; source exports it. HUD screenshot follows original16s auto-hide; cast pickup remains under investigation. |
 | 2026-10-18 20:58 | b437817c (build 39) | Device turn test (HERO_TRACE in logcat every ~0.5 s): body angle turns correctly (0/π/3π/2/π/2). Host action trace: sword combo animates (Charge1→Attack1), dash moves ~230 units, but dash + special projectiles hit the unreconstructed Detonation obstacle LOS/ApplyImpact branch; after the special the hero stays in ZagreusSwordParryFire (soft-lock) → weapons agent. Device now on wireless ADB (name in .local/private/LOCAL.md) |

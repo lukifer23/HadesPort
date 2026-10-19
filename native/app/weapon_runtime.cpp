@@ -493,7 +493,7 @@ bool WeaponArsenal::requestFire(const std::string& name,WeaponFireRequest reques
         if(!flag(other.definition,"PriorityFireRequest",otherPriority)||!flag(other.definition,"AllowMultiFireRequest",otherMulti))return false;
         if(otherPriority&&!otherMulti)return false;
     }
-    if(request.targetId!=-1)return reject(error,"target FireRequest needs actual parent entity-link identity");
+    if((request.targetId!=-1&&!request.targetLifetime)||(request.targetId==-1&&request.targetLifetime))return reject(error,"FireRequest target requires matching actual parent entity-link identity");
     if(request.angle<0)request.angle=owner.angle;
     w->currentFireRequest=request;return true;
 }
@@ -506,6 +506,10 @@ bool WeaponArsenal::requestTouchdownFire(const std::string& name,const WeaponOwn
     request.fromX=request.fromY=request.targetX=request.targetY=0;
     request.applySelfEffects=true;
     return requestFire(name,request,owner,error);
+}
+bool WeaponArsenal::recordFireSound(const std::string& name,uint32_t id,std::string& error){
+    for(auto& w:weapons_)if(w.definition.name==name){w.fireSoundId=id;error.clear();return true;}
+    return reject(error,"Fire sound requires actual retained weapon");
 }
 bool WeaponArsenal::clearFireRequest(const std::string& name,std::string& error){
     error.clear();for(auto& w:weapons_)if(w.definition.name==name){w.currentFireRequest.reset();return true;}

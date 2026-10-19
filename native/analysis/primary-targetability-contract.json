@@ -1,0 +1,14 @@
+{
+  "schema": "hades-primary-targetability-v1",
+  "native_query_va": "0x1802e6660",
+  "native_animation_constructor_va": "0x1800940b5",
+  "native_query_order": [
+    "Current primary AnimationData.OwnerUntargetable at fullData+0x89 (Def+0x31) denies targeting.",
+    "Virtual Thing.IsAlive checks LifeStatus ALIVE.",
+    "LifeComponent.Targetable at+0x30 supplies the persistent flag."
+  ],
+  "compiled_default": "AnimationData constructor zero template covers full+0x89; complete later native stores leave OwnerUntargetable false. Actual authored resolved values override this default.",
+  "implementation": "Shared ActorWorld.isTargetable receives actual primary data through ScriptRuntime for active HAA, scene, action or Effect primaries. Map reset preserves the provider. Homing.TrackTarget/GetClosestTarget target eligibility consumes the shared query rather than raw Life.Targetable.",
+  "scope": "This does not overwrite the persistent Life.Targetable flag and does not add targetability filtering to explicit Lua target IDs or GetClosestUnitOfType, whose original native contracts do not query it.",
+  "failure_policy": "Missing actual primary source/lifetime/provider or missing LifeComponent fails explicitly; absent native-authored OwnerUntargetable uses the proven constructor default."
+}

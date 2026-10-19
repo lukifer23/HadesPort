@@ -51,18 +51,25 @@ namespace {
 constexpr const char* registryKey = "hades.textFormatRuntime";
 constexpr const char* ownerMetatable = "hades.textFormatRuntime.owner";
 using Color = std::array<float,4>;
+struct TextRunStyle {
+    std::string font;float size=0,textSymbolScale=1;
+    Color color{1,1,1,1},shadowColor{0,0,0,0},outlineColor{-1,-1,-1,-1};
+    float shadowX=0,shadowY=0,shadowBlur=50,outlineThickness=0;
+    bool emphasized=false,blockEmphasized=false;
+};
 struct TextBody {
     uint64_t ownerLifetime=0;bool destroyed=false,autoSet=false,hide=false;
     std::string textKey,rawText;bool raw=false,useDescription=false;
     std::string font;int32_t fontSize=0;float textSymbolScale=1,width=0,height=0,offsetX=0,offsetY=0;
     hades::TextJustification horizontal=hades::TextJustification::Center,vertical=hades::TextJustification::Center;
     float outlineThickness=0,shadowBlur=50,shadowX=0,shadowY=0;Color outlineColor{-1,-1,-1,-1},shadowColor{0,0,0,0};
-    std::string variableAutoFormat;bool opacityWithOwner=false;
+    std::string variableAutoFormat;bool opacityWithOwner=false,locationZWithOwner=true,graft=false,emphasized=false,blockEmphasized=false;
     float scale=1,scaleModifier=1,scaleTarget=1,scaleSpeed=4,fadeOpacity=0,fadeTarget=1,fadeSpeed=4,colorSpeed=4;
     Color color{1,1,1,1},colorTarget{1,1,1,1};
     std::map<std::string,int> luaParams; // registry refs, GUIComponentTextBox+0xd08
     std::map<std::string,std::string> controlLabels;
     bool dirty=true;std::string resolved;std::vector<hades::TextPiece> pieces;
+    std::vector<TextRunStyle> styles;
 };
 struct TextState { std::vector<TextFormatSnapshot> formats;std::map<uint64_t,TextBody> bodies;std::map<int32_t,uint64_t> components;std::shared_ptr<const hades::TextFontBank> fonts;TextControlLabelProvider controlLabel; uint64_t nextSequence = 1; };
 TextState* lookup(lua_State* state) {
@@ -82,7 +89,7 @@ double numberAt(lua_State* state,int index) {
     return value;
 }
 const std::set<std::string> strings={"Name","Font","Justification","VerticalJustification"};
-const std::set<std::string> booleans={"Graft","UseEmphasizedFont","BlockEmphasizedFont"};
+const std::set<std::string> booleans={"Graft","UseEmphasizedFont","BlockEmphasizedFont","LocationZWithOwner"};
 // These are actual original UIData TextFormats fields, also present in native
 // ComponentDataDef reflection / CreateTextBox explicit property reads.
 const std::set<std::string> numbers={
@@ -147,12 +154,30 @@ std::string luaMarkupValue(lua_State*L,const std::string&path){
     else if(lua_isboolean(L,-1))out=lua_toboolean(L,-1)?"true":"false";
     else{lua_settop(L,top);throw std::runtime_error("Original Lua text value unavailable: "+path);}
     lua_settop(L,top);return out;}
-void appendText(std::vector<hades::TextPiece>&pieces,const std::string&text){if(text.empty())return;if(pieces.empty()||pieces.back().symbol)pieces.push_back({false,text});else pieces.back().text+=text;}
-// Parse/ParseMarkup subset reached by original strings. '{$X}' value text
-// is GetTextData(value)->DisplayName when such a record exists, else the
-// value, and is re-tokenized (PushTokenizer). '{!X}' yields "@"+value, an
-// inline ParseImage symbol. All other markup/escapes fail explicitly.
-void parseMarkup(lua_State*L,const hades::TextFontBank&fonts,TextBody&body,const std::string&s,std::vector<hades::TextPiece>&pieces,int depth){
+TextRunStyle runStyle(const TextBody&body){TextRunStyle out;out.font=body.font;out.size=float(body.fontSize);out.textSymbolScale=body.textSymbolScale;out.color=body.color;out.shadowColor=body.shadowColor;out.outlineColor=body.outlineColor;out.shadowX=body.shadowX;out.shadowY=body.shadowY;out.shadowBlur=body.shadowBlur;out.outlineThickness=body.outlineThickness;out.emphasized=body.emphasized;out.blockEmphasized=body.blockEmphasized;return out;}
+void appendText(std::vector<hades::TextPiece>&pieces,const std::string&text,uint32_t style){if(text.empty())return;if(pieces.empty()||pieces.back().symbol||pieces.back().style!=style)pieces.push_back({false,text,style});else pieces.back().text+=text;}
+// GetFormatter178980 resolves the actual Lua FormatContainerIds owner, then
+// selects the live TextComponent widget by ComponentData.Name. An unknown
+// format leaves the current line unchanged in ParseFormatting17c690.
+const TextBody* findFormatter(lua_State*L,const std::string&name){auto*registry=lookup(L);if(!registry)return nullptr;const int top=lua_gettop(L);lua_getglobal(L,"FormatContainerIds");if(!lua_istable(L,-1)){lua_settop(L,top);return nullptr;}lua_getfield(L,-1,name.c_str());const double id=lua_isnumber(L,-1)?lua_tonumber(L,-1):0;lua_settop(L,top);if(!std::isfinite(id)||id<=0||id>INT32_MAX)return nullptr;const auto*owner=findObjectSnapshot(L,int32_t(id));if(!owner||!owner->active||!owner->alive)return nullptr;for(const auto&format:registry->formats){if(format.ownerId!=int32_t(id)||format.name!=name)continue;const auto&body=registry->bodies.at(format.sequence);if(!body.destroyed&&body.ownerLifetime==owner->entityHandle)return &body;}return nullptr;}
+void selectFormat(lua_State*L,TextBody&body,const std::string&name,uint32_t&current,std::vector<uint32_t>&stack){
+    if(name=="PreviousFormat"){current=stack.empty()?0:stack.back();if(!stack.empty())stack.pop_back();return;}
+    const auto*formatter=findFormatter(L,name);if(!formatter)return;
+    TextRunStyle style=runStyle(*formatter);
+    if(formatter->graft){
+        // GraftFrom1787e0 copies the current ComponentData, selectively replaces
+        // font/nonzero size/true emphasis flags, then chooses template's packed
+        // FontOverride unless it is -1 (white), otherwise the current override.
+        style=body.styles.at(current);if(!formatter->font.empty())style.font=formatter->font;if(formatter->fontSize)style.size=float(formatter->fontSize);style.emphasized|=formatter->emphasized;style.blockEmphasized|=formatter->blockEmphasized;
+        if(formatter->color!=Color{1,1,1,1})style.color=formatter->color;
+        stack.push_back(current);
+    }
+    if(style.emphasized&&!style.blockEmphasized)throw std::runtime_error("Original emphasized font remap provider unavailable for format: "+name);
+    if(body.styles.size()>=1024)throw std::runtime_error("Original text formatter stack bound");body.styles.push_back(std::move(style));current=uint32_t(body.styles.size()-1);
+}
+// ParseMarkup17f1c0 / ParseFormatting17c690 preserve style changes through
+// recursive Lua localization. Format breaks retain horizontal continuation.
+void parseMarkup(lua_State*L,const hades::TextFontBank&fonts,TextBody&body,const std::string&s,std::vector<hades::TextPiece>&pieces,int depth,uint32_t&current,std::vector<uint32_t>&stack){
     if(depth>8)throw std::runtime_error("Original text markup recursion bound");std::string run;
     for(size_t i=0;i<s.size();++i){const char c=s[i];
         if(c=='{'){const size_t end=s.find('}',i+1);if(end==std::string::npos)throw std::runtime_error("Unterminated original text markup");std::string inner=s.substr(i+1,end-i-1);
@@ -161,27 +186,27 @@ void parseMarkup(lua_State*L,const hades::TextFontBank&fonts,TextBody&body,const
             if(!control.empty()){
                 auto*registry=lookup(L);std::string label,error;
                 if(!registry||!registry->controlLabel||!registry->controlLabel(std::string(control),label,error))throw std::runtime_error(error.empty()?"Control prompt requires actual platform input label: "+std::string(control):error);
-                body.controlLabels[std::string(control)]=label;
-                // Android input presentation uses the actual touch button or
-                // remapped hardware label. It does not substitute a PC icon.
-                appendText(pieces,run);run.clear();appendText(pieces,label);i=end;continue;
+                body.controlLabels[std::string(control)]=label;appendText(pieces,run,current);run.clear();appendText(pieces,label,current);i=end;continue;
             }
-            if(inner.empty()||(inner[0]!='$'&&inner[0]!='!'))throw std::runtime_error("Original text markup unreconstructed: {"+inner+"}");
-            appendText(pieces,run);run.clear();const std::string value=luaMarkupValue(L,inner.substr(1));
-            if(inner[0]=='!'){if(value.empty())throw std::runtime_error("Original empty text symbol path");pieces.push_back({true,value});}
-            else{if(!body.variableAutoFormat.empty())throw std::runtime_error("Original VariableAutoFormat markup wrapping unreconstructed");const std::string*display=fonts.displayName(value);parseMarkup(L,fonts,body,display?*display:value,pieces,depth+1);}
+            if(inner.empty()||(inner[0]!='$'&&inner[0]!='!'&&inner[0]!='#'))throw std::runtime_error("Original text markup unreconstructed: {"+inner+"}");
+            appendText(pieces,run,current);run.clear();
+            if(inner[0]=='#'){selectFormat(L,body,inner.substr(1),current,stack);i=end;continue;}
+            const std::string value=luaMarkupValue(L,inner.substr(1));
+            if(inner[0]=='!'){if(value.empty())throw std::runtime_error("Original empty text symbol path");pieces.push_back({true,value,current});}
+            else{const bool autoFormat=!body.variableAutoFormat.empty();if(autoFormat)selectFormat(L,body,body.variableAutoFormat,current,stack);const std::string*display=fonts.displayName(value);parseMarkup(L,fonts,body,display?*display:value,pieces,depth+1,current,stack);if(autoFormat)selectFormat(L,body,"PreviousFormat",current,stack);}
             i=end;continue;}
         if(c=='@'||c=='\\'||c=='[')throw std::runtime_error(std::string("Original text token unreconstructed: ")+c);
         run.push_back(c);}
-    appendText(pieces,run);}
+    appendText(pieces,run,current);}
+void applyLayoutStyles(const TextBody&body,hades::TextLayoutRequest&request){for(const auto&style:body.styles)request.styles.push_back({style.font,style.size,style.textSymbolScale});}
 // ShowDisplayName 0x174550: GetTextData(key)->DisplayName, else the key.
 void reparse(lua_State*L,const hades::TextFontBank&fonts,TextBody&body,int32_t owner){
     const std::string before=body.resolved;std::string beforePieces;for(const auto&p:body.pieces)beforePieces+=(p.symbol?"@"+p.text+"@":p.text);
     body.resolved=body.raw?body.rawText:[&]{const auto*d=fonts.displayName(body.textKey);return d?*d:body.textKey;}();
     for(const auto&[key,ref]:body.luaParams){lua_rawgeti(L,LUA_REGISTRYINDEX,ref);lua_setglobal(L,key.c_str());}
-    body.controlLabels.clear();std::vector<hades::TextPiece> pieces;parseMarkup(L,fonts,body,body.resolved,pieces,0);body.pieces=std::move(pieces);body.dirty=false;
+    body.controlLabels.clear();body.styles={runStyle(body)};uint32_t current=0;std::vector<uint32_t> stack;std::vector<hades::TextPiece> pieces;parseMarkup(L,fonts,body,body.resolved,pieces,0,current,stack);body.pieces=std::move(pieces);body.dirty=false;
     if(!body.resolved.empty()){if(body.font.empty())throw std::runtime_error("Original default text font unreconstructed");if(body.fontSize<=0)throw std::runtime_error("Original nonpositive FontSize text unreconstructed");
-        hades::TextLayoutRequest request;request.font=body.font;request.size=float(body.fontSize);request.pieces=body.pieces;request.textSymbolScale=body.textSymbolScale;request.horizontal=body.horizontal;request.vertical=body.vertical;request.width=body.width;if(request.pieces.empty())request.text=" ";std::vector<hades::TextSymbolQuad> symbols;fonts.layout(request,&symbols);}
+        hades::TextLayoutRequest request;request.font=body.font;request.size=float(body.fontSize);request.pieces=body.pieces;request.textSymbolScale=body.textSymbolScale;request.horizontal=body.horizontal;request.vertical=body.vertical;request.width=body.width;applyLayoutStyles(body,request);if(request.pieces.empty())request.text=" ";std::vector<hades::TextSymbolQuad> symbols;fonts.layout(request,&symbols);}
     std::string shown;for(const auto&p:body.pieces)shown+=(p.symbol?"@"+p.text+"@":p.text);if(shown!=beforePieces)hades::log(hades::Severity::Info,"HadesLua","TEXT_BOX_TEXT owner=%d font=%s size=%d text=%s",int(owner),body.font.c_str(),int(body.fontSize),shown.c_str());(void)before;}
 const std::set<std::string> explicitCreateKeys={"Id","AutoSetDataProperties","Text","RawText","UseDescription","Scale","Color","TooltipKey","TooltipData","LuaKey","LuaValue","FadeOpacity","FadeTarget","ScaleModifier","ScaleTarget","DataProperties","Hide"};
 // AutoSetDataProperties reflection over the reconstruction's admitted fields.
@@ -189,6 +214,10 @@ void applyReflected(TextBody&body,const std::map<std::string,TextFormatProperty>
     auto num=[&](const char*k,float&out){if(auto i=p.find(k);i!=p.end())out=float(i->second.number);};
     if(auto i=p.find("Font");i!=p.end())body.font=i->second.string;
     if(auto i=p.find("FontSize");i!=p.end())body.fontSize=int32_t(std::trunc(i->second.number));
+    if(auto i=p.find("LocationZWithOwner");i!=p.end())body.locationZWithOwner=i->second.boolean;
+    if(auto i=p.find("Graft");i!=p.end())body.graft=i->second.boolean;
+    if(auto i=p.find("UseEmphasizedFont");i!=p.end())body.emphasized=i->second.boolean;
+    if(auto i=p.find("BlockEmphasizedFont");i!=p.end())body.blockEmphasized=i->second.boolean;
     num("TextSymbolScale",body.textSymbolScale);num("Width",body.width);num("Height",body.height);num("OffsetX",body.offsetX);num("OffsetY",body.offsetY);num("OutlineThickness",body.outlineThickness);num("ShadowBlur",body.shadowBlur);
     if(auto i=p.find("Justification");i!=p.end())body.horizontal=horizontalJustification(i->second.string);
     if(auto i=p.find("VerticalJustification");i!=p.end())body.vertical=verticalJustification(i->second.string);
@@ -224,7 +253,7 @@ int create(lua_State* state) {
         body.textSymbolScale=argFloat(state,1,"TextSymbolScale",body.textSymbolScale);body.width=argFloat(state,1,"Width",body.width);body.height=argFloat(state,1,"Height",body.height);
         body.offsetX=float(argInt(state,1,"OffsetX",0));body.offsetY=float(argInt(state,1,"OffsetY",0));
         body.horizontal=horizontalJustification(argText(state,1,"Justification","CENTER"));body.vertical=verticalJustification(argText(state,1,"VerticalJustification","CENTER"));
-        if(!argBool(state,1,"LocationZWithOwner",true))throw std::runtime_error("Original LocationZWithOwner=false unreconstructed");
+        body.locationZWithOwner=argBool(state,1,"LocationZWithOwner",true);
         body.outlineThickness=argFloat(state,1,"OutlineThickness",0);body.shadowBlur=argFloat(state,1,"ShadowBlur",50);
         if(const float d=argFloat(state,1,"ScaleDuration",-1);d>=0)body.scaleSpeed=1/d;
         body.variableAutoFormat=argText(state,1,"VariableAutoFormat");
@@ -346,18 +375,23 @@ bool advanceTextRuntime(lua_State*state,float world,float screen,std::string&err
 std::vector<hades::TextVisual> snapshotTextVisuals(lua_State*state){std::vector<hades::TextVisual>out;auto*registry=lookup(state);if(!registry||!registry->fonts)return out;
     for(const auto&format:registry->formats){const auto&body=registry->bodies.at(format.sequence);const auto*owner=findObjectSnapshot(state,format.ownerId);
         if(body.destroyed||body.hide||body.resolved.empty()||!owner||!owner->alive||!owner->active||!owner->visible||owner->entityHandle!=body.ownerLifetime)continue;
-        hades::TextVisual v;v.sequence=format.sequence;v.ownerId=owner->id;v.group=owner->group;v.screenSpace=owner->screenSpace;v.ownerX=owner->x;v.ownerY=owner->y;v.ownerZ=owner->z;v.font=body.font;v.text=body.resolved;
+        hades::TextVisual v;v.sequence=format.sequence;v.ownerId=owner->id;v.group=owner->group;v.screenSpace=owner->screenSpace;v.ownerX=owner->x;v.ownerY=owner->y;v.locationZWithOwner=body.locationZWithOwner;v.ownerZ=body.locationZWithOwner?owner->z:0;v.font=body.font;v.text=body.resolved;
         v.color=body.color;v.color[3]*=body.fadeOpacity*owner->alpha;
         const float scale=body.scale*body.scaleModifier; // TextScale(): ScaleWithOwner (+0xc9) defaults false.
-        if(v.color[3]<=0||scale<=0)continue;
-        hades::TextLayoutRequest request;request.font=v.font;request.size=float(body.fontSize);request.width=body.width;request.scale=scale;request.horizontal=body.horizontal;request.vertical=body.vertical;request.pieces=body.pieces;request.textSymbolScale=body.textSymbolScale;
+        if(body.fadeOpacity*owner->alpha<=0||scale<=0)continue;
+        hades::TextLayoutRequest request;request.font=v.font;request.size=float(body.fontSize);request.width=body.width;request.scale=scale;request.horizontal=body.horizontal;request.vertical=body.vertical;request.pieces=body.pieces;request.textSymbolScale=body.textSymbolScale;applyLayoutStyles(body,request);
         v.glyphs=registry->fonts->layout(request,&v.symbols);
         for(auto&q:v.glyphs){q.x+=body.offsetX;q.y+=body.offsetY;}for(auto&q:v.symbols){q.x+=body.offsetX;q.y+=body.offsetY;}
-        v.shadowColor=body.shadowColor;v.shadowX=body.shadowX;v.shadowY=body.shadowY;v.shadowBlur=body.shadowBlur;v.outlineThickness=body.outlineThickness;
-        // Draw packs OutlineColor RGB clamped to [0,1] with alpha forced 0xFF.
-        if(body.outlineThickness>0){for(size_t c=0;c<3;++c)v.outlineColor[c]=float(int(std::clamp(body.outlineColor[c],0.f,1.f)*255))/255;v.outlineColor[3]=1;}
-        for(auto&c:v.shadowColor)c=float(int(std::clamp(c,0.f,1.f)*255))/255;
-        v.shadowColor[3]*=v.color[3];v.outlineColor[3]*=v.color[3];out.push_back(std::move(v));}
+        // Draw175e00 selects each Line::mFormatter's font and FontOverride,
+        // while using the owning box's fade/owner alpha. Keep shared paragraph
+        // positioning; partition only the atlas/style submission.
+        for(size_t index=0;index<body.styles.size();++index){const auto&style=body.styles[index];hades::TextVisual run=v;run.font=style.font;run.glyphs.clear();run.symbols.clear();for(const auto&q:v.glyphs)if(q.style==index)run.glyphs.push_back(q);for(const auto&q:v.symbols)if(q.style==index)run.symbols.push_back(q);if(run.glyphs.empty()&&run.symbols.empty())continue;
+            run.color=index?style.color:body.color;run.color[3]*=body.fadeOpacity*owner->alpha;
+            run.shadowColor=style.shadowColor;run.shadowX=style.shadowX;run.shadowY=style.shadowY;run.shadowBlur=style.shadowBlur;run.outlineThickness=style.outlineThickness;
+            if(style.outlineThickness>0){for(size_t c=0;c<3;++c)run.outlineColor[c]=float(int(std::clamp(style.outlineColor[c],0.f,1.f)*255))/255;run.outlineColor[3]=1;}
+            for(auto&c:run.shadowColor)c=float(int(std::clamp(c,0.f,1.f)*255))/255;
+            run.shadowColor[3]*=run.color[3];run.outlineColor[3]*=run.color[3];out.push_back(std::move(run));}}
+
     return out;}
 bool attachedTextDimensions(lua_State*state,int32_t ownerId,std::array<float,2>&out,std::string&error){
     out={-1,-1};try{
@@ -369,7 +403,7 @@ bool attachedTextDimensions(lua_State*state,int32_t ownerId,std::array<float,2>&
             if(body.destroyed||body.ownerLifetime!=owner->entityHandle||body.resolved.empty())continue;
             if(!registry->fonts)throw std::runtime_error("Attached text dimensions require source fonts");
             if(body.dirty)reparse(state,*registry->fonts,body,ownerId);
-            hades::TextLayoutRequest request;request.font=body.font;request.size=float(body.fontSize);request.width=body.width;request.scale=body.scale*body.scaleModifier;request.horizontal=body.horizontal;request.vertical=body.vertical;request.pieces=body.pieces;request.textSymbolScale=body.textSymbolScale;
+            hades::TextLayoutRequest request;request.font=body.font;request.size=float(body.fontSize);request.width=body.width;request.scale=body.scale*body.scaleModifier;request.horizontal=body.horizontal;request.vertical=body.vertical;request.pieces=body.pieces;request.textSymbolScale=body.textSymbolScale;applyLayoutStyles(body,request);
             // TextWidth/Height are measured regardless of fade, hide or owner alpha.
             if(request.scale==0)continue;
             std::array<float,2>measured{};std::vector<hades::TextSymbolQuad>symbols;

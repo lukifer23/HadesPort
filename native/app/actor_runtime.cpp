@@ -41,13 +41,26 @@ const ActorMapSeed* ActorWorld::seed(int32_t n)const{const auto i=seeds_.find(n)
 const ActorDefinition* ActorWorld::definition(const std::string& n)const{const auto i=definitions_.find(n);return i==definitions_.end()?nullptr:&i->second;}
 ActorComponents* ActorWorld::actor(int32_t n){const auto i=actors_.find(n);return i==actors_.end()?nullptr:i->second.get();}
 const ActorComponents* ActorWorld::actor(int32_t n)const{const auto i=actors_.find(n);return i==actors_.end()?nullptr:i->second.get();}
+bool ActorWorld::isTargetable(int32_t id,bool& result,std::string& error)const{
+    result=false;const auto* a=actor(id);if(!a||!a->registered||!a->object){error="Native IsTargetable owner unavailable";return false;}
+    // Thing.IsTargetable1802e6660: primary OwnerUntargetable first, then
+    // virtual IsAlive (LifeStatus ALIVE), then LifeComponent.Targetable+0x30.
+    // This transient primary veto never overwrites the persistent Life flag.
+    if(a->animation.active()||a->primaryAnimationLifetime||a->primaryEffectAnimation||!a->object->animation.empty()){
+        if(!primaryUntargetable_){error="Native IsTargetable primary-property provider unavailable";return false;}
+        bool untargetable=false;if(!primaryUntargetable_(id,untargetable,error))return false;if(untargetable){error.clear();return true;}
+    }
+    if(a->lifeStatus!=0){error.clear();return true;}
+    if(!a->hasLife){error="Native IsTargetable requires an actual LifeComponent";return false;}
+    result=a->targetable;error.clear();return true;
+}
 bool ActorWorld::resetForMap(std::string& error){
  // World::Reset 0x31622d ThingSystem::Reset, then GridManager::Reset.
  // Portable handles include a map generation so a stale lifetime can never
  // alias the new map's first Thing even when its public/map ID is reused.
  if(generation_==UINT32_MAX){error="Actor map generation exhausted";return false;}
- const auto generation=generation_+1;auto bank=animationBank_;auto collision=std::move(obstacleLocationChanged_);auto auxiliary=std::move(locationAuxiliary_);
- *this=ActorWorld{};generation_=generation;animationBank_=std::move(bank);obstacleLocationChanged_=std::move(collision);locationAuxiliary_=std::move(auxiliary);error.clear();return true;
+ const auto generation=generation_+1;auto bank=animationBank_;auto collision=std::move(obstacleLocationChanged_);auto auxiliary=std::move(locationAuxiliary_);auto targetability=std::move(primaryUntargetable_);
+ *this=ActorWorld{};generation_=generation;animationBank_=std::move(bank);obstacleLocationChanged_=std::move(collision);locationAuxiliary_=std::move(auxiliary);primaryUntargetable_=std::move(targetability);error.clear();return true;
 }
 bool ActorWorld::setAnimationBank(std::shared_ptr<ActorAnimationBank> bank,std::string& error){
     if(!actors_.empty()){error="Cannot replace an actor animation bank while components exist";return false;}
@@ -249,11 +262,32 @@ bool ActorWorld::attach(int32_t child,int32_t parent,float x,float y,float z,boo
     c->object->x=px+x;c->object->y=py+y;c->object->graphicsDirty=true;c->object->geometryDirty=true;
     return refreshGeometry(child,error);
 }
+// Thing.Detach2e5ad0 snapshots effective world XY/Z before clearing the link;
+// virtual SetLocation(check=false), SetZLocation then preserve that position.
+// The caller owns Physics.Halt/audio/ECS admission after these setters.
+bool ActorWorld::detach(int32_t child,bool& detached,std::string& error){
+    detached=false;auto* c=actor(child);if(!c||!c->registered||!c->object){error.clear();return true;}
+    auto* p=actor(c->attachedParent);if(!p||!p->registered||p->entityHandle!=c->attachedParentLifetime){error.clear();return true;}
+    float x=0,y=0,z=0;if(!location(child,x,y,error)||!zLocation(child,z,error))return false;
+    auto& ids=p->attachedChildren;ids.erase(std::remove(ids.begin(),ids.end(),child),ids.end());
+    c->attachedParent=0;c->attachedParentLifetime=0;c->attachOffsetX=c->attachOffsetY=c->attachOffsetZ=0;
+    c->object->x=x;c->object->y=y;c->object->z=z;c->object->graphicsDirty=c->object->geometryDirty=true;detached=true;
+    if(c->definition->kind=="Obstacle")return obstacleLocationChanged(child,false,error);
+    return refreshGeometry(child,error)&&propertiesDirty(child,error);
+}
 bool ActorWorld::adjustFraction(int32_t id,bool scale,float target,const BodyTransitionOptions& options,std::string& error){
     auto* a=actor(id);if(!a||!a->registered||!a->object){error="Body adjustment needs actual registered actor";return false;}
     auto& transition=a->fractions[scale?0:1];bool changed=false;
     if(!transition.adjust(target,1,options,changed,error))return false;
     if(changed){if(scale)a->object->scaleFraction=transition.current();else a->object->alpha=transition.current();a->object->graphicsDirty=true;if(scale&&!refreshGeometry(id,error))return false;}
+    error.clear();return true;
+}
+// Thing.RunScriptAction2e2d11/2e2e1b -> Body helpers+140/+1a0.
+// SetupGeometry2dcff4..2dd11a uses uniform scale only, independently of these axes.
+bool ActorWorld::adjustScaleAxis(int32_t id,size_t axis,float target,const BodyTransitionOptions& options,std::string& error){
+    auto* a=actor(id);if(!a||!a->registered||!a->object||axis>1){error="Body scale-vector adjustment needs actual registered actor";return false;}
+    bool changed=false;if(!a->fractions[axis+2].adjust(target,1,options,changed,error))return false;
+    if(changed){a->object->graphicsDirty=true;if(!refreshGeometry(id,error))return false;}
     error.clear();return true;
 }
 bool ActorWorld::adjustAngle(int32_t id,float target,const BodyTransitionOptions& options,std::string& error){
@@ -272,7 +306,7 @@ bool ActorWorld::adjustColorChannel(int32_t id,size_t channel,float target,float
 bool ActorWorld::advanceBody(int32_t id,float elapsed,float undo,std::string& error){
     auto* a=actor(id);if(!a||!a->registered||!a->object){error="Body update needs actual registered actor";return false;}
     for(size_t i=0;i<a->fractions.size();++i){auto& t=a->fractions[i];if(!t.active())continue;if(!t.advance(elapsed,undo,error))return false;
-        if(i==0){a->object->scaleFraction=t.current();if(!refreshGeometry(id,error))return false;}else a->object->alpha=t.current();a->object->graphicsDirty=true;
+        if(i==0){a->object->scaleFraction=t.current();if(!refreshGeometry(id,error))return false;}else if(i==1)a->object->alpha=t.current();else if(!refreshGeometry(id,error))return false;a->object->graphicsDirty=true;
     }
     if(a->angleTransition.active()){if(!a->angleTransition.advance(elapsed,undo,error)||!setAngle(id,a->angleTransition.current(),error))return false;}
     for(size_t i=0;i<a->colorChannels.size();++i){auto& t=a->colorChannels[i];if(!t.active())continue;if(!t.advance(elapsed,undo,error))return false;

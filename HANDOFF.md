@@ -81,9 +81,9 @@ Do not overwrite an APK during installation. Build success is separate from play
 
 Source now covers actual RoomOpening exit -> RoomSimple01, original forced enemy
 spawn, hit resources, clocks and cast projectile/ammo lifecycle. Current selected
-packs: opening-actors-v13, room-packs-v4/RoomSimple01 (actor-simple-v4),
-actor-actions-v7, actor-markers-v7, actor-properties-v11 (HAP5),
-player-weapons-v23, action-effects-v15, screen-opening-v12, audio-events-v23.
+packs: opening-actors-v13, room-packs-v6/RoomSimple01 (actor-simple-v4),
+actor-actions-v8, actor-markers-v8, actor-properties-v13 (HAP6),
+player-weapons-v24, action-effects-v20, screen-opening-v12, original-text-v7, audio-events-v26.
 All packs are ignored and must be regenerated from original assets; never publish.
 
 Critical prior direction-lock causes: hit consumers interrupted firing before
@@ -91,27 +91,47 @@ request cleanup, leaving held=[] but queued requests/Strafe. Metadata serializat
 omitted proven RemoveEffects closure; defense queried EffectData.Reflection when
 native GetReflection actually adds ReflectAddition. Both are repaired. Do not
 replace the original input/trigger-lock policy with blanket request clearing.
+Same-name victim effects now reapply across source weapons while preserving the
+original EffectData/factory/source identity, matching native Reapply. This removed
+the actual iteration9 repeated-hit loop; mixed sword/special/sword replay logs the
+cross-source OnHitStun and recovers all four directions. No request clearing hack.
 HERO_TRACE now reports held controls, requests, strafe, effects, timers, velocity,
 body/goal/cosmetic facing and animation state. New AI diagnostics preserve actual
 coroutine waits/stacks and dynamic enemy arsenals.
 
 ## Immediate iteration
 
-1. Verify iteration9 on the device after actual enemy hits, dash/special/cast and
-   all four directions. Strict cast/pickup/recast1810 passes, including a bounded
-   ASan/UBSan run; this does not establish whole-encounter completeness.
-2. Trace why the actual SimpleMelee never attacks: original AggroAI distance800,
-   AggroUnit and AttackerAI. Prove approach/attack from real scripts and weapons;
-   do not substitute a handmade enemy loop. Three agents are active.
-3. Finish reached UI/healthbar actions (world SetScaleX, IdExists, Shift), native
-   Shake, and dynamic ObstacleData/rubble coverage. Flash, frame targeting,
-   source clocks and native optional-alpha colors are in current source.
-4. Complete all forced encounter waves and Athena reward/boon. DoUnlockRoomExits
-   chooses the next actual map only afterward; RoomSimple01 has no fixed linked
-   room. Do not pick a guessed third map or substitute the opening scene.
-5. Continue/save/reload and later-room resources. The actual device checkpoint
-   now passes600 strict Continue frames after the native absent music-parameter
-   repair. Screenshot HUD absence was original16-second auto-hide, not reset loss.
+Current first-enemy replay advances through actual hero damage/recovery, enemy
+death/cleanup and money pickup. Weapon24 preserves all old records and derives
+the inherited obstacle OnTouchdown weapon class. Actual next first-combat stop is
+RubbleFall INSTANT6 initialization at2599; do not admit it as a base projectile.
+The child-movie wave boundary is separate. The candidate has not been installed.
+
+
+1. Preserve the installed iteration10a baseline: user confirms improved controls.
+   The candidate must prove actual enemy hits, repeated attacks and cardinal
+   recovery before replacing it. Three agents work in parallel; main alone deploys.
+2. Actual AI activation, state notifies, colliding MoveAI path/repath, live-target
+   FireWeaponFromUnit and native missing-marker fallback are reconstructed. Fresh
+   replays now reach real enemy fire and damage. Native authored draw offsets
+   must not be confused with the primary Animation attach offset for markers.
+3. Actual repeated sword presses reduce original enemy Health160 to0. The former
+   apparent immortal enemy was an aborted original Kill script: its money-drop
+   primary was rejected before RequiredKillEnemies cleanup. Shared action primary
+   completion now retains owner/state through native ChainTo/Graphic replacement.
+   Kill cleanup and actual money pickup now pass strict. Next-wave activation
+   reaches primary flags and a child-owned movie dependency; its real movie
+   ownership/presentation bridge remains under reconstruction.
+4. Hitstop scales world time once; component own fractions and actual owner links
+   are separate. Hit resource/audio closure follows selected source definitions,
+   including FxStyles maps. Packaging rejects audio closure stale against selected
+   actor/action manifests. Missing sound coverage is checked before FX allocation;
+   original failure detail survives later initialized-registry guards.
+5. Styled text resolves original format widgets/Graft/PreviousFormat with mixed
+   fonts/colors and native owner Z policy. Verify reached disabled-use prompt.
+6. Finish all forced encounter waves and Athena reward/boon before choosing the
+   next actual map. RoomSimple01 has no fixed linked third room. Later biome/map
+   coverage, full encounter progression and device save/reload remain unproven.
 
 Favor rapid fixes, builds and device play. Use short existing input reproductions
 only to resolve concrete failures; no broad new test scaffolds. Save screenshots,

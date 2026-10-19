@@ -25,6 +25,7 @@ public:
     ActorMarkerPoint sample(size_t clip,uint32_t originalFrame,uint32_t fullOriginalAngle,std::string_view marker)const;
     // AnimationFrameDataSet::GetDataForMarker9eef0 result presence for a clip.
     bool hasMarker(size_t clip,std::string_view marker)const;
+    bool hasDataSet(size_t clip)const{return clips_.at(clip).dataSet!=UINT32_MAX;}
     ActorMarkerSourceTransform sourceTransform(size_t clip)const{return clips_.at(clip).source;}
     // Owner scale includes the original unit0.7 exactly once plus live body
     // transitions. Own animation multiplier is separate actual live state.

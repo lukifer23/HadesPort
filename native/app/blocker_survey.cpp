@@ -98,7 +98,7 @@ std::string ScriptRuntime::heroMotionTrace(){
         m!=localMovement_.end()?m->second.goalAngle:-1.f,localMoveX_,localMoveY_,m!=localMovement_.end()?m->second.previousSpeedFraction:-1.f,vx,vy,int(m!=localMovement_.end()&&m->second.moving),a->object->animation.c_str(),a->animation.originalFrame(),int(a->animation.finished()),a->animation.playSpeedMultiplier(),facing,cam.x,cam.y,cam.zoom,tg.c_str(),int(cam.panX.duration>0||cam.panY.duration>0));
     // Keep the actual rotation/control gates beside direction evidence: an
     // interrupted weapon can leave a request or disable active after release.
-    std::ostringstream gates;gates<<line<<" held=[";
+    std::ostringstream gates;gates<<line<<" worldSpeed="<<worldSpeedModifier_<<" worldTime="<<worldTime_<<" held=[";
     for(const auto& name:localActionDown_)gates<<name<<',';
     gates<<"] animFlags="<<(a->animation.active()?a->animation.clip()->flags:0);
     if(const auto* speed=actorWorld_.currentProperty(id,"RotationSpeed"))gates<<" rotationSpeed="<<speed->number();

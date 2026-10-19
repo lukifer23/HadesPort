@@ -18,6 +18,10 @@ struct ObstacleMove {int32_t ownerId=0;uint64_t lifetime=0;ObstacleMoveAxis x,y;
 // transitions. No renderer interpolation or fake arrival timers.
 struct ActorMotionWorld {
  std::map<uint64_t,ActorMoveOrder> moves;
+ // MoveAIPathfind+0x11c survives SetTarget2e94a0 and Stop. Unlike a move
+ // request, this collision timer belongs to the Unit's persistent AI.
+ std::map<uint64_t,float> pathCollisionTimes;
+ std::map<uint64_t,float> pathRepathDelays; // MoveAI+0x118 also survives SetTarget/Stop.
  std::map<uint64_t,ActorZTransition> heights;
  // ObstacleManager update set (vector_set<Handle<Obstacle>>); keyed by the
  // actor lifetime, which stands in for native handle order.

@@ -74,7 +74,7 @@
     "actual Weapon.ApplyPhysics with fresh owner body angle, even zero force",
     "SpendAmmo (shared recursion branch explicit unsupported here), synchronous OnOutOfAmmo when finite ammo reaches0",
     "if initial clip count matches ClipSize, ClipStartFx at retained origin",
-    "FireSound playback only if native valid cue; bounded path invalid source cues only",
+    "Current source SoundCue resolves through actual native owner audio admission/PlayCue3D; returned channel stored as fireSoundId",
     "CancelMovement if current data flag",
     "SetCompleteAngleOnFire only when no other qualifying Arsenal.IsStrafing weapon",
     "target obstacle destruction/search actual World branch unsupported unless source names empty"
@@ -85,8 +85,7 @@
     "trigger-release firing path",
     "RandomFireAngle",
     "ammo-per-projectile and shared recursive callbacks",
-    "target entity/from-location/obstacle World branches",
-    "valid or unresolved FireSound playback",
+    "target obstacle search/destruction World branches",
     "Gun/projectile creation and PostFire continuation (separate work)"
   ],
   "transaction": "one yielded operation passed pure preflight before its stage mutation. Caller must consume synchronously before resuming. Earlier real stages are not rolled back over callbacks.",
@@ -103,5 +102,10 @@
       "SetCompleteAngle"
     ],
     "no_original_binary_execution": true
+  },
+  "shared_enemy_fire_extension": {
+    "source": "ScriptAction.targets259be0 / FireRequest.GetFromLocation83020 / Weapon.Fire88f00 / Projectile.Init69910",
+    "contract": "native/analysis/enemy-ai-native-gates-contract.json",
+    "behavior": "Actual target lifetime link, explicit source from-location precedence, live target location after synchronous callbacks, typed FireSound operation and returned channel ownership."
   }
 }

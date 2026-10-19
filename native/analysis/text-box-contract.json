@@ -15,23 +15,88 @@
   },
   "defaults": {
     "source": "ctor 0x173ae0 + ComponentData::Defaults(component+0xa8) + Clear",
-    "TextSymbolScale": 1.0, "FontSize": 0, "Width": 0, "Justification": "CENTER", "VerticalJustification": "CENTER",
-    "LocationZWithOwner": true, "ScaleWithOwner_0xc9": false,
+    "TextSymbolScale": 1.0,
+    "FontSize": 0,
+    "Width": 0,
+    "Justification": "CENTER",
+    "VerticalJustification": "CENTER",
+    "LocationZWithOwner": true,
+    "ScaleWithOwner_0xc9": false,
     "OutlineColor": "-1 sentinel. Draw clamps RGB to [0,1] and forces alpha 0xFF.",
-    "ShadowColor": [0, 0, 0, 0], "ShadowOffset": [0, 0], "ShadowBlur_create_default": 50,
-    "speeds_per_second": {"fade_0x7a4": 4, "scale_0x7bc": 4, "color_0x7e8": 4},
-    "FadeTarget_0x60": 1, "TextColor": "0xFFFFFFFF via SetTextColor when Color is absent"
+    "ShadowColor": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "ShadowOffset": [
+      0,
+      0
+    ],
+    "ShadowBlur_create_default": 50,
+    "speeds_per_second": {
+      "fade_0x7a4": 4,
+      "scale_0x7bc": 4,
+      "color_0x7e8": 4
+    },
+    "FadeTarget_0x60": 1,
+    "TextColor": "0xFFFFFFFF via SetTextColor when Color is absent"
   },
   "CreateTextBox_0x2701e0": {
     "always": "Id resolves to the owner Thing. Scale is clamped to [0,1] (stored at 0x54). RawText wins over Text. Text goes through ShowDisplayName: GetTextData(key)->DisplayName (+0x58), or the key itself if no record exists. Color (GetColor), TooltipKey/TooltipData, LuaKey/LuaValue (SetLuaParam), FadeOpacity (default 0), FadeTarget (1), ScaleModifier (1), ScaleTarget (1).",
     "AutoSetDataProperties_default": false,
     "AutoSet_true": "Every argument key goes to ReflectionHelper::SetProperty, and the explicit block is skipped.",
-    "AutoSet_false_reads_only": ["Font", "FontSize(int)", "TextSymbolScale", "Width", "Height", "OffsetX(int)", "OffsetY(int)", "Justification", "VerticalJustification", "LocationZWithOwner", "OutlineThickness", "ShadowBlur", "Lang*ScaleModifier", "NonEnglishScaleModifier", "ScaleDuration(->speed 1/d)", "VariableAutoFormat"],
-    "both_paths": ["LineSpacingTop/Bottom/Left/Right", "CharacterFadeColor", "OutlineColor (RGB only)", "ShadowColor (RGBA)", "ShadowOffset (3,3 if present but not a vector2)", "DataProperties (reflection)", "Hide"],
+    "AutoSet_false_reads_only": [
+      "Font",
+      "FontSize(int)",
+      "TextSymbolScale",
+      "Width",
+      "Height",
+      "OffsetX(int)",
+      "OffsetY(int)",
+      "Justification",
+      "VerticalJustification",
+      "LocationZWithOwner",
+      "OutlineThickness",
+      "ShadowBlur",
+      "Lang*ScaleModifier",
+      "NonEnglishScaleModifier",
+      "ScaleDuration(->speed 1/d)",
+      "VariableAutoFormat"
+    ],
+    "both_paths": [
+      "LineSpacingTop/Bottom/Left/Right",
+      "CharacterFadeColor",
+      "OutlineColor (RGB only)",
+      "ShadowColor (RGBA)",
+      "ShadowOffset (3,3 if present but not a vector2)",
+      "DataProperties (reflection)",
+      "Hide"
+    ],
     "not_read_without_AutoSet": "ShadowRed/Green/Blue/Alpha, ShadowOffsetX/Y, CharacterFadeTime/Interval. The HUD passes these keys, but the original engine ignores them."
   },
   "ModifyTextBox_0x2be2d0": {
-    "reads": ["AffectText", "ExcludeText", "Text", "UseDescription", "Color (immediate)", "FadeTarget>=0", "FadeDuration (speed=1/d)", "ScaleTarget>=0", "ScaleDuration", "ColorTarget", "ColorDuration", "VariableAutoFormat", "AutoSetDataProperties (default false)", "Font", "ParamValue/ParamTarget", "TooltipKey/TooltipData/BlockTooltip", "LuaKey/LuaValue", "MarkDirty", "ReReadImmedaitely"],
+    "reads": [
+      "AffectText",
+      "ExcludeText",
+      "Text",
+      "UseDescription",
+      "Color (immediate)",
+      "FadeTarget>=0",
+      "FadeDuration (speed=1/d)",
+      "ScaleTarget>=0",
+      "ScaleDuration",
+      "ColorTarget",
+      "ColorDuration",
+      "VariableAutoFormat",
+      "AutoSetDataProperties (default false)",
+      "Font",
+      "ParamValue/ParamTarget",
+      "TooltipKey/TooltipData/BlockTooltip",
+      "LuaKey/LuaValue",
+      "MarkDirty",
+      "ReReadImmedaitely"
+    ],
     "ignored_keys_are_native": "Other keys, for example the HUD's OffsetY and ColorChangeSpeed, are never read."
   },
   "update": "FadeOpacity steps toward FadeTarget by dt*fadeSpeed. ScaleModifier steps toward ScaleTarget by dt*scaleSpeed. StepTowardColor 0x1ead60 steps each byte channel in [0,1] by speed*dt, clamps, and truncates back to a byte. TextScale() = fontScale * Scale * ScaleModifier (* owner scale only when ScaleWithOwner is set).",
@@ -44,7 +109,13 @@
     "image": "DrawLine: symbolScale = TextSymbolScale()*data TextSymbolScale. TextSymbolScale() uses FontSize/remapSize (Fonts::GetFont 0x166f71). The pen advances 2 x 0.5 x trunc(w*symbolScale). The sprite is centred, sized w*symbolScale, at the line centre. Its colour is white, with alpha = fade*FadeOpacity."
   },
   "implemented": {
-    "files": ["native/app/text_runtime.cpp", "native/app/text_layout.hpp", "native/app/text_layout.cpp", "native/app/ui_renderer.cpp (renderText: inline symbol quads)", "native/tools/export_text_resources.py"],
+    "files": [
+      "native/app/text_runtime.cpp",
+      "native/app/text_layout.hpp",
+      "native/app/text_layout.cpp",
+      "native/app/ui_renderer.cpp (renderText: inline symbol quads)",
+      "native/tools/export_text_resources.py"
+    ],
     "markup": "Only '{$path}' and '{!path}' are implemented. Every other markup, raw '@', '\\\\' escapes and '[' overrides fail with 'Original text markup unreconstructed: {...}' or 'Original text token unreconstructed: X'."
   },
   "approximations_and_unproven": [
@@ -55,5 +126,30 @@
     "Outline thickness is not multiplied by TextScale in the renderer. Draw stores TextScale beside it; this was not consumed.",
     "Shadow/outline drawing for inline symbols was not traced; symbols draw plain."
   ],
-  "replay": ".local/reports/text-box-hud-replay-v1.json"
+  "replay": ".local/reports/text-box-hud-replay-v1.json",
+  "owner_location_revision": {
+    "native_draw_gate": "GUIComponentTextBox.Draw VA180176368..381 tests ComponentDataDef.LocationZWithOwner at full+cb before subtracting Thing.GetZLocation.",
+    "native_xy": "GUIComponent.GetLocation169a70 resolves live owner parent XY before local offsets.",
+    "implemented": "Both CreateTextBox reflection/explicit paths retain LocationZWithOwner (defaulttrue). World text uses actual live parent-resolved XY/Z; false selects zeroZ.",
+    "report": ".local/reports/takeover-text-get-location.json"
+  },
+  "format_run_revision": {
+    "provenance": {
+      "parse_formatting_va": "0x18017c690",
+      "get_formatter_va": "0x180178980",
+      "graft_from_va": "0x1801787e0",
+      "draw_va": "0x180175e00",
+      "setup_font_va": "0x1800a4c10",
+      "rea_evidence": "ev_bb40c6c78db4e7a7e8e4a53e1e92c4bad2cd4c1cdcd07f2e1d691144c14375c1"
+    },
+    "lookup": "Named # formatting resolves Lua FormatContainerIds to a live owner TextComponent widget with matching ComponentData.Name. Missing names do not switch formatting.",
+    "lifetime": "ParseFormatting emits Line.mFormatBreak horizontal continuation. Graft pushes the prior formatter; PreviousFormat pops, returning to the main box on an empty stack. Non-graft selection does not push.",
+    "graft": "Copy the current formatter data; replace the requested nondefault font, nonzero FontSize, true emphasis flags and Graft/name. Template FontOverride replaces current only when packed value differs from -1. Shadow, outline and symbol scale inherit copied current data.",
+    "implementation": "TextPiece and positioned quads retain formatter index; paragraph wrapping, centering, per-font metrics and atomic inline symbols share a common pen. Rendering partitions the combined positioned paragraph by actual atlas and color/style. VariableAutoFormat uses the same named switch/PreviousFormat around substituted values.",
+    "limits": [
+      "Portable paragraph word wrapping remains the existing documented approximation.",
+      "Emphasized-font remap table is not yet exported; an actual selected unblocked emphasis format fails explicitly.",
+      "Tooltip formatting and character/reveal effects remain explicit unsupported boundaries."
+    ]
+  }
 }

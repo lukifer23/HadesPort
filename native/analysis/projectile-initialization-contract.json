@@ -186,5 +186,10 @@
       25158,
       25159
     ]
+  },
+  "enemy_request_target_extension": {
+    "source": "Projectile.Init69910 EntityLinkedObject target location block writes+3fc/+400; manager Create79d40 copies Homing link",
+    "behavior": "Parent resolves actual actor ID/lifetime after synchronous operations. Live target uses actual Thing.GetLocation; invalid generation uses request captured target XY then existing source Range fallback ifzero. Homing copied link is preserved, with its separate tracking branch still explicit if unsupported.",
+    "contract": "native/analysis/enemy-ai-native-gates-contract.json"
   }
 }

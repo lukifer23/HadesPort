@@ -227,6 +227,7 @@ void ScriptRuntime::initialize() {
     setObjectLocation(state_,[this](int32_t id,float& x,float& y,std::string& error){return actorWorld_.location(id,x,y,error);});
     actorWorld_.setObstacleLocationChanged([this](int32_t id,bool force,std::string& error){return actorWorld_.obstacleLocationChanged(id,force,error);});
     actorWorld_.setLocationAuxiliary([this](int32_t id,hades::ActorLocationStage stage,std::string& error){return locationAuxiliary(id,stage,error);});
+    actorWorld_.setPrimaryUntargetableProvider([this](int32_t id,bool& value,std::string& error){return primaryUntargetable(id,value,error);});
     setObjectFractionChanged(state_,[this](int32_t id,bool scale,float target,const hades::BodyTransitionOptions& options,std::string& error){return actorWorld_.adjustFraction(id,scale,target,options,error);});
     registerTextRuntime(state_);
     configureTextControlLabels(state_,controlLabelProvider_);
@@ -259,6 +260,7 @@ void ScriptRuntime::initialize() {
     if(!loadActorDefinitions()){reportError("actor-definitions");return;}
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,spawnObstacle,1);lua_setglobal(state_,"SpawnObstacle");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,spawnUnit,1);lua_setglobal(state_,"SpawnUnit");
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,fireWeaponFromUnitAction,1);lua_setglobal(state_,"FireWeaponFromUnit");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,equipWeapon,1);lua_setglobal(state_,"EquipWeapon");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,runWeaponMethod,1);lua_setglobal(state_,"RunWeaponMethod");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,setUnitProperty,1);lua_setglobal(state_,"SetUnitProperty");
@@ -272,6 +274,10 @@ void ScriptRuntime::initialize() {
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,rumbleAction,1);lua_setglobal(state_,"Rumble");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,playerInputNotifyAction,1);lua_setglobal(state_,"NotifyOnPlayerInput");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,stoppedNotifyAction,1);lua_setglobal(state_,"NotifyOnStopped");
+    {const char* names[]{"CanAttack","IsCharmed"};for(int mode=0;mode<2;++mode){lua_pushlightuserdata(state_,this);lua_pushinteger(state_,mode);lua_pushcclosure(state_,unitAIQueryAction,2);lua_setglobal(state_,names[mode]);}}
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,distanceQueryAction,1);lua_setglobal(state_,"GetDistance");
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,intersectingIdsAction,1);lua_setglobal(state_,"GetIntersectingIds");
+    {const char* names[]{"NotifyOnCanAttack","NotifyOnRotationComplete"};for(int mode=1;mode<=2;++mode){lua_pushlightuserdata(state_,this);lua_pushinteger(state_,mode);lua_pushcclosure(state_,unitStateNotifyAction,2);lua_setglobal(state_,names[mode-1]);}}
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,setColor,1);lua_setglobal(state_,"SetColor");
     {const char* names[]{"PlaySound","PauseSound","ResumeSound","StopSound","SetVolume","SetSoundCueValue","SwapSound","SetAudioEffectState","GetMixingId","SetSoundSource"};
      for(int mode=0;mode<10;++mode){lua_pushlightuserdata(state_,this);lua_pushinteger(state_,mode);lua_pushcclosure(state_,audioAction,2);lua_setglobal(state_,names[mode]);}}
@@ -306,6 +312,8 @@ void ScriptRuntime::initialize() {
     registerSaveActions(); // luabins module + SaveCheckpoint/ValidateCheckpoint (lua_save.cpp)
     registerMapActions();
     registerFlashActions();
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,simulationSpeedAction,1);lua_setglobal(state_,"AdjustSimulationSpeed");
+    registerShakeAction();
     // Wrap after every actual native action is registered, including text and
     // speech controls; actions added after this point would bypass source Delay.
     if(!installDelayedActions()){reportError("delayed-actions");return;}
@@ -595,10 +603,17 @@ bool ScriptRuntime::advanceWorld(float dt,double screenDt){
     if(!roomActivated_){error_="Cannot update an unstarted native world";return false;}
     if(!std::isfinite(dt)||dt<0||!std::isfinite(screenDt)||screenDt<0){error_="Invalid native world clock delta";return false;}
     if(worldFaulted_)return false;
+    const float realElapsed=dt;
+    if(!advanceWorldSpeed(realElapsed,error_)){reportError("world-speed-update");worldFaulted_=true;return false;}
+    // World.Update314fdf scales ONCE before every world manager/ECS phase.
+    // Screen time and ShakeSystem retain their independent original clocks.
+    dt*=worldSpeedModifier_;
     ++worldFrame_;worldTime_+=dt;screenTime_+=screenDt;
     snapshotControlFrame();
     if(!advanceUnitDisposal(false,error_)){if(!containStage("unit-remove-before-update"))return false;}
-    if(!advanceFlashes(dt*worldSpeedModifier_,error_)){if(!containStage("flash-update"))return false;}
+    if(!advanceFlashes(dt,error_)){if(!containStage("flash-update"))return false;}
+    if(!advanceShakes(realElapsed,error_)){if(!containStage("shake-update"))return false;}
+    if(!advanceUnitActivations(error_)){if(!containStage("unit-activation-update"))return false;}
     if(!advanceLocalPlayerInput(dt,error_)){if(!containStage("player-input-update"))return false;}
     // UseableManager::Update + PlayerUnitInput use target / manual Use (lua_interaction.cpp, approximation A4).
     if(!advancePlayerUse(error_)){if(!containStage("player-use-update"))return false;}
@@ -620,7 +635,7 @@ bool ScriptRuntime::advanceWorld(float dt,double screenDt){
     if(!advanceObstacleOcclusion(error_)){if(!containStage("obstacle-occlusion-update"))return false;}
     for(const auto id:actorWorld_.registrationOrder()){
         auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered)continue;
-        if(!actorWorld_.advanceBody(id,dt,1,error_)){if(!containStage("body-update"))return false;}
+        if(!actorWorld_.advanceBody(id,dt,worldSpeedModifier_,error_)){if(!containStage("body-update"))return false;}
     }
     for(const auto handle:projectileWorld_.bodyComponents())if(!projectileWorld_.advanceBody(handle,dt,worldSpeedModifier_,error_)){if(!containStage("projectile-body-update"))return false;}
     if(!advanceActorAnimations(dt,error_)||!advanceVfx(dt,error_)||!advanceActorLights(dt,error_)||!cameraFade_.advance(dt,error_)){reportError("native-component-update");worldFaulted_=true;return false;}
@@ -963,6 +978,7 @@ bool ScriptRuntime::effectOwner(int32_t id,hades::EffectOwnerState& state,std::s
     state.lifetime=actor->entityHandle;
     if(!actorWorld_.location(id,state.x,state.y,error)||!actorWorld_.zLocation(id,state.z,error))return false;
     state.scale=object->scale*object->scaleFraction;state.angle=object->angle;
+    state.scaleVector={actor->fractions[2].current(),actor->fractions[3].current()};
     state.velocity.reset();if(actor->physics)state.velocity=std::array<float,2>{actor->physics->velocity.x,actor->physics->velocity.y};
     state.group=object->group;
     state.baseColor=actor->baseColorBytes;state.baseHsv=std::array<float,4>{actor->hsv[0],actor->hsv[1],actor->hsv[2],0};
@@ -1259,6 +1275,29 @@ bool ScriptRuntime::effectMarker(int32_t id,const std::string& name,std::array<f
             if(!actorWorld_.location(id,xy[0],xy[1],error))return false;
             float z=0;if(!actorWorld_.zLocation(id,z,error))return false;
             result={xy[0],xy[1],z};error.clear();return true;
+        }
+        // Book.GetMarkerLocation2b0d75..0dc4: absent frame dataset falls
+        // through child delegation; absent marker in an existing dataset
+        // returns the cached Animation.GetLocation directly. Neither is a
+        // zero marker sample: the full marker Z/shake transform is skipped.
+        if(!markers_.hasMarker(a->animation.clipIndex(),name)){
+            const auto* life=effects_.registry()->find(a->primaryAnimationLifetime);
+            if(!life)throw std::runtime_error("Book marker fallback actual primary lifetime unavailable");
+            if(!markers_.hasDataSet(a->animation.clipIndex())&&life->child)throw std::runtime_error("Book marker fallback child delegation requires actual child marker consumer");
+            const auto& data=life->sourceDefinition;
+            for(const char* key:{"UseAttachedMarkerLocation","UseAttachedFiredByMarkerLocation","ChildAnimation"})if(const auto* value=data.get(key);value&&!value->text().empty()&&value->text()!="null")throw std::runtime_error(std::string("Book marker fallback base-location branch requires ")+key);
+            if(const auto* value=data.get("UseAttachedTipLocation");value&&value->boolean())throw std::runtime_error("Book marker fallback attached-tip location not reconstructed");
+            if(const auto* value=data.get("LocationFromOwner");value&&!value->text().empty()&&value->text()!="Maintain")throw std::runtime_error("Book marker fallback own-location policy not reconstructed");
+            // Data.OffsetX/Y become DRAW offsets at Animation+90/+94
+            // (InitData2923db), and Book only adds them on its real marker
+            // branch. They are not GetLocation's mAttachOffset(+a0/+a4).
+            // Defaults291a50 clears that separate attach offset; InitData
+            // 2930dd adds only actual random/radial initialization offsets.
+            // Named HAA SetAnimation offset overrides remain explicitly
+            // unsupported, so these source-zero components stay zero here.
+            for(const char* key:{"RandomOffsetX","RandomOffsetY","RadialOffsetMin","RadialOffsetMax"})if(const auto* value=data.get(key);value&&value->number()!=0)throw std::runtime_error(std::string("Book marker fallback actual initialized offset requires ")+key);
+            float x=0,y=0,z=0;if(!actorWorld_.location(id,x,y,error)||!actorWorld_.zLocation(id,z,error))return false;
+            result={x,y,z};error.clear();return true;
         }
         hades::ActorMarkerTransform transform;transform.resolved=true;
         if(!actorWorld_.location(id,transform.locationX,transform.locationY,error)||!actorWorld_.zLocation(id,transform.attachedThingZ,error))return false;

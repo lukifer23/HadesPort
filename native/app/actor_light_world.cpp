@@ -67,11 +67,14 @@ bool ActorLightWorld::locationChanged(int32_t id,std::string& error){try{
  if(!shadow(*actor,i->second.createsShadow,error))return false;
  ++i->second.locationRevision;error.clear();return true;
  }catch(const std::exception& e){error=e.what();return false;}}
-bool ActorLightWorld::advanceControllers(float dt,const ActorRandom& random,std::string& error){try{
- if(faulted_){error=fault_;return false;}if(!std::isfinite(dt)||dt<0||dt>1)throw std::runtime_error("Actual light clock outside bounded phase");
+bool ActorLightWorld::advanceControllers(float worldElapsed,float worldModifier,const ActorRandom& random,std::string& error){try{
+ if(faulted_){error=fault_;return false;}if(!std::isfinite(worldElapsed)||worldElapsed<0||worldElapsed>1)throw std::runtime_error("Actual light clock outside bounded phase");
  for(auto& [lifetime,s]:lights_){const auto* actor=actors_.actor(s.ownerId);if(!actor||!actor->registered||actor->entityHandle!=lifetime)throw std::runtime_error("Light owner retired without actual LightSystem removal");if(!s.constant&&!s.book)continue;
   const auto* registry=registry_->find(s.controller);if(!registry||!registry->initialized)throw std::runtime_error("Actual light controller lifetime lost");if(registry->skipUpdate)continue;
-  if(actor->timeMultiplier!=1||actor->timeModifierFraction!=1)throw std::runtime_error("Nondefault actor light clock needs native modified-time projection");
+  const auto& source=registry->sourceDefinition;const auto* fraction=source.get("TimeModifierFraction");float dt=0;
+  // All Animation ECS consumers share native TimeModifierSystem188ae0;
+  // the owning Thing physics fraction is not a second animation input.
+  if(!physicsComponentElapsed(worldElapsed,worldModifier,fraction&&fraction->number()>=0?float(fraction->number()):1,registry->attachedToTimeMultiplier?actor->timeMultiplier:1,dt,error))return false;
   if(s.book){
    const auto&d=need(definitions_.at(s.name),"Definition");const float start=scalar(d,"StartFrame",1),end=scalar(d,"EndFrame",scalar(d,"NumFrames",1));
    s.bookFrame+=dt*s.playSpeed;s.frame=uint32_t(std::clamp(std::trunc(s.bookFrame),start,end));

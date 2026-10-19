@@ -65,6 +65,7 @@ struct ActorComponents {
     bool canMoveData=false,canAttackData=false,allowAnyFire=false,allowInput=false;
     uint8_t lifeStatus=0; // Native LifeStatus ALIVE=0, DEAD=1; separate from entity registration.
     bool registered=false,spawnDispatched=false,isMarkedDead=false;
+    bool hasActivated=false; // Unit.Defaults2f144c clears +3bc; Unit.UpdateSelf owns the one-shot callback.
     bool stopsUnits=false,stopsProjectiles=false;
     bool stopsUnitsDirty=true,stopsProjectilesDirty=true,drawBoundsChanged=false;
     bool hasText=false,isDisposed=false;
@@ -86,7 +87,7 @@ struct ActorComponents {
     uint64_t primaryEffectAnimation=0,primaryAnimationLifetime=0;
     float animationOwnScale=1,animationShakeX=0,animationShakeY=0;
     SourceValue::Object propertyOverrides;
-    std::array<BodyTransition,2> fractions; // Scale, alpha; native initial values1.
+    std::array<BodyTransition,4> fractions; // Scale, alpha, scaleX, scaleY; native initial values1.
     // Body color helpers +0x200/+0x260/+0x2c0 (R,G,B -> tint). Alpha is Body+0x320,
     // the same helper SetAlpha (RunScriptAction case 0x6a) drives: fractions[1].
     std::array<BodyTransition,3> colorChannels;
@@ -117,11 +118,14 @@ class ActorWorld {
     uint64_t nextOccluderRevision_=1;
     std::map<uint64_t,int32_t> drawGridDirty_;
     std::function<bool(int32_t,ActorLocationStage,std::string&)> locationAuxiliary_;
+    std::function<bool(int32_t,bool&,std::string&)> primaryUntargetable_;
     std::map<uint64_t,int32_t> obstacleDestroyQueue_;
     std::vector<std::pair<uint64_t,int32_t>> unitDestroyQueue_;
     bool disposalInProgress_=false,disposalFaulted_=false;
     std::string disposalFault_;
 public:
+    void setPrimaryUntargetableProvider(std::function<bool(int32_t,bool&,std::string&)> provider){primaryUntargetable_=std::move(provider);}
+    bool isTargetable(int32_t,bool&,std::string&)const;
     bool resetForMap(std::string& error);
     bool loadCatalog(SourceValue,std::string& error);
     bool nativeUnitAngles()const{return nativeUnitAngles_;}
@@ -150,6 +154,7 @@ public:
     bool disposalFaulted()const{return disposalFaulted_;}
     const std::string& disposalFault()const{return disposalFault_;}
     bool attach(int32_t child,int32_t parent,float x,float y,float z,bool dynamicScale,std::string& error);
+    bool detach(int32_t child,bool& detached,std::string& error);
     bool location(int32_t,float& x,float& y,std::string& error)const;
     bool zLocation(int32_t,float&,std::string& error)const;
     bool refreshGeometry(int32_t,std::string& error);
@@ -177,6 +182,7 @@ public:
     std::vector<ActorOccluder> occluderSnapshot()const;
     bool lightSegmentBlocked(ActorOccluderPoint,ActorOccluderPoint,uint64_t excludedOwnerLifetime=0)const;
     bool adjustFraction(int32_t,bool scale,float,const BodyTransitionOptions&,std::string& error);
+    bool adjustScaleAxis(int32_t,size_t,float,const BodyTransitionOptions&,std::string& error);
     bool advanceBody(int32_t,float elapsed,float undoModifier,std::string& error);
     // Channel 0..2 tint, 3 alpha; FUN_1802b7440 with {target,initial,options}.
     bool adjustAngle(int32_t,float targetRadians,const BodyTransitionOptions&,std::string& error);

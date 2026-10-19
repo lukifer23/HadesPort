@@ -3,6 +3,7 @@
 #include "scene_runtime.hpp"
 #include "input_runtime.hpp"
 #include "physics_runtime.hpp"
+#include "platform_log.hpp"
 #include <cmath>
 #include <cstdio>
 #include <algorithm>
@@ -179,7 +180,7 @@ hades::ProjectileDefenseProviders ScriptRuntime::projectileDefenseProviders(){
 // Thing::SetAnimation2decb0 creates the replacement before releasing the old
 // ThingPrimary. Projectiles use the same original Animation factories as Units.
 bool ScriptRuntime::setProjectileAnimation(hades::ProjectileActor& p,const std::string& name,std::string& error){
-    if(const auto* current=actionEffects_.state(p.primaryAnimation);current&&current->name==name)return true;
+    if(const auto* current=actionEffects_.state(p.primaryAnimation);current&&!current->done&&current->name==name)return true;
     uint64_t animation=0;if(!actionEffects_.createPrimary(name,projectileFxOwner(p.request.lifetimeHandle),actionEffectProviders(),animation,error))return false;
     if(p.primaryAnimation&&!retirePrimaryAnimation(p.primaryAnimation,error))return false;
     p.primaryAnimation=animation;p.body.animation=name;p.body.graphicsDirty=true;return true;
@@ -276,7 +277,18 @@ bool ScriptRuntime::advanceProjectiles(float dt,std::string& error){
             // Thing.UpdateAnimation2df5c0 owns the primary's finish/chain/default
             // decision. Component integration/internal frame updates occur once
             // in the shared action-animation phase (portable ordering adaptation).
-            if(actionEffects_.state(p.primaryAnimation))return true;
+            if(const auto* primary=actionEffects_.state(p.primaryAnimation)){
+                if(!primary->done)return true;
+                const auto* chain=primary->preventChain?nullptr:primary->definition.get("ChainTo");std::string next=chain?chain->text():"";
+                if(next.empty()||next=="null"){const auto* graphic=p.thing?p.thing->get("Graphic"):nullptr;next=graphic?graphic->text():"";}
+                if(!next.empty()&&next!="null"){
+                    uint64_t current=0;if(!actionEffects_.createPrimary(next,projectileFxOwner(p.request.lifetimeHandle),actionEffectProviders(),current,detail)||!actionEffects_.copyState(current,p.primaryAnimation,actionEffectProviders(),detail))return false;
+                    if(!retirePrimaryAnimation(p.primaryAnimation,detail))return false;
+                    p.primaryAnimation=current;p.body.animation=next;p.body.graphicsDirty=true;return true;
+                }
+                if(!retirePrimaryAnimation(p.primaryAnimation,detail))return false;
+                p.primaryAnimation=0;p.body.animation.clear();p.body.graphicsDirty=true;return true;
+            }
             if(!actionEffects_.retiredPrimary(p.primaryAnimation)){detail="Projectile primary Animation lifetime unavailable";return false;}
             p.primaryAnimation=0;const auto* graphic=p.thing?p.thing->get("Graphic"):nullptr;if(graphic&&!graphic->text().empty())return setProjectileAnimation(p,graphic->text(),detail);return true;
         }
@@ -428,7 +440,14 @@ bool ScriptRuntime::applyProjectileImpact(uint64_t handle,int32_t victim,const h
                     if(status!=hades::HitArgumentsStatus::Ready){lua_settop(L,destination);if(e.empty())e="Actual OnHit attached table disappeared";return false;}
                     lua_replace(L,destination);lua_settop(L,destination);return true;
                 };
-                if(!dispatchCallbacks("OnHit",target->object->name.c_str(),op.victim,extra)){detail=error_;return false;}detail.clear();return true;
+                const auto health=[&](){HitLuaStack stack(state_);pushObjectLuaTable(state_,op.victim);if(!lua_istable(state_,-1))return -1.;lua_getfield(state_,-1,"Health");return lua_isnumber(state_,-1)?double(lua_tonumber(state_,-1)):-1.;};
+                const double before=health();
+                if(!dispatchCallbacks("OnHit",target->object->name.c_str(),op.victim,extra)){detail=error_;return false;}
+                if(target->definition&&target->definition->kind=="Unit"){
+                    HitLuaStack stack(state_);pushObjectLuaTable(state_,op.victim);bool dead=false;if(lua_istable(state_,-1)){lua_getfield(state_,-1,"IsDead");dead=lua_toboolean(state_,-1);}
+                    hades::log(hades::Severity::Info,"HadesNative","COMBAT_HIT frame=%llu victim=%d weapon=%s nativeDamage=%.3f invulnerable=%d healthBefore=%.3f healthAfter=%.3f luaDead=%d nativeLife=%u",(unsigned long long)worldFrame_,op.victim,weapon->definition.name.c_str(),op.hit.damage.actualDamage,op.hit.isInvulnerable,before,health(),dead,unsigned(target->lifeStatus));
+                }
+                detail.clear();return true;
             }
             if(op.kind==K::CountAttackerEffects)return selfEffects_.countOwnerAttack(op.attacker,selfEffectProviders(),detail);
             if(op.kind==K::ClearCritEffects)return selfEffects_.clearOnCritted(op.victim,selfEffectProviders(),detail);

@@ -25,9 +25,8 @@ bool ScriptRuntime::initializeActorLight(int32_t id,std::string& error){
     return actorLights_.admit(id,random,error);
 }
 bool ScriptRuntime::advanceActorLights(float dt,std::string& error){
-    if(worldSpeedModifier_!=1){error="Nondefault source light world speed requires its actual modified-time projection";return false;}
     const auto random=[this](double& value,std::string& detail){if(nextRecoveredEngineRandom(state_,value)){detail.clear();return true;}detail="Actual original light-loop stream0 unavailable";return false;};
-    return actorLights_.advanceControllers(dt,random,error);
+    return actorLights_.advanceControllers(dt,worldSpeedModifier_,random,error);
 }
 std::vector<int32_t> ScriptRuntime::actorLightOwners()const{
     std::vector<int32_t> ids;for(const auto& light:actorLights_.snapshot()){const auto* actor=actorWorld_.actor(light.ownerId);if(actor&&actor->registered&&!actor->isDisposed&&actor->entityHandle==light.ownerLifetime)ids.push_back(light.ownerId);}return ids;

@@ -26,6 +26,12 @@ def export(a):
  auxiliary += sorted(name for name,d in definitions.items()if d.get('Type','ConstantNoUpdate')=='ConstantNoUpdate' and d.get('FilePath'))
  auxiliary += ['VignetteOverlay']
  auxiliary += sorted({r['graphic']for r in registry['primary_recipes']if r['kind']!='named'and not r['resources']['scene_sprite_indices']and r['graphic']!='3DGhostIdle'})
+ coverage_path=getattr(a,'animation_coverage',None);dynamic_graphics={};dynamic_rejections={}
+ if coverage_path:
+  coverage=json.loads(coverage_path.read_text())
+  if coverage['schema']!='hades-animation-coverage-v1' or coverage['target_sha256']!=registry['target_sha256']:raise ValueError('Dynamic primary coverage identity')
+  dynamic_graphics=coverage['obstacle_graphics']
+  auxiliary += [name for name in sorted(dynamic_graphics)if name not in auxiliary]
  clip_names={}
  for name in auxiliary:
   d=definitions.get(name,{});prefix=d.get('FilePath',name);n=d.get('NumFrames',1)
@@ -43,7 +49,10 @@ def export(a):
      candidate={'package':package,'atlas':e['name'],'sprite':s}
      old=matches.get(s['name'])
      if old is None or sum(abs(x-1)for x in s['scale_ratio'])<sum(abs(x-1)for x in old['sprite']['scale_ratio']):matches[s['name']]=candidate
- if set(matches)!=wanted:raise ValueError('Missing original door child frames')
+ for name in sorted(set(dynamic_graphics)-set(matches)):
+  dynamic_rejections[name]='Original raw graphic absent from selected source package manifests'
+  auxiliary.remove(name);clip_names.pop(name)
+ if set(matches)!={n for row in clip_names.values()for n in row}:raise ValueError('Missing original door child frames')
  images={};payloads=[]
  for package in sorted({r['package']for r in matches.values()}):
   for e in Package(packages/(package+'.pkg')).entries():
@@ -74,12 +83,14 @@ def export(a):
  recipes=[]
  for r in registry['primary_recipes']:
   recipes.append({'OwnerId':r['owner_map_id'],'Graphic':r['graphic'],'Type':r['resolved_type'],'Named':r['kind']=='named','SceneSprites':r['resources']['scene_sprite_indices'],'HaaClip':r['resources']['haa_clip_index'],'Active':r['source_active'],'DoCreate':r['source_do_create']})
- catalog={'Schema':'HadesScenePrimaries1','Target':registry['target_sha256'],'SceneSha256':scene['scene']['sha256'],'AnimationSha256':hashlib.sha256((Path(registry['hda']['path']).parent/'animations.bin').read_bytes()).hexdigest(),'Definitions':definitions,'Resources':resources,'Recipes':recipes,'AuxBankSha256':hashlib.sha256(packet.read_bytes()).hexdigest(),'DynamicGraphics':['VignetteOverlay','Blank','TorchMarker'],'CompiledDefaults':{'OnlyWhenVisible':False,'CancelOverCap':False,'Loop':False,'LoopFramesOnly':False,'AllowRestart':False,'BlockNewOwnerAnims':False,'OwnerImmobile':False,'OwnerHasNoCollision':False,'DisableOwnerWeapons':False,'Scale':1.,'OffsetX':0.,'OffsetY':0.,'OffsetZ':0.,'AirborneZ':0.,'Hue':0.,'Saturation':0.,'Value':0.}}
+ catalog={'Schema':'HadesScenePrimaries1','Target':registry['target_sha256'],'SceneSha256':scene['scene']['sha256'],'AnimationSha256':hashlib.sha256((Path(registry['hda']['path']).parent/'animations.bin').read_bytes()).hexdigest(),'Definitions':definitions,'Resources':resources,'Recipes':recipes,'AuxBankSha256':hashlib.sha256(packet.read_bytes()).hexdigest(),'DynamicGraphics':['VignetteOverlay','Blank','TorchMarker',*[n for n in sorted(dynamic_graphics)if n not in dynamic_rejections]],'CompiledDefaults':{'OnlyWhenVisible':False,'CancelOverCap':False,'Loop':False,'LoopFramesOnly':False,'AllowRestart':False,'BlockNewOwnerAnims':False,'OwnerImmobile':False,'OwnerHasNoCollision':False,'DisableOwnerWeapons':False,'Scale':1.,'OffsetX':0.,'OffsetY':0.,'OffsetZ':0.,'AirborneZ':0.,'Hue':0.,'Saturation':0.,'Value':0.}}
  (a.output/'primaries.lua').write_text('return '+lua(catalog)+'\n');(a.output/'catalog.json').write_text(json.dumps(catalog,indent=2)+'\n')
  report={'schema':'hades-source-scene-primaries-v1','catalog':identity(a.output/'catalog.json'),'lua':identity(a.output/'primaries.lua'),'aux_bank':identity(packet),'registry':identity(a.registry),'source':identity(source),'definition_provenance':provenance,'source_payloads':payloads,'aux_frames':[{k:v for k,v in f.items()if k not in ('rgba','packed')}for f in frames],'limits':['Source recipes are not live allocation counts. Runtime must initialize at actual registration before eachOnSpawn.','Source-data resources absent current scene are retained explicitly; no invented pixels or assumption resource exists.','Original v5 scene and HDA bytes untouched. Door child was missing from the prior v5 render and is supplied by this fresh original frame bank.','Compiled defaults restricted to exact target constructor zero template/copy and explicitScale1 writes; source omission remains separate in provenance.']}
+ if coverage_path:report.update(dynamic_coverage=identity(coverage_path),dynamic_graphic_provenance=dynamic_graphics,dynamic_graphic_rejections=dynamic_rejections)
  (a.output/'manifest.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps({'catalog':report['lua'],'aux':report['aux_bank'],'definitions':len(definitions),'recipes':len(recipes)}))
 
 if __name__=='__main__':
  p=argparse.ArgumentParser(description=__doc__)
  for k in ['content','registry','output']:p.add_argument('--'+k,type=Path,required=True)
+ p.add_argument('--animation-coverage',type=Path,help='Source-derived raw graphics for dynamic original Dataless primaries')
  export(p.parse_args())

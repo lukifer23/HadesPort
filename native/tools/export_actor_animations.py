@@ -9,6 +9,13 @@ from PIL import Image
 from build_room_scene import Sjson,identity
 from hades_assets import Reader
 NAMES=['ZagreusIdle','ZagreusRun','ZagreusSwordRun','ZagreusSwordDashAttack','ZagreusSwordParryCharge','ZagreusSwordParryFire','ZagreusSwordCharge1','ZagreusSwordAttack1','ZagreusSwordCharge2','ZagreusSwordAttack2','ZagreusSwordCharge3','ZagreusSwordAttack3','ZagreusDashNoCollide','ZagreusDashCollide','ZagreusRangedWeapon_Charge','ZagreusRangedWeapon_Fire','ZagreusHeroLanding_Start','ZagreusHeroLanding_Air','ZagreusHeroLanding_Fire','ZagreusHeroLanding_LandingHold','ZagreusHeroLanding_ReturnToIdle']
+# Exact SlideData SGD_Deserialize at RVA0xe8980 enumerates this finite key
+# class and advances unknown keys at0xe91f4 without assignment. PDB SlideDataDef
+# independently confirms the members; authored unknown keys have no runtime op.
+NATIVE_SLIDE_FIELDS={'FilePath','Frame','DurationFrames','RandomDurationFramesMin','RandomDurationFramesMax','AdvanceRequireVolumeAbove','Scale','Airborne','Rumble','LeftRumble','RightRumble','FootstepSound','FootstepFxL','FootstepFxR','Sound','CharacterSound','VisualFx','SoundPlayChance','DisableOwnerForDuration','Comment'}
+SLIDE_EVENTS={'DurationFrames','Sound','FootstepSound','FootstepFxR','FootstepFxL','VisualFx','RandomDurationFramesMin','RandomDurationFramesMax'}
+def native_slide(source):
+ return {key:value for key,value in source.items()if key in NATIVE_SLIDE_FIELDS}
 FLAGS=['Loop','HoldLastFrame','AllowRestart','CancelOnOwnerMove','DisableOwnerWeapons','DisableOwnerRotation','DisableOwnerInput','DisableOwnerManualInteract','OwnerHasNoCollision']
 def string(f,s):
  b=(s or '').encode();f.write(struct.pack('<I',len(b)));f.write(b)
@@ -20,7 +27,7 @@ def export(a):
  a.output.mkdir(parents=True);source=getattr(a,'source',None)or a.content/'Game/Animations/CharacterAnimationsHero.sjson';source_files=getattr(a,'sources',None)or[source];defs={x['Name']:x for p in source_files for x in Sjson(p.read_text()).parse()['Animations']};unitfile=a.content/'Game/Units/PlayerUnits.sjson';unit=next(x for x in Sjson(unitfile.read_text()).parse()['Units']if x['Name']=='_PlayerUnit');unit_scale=1.0 if getattr(a,'unit_scale',None)is None else a.unit_scale;names=list(getattr(a,'names',None)or NAMES);clips=[];movies={};sources=[*[identity(p)for p in source_files],identity(unitfile)]
  for n in names:
   d,_=merged(defs,n);d.setdefault('NumAngles',1);chain=d.get('ChainTo');
-  if chain and chain!='null'and chain!='ZagreusIdle'and chain not in names:names.append(chain)
+  if chain and chain!='null'and chain!='ZagreusIdle'and chain not in names and chain not in getattr(a,'existing_names',set()):names.append(chain)
   if d.get('Type')not in ('Slide','Book')or not d.get('VideoTexture'):raise ValueError('Nonmovie action '+n)
   if d.get('RandomPlaySpeedMin',0)or d.get('RandomPlaySpeedMax',0)or d.get('RandomStartFrame',False):raise ValueError('Nondeterministic action timing '+n)
   movie=d['VideoTexture'];path=(getattr(a,'movie_directory',None)or a.content/'Movies')/(movie+'.bik');atlas=path.with_suffix('.bik_atlas')
@@ -40,11 +47,12 @@ def export(a):
   if len(slides)!=d['NumFrames']:raise ValueError('Slides/movie frame count mismatch')
   if any('DurationFrames'not in s for s in slides):raise ValueError('Native absent slide duration not recovered')
   seq=[]
-  for frame,s in enumerate(slides,1):
+  for frame,raw_slide in enumerate(slides,1):
+   s=native_slide(raw_slide)
    duration=s['DurationFrames']
    if not isinstance(duration,int)or not 0<=duration<=100000:raise ValueError('Duration outside bounds')
    if duration:
-    if set(s)-{'DurationFrames','Sound','FootstepSound','FootstepFxR','FootstepFxL','VisualFx','RandomDurationFramesMin','RandomDurationFramesMax'}:raise ValueError('Unsupported per-slide transform')
+    if set(s)-SLIDE_EVENTS:raise ValueError('Unsupported per-slide transform')
     seq.append({'original_frame':frame,'ticks':duration,'events':{k:v for k,v in s.items()if k!='DurationFrames'}})
   if not seq:raise ValueError('No visible slides')
   angles=min(a.directions,d['NumAngles']);indices=[i*d['NumAngles']//angles for i in range(angles)]
@@ -57,7 +65,7 @@ def export(a):
   # Exact AnimationData ctor zero template initializes bool fields before
   # explicit writes. Only these reviewed defaults are carried as resolved here.
   resolved={k:bool(d.get(k,False))for k in FLAGS};flags=sum(int(resolved[k])<<i for i,k in enumerate(FLAGS))|(512 if d['Type']=='Book'else 0)
-  clips.append({'name':n,'movie':movie,'definition':d,'source_raw':defs[n],'source_sequence':seq,'angle_indices':indices,'original_angles':d['NumAngles'],'flags':flags,'resolved_flags':resolved,'unit_scale':unit_scale,'world_scale':unit_scale*d.get('Scale',1)/info['atlas_scale'],'offset_x':unit_scale*d.get('OffsetX',0),'offset_y':unit_scale*d.get('OffsetY',0),'chain':chain if chain and chain!='null'else'','move_animation':d.get('MoveAnimation',''),'seconds_per_tick':1/(d.get('PlaySpeed',0)or 60)if d['Type']=='Book'else 1/60,'time_modifier_fraction':d.get('TimeModifierFraction',None)})
+  clips.append({'name':n,'movie':movie,'definition':d,'source_raw':defs[n],'ignored_slide_fields':[{'original_frame':i,'fields':sorted(set(slide)-NATIVE_SLIDE_FIELDS)}for i,slide in enumerate(slides,1)if set(slide)-NATIVE_SLIDE_FIELDS],'source_sequence':seq,'angle_indices':indices,'original_angles':d['NumAngles'],'flags':flags,'resolved_flags':resolved,'unit_scale':unit_scale,'world_scale':unit_scale*d.get('Scale',1)/info['atlas_scale'],'offset_x':unit_scale*d.get('OffsetX',0),'offset_y':unit_scale*d.get('OffsetY',0),'chain':chain if chain and chain!='null'else'','move_animation':d.get('MoveAnimation',''),'seconds_per_tick':1/(d.get('PlaySpeed',0)or 60)if d['Type']=='Book'else 1/60,'time_modifier_fraction':d.get('TimeModifierFraction',None)})
  frames=[];start=time.monotonic();payload=a.output/'frames.tmp';max_raw=0;raw_bytes=0;compressed_bytes=0
  with payload.open('xb')as data:
   for movie,info in movies.items():

@@ -84,3 +84,5 @@ target_link_libraries(hades_native PRIVATE luabins03 lz4block)
 target_sources(hades_native PRIVATE config_file.cpp)
 
 target_sources(hades_native PRIVATE native_flash.cpp lua_flash.cpp)
+
+target_sources(hades_native PRIVATE native_shake.cpp lua_shake.cpp lua_clock.cpp)

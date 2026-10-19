@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
-#include <unordered_set>
 extern "C" {
 #include <lua.h>
 #include <lauxlib.h>
@@ -21,6 +20,7 @@ hades::ActionEffectProviders ScriptRuntime::actionEffectProviders(){hades::Actio
  p.owner=[this](int32_t id,hades::EffectOwnerState&o,std::string&e){return effectOwner(id,o,e);};p.marker=[this](int32_t id,const std::string&name,std::array<float,3>&point,std::string&e){return effectMarker(id,name,point,e);};
  p.random=[this](double&v,std::string&e){if(nextRecoveredEngineRandom(state_,v))return true;e="Actual action FX uniform RNG unavailable";return false;};p.bounded=[this](uint32_t bound,uint32_t&v,std::string&e){if(nextRecoveredEngineBoundedRandom(state_,bound,v))return true;e="Actual action FX bounded PCG unavailable";return false;};p.worldFrame=worldFrame_;
  p.sound=[this](const std::string&cue,int32_t owner,const std::array<float,3>&position,uint32_t cap,uint32_t&id,std::string&e){return owner==0?playLocationAudioCue(cue,position,int32_t(cap),id,e):playAudioCue(cue,owner,position,id,e,int32_t(cap));};
+ p.prepareSound=[this](const std::string&cue,std::string&e){return audio_.prepareCueCoverage(cue,e,true);};
  p.elapsed=[this](int32_t owner,float fraction,bool attachedTime,float dt,float&result,std::string&e){
   // InitData2927a1 adds TimeModifierFraction only for authored values>=0;
   // PreferUnmodifiedTime supplies fraction0 for a formerly absent component.
@@ -86,26 +86,33 @@ bool ScriptRuntime::createAnimationImpl(lua_State* L,std::string& error){
     if(!lua_istable(L,1)){error="CreateAnimation requires table";return false;}
     lua_getfield(L,1,"Name");if(lua_type(L,-1)!=LUA_TSTRING){lua_pop(L,1);return true;}
     const std::string name=lua_tostring(L,-1);lua_pop(L,1);if(name=="null")return true;
-    static const std::unordered_set<std::string> keys{"Name","DestinationId","Id","Ids","DestinationName","DestinationNames","Delay","DelaySeconds","DelayMin","DelaySecondsMin","DelayMax","DelaySecondsMax",
-        "Scale","ScaleRadius","Duration","MinDuration","MaxDuration","OffsetX","OffsetY","OffsetZ","UseScreenLocation","Angle","Color","Group"};
-    lua_pushnil(L);while(lua_next(L,1)){if(lua_type(L,-2)!=LUA_TSTRING||!keys.contains(lua_tostring(L,-2)))throw std::runtime_error("CreateAnimation key outside native ScriptAction::CreateAnimation/SetupAnimation: "+name+"."+(lua_type(L,-2)==LUA_TSTRING?std::string(lua_tostring(L,-2)):std::string("<non-string>")));lua_pop(L,1);}
-    lua_getfield(L,1,"DestinationId");int numeric=0;const double n=lua_tonumberx(L,-1,&numeric);lua_pop(L,1);
-    if(!numeric||!std::isfinite(n)||n<1||n>INT32_MAX){error="CreateAnimation table/absent DestinationId (CreateCustom) branch not reconstructed";return false;}
-    const int32_t id=int32_t(n);const auto* o=findObjectSnapshot(L,id);
-    if(!o||!o->active||!o->alive)return true; // World::GetActiveThing null
+    // These native actions probe their named fields; they do not enumerate or
+    // reject unused Lua arguments. In particular GroupName is not read here:
+    // only Group overrides the animation definition's GroupName. Original hit
+    // presentation passes GroupName, which must retain that native behavior.
+    lua_getfield(L,1,"DestinationId");int numeric=0;const auto n=lua_tointegerx(L,-1,&numeric);const bool table=lua_istable(L,-1);
+    if(table){lua_rawgeti(L,-1,1);const bool empty=lua_isnil(L,-1);lua_pop(L,2);if(empty)return true;error="CreateAnimation nonempty DestinationId table requires native repeated-index traversal";return false;}
+    lua_pop(L,1);
+    // CreateAnimation26252b..2625e6: absent/non-table DestinationId calls
+    // CreateCustom(name, OffsetXY, manager, nullptr Thing), manager Add,
+    // then SetupAnimation(animation, nullptr, args). Numeric IDs retain
+    // GetActiveThing semantics, including a missing/invalid ID doing nothing.
+    const bool custom=!numeric;
+    if(numeric&&(n<INT32_MIN||n>INT32_MAX))return true;
+    const int32_t id=custom?0:int32_t(n);const auto* o=custom?nullptr:findObjectSnapshot(L,id);
+    if(!custom&&(!o||!o->active||!o->alive))return true;
     hades::ActionAnimationSetup setup;
     setup.scale=actionNumber(L,"Scale",1);setup.scaleRadius=actionNumber(L,"ScaleRadius",0);
     // ScriptArgs::getDuration 0x180281bc0 (SetupAnimation 0x180262ccd): both
     // MinDuration and MaxDuration nonzero -> float(Random::RandomDouble 0x180054f80)
     // x (max-min) + min, the same engine RandomDouble provider Animation
     // GetValue uses; otherwise Duration.
-    if(const float lo=actionNumber(L,"MinDuration",0),hi=actionNumber(L,"MaxDuration",0);lo!=0&&hi!=0){double r=0;if(!nextRecoveredEngineRandom(state_,r)||!std::isfinite(r)||r<0||r>=1){error="SetupAnimation Min/MaxDuration engine RandomDouble unavailable";return false;}const volatile float product=float(r)*(hi-lo);setup.duration=product+lo;}
-    else setup.duration=actionNumber(L,"Duration",0);setup.offsetX=actionNumber(L,"OffsetX",0);setup.offsetY=actionNumber(L,"OffsetY",0);setup.offsetZ=actionNumber(L,"OffsetZ",0);
+    const float minDuration=actionNumber(L,"MinDuration",0),maxDuration=actionNumber(L,"MaxDuration",0);
+    setup.duration=actionNumber(L,"Duration",0);setup.offsetX=actionNumber(L,"OffsetX",0);setup.offsetY=actionNumber(L,"OffsetY",0);setup.offsetZ=actionNumber(L,"OffsetZ",0);
     if(const float a=actionNumber(L,"Angle",-999999.f);a!=-999999.f)setup.angleDegrees=a;
     if(actionHas(L,"Color"))setup.color=actionColor(L,"Color");
     if(actionHas(L,"Group")){lua_getfield(L,1,"Group");const char*g=lua_tostring(L,-1);setup.group=g?g:"";lua_pop(L,1);}
-    lua_getfield(L,1,"UseScreenLocation");const bool screenLocation=lua_toboolean(L,-1)||o->screenSpace;lua_pop(L,1);
-    if(screenLocation){error="CreateAnimation UseScreenLocation action animation not reconstructed: "+name;return false;}
+    lua_getfield(L,1,"UseScreenLocation");setup.useScreenLocation=lua_isboolean(L,-1)&&lua_toboolean(L,-1);lua_pop(L,1);setup.useScreenLocation=setup.useScreenLocation||(o&&o->screenSpace);
     const auto* actor=actorWorld_.actor(id);
     if(actor)setup.parallax=actor->ownParallax*actor->mapParallax;
     // OffsetX is negated when the destination primary ShouldMirror()
@@ -122,11 +129,15 @@ bool ScriptRuntime::createAnimationImpl(lua_State* L,std::string& error){
     // the shared registry, routed by the owning definition.
     uint64_t handle=0;
     if(!effects_.admits(name)&&actionEffects_.admits(name)){
-        if(!createActionEffect(name,id,std::nullopt,handle,error))return false;
+        if(custom){if(!actionEffects_.createStandalone(name,{setup.offsetX,setup.offsetY,0},actionEffectProviders(),handle,error))return false;}
+        else if(!createActionEffect(name,id,std::nullopt,handle,error))return false;
+        // Native Setup follows animation initialization (and its RNG draws).
+        if(handle&&minDuration!=0&&maxDuration!=0){double r=0;if(!nextRecoveredEngineRandom(state_,r)||!std::isfinite(r)||r<0||r>=1){error="SetupAnimation Min/MaxDuration engine RandomDouble unavailable";return false;}const volatile float product=float(r)*(maxDuration-minDuration);setup.duration=product+minDuration;}
         if(handle&&!actionEffects_.setup(handle,setup,error))return false;
         if(handle)if(const auto* pending=actionEffects_.pendingFields(name)){std::string list;for(const auto& f:*pending)list+=(list.empty()?"":",")+f;hades::log(hades::Severity::Info,tag,"NATIVE_ACTION_FX_PENDING_PRESENTATION name=%s fields=%s",name.c_str(),list.c_str());}
     }else if(effects_.admits(name)){
-        if(setup.scale!=1||setup.scaleRadius>0||setup.duration>0||setup.offsetX!=0||setup.offsetY!=0||setup.offsetZ!=0||setup.angleDegrees||setup.color||setup.group){error="SetupAnimation options on an invisible spawner animation not reconstructed: "+name;return false;}
+        if(custom){error="CreateCustom invisible-spawner ownerless factory not reconstructed: "+name;return false;}
+        if(setup.scale!=1||setup.scaleRadius>0||setup.duration>0||minDuration!=0&&maxDuration!=0||setup.offsetX!=0||setup.offsetY!=0||setup.offsetZ!=0||setup.angleDegrees||setup.color||setup.group||setup.useScreenLocation){error="SetupAnimation options on an invisible spawner animation not reconstructed: "+name;return false;}
         if(!effects_.create(name,id,owners,random,handle,error))return false;
     }else{const auto* why=actionEffects_.rejection(name);error="CreateAnimation original animation not exported: "+name+(why?" ("+*why+")":" (outside animation coverage)");return false;}
     hades::log(hades::Severity::Info,tag,"NATIVE_EFFECT_CREATED owner=%d name=%s handle=%llu",id,name.c_str(),static_cast<unsigned long long>(handle));return true;

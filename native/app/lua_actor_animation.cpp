@@ -16,6 +16,21 @@ float ScriptRuntime::actorAnimationFacing(const hades::ActorComponents& actor)co
     if(actor.definition&&actor.definition->kind=="Unit"&&move!=localMovement_.end()&&move->second.initialized)return move->second.cosmeticAngle;
     return actor.object?actor.object->angle:0;
 }
+bool ScriptRuntime::primaryUntargetable(int32_t id,bool& value,std::string& error)const{
+    const auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered||!actor->object){error="Actual targetability primary owner unavailable";return false;}
+    const hades::SourceValue* definition=nullptr;
+    if(actor->animation.active()){
+        const auto found=actorAnimationDefinitions_.find(actor->animation.clip()->name);
+        if(found==actorAnimationDefinitions_.end()||!(definition=found->second.get("definition"))){error="Actual HAA targetability source definition unavailable";return false;}
+    }else if(const auto* primary=scenePrimaries_.state(actor->primaryAnimationLifetime))definition=&primary->definition;
+    else if(const auto* primary=actionEffects_.state(actor->primaryAnimationLifetime);primary&&primary->primary)definition=&primary->definition;
+    else if(const auto* primary=effects_.entity(actor->primaryEffectAnimation))definition=&primary->definition->source;
+    else if(!actor->object->animation.empty()){error="Actual targetability primary resource/lifetime unavailable: "+actor->object->animation;return false;}
+    // AnimationData ctor0940b5 copies the zero template covering full+0x89
+    // (Def+0x31 OwnerUntargetable); no later default store changes that byte.
+    // All primary classes above retain their actual resolved authored fields.
+    const auto* flag=definition?definition->get("OwnerUntargetable"):nullptr;value=flag&&flag->boolean();error.clear();return true;
+}
 bool ScriptRuntime::primaryCombatFlags(int32_t id,bool& invulnerable,bool& noArmor,bool& noCoverage,std::string& error)const{
     const auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered||!actor->object){error="Actual primary combat owner unavailable";return false;}
     if(actor->animation.active()){
@@ -101,6 +116,12 @@ bool ScriptRuntime::setActorAnimation(int32_t id,const std::string& name,std::st
         // Source data spells "no animation" as the literal "null" (e.g. weapon
         // owner animations); it has no AnimationData definition, as with "".
         if(name.empty()||name=="null")return true;
+        // Thing.SetAnimation2df294 applies the old primary's block before
+        // choosing a new factory. Resource backend selection cannot bypass it.
+        if(actor->animation.active()){
+            const auto block=animationBank_->exactBlockNewOwnerAnims(actor->animation.clipIndex());if(!block){error="SetAnimation requires current primary BlockNewOwnerAnims";return false;}
+            if(*block)return true;
+        }
         const auto target=animationBank_->find(name);if(!target){
             if(scenePrimaries_.recipe(id)||scenePrimaries_.admitsDynamic(name))return setScenePrimaryAnimation(id,name,error);
             if(actionEffects_.admits(name))return setActionPrimaryAnimation(id,name,error);
@@ -108,8 +129,6 @@ bool ScriptRuntime::setActorAnimation(int32_t id,const std::string& name,std::st
             error="Original animation requires an actual exported primary/resource consumer: "+name+(why?" ("+*why+")":"");return false;
         }
         if(actor->animation.active()){
-            const auto block=animationBank_->exactBlockNewOwnerAnims(actor->animation.clipIndex());if(!block){error="SetAnimation requires current primary BlockNewOwnerAnims";return false;}
-            if(*block)return true;
             if(actor->animation.clip()->name==name&&actor->primaryAnimationLifetime){
                 actor->animation.restartSource([&](const auto& clip,const auto& slide){if(!actorSlideEvent(id,clip,slide,error))throw std::runtime_error(error);});
                 if(actor->primaryAnimationLifetime&&!effects_.registry()->restart(actor->primaryAnimationLifetime,error))return false;
@@ -148,6 +167,32 @@ bool ScriptRuntime::setActorAnimation(int32_t id,const std::string& name,std::st
         return true;
     }catch(const std::exception& e){error=e.what();return false;}
 }
+bool ScriptRuntime::advanceUnitActivations(std::string& error){
+    try{
+        // Unit.UpdateSelf2f14af..1597: activation is before IsAlive and all
+        // movement/arsenal/status work. The native manager captures its initial
+        // unit count, so units created by a callback wait until the next tick.
+        const auto units=actorWorld_.registrationOrder();
+        for(const auto id:units){
+            auto* actor=actorWorld_.actor(id);
+            if(!actor||!actor->registered||!actor->definition||actor->definition->kind!="Unit"||actor->hasActivated)continue;
+            const auto* graphic=actorWorld_.currentProperty(id,"Thing.ActivateGraphic");
+            if(!graphic){error="Unit activation requires actual ActivateGraphic";return false;}
+            const auto& activate=graphic->text();
+            const auto* primary=effects_.registry()->find(actor->primaryAnimationLifetime?actor->primaryAnimationLifetime:actor->primaryEffectAnimation);
+            if(!activate.empty()&&!primary){error="Unit activation comparison requires actual primary lifetime";return false;}
+            if(!activate.empty()&&primary&&primary->name==activate)continue;
+            const auto lifetime=actor->entityHandle;const auto name=actor->object->name;
+            thingSourceMatch_=true;
+            if(!dispatchCallbacks("OnActivationFinished",name.c_str(),id)){error=error_;return false;}
+            // Source writes the flag after callbacks, not at spawn or at the
+            // last activation frame. Preserve lifetime if Lua destroys it.
+            actor=actorWorld_.actor(id);
+            if(actor&&actor->entityHandle==lifetime)actor->hasActivated=true;
+        }
+        return true;
+    }catch(const std::exception& e){error=e.what();return false;}
+}
 bool ScriptRuntime::advanceActorAnimations(float dt,std::string& error){
     try{
         for(auto id:actorWorld_.registrationOrder()){
@@ -178,12 +223,19 @@ bool ScriptRuntime::advanceActorAnimations(float dt,std::string& error){
 // Thing::SetAnimation with an exported action-bank definition (e.g. the
 // CreateDoorRewardPreview door icons on spawned BlankGeoObstacle Things):
 // a ThingPrimary Animation owned by the Thing, replacing its previous primary.
-bool ScriptRuntime::setActionPrimaryAnimation(int32_t id,const std::string& name,std::string& error){
+bool ScriptRuntime::setActionPrimaryAnimation(int32_t id,const std::string& name,std::string& error,bool copyPrevious){
     auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered||!actor->object){error="SetAnimation requires actual registered Thing";return false;}
-    if(actor->animation.active()){error="Action-bank primary on an HAA-animated Thing not reconstructed: "+name;return false;}
-    if(const auto* current=actionEffects_.state(actor->primaryAnimationLifetime);current&&current->primary&&current->name==name)return true;
+    if(const auto* current=actionEffects_.state(actor->primaryAnimationLifetime);current&&current->primary&&!current->done&&current->name==name)return true;
     uint64_t handle=0;if(!actionEffects_.createPrimary(name,id,actionEffectProviders(),handle,error))return false;
+    // Thing.UpdateAnimation2df647 calls SetAnimation with CopyState=true;
+    // named SetAnimation2df3d6 copies the old allocation before releasing it.
+    if(copyPrevious&&!actionEffects_.copyState(handle,actor->primaryAnimationLifetime,actionEffectProviders(),error))return false;
     if(!retirePrimaryAnimation(actor->primaryAnimationLifetime,error)||!retirePrimaryAnimation(actor->primaryEffectAnimation,error))return false;
+    // Both banks implement Thing+138. Retire the old concrete lifetime and its
+    // HAA playback together; retaining playback would keep rendering/updating
+    // a disposed primary beside the actual activation animation. Owner Body
+    // state stays on the same ActorWorld entity, as for HAA replacements.
+    actor->animation.reset();
     actor->primaryEffectAnimation=0;actor->primaryAnimationLifetime=handle;actor->object->animation=name;actor->object->graphicsDirty=true;
     if(actor->timeMultiplier!=1&&!effects_.registry()->linkTimeMultiplier(handle,id,actor->entityHandle,error))return false;
     const auto* source=actionEffects_.state(handle);if(!source){error="Actual new action primary state unavailable";return false;}

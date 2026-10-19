@@ -227,13 +227,23 @@ int destroy(lua_State* state) {
     const bool noSound=boolean(state,"NoSound");
     for (int32_t id : targets(state,registry)) {
         auto at = registry.objects.find(id);
-        if (at != registry.objects.end()) {
+        // ScriptAction.Execute251910 Destroy branch selects GetActiveMapThings before virtual Destroy;
+        // portable tombstones must not be mistaken for live manager entries.
+        if (at != registry.objects.end() && at->second.active && at->second.entityHandle) {
             const auto& handler=at->second.screenSpace?registry.screen.destroy:registry.destroy;
             if(!handler||!at->second.entityHandle)throw std::runtime_error("Destroy requires actual Thing lifecycle provider");
             std::string error;if(!handler(id,noSound,error))throw std::runtime_error(error);
         }
     }
     return 0;
+}
+// ExecuteBool(IdExists234)2552ee..255381: Int(Id,0), nonnull global
+// World map-Thing registry lookup; no LifeStatus/is-alive query.
+int idExists(lua_State* state){
+    table(state);auto& registry=objects(state);lua_getfield(state,1,"Id");
+    const auto id=lua_tointeger(state,-1);lua_pop(state,1);
+    const auto it=id>0&&id<=INT32_MAX?registry.objects.find(int32_t(id)):registry.objects.end();
+    lua_pushboolean(state,it!=registry.objects.end()&&it->second.active&&it->second.entityHandle!=0&&!it->second.queryProxy);return 1;
 }
 int getGroupName(lua_State* state){
     table(state);auto& registry=objects(state);requireSupportedFields(state,{"Id","Ids","Name","Names","DrawGroup"});
@@ -373,8 +383,9 @@ int setAnimation(lua_State* state) {
     // Duration/MinDuration/MaxDuration, OffsetX/OffsetY, Scale, PlaySpeed,
     // StartFrameFraction, FrameTarget/Instant, Color (Thing SetColor action) and
     // SoundId on the new primary. DestinationName(s) is read but unused.
-    requireSupportedFields(state,{"Name","DestinationId","DestinationIds","DestinationName","DestinationNames","FrameTarget","Instant","Color","PlaySpeed","StartFrameFraction",
-        "Scale","Duration","MinDuration","MaxDuration","OffsetX","OffsetY","SoundId","SuppressSounds","SuppressSoundsIfInvisible"});
+    // The complete native action queries these keys individually; it does
+    // not reject unrelated keys. In particular Group is only consumed by
+    // SetupAnimation262c50/CreateAnimation, never SetAnimation261a10.
     const auto animation = string(state,"Name");
     bool extended=false;for(const char* key:{"FrameTarget","Instant","Color","PlaySpeed","StartFrameFraction","Scale","Duration","MinDuration","MaxDuration","OffsetX","OffsetY","SoundId","SuppressSounds","SuppressSoundsIfInvisible"})if(has(state,key))extended=true;
     for (int32_t id : targets(state,registry,true)){
@@ -439,7 +450,7 @@ void registerObjectRuntime(lua_State* state,int32_t firstRuntimeId) {
     registry->animations.emplace("BreakableIdle2",ObjectAnimationDefinition{"BreakableIdle2","Tilesets\\Temple\\Temple_Urn_02",1,1,0,false,.13f,0,-50});
     registry->animations.emplace("BreakableIdle3",ObjectAnimationDefinition{"BreakableIdle3","Tilesets\\Temple\\Temple_Urn_03",1,1,0,false,.15f,0,-33});
     bind(state,owner,"SpawnObstacle",guarded<spawn>); bind(state,owner,"Destroy",guarded<destroy>);
-    bind(state,owner,"GetIds",guarded<getIds>);
+    bind(state,owner,"GetIds",guarded<getIds>);bind(state,owner,"IdExists",guarded<idExists>);
     bind(state,owner,"GetGroupName",guarded<getGroupName>);
     bind(state,owner,"AttachLua",guarded<attachLua>);
     bind(state,owner,"AddToGroup",guarded<addToGroup>);bind(state,owner,"RemoveFromGroup",guarded<removeFromGroup>);bind(state,owner,"FlipHorizontal",guarded<flipHorizontal>);

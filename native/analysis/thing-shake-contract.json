@@ -1,0 +1,26 @@
+{
+  "schema": "hades-native-thing-shake-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "producer": {
+    "thing": "Thing.RunScriptAction case0x7b reads Angle(default-1000000), Distance(default0), Speed(default0), getDuration. Angle converts by float pi/180. Thing.Shake VA1802e1d30 ensures112-byte ShakeComponent, registers Thing system membership, replaces OffsetHelper at+30 and sets active flag+6c.",
+    "obstacle": "Obstacle.RunScriptAction2c56d0 overrides Shake; degree conversion uses double pi/180. Its separate ApplyToChildren branch traverses the structural obstacle location graph. That selected nonempty branch remains explicit unsupported, not silently omitted.",
+    "rng": "Thing.Shake2e1e1f consumes one RandomDouble even when Angle overrides its initial random direction;2e1e30 accepts only nonnegative supplied angles. OffsetHelper starts zero current and target offsets."
+  },
+  "update": {
+    "clock": "ThingSystem.Update2d9d54 forwards World-scaled elapsed. ShakeSystem.UpdateThing2d6263 divides by World+20 speed before OffsetHelper.Update151f80, cancelling simulation slowdown; no per-Thing time factor.",
+    "helper": "OffsetHelper.Update151f80 subtracts duration, handles its optional easing and speed/distance accelerations, moves current offset toward target, then picks a new target when equal. Native vector stepToward1ea990 normalizes first and clamps only when squared displacement exceeds squared remaining distance.",
+    "direction": "OffsetHelper.pickAngle1520c0 reverses by floatpi; unlocked direction adds RandomFloat-derived jitter in[-pi/4,pi/4], wraps to[0,2pi), then target=(cos(angle),-sin(angle))*distance. First update can select a target while current offset remains0.",
+    "expiry": "ShakeSystem2d6274..2d62b8 clears active before dropping system membership when duration<=0, or optional ease-out has returned target and current to0. Component allocation survives for future Shake reinitialization."
+  },
+  "presentation": {
+    "offset": "Animation.GetDrawLocation297dda..297e25 adds attached Thing ShakeComponent current offset when active, Data.UseAttachedShake=true, and LocationFromOwner==Maintain0. Offset is not multiplied by body/image scale.",
+    "metadata": "HAP6 adds UseAttachedShake bit512 and native LocationFromOwner/ScaleVectorFromOwner uint32 enums. Native defaults: UseAttachedShake true180094205; LocationFromOwner0 explicitly1800941aa; ScaleVectorFromOwner0 via wordstore1800940fa.",
+    "markers": "BookAnimation.GetMarkerLocation2b0f78 adds only its own animation ECS ShakeOffset component. It does not add attached Thing ShakeComponent offset, so this producer intentionally leaves marker/damage origin unchanged.",
+    "separate_producers": "Camera.Shake and Animation.InitShake2938b0 own separate OffsetHelper instances. This implementation neither substitutes CameraShake nor claims animation-owned ECS producer coverage."
+  },
+  "limits": [
+    "Obstacle ApplyToChildren requires separate location-graph traversal when selected; Unit/Thing Shake does not read this argument.",
+    "Portable shake-system membership follows admission order. Exact World dirty hash tie order across several simultaneous owner admissions remains unproven.",
+    "Host compilation and metadata integrity do not establish Android enemy attack completion or visible animation execution."
+  ]
+}

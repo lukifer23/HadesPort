@@ -375,8 +375,11 @@ void SceneRenderer::renderImpl(const SceneView& view,int width,int height,const 
             if(!finite){reject("Non-finite native actor visual");continue;}
             bool colorOk=true;for(float f:value.color)if(!std::isfinite(f)||f<0||f>1)colorOk=false;for(float f:value.hsv)if(!std::isfinite(f))colorOk=false;
             if(!colorOk){reject("Invalid native actor color/HSV");continue;}
-            if(value.scale<0||value.scale>16||r[2]<=0||r[3]<=0||(value.blend!=0&&value.blend!=1&&value.blend!=2&&value.blend!=5&&value.blend!=9&&value.blend!=11&&value.blend!=13)){reject("Invalid source actor transform/material");continue;}
-            if(value.scale==0)continue;
+            if(value.scale<0||value.scale>16||r[2]<0||r[3]<0||(value.blend!=0&&value.blend!=1&&value.blend!=2&&value.blend!=5&&value.blend!=9&&value.blend!=11&&value.blend!=13)){reject("Invalid source actor transform/material");continue;}
+            // A real Body scale-axis transition can collapse a health bar to
+            // zero area. Native mesh submission produces no covered pixels;
+            // it is valid state, not an engine/resource gap.
+            if(value.scale==0||r[2]==0||r[3]==0)continue;
             const float x=(r[0]+r[2]*.5f)*value.scale,y=(r[1]+r[3]*.5f)*value.scale,c=std::cos(value.angle),sn=std::sin(value.angle);
             auto visual=rectangleSprite(0,value.x+c*x-sn*y,value.y-value.z*.8660254037844386f+sn*x+c*y,r[2]*value.scale,r[3]*value.scale,value.angle);
             if(!std::isfinite(value.postRotateScaleX)||!std::isfinite(value.postRotateScaleY)||value.postRotateScaleX<=0||value.postRotateScaleY<=0||value.postRotateScaleX>16||value.postRotateScaleY>16){reject("Actual source post-rotation scale bound");continue;}

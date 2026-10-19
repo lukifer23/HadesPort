@@ -96,7 +96,7 @@ bool ProjectileInitialization::advance(const ProjectileDefinition& definition,
         case 0:{
             ProjectileCreationDescriptor descriptor;
             if(!describeProjectileCreation(definition,descriptor,error))return false;
-            if(request_.fire.targetId!=-1){error="Projectile Init target entity link requires live parent resolver";return false;}
+            if(request_.fire.targetId!=-1&&!request_.fire.targetLifetime){error="Projectile Init target entity-generation link unavailable";return false;}
             if(!yield(ProjectileInitializationOperationKind::ThingInitialize,"Thing::Init(null map,initialize=true)"))return false;
             definitionName_=definition.name;state_.lifetimeHandle=request_.lifetimeHandle;
             state_.publicThingId=descriptor.publicThingId;return true;
@@ -305,8 +305,11 @@ bool ProjectileInitializationTail::advance(const ProjectileDefinition& definitio
             }
             ++phase_;continue;
         case 6:
-            if(request_.fire.targetId!=-1){error="Projectile target entity location requires live parent resolver";return false;}
-            state_.targetX=request_.fire.targetX;state_.targetY=request_.fire.targetY;
+            // Projectile.Init69910 resolves FireRequest EntityLinkedObject
+            // before reading target location; invalid generation uses the
+            // captured target vector instead. Life death is not entity death.
+            if(request_.fire.targetId!=-1&&!frame.targetLinkChecked){error="Projectile target entity location requires live parent resolver";return false;}
+            state_.targetX=frame.targetExists?frame.targetX:request_.fire.targetX;state_.targetY=frame.targetExists?frame.targetY:request_.fire.targetY;
             if(!number("Range",f))return false;
             if(state_.targetX==0&&state_.targetY==0&&f>0){
                 state_.targetX=std::cos(request_.shotAngle.value_or(request_.fire.angle))*f+frame.spawnX;

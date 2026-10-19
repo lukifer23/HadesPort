@@ -44,6 +44,9 @@ bool ScriptRuntime::sourceSceneSprite(uint32_t index,hades::SceneSprite& sprite,
     const float initialScale=initial.scale*initial.scaleFraction,currentScale=body.scale*body.scaleFraction;
     if(initialScale<=0)throw std::runtime_error("Original scene body has zero initial scale");
     const float scale=currentScale/initialScale;
+    const bool inheritVector=ownerPolicy(primary->definition,"ScaleVectorFromOwner")==0;
+    const float axisX=inheritVector?actor->fractions[2].current():1,axisY=inheritVector?actor->fractions[3].current():1;
+    if((axisX!=1||axisY!=1)&&body.angle!=0)throw std::runtime_error("Scaled scene primary rotation requires source pre-rotation affine adapter");
     float x=0,y=0,z=0;if(!actorWorld_.location(actor->id,x,y,error)||!actorWorld_.zLocation(actor->id,z,error))return false;
     constexpr float projectZ=.8660254037844386f;
     // Original packet/frame quads retain source squash, flip, atlas origin and
@@ -52,11 +55,14 @@ bool ScriptRuntime::sourceSceneSprite(uint32_t index,hades::SceneSprite& sprite,
     const float ox=number(actorWorld_,actor->id,"Thing.Offset.X"),oy=number(actorWorld_,actor->id,"Thing.Offset.Y");
     const float oldX=initial.x+ox*initialScale,oldY=initial.y+oy*initialScale-initial.z*projectZ;
     const float newX=x+ox*currentScale,newY=y+oy*currentScale-z*projectZ;
-    for(size_t k=0;k<8;k+=2){sprite.corners[k]=newX+(sprite.corners[k]-oldX)*scale;sprite.corners[k+1]=newY+(sprite.corners[k+1]-oldY)*scale;}
+    for(size_t k=0;k<8;k+=2){sprite.corners[k]=newX+(sprite.corners[k]-oldX)*scale*axisX;sprite.corners[k+1]=newY+(sprite.corners[k+1]-oldY)*scale*axisY;}
     for(size_t k=0;k<4;++k){float current=actor->color[k]*(k<3?actor->tint[k]:1),old=base->second.color[k];if(k==3){current*=body.alpha;old*=initial.alpha;}if(old==0){if(current!=0)throw std::runtime_error("Unquantized source color required after zero-channel mutation");sprite.tint[k]=0;}else sprite.tint[k]=std::clamp(sprite.tint[k]*(current/old),0.f,1.f);}
     for(size_t k=0;k<3;++k)sprite.hsv[k]+=actor->hsv[k]-base->second.hsv[k];
     const auto name=body.group!=initial.group?body.group:originalSceneGroupNames_[originalGroup];
     if(const auto*use=primary->definition.get("UseAttachedFlasher");!use||use->boolean())sprite.flashColor=flashColorForOwner(actor->id,actor->entityHandle);
+    hades::ActorVisual shakeOffset;
+    if(!applyShakePresentation({VisualKey::Kind::Auxiliary,actor->id,primary->handle},shakeOffset,error))return false;
+    for(size_t k=0;k<8;k+=2){sprite.corners[k]+=shakeOffset.x;sprite.corners[k+1]+=shakeOffset.y;}
     sprite.drawGroup=presentationGroup(name);const auto& group=presentationGroups_[sprite.drawGroup];sprite.runtimeSuppressed=!group.visible;sprite.blend=uint32_t(group.blendMode);
     float sortIndex=0;if(const auto* seed=actorWorld_.seed(actor->sourceId))if(const auto* source=seed->map.get("SortIndex"))sortIndex=float(source->number());
     sprite.runtimeSortKey=std::array<float,3>{float(sprite.drawGroup),sortIndex,y};
@@ -156,7 +162,9 @@ bool ScriptRuntime::samplePresentationImpl(const VisualKey& key,hades::ActorVisu
         if(group.empty())group="Default";context.group=presentationGroup(group);context.blend=uint32_t(presentationGroups_[context.group].blendMode);
         if(const auto* value=p.sourceDefinition.get("BlendMode"))context.blend=uint32_t(value->number());if(const auto* value=p.sourceDefinition.get("AddColor"))context.addColor=value->boolean();
         const auto* owner=actorWorld_.actor(p.ownerId);if(owner&&owner->registered&&owner->object){context.ownerBaseColor=owner->baseColorBytes;context.ownerHsv=owner->hsv;context.ownerFractionColor=std::array<uint8_t,4>{uint8_t(owner->tint[0]*255.f),uint8_t(owner->tint[1]*255.f),uint8_t(owner->tint[2]*255.f),uint8_t(std::clamp(owner->object->alpha,0.f,1.f)*255.f)};}
-        if(!hades::effectParticleVisual(particles_,key.handle,context,out,error))return false;out.visible=presentationGroups_[context.group].visible;return true;
+        if(!hades::effectParticleVisual(particles_,key.handle,context,out,error))return false;
+        if(owner&&owner->registered&&ownerPolicy(p.sourceDefinition,"ScaleVectorFromOwner")==0)for(size_t k=0;k<4;++k)out.localRect[k]*=owner->fractions[2+k%2].current();
+        out.visible=presentationGroups_[context.group].visible;return true;
     }
     auto* actor=actorWorld_.actor(key.owner);if(!actor||!actor->registered||!actor->object)throw std::runtime_error("Actual visible Thing unavailable");const auto& body=*actor->object;
     out.id=uint32_t(actor->id);out.lifetime=key.handle;out.scale=body.scale*body.scaleFraction;out.color=actor->color;for(size_t k=0;k<3;++k)out.color[k]*=actor->tint[k];out.color[3]*=body.alpha;out.hsv=actor->hsv;
@@ -165,7 +173,11 @@ bool ScriptRuntime::samplePresentationImpl(const VisualKey& key,hades::ActorVisu
     out.x+=number(actorWorld_,actor->id,"Thing.Offset.X")*out.scale;out.y+=number(actorWorld_,actor->id,"Thing.Offset.Y")*out.scale;
     if(key.kind==VisualKey::Kind::Actor){
         if(!actor->animation.active()||actor->primaryAnimationLifetime!=key.handle)throw std::runtime_error("HAA presentation lifetime mismatch");
+        const auto vectorPolicy=animationBank_->exactScaleVectorFromOwner(actor->animation.clipIndex());
+        const float sx=actor->fractions[2].current(),sy=actor->fractions[3].current();
+        if((sx!=1||sy!=1)&&!vectorPolicy)throw std::runtime_error("Scaled HAA primary requires hash-bound ScaleVectorFromOwner metadata");
         out.sourceBank=animationBank_.get();out.frame=animationBank_->sample(actor->animation.clipIndex(),actor->animation.slideIndex(),animationBank_->selectedAngleForFacing(actor->animation.clipIndex(),actorAnimationFacing(*actor)));out.localRect=out.frame.worldRect(*actor->animation.clip());out.scale*=actor->animationOwnScale;
+        if(vectorPolicy&&*vectorPolicy==0)for(size_t k=0;k<4;++k)out.localRect[k]*=k%2?sy:sx;
         return true;
     }
     const auto* source=scenePrimaries_.state(key.handle);if(!source||source->ownerLifetime!=actor->entityHandle)throw std::runtime_error("Auxiliary image source owner lifetime mismatch");
@@ -176,6 +188,8 @@ bool ScriptRuntime::samplePresentationImpl(const VisualKey& key,hades::ActorVisu
     if(ownerPolicy(source->definition,"ColorFromOwner")==2){out.color={1,1,1,1};out.hsv={0,0,0};}
     for(size_t k=0;k<3;++k)out.hsv[k]+=source->hsv[k];
     if(ownerPolicy(source->definition,"AngleFromOwner")==0)out.angle=-body.angle;
-    return scenePrimaries_.sampleAuxiliary(key.handle,out,error);
+    if(!scenePrimaries_.sampleAuxiliary(key.handle,out,error))return false;
+    if(ownerPolicy(source->definition,"ScaleVectorFromOwner")==0)for(size_t k=0;k<4;++k)out.localRect[k]*=actor->fractions[2+k%2].current();
+    return true;
  }catch(const std::exception& e){error=e.what();return false;}
 }
