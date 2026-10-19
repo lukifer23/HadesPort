@@ -11,7 +11,11 @@ def export(a):
  if a.output.exists():raise ValueError('Fresh spawner output required')
  registry=json.loads(a.registry.read_text());catalog=json.loads(a.laurel.read_text())
  rows={r['name']:r['definition'] for r in registry['definitions']}
- names=['DustSpawner','BatCluster','TartarusEmberSpawner'];wanted={rows[n]['FilePath'] for n in names};matches={};manifests=[]
+ # Derived from this room's map primary spawners (registry first-appearance
+ # order); RoomOpening reproduces the previously reviewed Dust/Bat/Ember set.
+ names=list(dict.fromkeys(x['name'] for x in registry['map_primary_spawners']))
+ if not names:raise ValueError('Room has no map primary spawners')
+ wanted={rows[n]['FilePath'] for n in names};matches={};manifests=[]
  # Exact namespaces already loaded for this room. Do not select arbitrary
  # duplicates from unrelated packages or replace a missing graphic.
  for package in ['Dev','Fx','Tartarus','RoomManager']:

@@ -52,7 +52,7 @@ def main():
     parser.add_argument('--actor-animations',type=Path,default=PROJECT / '.local/native-assets/hero-actions-v4/actor-animations.bin')
     parser.add_argument('--effects',type=Path,default=PROJECT / '.local/native-assets/opening-spawners-v1/effects.lua')
     parser.add_argument('--actor-markers',type=Path,default=PROJECT / '.local/native-assets/hero-markers-v4/actor-markers.bin')
-    parser.add_argument('--actor-properties',type=Path,default=PROJECT / '.local/native-assets/hero-properties-v6/actor-properties.bin')
+    parser.add_argument('--actor-properties',type=Path,default=PROJECT / '.local/native-assets/hero-properties-v7/actor-properties.bin')
     parser.add_argument('--actor-lights',type=Path,default=PROJECT / '.local/native-assets/actor-lights-opening-v1/manifest.json')
     parser.add_argument('--text-resources',type=Path,default=PROJECT / '.local/native-assets/original-text-v6/manifest.json')
     parser.add_argument('--action-effects',type=Path,default=PROJECT / '.local/native-assets/action-effects-v10/manifest.json')

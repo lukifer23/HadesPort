@@ -6,7 +6,10 @@ bool ScriptRuntime::locationAuxiliary(int32_t id,hades::ActorLocationStage stage
     const auto property=[&](const char* key)->const hades::SourceValue&{const auto* value=actorWorld_.currentProperty(id,key);if(!value)throw std::runtime_error(std::string("Location source property unavailable: ")+key);return *value;};
     switch(stage){
     case hades::ActorLocationStage::Interaction:
-        if(!std::holds_alternative<std::monostate>(property("Thing.Interact").value))throw std::runtime_error("Obstacle location requires real interaction/Useable component consumer: "+actor->object->name);
+        if(!std::holds_alternative<std::monostate>(property("Thing.Interact").value)){
+            // UseableManager::MarkForUpdate: re-index the moved Thing's Interact bounds.
+            for(const auto& s:interactions_.snapshots())if(s.key.id==id&&s.key.lifetime==actor->entityHandle)return interactions_.markForUpdate(s.key,error);
+        }
         break;
     case hades::ActorLocationStage::Light:
         return actorLights_.locationChanged(id,error);

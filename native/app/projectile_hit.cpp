@@ -74,8 +74,17 @@ bool ProjectileWorld::applyImpact(uint64_t handle,int32_t victim,const Projectil
         hit.impactAngleRadians=geometry.angle;hit.impactLocationZ=geometry.z;hit.distanceSquared=-1;
         if(attacker&&(geometry.x!=0||geometry.y!=0)){float x=0,y=0;if(!world.location(attacker->id,x,y,error))throw std::runtime_error(error);hit.distanceSquared=(geometry.x-x)*(geometry.x-x)+(geometry.y-y)*(geometry.y-y);}
         if(attacker)hit.attacker=HitActorIdentity{attacker->id,attacker->object->name,false,attacker->status&&attacker->status->isTraitor};
-        bool dealsDamage=weapon().validProjectileData&&(number(weapon().projectileData.fields,"Damage")>0||number(weapon().projectileData.fields,"DamageLow")>0||number(weapon().projectileData.fields,"DamageHigh")>0||number(weapon().projectileData.fields,"DamageBonusToImpactedUnit")>0);
-        if(!dealsDamage)throw std::runtime_error("Native DealsDamageOrControlEffect non-direct-damage branch not reconstructed");
+        // Weapon::DealsDamage84ed0 (.local/reports/native-weapons-deals-damage-pseudocode.c):
+        // ProjectileData (Weapon+0x120 valid, +0x68) Damage/DamageLow/DamageHigh/
+        // DamagePerConsecutiveHit (data+0x2dc/2e0/2e4/2f0) > 0, or spawned ProjectileData
+        // (+0x121, +0x70) DamageLow/DamageHigh/DamagePerConsecutiveHit > 0; otherwise any
+        // mEffects (data+0x720, stride 0x418) entry of EffectData type 4 or 5 (+0x68).
+        // Weapon+0x121/+0x70 = validSpawnedProjectileData/spawnedProjectileData (adjacent-member mapping).
+        const auto& wd=weapon();bool dealsDamage=false;
+        if(wd.validProjectileData){const auto& f=wd.projectileData.fields;dealsDamage=number(f,"Damage")>0||number(f,"DamageLow")>0||number(f,"DamageHigh")>0||number(f,"DamagePerConsecutiveHit")>0;}
+        if(!dealsDamage&&wd.validSpawnedProjectileData){const auto& f=wd.spawnedProjectileData.fields;dealsDamage=number(f,"DamageLow")>0||number(f,"DamageHigh")>0||number(f,"DamagePerConsecutiveHit")>0;}
+        if(!dealsDamage&&wd.validProjectileData)for(const auto& e:wd.projectileData.effects)if(e.type==4||e.type==5){dealsDamage=true;break;}
+        if(!dealsDamage&&wd.validSpawnedProjectileData)for(const auto& e:wd.spawnedProjectileData.effects)if(e.type==4||e.type==5){dealsDamage=true;break;}
         hit.weapon=HitWeaponArguments{weapon().definition.name,weapon().ownerId,weapon().ownerName,dealsDamage,weapon().wasLastFirePerfectCharge};
         // Bounded ARC has not admitted Reflect, so its native mDeflected remains
         // constructor false. Reflect consumer must supply that live field first.

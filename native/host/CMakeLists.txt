@@ -80,6 +80,7 @@ if(APPLE)
 endif()
 
 target_sources(hades-debug PRIVATE ../app/actor_light_world.cpp ../app/lua_lights.cpp)
+target_sources(hades-debug PRIVATE ../app/interaction_runtime.cpp ../app/lua_interaction.cpp)
 target_sources(hades-debug PRIVATE ../app/life_runtime.cpp)
 target_sources(hades-debug PRIVATE ../app/speech_world.cpp ../app/lua_speech.cpp)
 target_sources(hades-debug PRIVATE ../app/projectile_hit.cpp)

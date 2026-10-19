@@ -6,12 +6,28 @@ from build_room_scene import identity
 from hades_assets import Package, xnb_image
 from export_actor_animations import string
 
+def room_leaf_names(registry,definitions):
+    """Leaf images reachable from this room's map primary spawners' VisualFx
+    through registry dependency edges (Random/VisualFx/ChainTo...). RoomOpening
+    yields exactly the previously reviewed DustFallA-G/TartarusEmber*/EnvironmentBat set."""
+    edges={}
+    for e in registry['dependency_edges']:edges.setdefault(e['from'],[]).append(e['to'])
+    seen=set();stack=[x['visual_fx'] for x in registry['map_primary_spawners']]
+    while stack:
+        n=stack.pop()
+        if n in seen:continue
+        if n not in definitions:raise ValueError('Spawner leaf dependency missing from registry: '+n)
+        seen.add(n);stack+=edges.get(n,[])
+    names=sorted(n for n in seen if definitions[n]['Type'] in ('Constant','Book'))
+    if not names:raise ValueError('Room spawners reach no leaf images')
+    return names
+
 def export(a):
     if a.output.exists():raise ValueError('Fresh output required')
     registry=json.loads(a.registry.read_text())
     if registry['target_sha256']!='d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254':raise ValueError('Native source target identity mismatch')
     definitions={r['name']:r['definition'] for r in registry['definitions']}
-    names=['DustFall'+c for c in 'ABCDEFG']+['TartarusEmber01','TartarusEmber02','TartarusEmber03','TartarusEmber01B','EnvironmentBat']
+    names=room_leaf_names(registry,definitions)
     wanted=set();clipnames={}
     for name in names:
         d=definitions[name];angles=d.get('NumAngles',1);frames=d['NumFrames']

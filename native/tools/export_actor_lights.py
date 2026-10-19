@@ -29,13 +29,19 @@ def export(content,creation,output):
   creates=d.get('CreateAnimations',[]);d.update(copy.deepcopy(own))
   if 'CreateAnimations'in own:d['CreateAnimations']=creates+copy.deepcopy(own['CreateAnimations'])
   span=parser.ranges[id(own)];provenance[name]={'range':span,'sha256':hashlib.sha256(raw[span[0]:sum(span)]).hexdigest(),'source':own,'inherit_from':parent};resolved[name]=d;return d
- definitions={};images={}
+ definitions={};images={};unsupported={}
  for name in names:
   named=name in records;d=resolve(name)if named else {'Name':name,'FilePath':name,'Type':'Dataless'}
-  if d['Type']not in ['Constant','Dataless']or d.get('NumFrames',1)!=1 or d.get('NumAngles',1)!=1:raise ValueError('Unreviewed actor light controller shape')
+  # Unreviewed shapes (multi-frame Book controllers, extra operations) are not
+  # exported: they are listed in Unsupported so the runtime fails loudly for
+  # exactly the owning actors instead of the whole room export failing.
+  reason=None
+  if d['Type']not in ['Constant','Dataless']or d.get('NumFrames',1)!=1 or d.get('NumAngles',1)!=1:reason='Unreviewed actor light controller shape Type=%s NumFrames=%s NumAngles=%s'%(d['Type'],d.get('NumFrames',1),d.get('NumAngles',1))
   for key in ['ChildAnimation','CreateAnimation','CreateAnimations','VisualFx','Light','Sound']:
-   if d.get(key):raise ValueError('Actual actor light has additional required operation '+key)
+   if reason is None and d.get(key):reason='Actual actor light has additional required operation '+key
+  if reason:unsupported[name]=reason;continue
   definitions[name]={'Named':named,'Definition':d};images[name]=d['FilePath']
+ names=[n for n in names if n not in unsupported]
  wanted=set(images.values());matches={};manifests=[];payloads=[];package_root=content/'Win/Packages'
  for package in ['Fx','Dev','RoomManager','Tartarus']:
   path=package_root/(package+'.pkg_manifest');manifests.append(identity(path))
@@ -66,9 +72,9 @@ def export(content,creation,output):
    for text in [name,'','']:string(out,text)
    out.write(struct.pack('<4I4f',1,1,0,1,1.,0.,0.,1/60));out.write(struct.pack('<I',0));out.write(struct.pack('<III',1,1,indices[images[name]]));string(out,'{}')
    clips.append({'Name':name,'Index':len(clips),'Frame':indices[images[name]],'AtlasRatio':matches[images[name]]['sprite']['scale_ratio']})
- catalog={'Schema':'HadesActorLightResources1','Target':TARGET,'ActorLights':actors,'Definitions':definitions,'Clips':clips,'Frames':[{k:v for k,v in f.items()if k not in ['rgba','packed']}for f in frames],'ImageBankSha256':identity(packet)['sha256'],'Limits':['Data/resource export does not claim light execution or native Windows shadow shader equivalence.','Constant LightTorchFlicker retains all real RNG/loop/color fields; runtime must execute its native source phases.','Dataless lights are original texture fallback, not fabricated animation definitions.']}
+ catalog={'Schema':'HadesActorLightResources1','Target':TARGET,'ActorLights':actors,'Definitions':definitions,'Unsupported':unsupported,'Clips':clips,'Frames':[{k:v for k,v in f.items()if k not in ['rgba','packed']}for f in frames],'ImageBankSha256':identity(packet)['sha256'],'Limits':['Data/resource export does not claim light execution or native Windows shadow shader equivalence.','Constant LightTorchFlicker retains all real RNG/loop/color fields; runtime must execute its native source phases.','Dataless lights are original texture fallback, not fabricated animation definitions.']}
  (output/'actor-lights.lua').write_text('return '+literal(catalog)+'\n');(output/'catalog.json').write_text(json.dumps(catalog,indent=2)+'\n')
- manifest={'schema':'hades-actor-light-resources-v1','target_sha256':TARGET,'creation':identity(creation),'animation_source':identity(animation_file),'manifests':manifests,'record_provenance':provenance,'payloads':payloads,'packet':identity(packet),'catalog':identity(output/'catalog.json'),'lua':identity(output/'actor-lights.lua'),'actors':len(actors),'controllers':len(definitions),'original_images':len(frames),'raw_rgba_bytes':sum(len(f['rgba'])for f in frames)}
+ manifest={'schema':'hades-actor-light-resources-v1','unsupported_controllers':unsupported,'target_sha256':TARGET,'creation':identity(creation),'animation_source':identity(animation_file),'manifests':manifests,'record_provenance':provenance,'payloads':payloads,'packet':identity(packet),'catalog':identity(output/'catalog.json'),'lua':identity(output/'actor-lights.lua'),'actors':len(actors),'controllers':len(definitions),'original_images':len(frames),'raw_rgba_bytes':sum(len(f['rgba'])for f in frames)}
  (output/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n');return {k:manifest[k]for k in ['packet','lua','actors','controllers','original_images','raw_rgba_bytes']}
 if __name__=='__main__':
  p=argparse.ArgumentParser(description=__doc__)

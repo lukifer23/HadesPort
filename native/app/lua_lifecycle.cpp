@@ -116,9 +116,8 @@ bool ScriptRuntime::disposeThingStage(const hades::ActorDisposalEvent& event,std
         }
         case Stage::ClearGridRecord:return actorWorld_.clearObstacleGridRecord(event.id,detail);
         case Stage::RemoveAutoLockableAndUseable:{
-            const auto* interaction=actorWorld_.currentProperty(event.id,"Thing.Interact");
-            if(!interaction||!std::holds_alternative<std::monostate>(interaction->value)){detail="Disposal requires real allocated interaction/useable cleanup";return false;}
-            return true;
+            // UseableManager removal of the Thing's Interact record (lua_interaction.cpp).
+            return removeInteraction(event.id,detail);
         }
         case Stage::StopAmbientSound:
             return stopActorAmbientSound(event.id,detail);

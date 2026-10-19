@@ -32,7 +32,12 @@ bool ActorLightWorld::admit(int32_t id,const ActorRandom& random,std::string& er
  auto* actor=actors_.actor(id);if(!actor||!actor->registered||!actor->object)throw std::runtime_error("Actor light requires actual registered owner/body");
  const auto name=property(actors_,id,"Thing.Light").text();if(name.empty()){error.clear();return true;}
  if(const auto* existing=state(id)){if(existing->name!=name)throw std::runtime_error("Actor light replacement requires actual old LightSystem removal");return locationChanged(id,error);}
- const auto definition=definitions_.find(name);if(definition==definitions_.end())throw std::runtime_error("Original actor light controller/texture not exported: "+name);
+ const auto definition=definitions_.find(name);
+ if(definition==definitions_.end()){
+  // Per-owner loud failure without faulting the whole light world: other
+  // rooms list unreviewed controllers (e.g. Book lights) in Unsupported.
+  const auto* unsupported=catalog_.get("Unsupported");const auto* reason=unsupported?unsupported->get(name):nullptr;
+  error="Original actor light controller not reconstructed: "+name+(reason?" ("+reason->text()+")":" (not exported)");return false;}
  const auto& entry=definition->second;const auto& d=need(entry,"Definition");ActorLightState s;s.ownerId=id;s.ownerLifetime=actor->entityHandle;s.name=name;s.imageClip=*bank_->find(name);s.named=need(entry,"Named").boolean();s.constant=need(d,"Type").text()=="Constant";
  if(!shadow(*actor,s.createsShadow,error))return false;
  AnimationAllocation allocation;allocation.name=name;allocation.sourceDefinition=d;allocation.type=s.constant?NativeAnimationType::Constant:NativeAnimationType::Dataless;allocation.ownership=AnimationOwnership::LightController;allocation.manager=1;allocation.ownerId=id;allocation.ownerLifetime=actor->entityHandle;

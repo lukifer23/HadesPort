@@ -439,6 +439,7 @@ std::string ScriptRuntime::stateSummary() const {
     return out.str();
 }
 bool ScriptRuntime::dispatchCallbacks(const char* event,const char* sourceName,int32_t actorId,const TriggerArguments& extra,bool filterPlayerIndex) {
+    const bool thingMatch=thingSourceMatch_;thingSourceMatch_=false; // consumed once: nested dispatches keep their own matching
     const int top=lua_gettop(state_);
     lua_getfield(state_,LUA_REGISTRYINDEX,"hades.triggerRegistrations");
     lua_getfield(state_,-1,event);
@@ -460,6 +461,10 @@ bool ScriptRuntime::dispatchCallbacks(const char* event,const char* sourceName,i
                 auto end=filter.find(' ',at);if(end==std::string::npos)end=filter.size();
                 const auto token=filter.substr(at,end-at);at=end;
                 if(token==";")break;
+                if(thingMatch){bool hit=false;if(!actorId){error_="Thing-sourced trigger without source Thing";lua_settop(state_,top);reportError(event);return false;}
+                    if(token.find_first_of("<>!=")==0){error_="Unsupported Script::isSource comparison token: "+token;lua_settop(state_,top);reportError(event);return false;}
+                    std::string detail;hit=sourceTokenMatches(token,sourceName,actorId,detail);if(!detail.empty()){error_=detail;lua_settop(state_,top);reportError(event);return false;}
+                    if(hit)matches=true;continue;}
                 if(token.find_first_of("<>!=0123456789")==0){error_="Unsupported map trigger source filter: "+token;lua_settop(state_,top);reportError(event);return false;}
                 if(token==sourceName)matches=true;
             }
@@ -549,7 +554,9 @@ bool ScriptRuntime::activateRoom(){
         auto* registered=findObjectSnapshot(state_,entry.id);
         if(!registered||!actorWorld_.registerActor(entry.id,*registered,error_))return false;
         if(actorWorld_.actor(entry.id)->hasLife&&!lifeSystem_.registerActor(entry.id,error_)){reportError("life-component-registration");return false;}
-        if(!initializeActorLight(entry.id,error_)){reportError("actor-light-initialization");return false;}
+        // Contained on device (--contain-faults): one unreconstructed light controller must not stop map creation.
+        if(!initializeActorLight(entry.id,error_)&&!containStage("actor-light-initialization"))return false;
+        if(!initializeInteraction(entry.id,error_)){reportError("interaction-registration");return false;}
         if(!initializePrimarySpawner(entry.id,error_)){reportError("primary-spawner-initialization");return false;}
         if(entry.definitionTriggerOnSpawn){
             if(!dispatchCallbacks("OnSpawn",registered->name.c_str(),registered->id))return false;
@@ -581,6 +588,8 @@ bool ScriptRuntime::advanceWorld(float dt,double screenDt){
     snapshotControlFrame();
     if(!advanceUnitDisposal(false,error_)){if(!containStage("unit-remove-before-update"))return false;}
     if(!advanceLocalPlayerInput(dt,error_)){if(!containStage("player-input-update"))return false;}
+    // UseableManager::Update + PlayerUnitInput use target / manual Use (lua_interaction.cpp, approximation A4).
+    if(!advancePlayerUse(error_)){if(!containStage("player-use-update"))return false;}
     if(!advanceActorMotion(dt,error_)){if(!containStage("actor-motion-update"))return false;}
     // Each step is contained on its own: a weapon gap must not stop unit
     // effects (disable timers) from ticking, which would lock movement.
@@ -780,7 +789,7 @@ bool ScriptRuntime::spawnObstacleImpl(lua_State* L,int32_t& created,std::string&
     if(!actorWorld_.initializeDynamicObstacle(created,name,x,y,group,initial,random,error)||!insertActorSnapshot(L,std::move(initial),error))return false;
     auto* object=findObjectSnapshot(L,created);if(!object||!actorWorld_.registerActor(created,*object,error))return false;
     if(actorWorld_.actor(created)->hasLife&&!lifeSystem_.registerActor(created,error))return false;
-    if(!initializeActorLight(created,error)||!initializePrimarySpawner(created,error))return false;
+    if(!initializeActorLight(created,error)||!initializePrimarySpawner(created,error)||!initializeInteraction(created,error))return false;
     auto* actor=actorWorld_.actor(created);const auto* trigger=actor->definition->properties.path("Thing.TriggerOnSpawn");
     if(boolean("TriggerOnSpawn",true)&&trigger&&trigger->boolean()){
         if(!dispatchCallbacks("OnSpawn",name.c_str(),created))return false;actor->spawnDispatched=true;

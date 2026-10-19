@@ -56,6 +56,7 @@ class ScriptRuntime {
     hades::ActorLightWorld actorLights_{actorWorld_};
     hades::InteractionWorld interactions_;
     std::map<uint32_t,hades::InteractionKey> useTargets_;
+    bool interactionGridReady_=false,previousUseDown_=false,interactUserPrimaryUnknown_=false;
     hades::InteractionProviders interactionProviders();
     bool interactionOwnerFrame(hades::InteractionKey,hades::InteractionOwnerFrame&,std::string&);
     bool interactionUserFrame(hades::InteractionKey,hades::InteractionUserFrame&,std::string&);
@@ -355,6 +356,11 @@ class ScriptRuntime {
     bool stageUnitArsenals();
     using TriggerArguments=std::function<bool(lua_State*,std::string&)>;
     bool dispatchCallbacks(const char* event,const char* sourceName,int32_t actorId=0,const TriggerArguments& extra={},bool filterPlayerIndex=false);
+    // Thing-sourced trigger with full Script::isSource RVA0x24ea10 matching
+    // (map/Thing ID, group membership, GetName, _UNIT/_OBSTACLE) - lua_interaction.cpp.
+    bool dispatchThingCallbacks(const char* event,int32_t actorId,const TriggerArguments& extra={});
+    bool sourceTokenMatches(const std::string& token,const char* sourceName,int32_t actorId,std::string& error);
+    bool thingSourceMatch_=false;
     void reportError(const char* stage);
     // Original ProgressManager save/load (lua_save.cpp, save_runtime.cpp;
     // native/analysis/save-contract.json).

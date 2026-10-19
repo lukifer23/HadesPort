@@ -1,0 +1,24 @@
+{
+  "schema": "hades-interaction-integration-v1",
+  "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "implementation": "native/app/lua_interaction.cpp (+ interaction_runtime.cpp library)",
+  "recovered": {
+    "Interact::Use": "RVA 0x2bfcd0; stage order UserAnimation, user ApplyForce/ApplyUpwardForce (only with PhysicsComponent), UserFaceTarget, UserFx, OnHealed, AttachOnUse, ScriptManager::OnUsed, OnUse/ToggleOff animation, VisualFx, UseSound, UsedFront/BackFx, DestroyOnUse, UserFireWeapon, DisableOnUse",
+    "ScriptManager::OnUsed": "RVA 0x28c360; Script::isSource(owner); args UserId (user +0x6c), AttachedTable (owner Lua table +0x150); Script::run adds name=GetName, triggeredById, TriggeredByTable",
+    "ScriptManager::OnActiveUseTarget": "RVA 0x28bd00; args UserId, AttachedTable, AutoActivate",
+    "ScriptManager::OnActiveUseTargetLost": "RVA 0x28c040; args UserId, AttachedTable, AutoActivate",
+    "ScriptManager::OnAutoUseFailed": "RVA 0x28b9b0",
+    "ScriptManager::OnHealed": "RVA 0x289550; returns when amount <= 0 or user has no Lua table",
+    "Script::isSource": "RVA 0x24ea10; unfiltered accepts; else ID, group membership, GetName, _UNIT/_OBSTACLE",
+    "PlayerUnitInput use target": "FUN_18020f6c0: lose target when no selection or input disabled and !UseableWhileInputDisabled (InteractData+0x3b); on change Lost(old), OnActiveUseTarget(new), not useable -> AutoUseFailedAnimation (+0x100) + OnAutoUseFailed; auto (+0x10 / +0x11 gamepad) uses within AutoUseDistance (+0xc), else CurrentUseTargetAnimation (+0xe8)",
+    "manual use reach": "FUN_18020fa20 adds Unit pData(+0x3c0)+0x308 to range for manual Interacts"
+  },
+  "approximations": {
+    "A1": "UnitData+0x308 use reach not named/recovered; 0",
+    "A2": "Thing::GetArea = live collision polygon AABB",
+    "A3": "All Things have Body; vertical flip and primary flip bit not tracked",
+    "A4": "use-target update and manual Use in one stage after local player input; UseableManager::Update at its start",
+    "A5": "useMouse=false on Android"
+  },
+  "fail_loudly": ["UserVelocity/UserUpwardVelocity != 0", "UserFaceTarget", "non-empty UserFx/VisualFx/UsedFront/BackFx/UnuseableAnimation", "HealAmount > 0", "AttachOnUse", "UseSound cue", "DestroyOnUse", "UserFireWeapon", "owner with text boxes (UseTextBoxes)", "RequiresAttached/RequiresMissingAmmoWeapon/RequiresTouch providers", "isSource comparison tokens"]
+}

@@ -159,7 +159,7 @@ hades::ProjectileDefenseProviders ScriptRuntime::projectileDefenseProviders(){
         const std::string weapon=a.weaponName;
         const auto extra=[weapon](lua_State* L,std::string&){lua_pushstring(L,weapon.c_str());lua_setfield(L,-2,"WeaponName");return true;};
         if(!dispatchCallbacks("OnProjectileBlock",owner->object->name.c_str(),a.ownerId,extra)){e=error_;return false;}e.clear();return true;};
-    defense.inBlast=[this](uint64_t defender,uint64_t candidate,bool& in,std::string& e){(void)defender;(void)candidate;in=false;e="Projectile defense IsInBlast760e0 against a projectile candidate not reconstructed";return false;};
+    defense.inBlast=[](uint64_t defender,uint64_t candidate,bool& in,std::string& e){(void)defender;(void)candidate;in=false;e="Projectile defense IsInBlast760e0 against a projectile candidate not reconstructed";return false;};
     return defense;
 }
 void ScriptRuntime::installProjectileGraphicProvider(){

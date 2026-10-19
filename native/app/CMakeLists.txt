@@ -54,6 +54,7 @@ target_sources(hades_native PRIVATE actor_lighting.cpp)
 target_sources(hades_native PRIVATE actor_occlusion.cpp)
 
 target_sources(hades_native PRIVATE actor_light_world.cpp lua_lights.cpp)
+target_sources(hades_native PRIVATE interaction_runtime.cpp lua_interaction.cpp)
 target_sources(hades_native PRIVATE life_runtime.cpp)
 target_sources(hades_native PRIVATE speech_world.cpp lua_speech.cpp)
 target_sources(hades_native PRIVATE projectile_hit.cpp)
