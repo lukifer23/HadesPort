@@ -41,6 +41,10 @@ public:
     bool linkTimeMultiplier(uint64_t,int32_t ownerId,uint64_t ownerLifetime,std::string&);
     bool cancel(uint64_t,std::string&);
     bool restart(uint64_t,std::string&); // Base Restart clears actual canceled.
+    // OnChildFinished295780 extracts a TransferChildren descendant before
+    // releasing its old parent; AddChild293c10 then links it at the new tail.
+    // parent=0 is that temporary native extraction, never manager admission.
+    bool reparentChild(uint64_t child,uint64_t parent,std::string&);
     bool dispose(uint64_t,std::string&);
     const AnimationLifetime* find(uint64_t)const;
     std::span<const uint64_t> managed(uint32_t)const;

@@ -107,7 +107,7 @@ uint32_t ActorAnimationBank::originalAngleForFacing(size_t clip,float ownerRadia
     if(!std::isfinite(ownerRadians)||std::abs(ownerRadians)>100000.f)throw std::runtime_error("Actor facing angle bound");
     const auto& f=facing_[clip];const int angles=static_cast<int>(c.originalAngles);if(angles==1)return 0;
     float angle=f.ownAngle+(f.ignoreOwner?0:ownerRadians);
-    if(f.isometric){const volatile float scaled=angle*std::bit_cast<float>(0x42e52ee6u);int index=static_cast<int>(scaled+.5f)%720;if(index<0)index+=720;angle=inverseAngleTable_[index];}
+    if(f.isometric)angle=inverseIsometricAngle(angle);
     const float interval=std::bit_cast<float>(0x40c90fdbu)/float(angles);
     int native=static_cast<int>((angle-f.angleOffset+interval*.5f)/interval)+f.angleNumOffset;
     native%=angles;if(native<0)native+=angles;
@@ -115,7 +115,15 @@ uint32_t ActorAnimationBank::originalAngleForFacing(size_t clip,float ownerRadia
     return static_cast<uint32_t>(native);
 }
 uint32_t ActorAnimationBank::selectedAngleForFacing(size_t clip,float ownerRadians)const{
-    const auto& c=clips_.at(clip);const int angles=static_cast<int>(c.originalAngles),native=static_cast<int>(originalAngleForFacing(clip,ownerRadians));
+    return selectedAngleFromOriginal(clip,originalAngleForFacing(clip,ownerRadians));
+}
+float ActorAnimationBank::inverseIsometricAngle(float angle)const{
+    if(inverseAngleTable_.size()!=720||!std::isfinite(angle)||std::abs(angle)>100000.f)throw std::runtime_error("Original inverse-isometric angle table/input unavailable");
+    const volatile float scaled=angle*std::bit_cast<float>(0x42e52ee6u);int index=static_cast<int>(scaled+.5f)%720;if(index<0)index+=720;return inverseAngleTable_[index];
+}
+uint32_t ActorAnimationBank::selectedAngleFromOriginal(size_t clip,uint32_t originalAngle)const{
+    const auto& c=clips_.at(clip);const int angles=static_cast<int>(c.originalAngles),native=static_cast<int>(originalAngle);
+    if(originalAngle>=c.originalAngles||c.originalAngleIndices.empty())throw std::runtime_error("Original movie angle outside exported resource");
     uint32_t selected=0;int best=angles;
     for(uint32_t i=0;i<c.originalAngleIndices.size();++i){int distance=std::abs(native-static_cast<int>(c.originalAngleIndices[i]));distance=std::min(distance,angles-distance);if(distance<best){best=distance;selected=i;}}
     return selected;

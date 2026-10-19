@@ -1,0 +1,34 @@
+{
+  "schema": "hades-movie-animation-child-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "native_boundaries": {
+    "child_creation": "Animation.AddChild293ae0 uses CreateCustom29f870 with actual attached Thing, parent own location and skip-update byte; links actual parent and child lifetimes, without a Thing-primary assignment.",
+    "child_completion": "Book.PostUpdate2b0870 and Constant.PostUpdate2b1cb0 call parent.OnChildFinished295780. It releases the finished child, reads its source ChainTo and creates the replacement under that parent; copies parent attach offset and parallax. TransferChildren preserves the real child subtree.",
+    "book_timing": "Book.Init2af310 and SetupFrameUpdateMode2b1040 select duration-driven fractional frames when no authored play-speed driver exists and Duration is present. LoopFramesOnly wraps frames independently from duration. HoldLastFrame suppresses finish.",
+    "source_events": "Book initialization and update do not initialize or execute inherited SlideData schedules or slide-entry events.",
+    "angle": "Book.GetAngleNum2b0630 uses live Unit cosmetic angle at Unit+3d0. UseIsometricAngle defaults true at094170 and uses the retained inverse-isometric table. Original full-angle result is mapped to nearest actually exported source angle.",
+    "location": "Animation.GetLocation296c90 adds raw attach offset+a0/a4 to the owning Thing when attached. GetDrawLocation297d60 independently adds draw offset+90/94 and shift scaled by the attached Body; these are separate fields.",
+    "color": "Original Book images use the existing Animation.InitData color and GetDrawColor298810 fraction/easing/packed-channel consumer; movie resource selection does not bypass it."
+  },
+  "implementation": [
+    "The movie resource backend reuses ActionEffectWorld native Book timing, color, registry ownership, child completion and ChainTo; it does not create a parallel child simulation.",
+    "MovieDefinitions bind original source VideoTexture Books to the independently hash-bound HAA bank. Atlas definitions keep their original atlas packet.",
+    "The resource closure traverses ChildAnimation and ChainTo across nonmovie containers before admitting or rejecting image backends.",
+    "Movie sampling uses actual original frame, pivot, crop, atlas inverse scale and source angle. Source scale and draw offsets are applied once by the native animation state.",
+    "Named movie Book primaries with own duration/color operations route to the same actual Book consumer instead of acknowledging unsupported fields in basic HAA playback."
+  ],
+  "limits": [
+    "Movie Slide allocations are not admitted by this shared movie Book backend.",
+    "Movie OriginX/Y overrides and Mirror UV policy remain explicit unsupported branches.",
+    "Nonzero WobbleOffsetZ and detached-parent child ChainTo remain explicit when reached.",
+    "Unit primary CancelOnOwnerMove requires its movement-animation policy adapter and remains explicit for that factory boundary; child animations do not independently apply this Unit-primary policy.",
+    "Eight exported directions remain an explicit asset coverage reduction from the original full direction count.",
+    "Native ECS phase ordering and pixel equivalence remain separately unverified.",
+    "Child state updates currently use the global handle snapshot; initial parent skipUpdate is inherited, but future dynamic parent OnlyWhenVisible/skipUpdate changes still require ancestor update gating. The actual verified activation container does not enable OnlyWhenVisible."
+  ],
+  "validation": {
+    "build": ".local/reports/takeover-child-movie-build-r24.log",
+    "replay": ".local/reports/takeover-child-movie-nextwave-r1.json",
+    "result": "Strict original lethal pulse route completed3100/3100 frames with empty initialization/presentation/mixer errors and no blocked stage. First enemy died2626. Both original next-wave HeavyMelee Units completed activation, started original AI threads and actual A* movement. One genuinely hit the hero2974 (health50 to40). End projectile allocations/pending/active0, projectile fault0, self-effect fault0, scheduler3100/3100 fault0. This proves the original child movie chain passed through activation completion into real AI, not merely resource admission."
+  }
+}

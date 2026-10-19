@@ -111,25 +111,29 @@ def export(content,stream_manifest,output,extra_streams=(),mixing_control=False,
      if len(evs)!=2 or evs[0]['raw_type']!=17 or evs[1]['raw_type']!=20512:raise ValueError('Unmapped exact parameter evaluator')
      out.update(parameter=params[evs[0]['value']],minimum=evs[1]['value'][0],maximum=evs[1]['value'][1])
     transitions.append(out)
-   instruments=[]
-   for region in tl['time_locked_trigger_boxes']:
-    n=meta[region['guid']]
-    if n['kind']!='WAIB'or len(n['instruments'])!=1:raise ValueError('Selected source is not a single waveform instrument')
-    v=n['instruments'][0]['value'];wave=meta[n['value']['waveform_guid']]['value'];sample=next((k for k,s in streams['samples'].items()if s['original_bank']['sha256']==graph.b.original['sha256']and s['original']['sound_bank_index']==wave['sound_bank_index']and s['original']['subsound_index']==wave['subsound_index']),None)
-    if sample is None:raise ValueError('No original compressed stream for selected event '+name)
+   # WAIB and MUIB share the native Instrument gain automation. Preserve the
+   # actual controller owner/property mapping for either resource shape.
+   def instrument_fades(node):
     fades=[]
-    for p in n['properties']:
+    for p in node['properties']:
      pv=p['property']['value']
      for c in p['controllers']:
       cv=c['curve']['value'];owner=c['owners']
-      # Runtime evaluates instrument automation on the event timeline and
-      # multiplies it (ConflictResolver method 4); anything else is refused.
       if [(o['owner_kind'],o['owner_guid'])for o in owner]!=[('TLNB',source_event['timeline_guid'])]:raise ValueError('Unsupported source instrument automation owner')
       if (pv['index'],pv['method'],pv['type'])!=(4,4,0) or graph.mapping(pv['mapping_guid'])!=[[0.0,0.0],[1.0,1.0]]:raise ValueError('Unsupported source instrument automation property')
       fades.append({'property':pv['index'],'points':cv['points'],'owners':owner})
+    return fades
+   instruments=[];locked_playlists=[]
+   for region in tl['time_locked_trigger_boxes']:
+    n=meta[region['guid']]
+    if n['kind']=='MUIB':locked_playlists.append(region);continue
+    if n['kind']!='WAIB'or len(n['instruments'])!=1:raise ValueError('Selected source is not a single waveform instrument')
+    v=n['instruments'][0]['value'];wave=meta[n['value']['waveform_guid']]['value'];sample=next((k for k,s in streams['samples'].items()if s['original_bank']['sha256']==graph.b.original['sha256']and s['original']['sound_bank_index']==wave['sound_bank_index']and s['original']['subsound_index']==wave['subsound_index']),None)
+    if sample is None:raise ValueError('No original compressed stream for selected event '+name)
+    fades=instrument_fades(n)
     instruments.append({'guid':region['guid'],'sample':sample,'bus':v['routable']['bus_guid'],'start':region['start'],'end':region['start']+region['length'],'gain_db':v['volume'],'pitch_semitones':v['pitch'],'loop_count':v['loop_count'],'left_trim_tick':v['left_trim_offset'],'fades':fades,'original':v})
    playlists=[]
-   for region in tl['trigger_boxes']:
+   for region,time_locked in [(r,False)for r in tl['trigger_boxes']]+[(r,True)for r in locked_playlists]:
     n=meta[region['guid']]
     if n['kind']=='PRIB':
      if 'programmer_sample' not in ev or len(n['instruments'])!=1 or n['raw_hex'][32:]!='0000':raise ValueError('Unresolved source programmer sound')
@@ -140,6 +144,7 @@ def export(content,stream_manifest,output,extra_streams=(),mixing_control=False,
      instruments.append({'guid':region['guid'],'sample':sample,'bus':v['routable']['bus_guid'],'start':0,'end':duration,'gain_db':v['volume'],'pitch_semitones':v['pitch'],'loop_count':0,'left_trim_tick':0,'fades':[],'original':v,'programmer_template':ev['programmer_template'],'source_trigger_length':region['length']})
      continue
     if n['kind']!='MUIB' or len(n['instruments'])!=1:raise ValueError('Unsupported source triggered instrument')
+    if time_locked and(tl['transition_regions']or tl['sustain_points']or region['length']<=0):raise ValueError('Unsupported re-entrant/empty time-locked playlist region')
     # A triggered (async) instrument starts when the playhead enters its
     # region and then plays to its own end. Without transitions or sustain
     # points the playhead enters a later region exactly once, at its start.
@@ -147,6 +152,9 @@ def export(content,stream_manifest,output,extra_streams=(),mixing_control=False,
     parent=n['instruments'][0]['value'];playlist=n['value']
     if (playlist['playlist_mode'],playlist['playlist_selection'])!=(2,1):raise ValueError('Unsupported source playlist mode')
     if parent['loop_count']!=0 or parent['trigger_chance_percent']!=100 or parent['trigger_delay_min'] or parent['trigger_delay_max'] or parent['evaluators']:raise ValueError('Unsupported triggered playlist admission')
+    def locked_instrument_admitted(v):
+     return v['flags']==0 and v['quantization']=={'unit':0,'multiplier':0} and v['control_parameter_guid']==ZERO and not v['initial_seek_position'] and not v['initial_seek_percent'] and not v['offset_3d_distance'] and v['maximum_polyphony']==2147483647
+    if time_locked and(not locked_instrument_admitted(parent)or any(p['property']['value']['modulators']for p in n['properties'])):raise ValueError('Unsupported time-locked playlist instrument/automation admission')
     choices=[]
     for entry in playlist['playlist']:
      child=meta[entry['guid']]
@@ -156,8 +164,9 @@ def export(content,stream_manifest,output,extra_streams=(),mixing_control=False,
      if sample is None:raise ValueError('No original playlist compressed sample')
      source=streams['samples'][sample]
      if v['loop_count']!=0 or v['routable']['bus_guid']!=ZERO or v['trigger_chance_percent']!=100 or v['trigger_delay_min'] or v['trigger_delay_max'] or v['evaluators']:raise ValueError('Unsupported playlist waveform semantics')
+     if time_locked and not locked_instrument_admitted(v):raise ValueError('Unsupported time-locked playlist waveform admission')
      choices.append({'guid':entry['guid'],'waveform_guid':child['value']['waveform_guid'],'sample':sample,'weight':entry['weight'],'gain_db':parent['volume']+v['volume'],'pitch_semitones':parent['pitch']+v['pitch'],'left_trim_tick':parent['left_trim_offset']+v['left_trim_offset'],'frames':source['frames'],'sample_rate':source['sample_rate'],'original':v})
-    playlists.append({'guid':region['guid'],'start':region['start'],'source_trigger_length':region['length'],'mode':playlist['playlist_mode'],'selection':playlist['playlist_selection'],'bus':parent['routable']['bus_guid'],'choices':choices,'original':parent,'android_selection_adaptation':'weighted shuffle without replacement per cue; audio-only deterministic generator independent of game RNG; proprietary FMOD smart-random history not claimed'})
+    playlists.append({'guid':region['guid'],'start':region['start'],'source_trigger_length':region['length'],'time_locked':time_locked,'fades':instrument_fades(n),'mode':playlist['playlist_mode'],'selection':playlist['playlist_selection'],'bus':parent['routable']['bus_guid'],'choices':choices,'original':parent,'android_selection_adaptation':'weighted shuffle without replacement per cue; audio-only deterministic generator independent of game RNG; proprietary FMOD smart-random history not claimed'})
    for g,n in meta.items():
     if n['kind']in ['IBSB','GBSB','MBSB','RBSB']:
      bus=graph.bus(g);pending.append((graph,g))
@@ -177,7 +186,7 @@ def export(content,stream_manifest,output,extra_streams=(),mixing_control=False,
        else:raise ValueError('Unmapped bus automation owner '+repr(kinds))
        bus['automation'].append({'property':pv['index'],'parameter':parameter,'owner':owner,'method':pv['method'],'type':pv['type'],'mapping':graph.mapping(pv['mapping_guid']),'points':c['curve']['value']['points']})
      buses[g]=bus
-   end=max([x['end']for x in instruments]+[x['position']+x['length']for x in tl['named_markers']]+[1])
+   end=max([x['end']for x in instruments]+[x['start']+x['source_trigger_length']for x in playlists if x['time_locked']]+[x['position']+x['length']for x in tl['named_markers']]+[1])
    events[name]={'guid':detail['event_guid'],'bank':bankname,'master_bus':source_event['master_track_guid'],'input_bus':source_event['input_bus_guid'],'timeline':{'end':end,'parameters':parameters,'markers':[{'tick':m['position'],'length':m['length'],'name':m['name']}for m in tl['named_markers']],'transitions':transitions},'instruments':instruments,'playlists':playlists,'source_bank':graph.b.original}
   except (ValueError,KeyError,StopIteration) as e:
    # Derived (coverage) catalogs keep every in-scope cue: a source graph

@@ -72,7 +72,7 @@ Script action ids: `.local/reports/native-action-enum.json` is decoded from the 
 action-name switch (regenerate it from the DLL if missing). Android SDK pieces:
 `ndk;29.0.14206865`, `build-tools;37.0.0`, `platforms;android-36`.
 
-## Current checkpoint (2026-10-18)
+## Current checkpoint (2026-10-19)
 
 Read STATUS.md for the current installed APK and active owners. The user drives
 manual device play; main alone builds/installs and captures passively. Full
@@ -86,8 +86,8 @@ is the original world spawner catalog. Coordinate readers before publishing.
 Source now covers actual RoomOpening exit -> RoomSimple01, original forced enemy
 spawn, hit resources, clocks and cast projectile/ammo lifecycle. Current selected
 packs: opening-actors-v13, room-packs-v6/RoomSimple01 (actor-simple-v4),
-actor-actions-v8, actor-markers-v8, actor-properties-v13 (HAP6),
-player-weapons-v24, action-effects-v20, screen-opening-v12, original-text-v7, audio-events-v26.
+actor-actions-v9, actor-markers-v9, actor-properties-v14 (HAP6),
+player-weapons-v25, action-effects-v22, screen-opening-v12, original-text-v7, audio-events-v29.
 All packs are ignored and must be regenerated from original assets; never publish.
 
 Critical prior direction-lock causes: hit consumers interrupted firing before
@@ -105,37 +105,32 @@ coroutine waits/stacks and dynamic enemy arsenals.
 
 ## Immediate iteration
 
-Current first-enemy replay advances through actual hero damage/recovery, enemy
-death/cleanup and money pickup. Weapon24 preserves all old records and derives
-the inherited obstacle OnTouchdown weapon class. Actual next first-combat stop is
-RubbleFall INSTANT6 initialization at2599; do not admit it as a base projectile.
-The child-movie wave boundary is separate. The candidate has not been installed.
-
-
-1. Preserve the installed iteration10a baseline: user confirms improved controls.
-   The candidate must prove actual enemy hits, repeated attacks and cardinal
-   recovery before replacing it. Three agents work in parallel; main alone deploys.
-2. Actual AI activation, state notifies, colliding MoveAI path/repath, live-target
-   FireWeaponFromUnit and native missing-marker fallback are reconstructed. Fresh
-   replays now reach real enemy fire and damage. Native authored draw offsets
-   must not be confused with the primary Animation attach offset for markers.
-3. Actual repeated sword presses reduce original enemy Health160 to0. The former
-   apparent immortal enemy was an aborted original Kill script: its money-drop
-   primary was rejected before RequiredKillEnemies cleanup. Shared action primary
-   completion now retains owner/state through native ChainTo/Graphic replacement.
-   Kill cleanup and actual money pickup now pass strict. Next-wave activation
-   reaches primary flags and a child-owned movie dependency; its real movie
-   ownership/presentation bridge remains under reconstruction.
-4. Hitstop scales world time once; component own fractions and actual owner links
-   are separate. Hit resource/audio closure follows selected source definitions,
-   including FxStyles maps. Packaging rejects audio closure stale against selected
-   actor/action manifests. Missing sound coverage is checked before FX allocation;
-   original failure detail survives later initialized-registry guards.
-5. Styled text resolves original format widgets/Graft/PreviousFormat with mixed
-   fonts/colors and native owner Z policy. Verify reached disabled-use prompt.
-6. Finish all forced encounter waves and Athena reward/boon before choosing the
-   next actual map. RoomSimple01 has no fixed linked third room. Later biome/map
-   coverage, full encounter progression and device save/reload remain unproven.
+1. Current candidate passes strict mixed2950 and next-wave3100. Mixed covers
+   real enemy hits50→40→30, sword and special afterward, all four movement/facing
+   directions after melee, post-special recovery and final requests/effects
+   empty with strafe0. Next-wave covers enemy
+   death, money pickup, real child-movie activation, AI/pathing and enemy attack.
+   Device iteration10a remains the preserved baseline until main records the new
+   full install/SHA verification. Never infer device success from a host pass.
+2. Preserve shared root repairs: same-name victim Reapply keeps original identity;
+   native marker fallback separates attach/draw offsets; Action FX preserves the
+   first failure; sound coverage is checked before animation allocation. Never
+   clear legitimate requests or skip a missing native consumer to claim recovery.
+3. INSTANT6 zero-fuse uses original target/RNG placement, base Init then synchronous
+   Detonate while genuinely queued. Actual delayed-fuse/live-target specialized
+   initialization remains explicit. Weapon25 normalizes packed-color defaults
+   per channel and preserves source aliases/precedence. No weapon-name exceptions.
+4. Child Constant→movie Book chains retain parent ownership, release/transfer and
+   actual native Book duration/color/angle behavior over original HAA pixels.
+   Source attachment and authored draw offsets stay separate through CopyState,
+   rendering and VFX. The source closure traverses nonmovie containers as well.
+5. Audio29 admits original time-locked weighted playlists with parent region/fades;
+   836 events and1976 samples,5 explicit unsupported graphs remain. No silent
+   replacement. Audio closure binds actor9/action22; stale assets fail packaging.
+6. Finish all forced encounter waves and Athena reward/boon before selecting the
+   next original map. Full encounter/reward/next-room completion, later map/biome
+   coverage and device save/reload remain unverified. RoomSimple01 has no fixed
+   linked third room. Do not fabricate a next-room choice or fallback scene.
 
 Favor rapid fixes, builds and device play. Use short existing input reproductions
 only to resolve concrete failures; no broad new test scaffolds. Save screenshots,

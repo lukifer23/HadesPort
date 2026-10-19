@@ -1,0 +1,30 @@
+{
+  "schema": "hades-animation-child-completion-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "native": {
+    "AddChildName": "0x180293ae0",
+    "AddChildPointer": "0x180293c10",
+    "OnChildFinished": "0x180295780",
+    "BookPostUpdate": "0x1802b0870",
+    "ConstantPostUpdate": "0x1802b1cb0",
+    "GetLocation": "0x180296c90",
+    "GetDrawLocation": "0x180297d60",
+    "UseIsometricAngleDefault": "0x180094170"
+  },
+  "ownership": [
+    "Child animations remain registered allocations outside the manager Add vector. They retain parent and attached Thing lifetimes.",
+    "Parent Book/Constant PostUpdate handles a finished child before its own manager death.",
+    "OnChildFinished optionally extracts the finished child's descendant when source TransferChildren=true, releases the finished child, then adds its ChainTo under the same parent.",
+    "Replacement receives the parent raw attachment offset, parallax, and WobbleOffsetZ component. A preserved descendant appends at the replacement tail, or at the original parent if there is no replacement.",
+    "Child completion does not run the manager-root OnDeath/CreateAnimationOnEnd/CopyState path."
+  ],
+  "position": "Native attachment offset at Animation+a0 is raw world XY added by GetLocation. Source draw OffsetX/Y initialize Animation+90 at2923db/e3 and are independently added with draw shifts and attached Body scale in GetDrawLocation. Child replacement and CopyState copy the former without overwriting the latter.",
+  "movie_geometry": "Shared ActionEffectState owns native Book timing, children, source color and transition state; HAA is the actual movie image backend. Resolve the exact original frame and native full-angle index, then the documented nearest exported original angle. Strip baked source Scale/offset from clip geometry while preserving inverse Bink atlas scale, crop and original midpoint pivot; common native draw transforms apply source/live values once.",
+  "isometric": "Movie Book defaults UseIsometricAngle=true from constructor fullData+9d. It uses the same source-bound 720-entry inverse-isometric lookup and native rounding as HAA Thing primaries. Unit facing supplies cosmetic angle, ordinary Thing uses Body angle.",
+  "limits": [
+    "Selected-angle asset coverage remains a documented reduction from the complete native angle set.",
+    "Detached-parent child ChainTo requires the ownerless lineage factory; it fails explicitly.",
+    "Nonzero parent WobbleOffsetZ transfer requires its actual entity component and fails explicitly.",
+    "Movie explicit origin requires original Bink atlas extent/trim metadata; it fails explicitly."
+  ]
+}

@@ -187,11 +187,16 @@ struct AudioWorld::Impl {
      const auto& choices=field(playlist,"choices").array();const auto selected=owner->choosePlaylist(name+":"+field(playlist,"guid").text(),choices);
      const auto& choice=choices.at(selected);Instrument item;item.bus=field(playlist,"bus").text();item.busIndex=buses.at(item.bus).index;
      item.start=integer(field(playlist,"start"));item.trim=integer(field(choice,"left_trim_tick"));item.gain=dbGain(number(field(choice,"gain_db")));
+     if(const auto* fades=playlist.get("fades"))for(const auto& fade:fades->array()){if(integer(field(fade,"property"))!=4)throw std::runtime_error("Unsupported source playlist automation property");Curve curve;curve.load(field(fade,"points").array(),true);item.fades.push_back(std::move(curve));}
      route(item,number(field(choice,"pitch_semitones")));
      const auto& sample=field(field(owner->catalog,"samples"),field(choice,"sample").text().c_str());
      AudioBankSample descriptor{field(sample,"asset").text(),int(integer(field(sample,"subsong"))),int(integer(field(sample,"channels"))),int(integer(field(sample,"sample_rate"))),int64_t(integer(field(sample,"frames"))),uint64_t(integer(field(sample,"encoded_file_bytes")))};
-     double duration=std::ceil(double(descriptor.frames)*48000/descriptor.sampleRate/item.pitch)-item.trim;
-     if(item.dynamic){
+     const bool timeLocked=playlist.get("time_locked")&&playlist.get("time_locked")->boolean();
+     // A TLNB time-locked MUIB owns the same exact region lifetime as WAIB.
+     // Its chosen waveform is cut at region end, with the actual parent's
+     // timeline gain curves; an async trigger instead runs to source end.
+     double duration=timeLocked?double(integer(field(playlist,"source_trigger_length"))):std::ceil(double(descriptor.frames)*48000/descriptor.sampleRate/item.pitch)-item.trim;
+     if(item.dynamic&&!timeLocked){
       // Triggered sound ends with its source: integrate the timeline-owned
       // route pitch from the trigger. Requires a deterministic linear timeline.
       if(!definition.transitions.empty())throw std::runtime_error("Playlist through automated pitch on a jumping timeline");

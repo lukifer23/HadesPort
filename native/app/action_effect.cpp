@@ -10,6 +10,20 @@ namespace hades {namespace {
 float n(const SourceValue&d,const char*k,float fallback=0){auto*p=d.get(k);const double v=p?p->number():fallback;if(!std::isfinite(v)||std::abs(v)>100000)throw std::runtime_error(std::string("Action FX source scalar bound: ")+k);return float(v);}
 std::string t(const SourceValue&d,const char*k){auto*p=d.get(k);return p&&!std::holds_alternative<std::monostate>(p->value)?p->text():"";}
 bool b(const SourceValue&d,const char*k){auto*p=d.get(k);return p&&p->boolean();}
+// Animation.GetLocation296c90 is distinct from GetDrawLocation297d60:
+// the former adds raw attachment offset, never source draw OffsetX/Y.
+// A null marker provider selects the already resolved marker anchor for draw;
+// gameplay location consumers pass their real provider and resolve it fresh.
+bool sourceLocation(const ActionEffectState&s,const EffectOwnerState&owner,const EffectMarkerProvider* markerProvider,std::array<float,3>&out,std::string&error){
+ out=s.position;if(s.detached)return true;
+ const float x=s.attachOffset?(*s.attachOffset)[0]:s.randomX,y=s.attachOffset?(*s.attachOffset)[1]:s.randomY;
+ const auto marker=t(s.definition,"UseAttachedMarkerLocation");
+ if(!marker.empty()){
+  if(markerProvider){std::array<float,3> anchor{};if(owner.hasPrimaryAnimation){if(!*markerProvider){error="Native Animation.GetLocation marker provider unavailable";return false;}if(!(*markerProvider)(s.ownerId,marker,anchor,error))return false;}else{anchor[0]=owner.x;anchor[1]=owner.y;}out[0]=anchor[0]+x;out[1]=anchor[1]+y;}
+  else{out[0]+=x-s.randomX;out[1]+=y-s.randomY;}
+ }else if(t(s.definition,"LocationFromOwner").empty()||t(s.definition,"LocationFromOwner")=="Maintain"){out[0]=owner.x+x;out[1]=owner.y+y;}
+ return true;
+}
 float rad(float v){return v*.01745329251994329577f;}
 bool rng(const ActionEffectProviders&p,float lo,float hi,float&v,std::string&e){double r;if(!p.random||!p.random(r,e)||!std::isfinite(r)||r<0||r>=1){if(e.empty())e="Actual action FX uniform RNG unavailable";return false;}const volatile float product=float(r)*(hi-lo);v=product+lo;return true;}
 float transition(const SourceValue&d,const char*start,const char*end,float fraction,float fallback,float sourceDefault=0){const float a=n(d,start,sourceDefault),z=n(d,end,sourceDefault);return a==z?fallback:EffectParticleWorld::interpolate(a,z,fraction,n(d,"EaseIn"),n(d,"EaseOut"));}
@@ -80,13 +94,25 @@ const std::set<std::string>& pendingFieldsSet(){static const std::set<std::strin
  "Material","Ambient","SortMode","SortFromOwner","UseBoundsForSortArea","DrawBehindOwner","OverlayVfx",
  "KeepVisualFxAttached","TransferAngle","TransferChildren","TransferFrameToThis"};return v;}
 }
-bool ActionEffectWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimationBank> bank,std::shared_ptr<AnimationRegistry> registry,std::string&error){try{
+bool ActionEffectWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimationBank> bank,std::shared_ptr<AnimationRegistry> registry,std::string&error,std::shared_ptr<ActorAnimationBank> movieBank){try{
  if(!states_.empty()||!bank||!registry||t(catalog,"Schema")!="HadesActionEffectResources1"||t(catalog,"Target")!="d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254")throw std::runtime_error("Source action FX catalog/bank/registry mismatch");
  if(const auto*rejected=catalog.get("Rejected"))for(const auto&[name,reason]:rejected->object())rejected_.emplace(name,reason.text());
- for(const auto&[name,d]:catalog.get("Definitions")->object()){
-  if(t(d,"Type")!="Random"&&!bank->find(name))throw std::runtime_error("Exported original action FX has no bank clip: "+name);
+ auto definitions=catalog.get("Definitions")->object();
+ if(const auto* movies=catalog.get("MovieDefinitions"))for(const auto&[name,d]:movies->object()){
+  const auto clip=movieBank?movieBank->find(name):std::optional<size_t>{};
+  if(t(d,"Type")!="Book"||t(d,"VideoTexture").empty()||!clip||!(movieBank->clips()[*clip].flags&ActorBook)||!definitions.emplace(name,d).second)throw std::runtime_error("Actual movie Book definition/image binding unavailable: "+name);
+  movies_.insert(name);rejected_.erase(name);
+ }
+ for(const auto&[name,d]:definitions){
+  if(t(d,"Type")!="Random"&&!(movies_.contains(name)?movieBank:bank)->find(name))throw std::runtime_error("Exported original action FX has no bank clip: "+name);
   const auto type=nativeType(d);auto&unsupported=unsupported_[name];auto&pending=pending_[name];
   for(const auto&[key,value]:d.object()){
+   // VideoTexture selects the hash-bound original movie image backend;
+   // inherited Slides are not dispatched by native Book.Init/PostUpdate.
+   if(movies_.contains(name)&&(key=="VideoTexture"||key=="FrameDataFile"))continue;
+   // Unit.UpdateAnimation owns this primary-only policy; child/manager
+   // animations do not independently cancel when their Thing moves.
+   if(key=="CancelOnOwnerMove")continue;
    if(key=="Loop")continue;
    // OnLoop 0x180296670 replays Sound; with StopSoundOnFinishFade it first
    // stops the cue, which needs a stop provider not reconstructed here.
@@ -98,8 +124,8 @@ bool ActionEffectWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimationB
    // 0x1802963ea skips re-randomization when false (exact); true is not rebuilt.
    if(key=="ReRandomizeOnLoop"){if(value.boolean())unsupported.push_back("ReRandomizeOnLoop=true");continue;}
    // GetAngleNum mirror (data+0x6e) and isometric (data+0x9d) branches.
-   if(key=="Mirror"){if(value.boolean()&&n(d,"NumAngles",1)<=1)unsupported.push_back("Mirror on single-angle");continue;}
-   if(key=="UseIsometricAngle"){if(value.boolean())unsupported.push_back("UseIsometricAngle");continue;}
+   if(key=="Mirror"){if(value.boolean()&&movies_.contains(name))unsupported.push_back("Movie Mirror UV policy");else if(value.boolean()&&n(d,"NumAngles",1)<=1)unsupported.push_back("Mirror on single-angle");continue;}
+   if(key=="UseIsometricAngle"){if(value.boolean()&&!movies_.contains(name))unsupported.push_back("UseIsometricAngle");continue;}
    // GetDrawFlasher owner inheritance is consumed by the presentation bridge.
    if(key=="UseAttachedFlasher")continue;
    if(key=="UseAttachedShake")continue;
@@ -117,7 +143,7 @@ bool ActionEffectWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimationB
   }
   definitions_.emplace(name,d);
  }
- if(definitions_.empty())throw std::runtime_error("Empty original action FX catalog");catalog_=std::move(catalog);bank_=std::move(bank);registry_=std::move(registry);return true;
+ if(definitions_.empty())throw std::runtime_error("Empty original action FX catalog");catalog_=std::move(catalog);bank_=std::move(bank);movieBank_=std::move(movieBank);registry_=std::move(registry);return true;
  }catch(const std::exception&e){error=e.what();return false;}}
 bool ActionEffectWorld::preflight(const std::string&name,const ActionEffectProviders&p,std::vector<std::string>&path,std::string&error,bool guiLine)const{
  auto i=definitions_.find(name);if(i==definitions_.end()){const auto*why=rejection(name);error="Original action FX not exported: "+name+(why?" ("+*why+")":" (outside animation coverage)");return false;}
@@ -131,7 +157,7 @@ bool ActionEffectWorld::preflight(const std::string&name,const ActionEffectProvi
  const auto cue=t(d,"Sound");if(!cue.empty()&&p.prepareSound&&!p.prepareSound(cue,error))return false;
  path.push_back(name);for(const auto*key:{"ChildAnimation","CreateAnimation","CreateAnimationOnEnd","VisualFx","Light","ChainTo"}){const auto dep=t(d,key);if(!dep.empty()&&dep!="null"&&!preflight(dep,p,path,error))return false;}
  if(auto*creates=d.get("CreateAnimations"))for(const auto&r:creates->array())if(!preflight(t(r,"Name"),p,path,error))return false;
- if(auto*slides=d.get("Slides"))for(const auto&s:slides->array()){auto dep=t(s,"VisualFx");if(!dep.empty()&&!preflight(dep,p,path,error))return false;}
+ if(nativeType(d)==NativeAnimationType::Slide)if(auto*slides=d.get("Slides"))for(const auto&s:slides->array()){auto dep=t(s,"VisualFx");if(!dep.empty()&&!preflight(dep,p,path,error))return false;}
  if(auto*choices=d.get("Random"))for(const auto&r:choices->array())if(!preflight(t(r,"Name"),p,path,error))return false;
  path.pop_back();return true;
 }
@@ -153,7 +179,7 @@ bool ActionEffectWorld::initialize(const std::string&name,int32_t ownerId,const 
   if(blocked){handle=0;return true;}
  }
  const bool primary=primaryRequest_&&!parent&&!light;primaryRequest_=false;
- ActionEffectState s;s.name=name;s.definition=d;s.primary=primary;s.detached=owner.lifetime==0;s.guiLine=guiLineRequest_;guiLineRequest_=false;s.ownerId=ownerId;s.ownerLifetime=owner.lifetime;s.parent=parent;s.isLight=light;s.type=nativeType(d);s.imageClip=*bank_->find(name);s.position=s.spawnPosition=position;s.ownerSnapshot=owner;if(t(d,"LocationZFromOwner")=="Ignore")s.position[2]=0;s.flipX=b(d,"FlipHorizontal");s.flipY=b(d,"FlipVertical");
+ ActionEffectState s;s.name=name;s.definition=d;s.primary=primary;s.detached=owner.lifetime==0;s.guiLine=guiLineRequest_;guiLineRequest_=false;s.ownerId=ownerId;s.ownerLifetime=owner.lifetime;s.parent=parent;s.isLight=light;s.type=nativeType(d);s.movie=movies_.contains(name);s.imageClip=*(s.movie?movieBank_:bank_)->find(name);s.position=s.spawnPosition=position;s.ownerSnapshot=owner;if(t(d,"LocationZFromOwner")=="Ignore")s.position[2]=0;s.flipX=b(d,"FlipHorizontal");s.flipY=b(d,"FlipVertical");
  AnimationAllocation a;a.name=name;a.sourceDefinition=d;a.type=s.type;a.ownerId=light?0:ownerId;a.ownerLifetime=light?parent:owner.lifetime;a.manager=light?1:0;a.ownership=s.guiLine?AnimationOwnership::GuiComponent:(light?AnimationOwnership::LightController:(primary?AnimationOwnership::ThingPrimary:(parent?AnimationOwnership::Child:AnimationOwnership::ManagerCreate)));a.parent=light?0:parent;a.cancelOverCap=b(d,"CancelOverCap");a.loop=b(d,"Loop");a.onlyWhenVisible=b(d,"OnlyWhenVisible");if(!registry_->allocate(a,s.handle,error))return false;
  // InitData 0x180291dc6: HasDuration (Duration/DurationFrames/RandomDuration >0);
  // D = GetValue(max(DurationFrames/60,Duration),RandMin,RandMax).
@@ -234,7 +260,11 @@ bool ActionEffectWorld::initialize(const std::string&name,int32_t ownerId,const 
   if(b(d,"RandomStartFrame")){const int32_t start=int32_t(n(d,"StartFrame",1)),end=int32_t(n(d,"EndFrame",n(d,"NumFrames")));if(end<start){error="Native random book frame bounds invalid";return false;}uint32_t offset=0;if(end!=start&&(!p.bounded||!p.bounded(uint32_t(end-start),offset,error)))return false;actual.frame=float(start+int32_t(offset));}
  }
  if(actual.type==NativeAnimationType::Slide){const auto&clip=bank_->clips()[actual.imageClip];actual.slide=0;actual.frame=float(clip.slides.front().originalFrame);actual.slideRemaining=float(clip.slides.front().ticks)/60;if(!slideFx(s.handle,p,error))return false;}
- if(!registry_->commitInitialization(s.handle,false,error))return false;
+ // AddChild293ae0 passes the actual parent's skip-update byte (+62) to
+ // CreateCustom. A child remains in that source ownership/update policy.
+ const auto* parentLife=parent?registry_->find(parent):nullptr;
+ if(parent&&!parentLife){error="Actual child parent update lifetime unavailable";return false;}
+ if(!registry_->commitInitialization(s.handle,parentLife&&parentLife->skipUpdate,error))return false;
  if(!parent&&!primary&&!actual.guiLine){std::optional<uint64_t>victim;if(!registry_->addToManager(s.handle,80,victim,error))return false;}
  handle=s.handle;return true;
 }
@@ -255,8 +285,8 @@ bool ActionEffectWorld::copyState(uint64_t target,uint64_t source,const ActionEf
  const auto copied=*src;const auto& from=copied.definition;const auto& to=dst->definition;
  if(b(to,"TransferChildren")||b(from,"TransferChildren")||b(to,"TransferFrameToThis")||b(from,"TransferFrameFromThis"))throw std::runtime_error("Animation.CopyState child/frame ownership transfer not reconstructed");
  EffectOwnerState owner=copied.ownerSnapshot;if(!copied.detached&&(!p.owner||!p.owner(copied.ownerId,owner,error)))return false;
- std::array<float,3> position=copied.position;const auto location=t(from,"LocationFromOwner");if(!copied.detached&&(location.empty()||location=="Maintain")){position[0]=owner.x+(copied.attachOffset?(*copied.attachOffset)[0]:n(from,"OffsetX"));position[1]=owner.y+(copied.attachOffset?(*copied.attachOffset)[1]:n(from,"OffsetY"));}
- forChain(target,[&](ActionEffectState&s,bool first){s.position[0]=position[0];s.position[1]=position[1];s.parallax=copied.parallax;s.attachOffset=std::array<float,2>{copied.attachOffset?(*copied.attachOffset)[0]:n(from,"OffsetX"),copied.attachOffset?(*copied.attachOffset)[1]:n(from,"OffsetY")};if(first){s.ownZ=copied.ownZ;s.position[2]=copied.ownZ;s.addedOffsetZ=copied.addedOffsetZ;if(copied.rotationComponent){s.rotation=copied.rotation;s.rotationComponent=true;}s.playSpeedMultiplier=copied.playSpeedMultiplier;s.flipX=copied.flipX;s.flipY=copied.flipY;}});
+ std::array<float,3> position;if(!sourceLocation(copied,owner,&p.marker,position,error))return false;
+ forChain(target,[&](ActionEffectState&s,bool first){s.position[0]=position[0];s.position[1]=position[1];s.parallax=copied.parallax;s.attachOffset=std::array<float,2>{copied.attachOffset?(*copied.attachOffset)[0]:copied.randomX,copied.attachOffset?(*copied.attachOffset)[1]:copied.randomY};if(first){s.ownZ=copied.ownZ;s.position[2]=copied.ownZ;s.addedOffsetZ=copied.addedOffsetZ;if(copied.rotationComponent){s.rotation=copied.rotation;s.rotationComponent=true;}s.playSpeedMultiplier=copied.playSpeedMultiplier;s.flipX=copied.flipX;s.flipY=copied.flipY;}});
  if(!setRadius(target,copied.scaleRadius,error))return false;
  // TransferDrawLayer ctor defaults true (+0x7b); source OR destination.
  const auto transfer=[](const SourceValue& d,const char* key,bool fallback){const auto* v=d.get(key);return v?v->boolean():fallback;};
@@ -315,7 +345,37 @@ bool ActionEffectWorld::advance(float dt,const ActionEffectProviders&p,std::stri
  }
  else {if(!hold&&s.durationBound&&s.remaining<0){dead.push_back(h);continue;}s.slideRemaining-=elapsed;if(s.slideRemaining<.0001f){const auto&clip=bank_->clips()[s.imageClip];if(++s.slide>=clip.slides.size())dead.push_back(h);else{s.slideRemaining+=float(clip.slides[s.slide].ticks)/60;s.frame=float(clip.slides[s.slide].originalFrame);if(!slideFx(h,p,error))return false;}}s.fraction=std::clamp((s.frame-n(d,"StartFrame",1)+1)/(n(d,"EndFrame",n(d,"NumFrames"))-n(d,"StartFrame",1)+1),0.f,1.f);}
  }
+ // Native Book/Constant.PostUpdate2b0870/2b1cb0 finishes descendants before
+ // their parent's manager death, even when both finish on this update.
+ const std::set<uint64_t> completed(dead.begin(),dead.end());std::set<uint64_t> visited;std::vector<uint64_t> postorder;
+ std::function<void(uint64_t)> finishOrder=[&](uint64_t h){if(!visited.insert(h).second)return;const auto* s=state(h);if(s&&s->child)finishOrder(s->child);if(completed.contains(h))postorder.push_back(h);};
+ for(auto h:dead)finishOrder(h);dead=std::move(postorder);
  for(auto h:dead)if(state(h)){const auto old=*state(h);
+  if(old.parent&&!old.isLight){
+   // Animation.OnChildFinished295780 releases its finished child, then
+   // AddChild293ae0 creates ChainTo UNDER THE SAME PARENT. There is no
+   // manager Add, CopyState, or OnDeath/CreateAnimationOnEnd in this path.
+   const auto* actualParent=state(old.parent);if(!actualParent||actualParent->child!=h){error="Native finished child parent lifetime/link unavailable";return false;}const auto parent=*actualParent;
+   const auto chain=t(old.definition,"ChainTo");
+   if(!chain.empty()&&chain!="null"&&parent.detached){error="Native finished child of detached parent needs ownerless lineage factory";return false;}
+   if(n(parent.definition,"ZWobbleSpeed")!=0||n(parent.definition,"ZWobbleDistance")!=0){error="Native OnChildFinished parent WobbleOffsetZ component copy unavailable";return false;}
+   uint64_t transferred=0;if(b(old.definition,"TransferChildren")&&old.child){transferred=old.child;if(!registry_->reparentChild(transferred,0,error))return false;states_.at(transferred).parent=0;states_.at(h).child=0;}
+   states_.at(parent.handle).child=0;if(!destroy(h,error))return false;
+   uint64_t replacement=0;
+   if(!chain.empty()&&chain!="null"){
+    EffectOwnerState owner=parent.ownerSnapshot;if(!p.owner(parent.ownerId,owner,error)||owner.lifetime!=parent.ownerLifetime)return false;
+    if(!initialize(chain,parent.ownerId,owner,parent.position,parent.handle,false,p,replacement,error))return false;
+    if(!replacement){error="Native OnChildFinished AddChild returned no replacement allocation";return false;}
+    states_.at(parent.handle).child=replacement;
+    const float x=parent.attachOffset?(*parent.attachOffset)[0]:parent.randomX,y=parent.attachOffset?(*parent.attachOffset)[1]:parent.randomY;
+    if(!setAttachOffset(replacement,x,y,error))return false;
+    forChain(replacement,[&](ActionEffectState& s,bool){s.parallax=parent.parallax;});
+    // EntityManager.CopyComponent(WobbleOffsetZ) copies absence here: nonzero
+    // wobble data is rejected above rather than silently losing a component.
+   }
+   if(transferred){uint64_t tail=replacement?replacement:parent.handle;while(state(tail)&&state(tail)->child)tail=state(tail)->child;if(!state(tail)){error="Native transferred child tail lifetime missing";return false;}if(!registry_->reparentChild(transferred,tail,error))return false;states_.at(tail).child=transferred;states_.at(transferred).parent=tail;}
+   continue;
+  }
   // Thing.UpdateAnimation2df5c0 owns ThingPrimary completion. Keep the
   // completed allocation alive until its actual Thing selects ChainTo or
   // ThingData.Graphic through SetAnimation (CopyState then Release). It must
@@ -330,15 +390,7 @@ bool ActionEffectWorld::advance(float dt,const ActionEffectProviders&p,std::stri
   if(!onEnd.empty()&&onEnd!="null"){
    EffectOwnerState owner;std::array<float,3> location{old.position[0],old.position[1],0};
    if(!old.detached){if(!p.owner(old.ownerId,owner,error)||owner.lifetime!=old.ownerLifetime)return false;
-    const auto mode=t(old.definition,"LocationFromOwner");
-    const auto marker=t(old.definition,"UseAttachedMarkerLocation");
-    if(!marker.empty()){
-     if(owner.hasPrimaryAnimation){if(!p.marker||!p.marker(old.ownerId,marker,location,error))return false;}
-     else{location[0]=owner.x;location[1]=owner.y;}
-     location[0]+=old.randomX+(old.attachOffset?(*old.attachOffset)[0]:n(old.definition,"OffsetX"));location[1]+=old.randomY+(old.attachOffset?(*old.attachOffset)[1]:n(old.definition,"OffsetY"));
-    }else if(mode.empty()||mode=="Maintain"){
-     location[0]=owner.x+old.randomX+(old.attachOffset?(*old.attachOffset)[0]:n(old.definition,"OffsetX"));location[1]=owner.y+old.randomY+(old.attachOffset?(*old.attachOffset)[1]:n(old.definition,"OffsetY"));
-    }
+    if(!sourceLocation(old,owner,&p.marker,location,error))return false;
    }else{owner.baseColor=std::array<uint8_t,4>{255,255,255,255};owner.baseHsv=std::array<float,4>{0,0,0,0};owner.group=std::string{};}
    location[2]=0;uint64_t spawned;if(!initialize(onEnd,old.detached?0:old.ownerId,owner,location,0,false,p,spawned,error))return false;
   }
@@ -348,7 +400,7 @@ bool ActionEffectWorld::advance(float dt,const ActionEffectProviders&p,std::stri
 bool ActionEffectWorld::updateTime(float dt,const ActionEffectProviders&p,uint32_t& spawnedThisFrame,std::string&error){try{
  // Explicit main-thread TimeVFX phase after component motion/frame updates.
  if(faulted_){error=fault_;return false;}if(mutating_||!registry_||!std::isfinite(dt)||dt<0||dt>1){error="Invalid/faulted action FX Time phase";return false;}
- const auto spawners=handles();for(auto h:spawners){auto&s=states_.at(h);const auto* life=registry_->find(h);if(!life||!life->initialized){error="Actual action Time lifetime unavailable";return false;}if(life->skipUpdate||life->canceled)continue;const auto&d=s.definition;if(t(d,"VisualFx").empty()||t(d,"VisualFx")=="null"||spawnedThisFrame>=60)continue;float elapsed=dt;if(p.elapsed&&!p.elapsed(s.ownerId,s.preferUnmodified?0:n(d,"TimeModifierFraction",-1),!s.detached&&life->attachedToTimeMultiplier,dt,elapsed,error))return false;if(!std::isfinite(elapsed)||elapsed<0||elapsed>1){error="Invalid action Time elapsed";return false;}s.timeRemaining=std::max(s.timeRemaining-elapsed,-n(d,"VisualFxIntervalMax"));if(s.timeRemaining>=0||(s.visualFxCap>0&&s.totalSpawned>=uint32_t(s.visualFxCap)))continue;if(n(d,"VisualFxManagerCap")>0&&registry_->managerCount(0)>=size_t(n(d,"VisualFxManagerCap")*4))continue;if(n(d,"ActiveVisualFxCap")>0&&activeVfxCount(h)>=uint32_t(n(d,"ActiveVisualFxCap")))continue;std::array<float,3>location=s.position;const auto marker=t(d,"UseAttachedMarkerLocation");if(!s.detached&&!marker.empty()&&!p.marker(s.ownerId,marker,location,error))return false;EffectOwnerState owner=s.ownerSnapshot;if(!s.detached&&!p.owner(s.ownerId,owner,error))return false;EffectOwnerState initialOwner=owner;if(s.detached){initialOwner.velocity.reset();initialOwner.scale=1;initialOwner.angle=0;initialOwner.baseColor=std::array<uint8_t,4>{255,255,255,255};initialOwner.baseHsv=std::array<float,4>{0,0,0,0};}uint64_t spawned;if(!initialize(t(d,"VisualFx"),s.ownerId,initialOwner,location,0,false,p,spawned,error))return false;if(!spawned)continue;auto&leaf=states_.at(spawned);leaf.detached=s.detached;leaf.preferUnmodified=s.preferUnmodified;leaf.ownerSnapshot=owner;// UpdateVfxTimeInterval29538f..542c + SetupSpawned294e4f..ec5:
+ const auto spawners=handles();for(auto h:spawners){auto&s=states_.at(h);const auto* life=registry_->find(h);if(!life||!life->initialized){error="Actual action Time lifetime unavailable";return false;}if(life->skipUpdate||life->canceled)continue;const auto&d=s.definition;if(t(d,"VisualFx").empty()||t(d,"VisualFx")=="null"||spawnedThisFrame>=60)continue;float elapsed=dt;if(p.elapsed&&!p.elapsed(s.ownerId,s.preferUnmodified?0:n(d,"TimeModifierFraction",-1),!s.detached&&life->attachedToTimeMultiplier,dt,elapsed,error))return false;if(!std::isfinite(elapsed)||elapsed<0||elapsed>1){error="Invalid action Time elapsed";return false;}s.timeRemaining=std::max(s.timeRemaining-elapsed,-n(d,"VisualFxIntervalMax"));if(s.timeRemaining>=0||(s.visualFxCap>0&&s.totalSpawned>=uint32_t(s.visualFxCap)))continue;if(n(d,"VisualFxManagerCap")>0&&registry_->managerCount(0)>=size_t(n(d,"VisualFxManagerCap")*4))continue;if(n(d,"ActiveVisualFxCap")>0&&activeVfxCount(h)>=uint32_t(n(d,"ActiveVisualFxCap")))continue;EffectOwnerState owner=s.ownerSnapshot;if(!s.detached&&!p.owner(s.ownerId,owner,error))return false;std::array<float,3>location;if(!sourceLocation(s,owner,&p.marker,location,error))return false;EffectOwnerState initialOwner=owner;if(s.detached){initialOwner.velocity.reset();initialOwner.scale=1;initialOwner.angle=0;initialOwner.baseColor=std::array<uint8_t,4>{255,255,255,255};initialOwner.baseHsv=std::array<float,4>{0,0,0,0};}uint64_t spawned;if(!initialize(t(d,"VisualFx"),s.ownerId,initialOwner,location,0,false,p,spawned,error))return false;if(!spawned)continue;auto&leaf=states_.at(spawned);leaf.detached=s.detached;leaf.preferUnmodified=s.preferUnmodified;leaf.ownerSnapshot=owner;// UpdateVfxTimeInterval29538f..542c + SetupSpawned294e4f..ec5:
  // default VisualFxAngleOffset=0; inherit own angle only when requested,
  // then source mAngle unless spawned AngleFromOwner=Ignore.
  leaf.heading+=radD(n(d,"VisualFxAngleOffset"))+(b(d,"VisualFxInheritAngle")?s.heading:0.f);if(t(leaf.definition,"AngleFromOwner")!="Ignore")leaf.heading+=s.heading;if(t(leaf.definition,"ScaleFromOwner")!="Ignore")leaf.ownScale*=s.ownScale*((s.detached||t(s.definition,"ScaleFromOwner")=="Ignore")?1.f:owner.scale);s.created.push_back(spawned);s.vfx.push_back(spawned);++s.totalSpawned;++spawnedThisFrame;float interval;if(!rng(p,n(d,"VisualFxIntervalMin"),n(d,"VisualFxIntervalMax"),interval,error))return false;s.timeRemaining+=interval;}
@@ -375,9 +427,8 @@ bool ActionEffectWorld::updateDistance(const ActionEffectProviders&p,uint32_t& s
   if(n(d,"VisualFxManagerCap")>0&&registry_->managerCount(0)>=size_t(n(d,"VisualFxManagerCap")*4))continue;
   if(n(d,"ActiveVisualFxCap")>0&&activeVfxCount(h)>=uint32_t(n(d,"ActiveVisualFxCap")))continue;
   EffectOwnerState owner=s.ownerSnapshot;if(!s.detached&&(!p.owner||!p.owner(s.ownerId,owner,error)))return false;
-  std::array<float,3> location{s.position[0],s.position[1],s.position[2]+n(d,"OffsetZ")+s.addedOffsetZ+shift(d,"StartOffsetZ","EndOffsetZ",s.fraction)};
-  // GetLocation296c90 (not GetDrawLocation): attach offset only, no draw shifts.
-  location[0]+=s.attachOffset?(*s.attachOffset)[0]:n(d,"OffsetX");location[1]+=s.attachOffset?(*s.attachOffset)[1]:n(d,"OffsetY");
+  std::array<float,3> location;if(!sourceLocation(s,owner,&p.marker,location,error))return false;
+  location[2]+=n(d,"OffsetZ")+s.addedOffsetZ+shift(d,"StartOffsetZ","EndOffsetZ",s.fraction);
   const auto marker=t(d,"VisualFxUseAttachedMarkerLocation");if(!marker.empty()&&owner.hasPrimaryAnimation&&(!p.marker||!p.marker(s.ownerId,marker,location,error)))return false;
   float delta=0;if(s.previousVfxLocation[0]!=0||s.previousVfxLocation[1]!=0){const float dx=location[0]-s.previousVfxLocation[0],dy=location[1]-s.previousVfxLocation[1];delta=std::min(std::sqrt(dx*dx+dy*dy),1920.f);if(delta>=n(d,"VisualFxDistanceMinChange"))s.distanceRemaining-=delta;}
   uint32_t emitted=0;
@@ -405,11 +456,33 @@ bool ActionEffectWorld::preDisposeOwner(int32_t id,const ActionEffectProviders&p
 bool ActionEffectWorld::preDisposeOwner(int32_t id,const EffectOwnerState&owner,std::string&error){try{if(!owner.lifetime||!owner.baseColor||!owner.baseHsv){error="Actual action pre-dispose body/color lifetime unavailable";return false;}std::vector<uint64_t>dead;for(auto&[h,s]:states_){if(s.ownerId!=id||s.detached||s.guiLine)continue;if(s.ownerLifetime!=owner.lifetime){error="Actual action attachment owner lifetime mismatch";return false;}if(b(s.definition,"DieWithOwner")){dead.push_back(h);continue;}/* OnAttachedToPreDispose29a2f6..323 snapshots Thing.GetLocation for Maintain, without a marker branch;29a4ef clears attached Thing/body. GetLocation296c90 then uses this own location even when a marker name remains in data. */if(t(s.definition,"LocationFromOwner").empty()||t(s.definition,"LocationFromOwner")=="Maintain"){s.position[0]=owner.x;s.position[1]=owner.y;}if(t(s.definition,"ScaleFromOwner").empty()||t(s.definition,"ScaleFromOwner")=="Maintain")s.ownScale*=owner.scale;if(t(s.definition,"AngleFromOwner").empty()||t(s.definition,"AngleFromOwner")=="Maintain")s.heading+=owner.angle;s.ownerSnapshot=owner;s.detached=true;}for(auto h:dead)if(state(h)&&!destroy(h,error))return false;return true;}catch(const std::exception&e){error=e.what();return false;}}
 std::vector<uint64_t> ActionEffectWorld::handles(bool lights)const{std::vector<uint64_t>out;for(const auto&[h,s]:states_)if((lights||!s.isLight)&&!s.done)out.push_back(h);return out;}
 bool ActionEffectWorld::visual(uint64_t h,const EffectOwnerState&owner,const std::array<uint8_t,4>&ownerFraction,ActorVisual&out,std::string&error){try{
- const auto*s=state(h);if(!s||s->done||!registry_->find(h)||owner.lifetime!=s->ownerLifetime){error="Actual action FX draw lifetime unavailable";return false;}const auto&d=s->definition;const auto&clip=bank_->clips()[s->imageClip];// AnimationData::PostRead 0x18009780a: absent frame counts normalize to 1.
- size_t slide=s->type==NativeAnimationType::Slide?s->slide:size_t(std::clamp(std::trunc(s->frame),n(d,"StartFrame",1),n(d,"EndFrame",n(d,"NumFrames",1))))-1;if(slide>=clip.slides.size()){error="Actual action FX frame outside resource: "+s->name+" type="+std::to_string(int(s->type))+" frame="+std::to_string(s->frame)+" index="+std::to_string(slide)+" exported="+std::to_string(clip.slides.size())+" Start="+std::to_string(n(d,"StartFrame",1))+" End="+std::to_string(n(d,"EndFrame",n(d,"NumFrames",1)));return false;}
- // BookAnimation::PrepDraw 0x1802af9a6: texture = GetAngleNum x NumFrames + frame.
- const uint32_t angleIndex=clip.originalAngles>1?angleNum(*s,owner):0;
- out.id=uint32_t(s->ownerId);out.lifetime=h;out.sourceBank=bank_.get();out.frame=bank_->sample(s->imageClip,slide,angleIndex,false);out.localRect=out.frame.worldRect(clip);out.x=s->position[0];out.y=s->position[1];// GetZLocation 0x180297f50: + mOffsetZ + ZShift (unscaled height).
+ const auto*s=state(h);if(!s||s->done||!registry_->find(h)||owner.lifetime!=s->ownerLifetime){error="Actual action FX draw lifetime unavailable";return false;}const auto&d=s->definition;
+ const auto imageBank=s->movie?movieBank_:bank_;if(!imageBank){error="Actual action Movie/image bank unavailable: "+s->name;return false;}const auto&clip=imageBank->clips().at(s->imageClip);
+ size_t slide=0;const float originalFrame=std::clamp(std::trunc(s->frame),n(d,"StartFrame",1),n(d,"EndFrame",n(d,"NumFrames",1)));
+ if(s->movie){
+  const auto found=std::lower_bound(clip.slides.begin(),clip.slides.end(),uint32_t(originalFrame),[](const ActorAnimationSlide& value,uint32_t frame){return value.originalFrame<frame;});
+  if(found==clip.slides.end()||found->originalFrame!=uint32_t(originalFrame)){error="Actual Movie Book source frame was not exported: "+s->name+" frame="+std::to_string(originalFrame);return false;}slide=size_t(found-clip.slides.begin());
+ }else slide=s->type==NativeAnimationType::Slide?s->slide:size_t(originalFrame)-1;
+ if(slide>=clip.slides.size()){error="Actual action FX frame outside resource: "+s->name+" type="+std::to_string(int(s->type))+" frame="+std::to_string(s->frame)+" index="+std::to_string(slide)+" exported="+std::to_string(clip.slides.size());return false;}
+ // Book.PrepDraw2af9a6 uses full native GetAngleNum. Movie coverage retains
+ // selected original angles; use the bank's documented nearest-angle mapping.
+ const uint32_t nativeAngle=clip.originalAngles>1?angleNum(*s,owner):0;
+ const uint32_t angleIndex=s->movie?imageBank->selectedAngleFromOriginal(s->imageClip,nativeAngle):nativeAngle;
+ out.id=uint32_t(s->ownerId);out.lifetime=h;out.sourceBank=imageBank.get();out.frame=imageBank->sample(s->imageClip,slide,angleIndex,false);out.localRect=out.frame.worldRect(clip);
+ if(s->movie){
+  // HAA clip geometry already contains Animation.Scale/BinkAtlas.scale and
+  // Animation.OffsetX/Y. Remove source Scale and offsets, preserving inverse
+  // atlas scale. The common native Animation draw pipeline below applies each
+  // source/live scale and attached-body draw offset exactly once.
+  const float sourceScale=n(d,"Scale",1);if(sourceScale<=0){error="Actual Movie geometry source scale unavailable";return false;}
+  out.localRect[0]=(out.localRect[0]-clip.offsetX)/sourceScale;out.localRect[1]=(out.localRect[1]-clip.offsetY)/sourceScale;out.localRect[2]/=sourceScale;out.localRect[3]/=sourceScale;
+  if(n(d,"OriginX")!=0||n(d,"OriginY")!=0){error="Movie Book explicit origin requires original atlas extent/trim metadata";return false;}
+  // The packet keeps the original midpoint pivot (including odd-canvas half
+  // pixels). Mirror cropped geometry about that pivot as well as its UVs.
+  if(s->flipX)out.localRect[0]=-out.localRect[0]-out.localRect[2];if(s->flipY)out.localRect[1]=-out.localRect[1]-out.localRect[3];
+ }
+ std::array<float,3> location;if(!sourceLocation(*s,owner,nullptr,location,error))return false;out.x=location[0];out.y=location[1];
+ // GetZLocation297f50 adds OffsetZ + ZShift, unscaled.
  out.z=s->position[2]+n(d,"OffsetZ")+s->addedOffsetZ+shift(d,"StartOffsetZ","EndOffsetZ",s->fraction);out.scale=s->ownScale*scaleHelper(d,"StartScale","EndScale",s->fraction);if(!s->detached&&(t(d,"ScaleFromOwner").empty()||t(d,"ScaleFromOwner")=="Maintain"))out.scale*=owner.scale;
  // Animation::GetScale 0x180298bb0: x mScaleRadius/def.ScaleRadius when both >0.
  if(s->scaleRadius>0&&n(d,"ScaleRadius")>0)out.scale*=s->scaleRadius/n(d,"ScaleRadius");out.angle=s->rotation-((d.get("UseOwnAngle")&&!b(d,"UseOwnAngle"))?0.f:s->heading+angleModifier(d,s->fraction));if(!s->detached&&maintainsOwnerAngle(d))out.angle-=owner.angle;
@@ -426,17 +499,20 @@ bool ActionEffectWorld::visual(uint64_t h,const EffectOwnerState&owner,const std
  // Selected source has default ParallaxAmount1 and no attached animation
  // offset accumulation. Detached animations have no attached Body here.
  const float offsetScale=s->detached?1.f:owner.scale;
- // A nullptr-Thing CreateCustom uses its own location (+98), ignoring
- // mAttachOffset (+a0). GetDrawLocation still adds DRAW offsets (+90).
- const float ox=!s->detached&&s->attachOffset?(*s->attachOffset)[0]:n(d,"OffsetX"),oy=!s->detached&&s->attachOffset?(*s->attachOffset)[1]:n(d,"OffsetY");
+ // Draw offsets (+90) are independent of raw attachment offsets (+a0).
+ // GetDrawLocation297e31 reads those source draw fields even after a live
+ // SetAttachOffset or a child-chain replacement copied the parent attachment.
+ const float ox=n(d,"OffsetX"),oy=n(d,"OffsetY");
  // GetDrawLocation 0x180297d60: (Shift + offset) x attached body scale.
  out.x+=(shift(d,"StartOffsetX","EndOffsetX",s->fraction)+ox)*offsetScale;out.y+=(shift(d,"StartOffsetY","EndOffsetY",s->fraction)+oy)*offsetScale;
  out.screenSpace=s->useScreenLocation;out.parallax=s->parallax;out.flipX=s->flipX;out.flipY=s->flipY;out.postRotateScaleX=isometric?1.f:n(d,"PostRotateScaleX",1);out.postRotateScaleY=isometric?1.f:n(d,"PostRotateScaleY",1);
+ if(!s->movie){
  const auto* resource=catalog_.get("Clips");const auto&ratios=resource->array().at(s->imageClip).get("atlas_ratio_by_frame")->array().at(size_t(angleIndex)*size_t(n(d,"NumFrames",1))+size_t(s->frame)-1).array();const float rx=float(ratios[0].number()),ry=float(ratios[1].number());for(size_t k=0;k<4;++k)out.localRect[k]*=k%2?ry:rx;
  // Explicit source origin replaces native input origin before trim/flip math.
  const auto* metadata=catalog_.get("FrameMetadata");if(!metadata){error="Original action atlas pivot metadata companion unavailable";return false;}const auto& atlas=*metadata->array().at(out.frame.packetFrameIndex).get("sprite");
  const auto&original=atlas.get("original")->array();const auto&trim=atlas.get("trim")->array();const float ratiosXY[]{rx,ry};const bool flips[]{s->flipX,s->flipY};const float sizes[]{float(out.frame.width),float(out.frame.height)};
  for(size_t axis=0;axis<2;++axis){const auto* key=axis?"OriginY":"OriginX";float origin=n(d,key,float(original[axis].number())*.5f)/ratiosXY[axis]-float(trim[axis].number());if(flips[axis])origin-=std::trunc(float(original[axis].number())/ratiosXY[axis]-sizes[axis]-2*float(trim[axis].number()));out.localRect[axis]=-origin*ratiosXY[axis];}
+ }
  // GetDrawScaleVector 0x180298500: body scale vector x StartScaleX/Y..EndScaleX/Y
  // transition helpers. Maintain ScaleVectorFromOwner(0) multiplies the attached Body.
  const float sx=s->scaleVector[0]*scaleHelper(d,"StartScaleX","EndScaleX",s->fraction),sy=s->scaleVector[1]*scaleHelper(d,"StartScaleY","EndScaleY",s->fraction);
@@ -448,6 +524,7 @@ bool ActionEffectWorld::visual(uint64_t h,const EffectOwnerState&owner,const std
  if(inherit&&(c==3||!b(d,"MaintainAlphaOnly"))){channel=channel*(*owner.baseColor)[c]/255;channel=channel*ownerFraction[c]/255;}out.color[c]=float(channel)/255;}out.addColor=b(d,"AddColor");out.hsv=s->hsv;return true;
  }catch(const std::exception&e){error=e.what();return false;}}
 bool ActionEffectWorld::createPrimary(const std::string&name,int32_t owner,const ActionEffectProviders&p,uint64_t&handle,std::string&error){
+ if(auto i=definitions_.find(name);i!=definitions_.end()&&b(i->second,"CancelOnOwnerMove")){EffectOwnerState body;if(!p.owner||!p.owner(owner,body,error))return false;if(body.isUnit){error="Action primary CancelOnOwnerMove requires native Unit movement-animation policy: "+name;return false;}}
  primaryRequest_=true;const bool ok=create(name,owner,std::nullopt,p,handle,error);primaryRequest_=false;return ok;}
 std::vector<uint64_t> ActionEffectWorld::completedPrimaries()const{
  std::vector<uint64_t> result;for(const auto&[h,s]:states_)if(s.primary&&s.done)result.push_back(h);return result;
@@ -547,8 +624,11 @@ bool ActionEffectWorld::preferUnmodifiedTime(uint64_t h,std::string&error){if(!s
 // Maintain), NumAngles<=1 -> 0, interval tau/N, - AngleNumAngleOffset (not
 // admitted), + interval/2, truncate, + AngleNumOffset, one wrap, Mirror fold.
 uint32_t ActionEffectWorld::angleNum(const ActionEffectState&s,const EffectOwnerState&owner)const{
- const auto&d=s.definition;const int angles=int(bank_->clips().at(s.imageClip).originalAngles);if(angles<=1)return 0;
- float angle=s.heading;if(!s.detached&&maintainsOwnerAngle(d))angle+=owner.angle;
+ const auto&d=s.definition;const int angles=int((s.movie?movieBank_:bank_)->clips().at(s.imageClip).originalAngles);if(angles<=1)return 0;
+ float angle=s.heading;if(!s.detached&&maintainsOwnerAngle(d)){if(owner.isUnit&&!owner.bookOwnerAngle)throw std::runtime_error("Actual Unit Book cosmetic angle unavailable: "+s.name);angle+=owner.isUnit?*owner.bookOwnerAngle:owner.angle;}
+ // AnimationData ctor094170 sets UseIsometricAngle(full+0x9d)=true. Movie
+ // Book children use the same exact native LUT as Thing HAA primaries.
+ if(s.movie&&(!d.get("UseIsometricAngle")||b(d,"UseIsometricAngle")))angle=movieBank_->inverseIsometricAngle(angle);
  const float interval=6.2831854820251465f/float(angles),half=interval*.5f;
  const volatile float scaled=(angle+half)/interval;int index=int(float(scaled))+int(n(d,"AngleNumOffset"));
  if(angles-1==0)index=0;else if(index<0)index+=angles;else if(index>angles-1)index=index-(angles-1)-1;

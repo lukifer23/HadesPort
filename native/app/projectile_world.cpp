@@ -270,7 +270,7 @@ bool ProjectileWorld::update(float elapsed,const ProjectileUpdateProviders& prov
     if(updating_||!std::isfinite(elapsed)||elapsed<0||!std::isfinite(providers.worldTime)||!std::isfinite(providers.worldTimeMultiplier)){error="Projectile manager requires finite actual World clock outside nested update";return false;}
     // Reject unsupported concrete classes before promoting/mutating the frame.
     for(const auto* list:{&active_,&pending_})for(uint64_t handle:*list){const auto* entity=actor(handle);
-        if(!entity||!entity->shotInitialized||entity->disposed||(entity->descriptor.concreteClass!=ProjectileClass::Arc&&entity->descriptor.concreteClass!=ProjectileClass::Straight&&entity->descriptor.concreteClass!=ProjectileClass::Homing)){error="Actual projectile manager supports initialized ARC/STRAIGHT/HOMING only";return false;}}
+        if(!entity||!entity->shotInitialized||entity->disposed||(entity->descriptor.concreteClass!=ProjectileClass::Arc&&entity->descriptor.concreteClass!=ProjectileClass::Straight&&entity->descriptor.concreteClass!=ProjectileClass::Homing&&entity->descriptor.concreteClass!=ProjectileClass::Instant)){error="Actual projectile manager supports initialized ARC/STRAIGHT/HOMING/INSTANT only";return false;}}
     if(!flushPending(error))return false;
     updating_=true;
     auto stop=[&](const std::string& reason){updating_=false;faulted_=true;fault_=reason;error=reason;return false;};
@@ -328,6 +328,33 @@ bool ProjectileWorld::initializeShot(ProjectileInitializationRequest request,Wea
         auto* owner=world.actor(request.ownerId);
         if(!owner||!owner->registered||!owner->object||owner->arsenal.get()!=&arsenal)throw std::runtime_error("Projectile shot requires actual registered Unit/owned Arsenal");
         const auto* definition=arsenal.projectileData(request.weaponName,spawnedDefinition,error);if(!definition)throw std::runtime_error(error);
+        ProjectileCreationDescriptor creation;if(!describeProjectileCreation(*definition,creation,error))throw std::runtime_error(error);
+        if(creation.concreteClass==ProjectileClass::Instant){
+            // InstantProjectile.Init65f90 (ev_a3b81e6a92d4cf1f35a2e9e24bda652346bfde372f5bc105f8225084f55c2526):
+            // select attached-aware target location before base Projectile.Init;
+            // no public Thing ID is assigned and no manager list is promoted.
+            auto scalar=[&](const char* key){auto i=definition->fields.find(key);if(i==definition->fields.end()||!std::holds_alternative<double>(i->second)||!std::isfinite(std::get<double>(i->second)))throw std::runtime_error(std::string("Instant native scalar unavailable: ")+key);return float(std::get<double>(i->second));};
+            auto bit=[&](const char* key){auto i=definition->fields.find(key);if(i==definition->fields.end()||!std::holds_alternative<bool>(i->second))throw std::runtime_error(std::string("Instant native boolean unavailable: ")+key);return std::get<bool>(i->second);};
+            if(!bit("UseStartLocation")){
+                const auto* target=world.actor(request.fire.targetId);
+                if(target&&target->registered&&target->object&&target->entityHandle==request.fire.targetLifetime){
+                    if(!world.location(target->id,request.x,request.y,error))throw std::runtime_error(error);
+                }else{
+                    const float fromX=request.x,fromY=request.y;
+                    request.x=request.fire.targetX;request.y=request.fire.targetY;
+                    // GetFromLocation83020 has already been consumed by the
+                    // weapon producer when supplying this actual shot origin.
+                    if(request.x==0&&request.y==0){request.x=fromX;request.y=fromY;}
+                }
+            }
+            const float radius=scalar("SpawnRadius");
+            if(radius!=0){
+                auto draw=[&](){double value=0;if(!providers.random(value,error))throw std::runtime_error(error);if(!std::isfinite(value)||value<0||value>=1)throw std::runtime_error("Instant RNG outside original [0,1) domain");return float(value);};
+                const float angle=draw()*6.2831855f;float distance=draw()*radius;
+                if(bit("GaussianSpawnDistribution")){const float first=draw(),second=draw();distance=std::abs(second-first)*radius;}
+                request.x+=std::cos(angle)*distance;request.y-=std::sin(angle)*distance;
+            }
+        }
         if(!allocate(request,*definition,world,handle,error))throw std::runtime_error(error);allocated=true;
         auto* entity=actor(handle);entity->spawnedDefinition=spawnedDefinition;request=entity->request;
         entity->spawnTime=providers.worldTime;
@@ -458,7 +485,22 @@ bool ProjectileWorld::initializeShot(ProjectileInitializationRequest request,Wea
                 if(!tail->advance(*definition,*weapon,end,preflight,step,error))throw std::runtime_error(error);entity->state=tail->state();
                 if(step.progress==ProjectileInitializationTailProgress::PendingQueueSetupFinished){
                     if(entity->descriptor.concreteClass==ProjectileClass::Arc&&!initialArcProjectileAngle(*definition,entity->arcAngleOffset,error))throw std::runtime_error(error);
-                    entity->shotInitialized=true;output=handle;error.clear();return true;
+                    entity->shotInitialized=true;
+                    if(entity->descriptor.concreteClass==ProjectileClass::Instant){
+                        auto scalar=[&](const char* key){auto i=definition->fields.find(key);if(i==definition->fields.end()||!std::holds_alternative<double>(i->second)||!std::isfinite(std::get<double>(i->second)))throw std::runtime_error(std::string("Instant native scalar unavailable: ")+key);return float(std::get<double>(i->second));};
+                        // Native tests the actual copied data, not the sampled
+                        // fuse countdown. A zero-fuse Instant detonates during
+                        // Init; base UpdateSelf later performs OnDeath/Dispose.
+                        if(!(scalar("Fuse")>0)&&!(scalar("FuseMin")!=-1&&scalar("FuseMax")!=-1)){
+                            if(!providers.detonate)throw std::runtime_error("Instant initialization requires native synchronous Detonate consumer");
+                            if(!providers.detonate(handle,error))throw std::runtime_error(error);
+                        }else{
+                            const auto* target=world.actor(request.fire.targetId);
+                            if(target&&target->registered&&target->object&&target->entityHandle==request.fire.targetLifetime)
+                                throw std::runtime_error("Instant delayed-fuse target LOS/dodge/penetration initialization not reconstructed");
+                        }
+                    }
+                    output=handle;error.clear();return true;
                 }
                 operation=std::move(step.operation);
             }
@@ -486,7 +528,7 @@ bool ProjectileWorld::updateBase(uint64_t handle,float incoming,const Projectile
     // native/analysis/base-projectile-update-contract.json.
     remove=false;auto* entity=actor(handle);
     if(!entity||!entity->shotInitialized||!entity->active||entity->disposed||!entity->firingArsenal||!entity->firingWorld){error="Base projectile update requires actual initialized active projectile/source binding";return false;}
-    if(entity->descriptor.concreteClass!=ProjectileClass::Straight&&entity->descriptor.concreteClass!=ProjectileClass::Homing){error="Base Projectile::UpdateSelf reached by an overriding subclass";return false;}
+    if(entity->descriptor.concreteClass!=ProjectileClass::Straight&&entity->descriptor.concreteClass!=ProjectileClass::Homing&&entity->descriptor.concreteClass!=ProjectileClass::Instant){error="Base Projectile::UpdateSelf reached by an overriding subclass";return false;}
     auto current=[&](){return entity->firingArsenal->projectileData(entity->request.weaponName,entity->spawnedDefinition,error);};
     auto scalar=[&](const char* key,float& out){const auto* data=current();if(!data)return false;auto it=data->fields.find(key);
         if(it==data->fields.end()||!std::holds_alternative<double>(it->second)||!std::isfinite(std::get<double>(it->second))){error=std::string("Actual projectile numeric data unavailable: ")+key;return false;}

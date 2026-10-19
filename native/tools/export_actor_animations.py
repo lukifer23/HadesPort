@@ -42,8 +42,9 @@ def export(a):
   if(info['num_frames'],info['num_angles'])!=(d['NumFrames'],d['NumAngles']):raise ValueError('Shared movie definitions disagree')
   slides=d.get('Slides',[])
   if d['Type']=='Book':
-   events={x['Frame']:x for x in slides}
-   slides=[{'DurationFrames':1,**{k:v for k,v in events.get(i,{}).items()if k not in ('Frame','DurationFrames')}}for i in range(d.get('StartFrame',1),d.get('EndFrame',d['NumFrames'])+1)]
+   # Book.Init2af310/SetupFrameUpdateMode2b1040 never initializes or
+   # dispatches SlideData. Inherited Slide schedules/events are inert.
+   slides=[{'DurationFrames':1}for i in range(d.get('StartFrame',1),d.get('EndFrame',d['NumFrames'])+1)]
   if len(slides)!=d['NumFrames']:raise ValueError('Slides/movie frame count mismatch')
   if any('DurationFrames'not in s for s in slides):raise ValueError('Native absent slide duration not recovered')
   seq=[]

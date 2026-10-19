@@ -1,0 +1,27 @@
+{
+  "schema": "hades-audio-time-locked-playlist-v1",
+  "evidence": ".local/reports/takeover-explosion1-graph.json",
+  "source_bank_sha256": "dfe92eea7183e60040807058e95fbc880203565f2fb1233e9ca1ac529ef8b9dd",
+  "facts": [
+    "The original event has a TLNB time_locked_trigger_boxes region at tick0 with length36000, containing a MUIB mode2/selection1 and nine original weighted WAIB waveform choices.",
+    "The parent Instrument has loop_count0, chance100, no delay/evaluators/seek/quantization and no finite per-instrument polyphony limit. Children route through the parent bus and retain their original volume, pitch and trim.",
+    "The parent has two timeline gain controllers: source property4, conflict method4, type0, identity mapping. Original fade curves cover ticks0..480 and17760..36000, including their original curve shapes."
+  ],
+  "implementation": [
+    "The generic exporter admits bounded time-locked MUIB through the existing playlist representation instead of accepting only WAIB in locked regions.",
+    "WAIB and MUIB share actual parent Instrument gain automation parsing and the existing runtime Curve consumer.",
+    "The selected original waveform retains the original time-locked region end. It does not lengthen the event to the natural waveform end as asynchronous triggered playlists do.",
+    "Source samples, gain, pitch, bus graph, curves, resampler and DSP remain the same actual source-backed consumers. No silent sound or replacement sample is used."
+  ],
+  "limits": [
+    "Weighted shuffle without replacement remains the existing Android playlist selection adaptation; proprietary FMOD smart-random history is not claimed.",
+    "FMOD bitwise PCM equivalence after resampling and DSP is not claimed.",
+    "Re-entrant or empty locked regions, nondefault flags/quantization/seek/control/3D offset, finite instrument polyphony and instrument property modulators remain explicit unsupported branches."
+  ],
+  "validation": {
+    "audio_catalog": ".local/native-assets/audio-events-v29/manifest.json",
+    "source_admission_audit": ".local/reports/takeover-locked-playlist-final-admission.txt",
+    "replay": ".local/reports/takeover-instant-mixed-strict-v4.json",
+    "result": "Fresh audio29 admits four original event graphs through the same recovered locked-playlist class:836events,1976unchanged original samples and5remaining unsupported graphs. All four newly admitted graphs were checked against final locked-only flags/seek/quantization/control/polyphony and property-modulator admission; they match. Coverage worker actual mixed-combat strict replay completed2950/2950 frames with empty initialization/mixer/presentation errors, passed real RubbleFall Init/Detonate and Explosion1 playback, actual enemy damage, subsequent Sword/Special, all four cardinal directions and final held[]/requests[]/strafing0/statusFault0. Android phone verification is owned by root and remains separate."
+  }
+}

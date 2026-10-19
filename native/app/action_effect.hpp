@@ -29,7 +29,7 @@ struct ActionEffectState {
  size_t imageClip=0,slide=0;float frame=1,remaining=0,duration=0,playSpeed=0,fraction=0,frameTarget=0;
  std::array<float,3> position{},spawnPosition{};
  EffectOwnerState ownerSnapshot;
- bool detached=false,preferUnmodified=false,useScreenLocation=false;
+ bool detached=false,preferUnmodified=false,useScreenLocation=false,movie=false;
  std::optional<std::string> runtimeGroup;
  std::array<float,2> scaleVector{1,1};
  float ownScale=1,heading=0,rotation=0,speed=0,acceleration=0,headingSpeed=0,timeRemaining=0;
@@ -75,7 +75,8 @@ struct ActionAnimationSetup {
 };
 class ActionEffectWorld {
  SourceValue catalog_;std::map<std::string,SourceValue> definitions_;
- std::shared_ptr<ActorAnimationBank> bank_;std::shared_ptr<AnimationRegistry> registry_;
+ std::shared_ptr<ActorAnimationBank> bank_,movieBank_;std::shared_ptr<AnimationRegistry> registry_;
+ std::set<std::string> movies_;
  std::string fault_;
  void retainFault(std::string& error){if(!faulted_){fault_=error.empty()?"Action FX failed after native allocation/mutation":error;faulted_=true;}error=fault_;}
  std::map<uint64_t,ActionEffectState> states_;bool faulted_=false,mutating_=false,primaryRequest_=false,guiLineRequest_=false;
@@ -97,7 +98,8 @@ class ActionEffectWorld {
  bool slideFx(uint64_t,const ActionEffectProviders&,std::string&);
  bool preflight(const std::string&,const ActionEffectProviders&,std::vector<std::string>&,std::string&,bool guiLine=false)const;
 public:
- bool load(SourceValue,std::shared_ptr<ActorAnimationBank>,std::shared_ptr<AnimationRegistry>,std::string&);
+ bool load(SourceValue,std::shared_ptr<ActorAnimationBank>,std::shared_ptr<AnimationRegistry>,std::string&,std::shared_ptr<ActorAnimationBank> movieBank={});
+ bool movie(const std::string& name)const{return movies_.contains(name);}
  void setSoundStop(std::function<bool(uint32_t,float,std::string&)> f){stopSound_=std::move(f);}
  bool admits(const std::string& name)const{return definitions_.contains(name);}
  // Exporter/coverage reason for a covered original name that is not admitted.

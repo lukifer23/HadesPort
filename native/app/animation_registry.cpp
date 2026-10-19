@@ -24,6 +24,14 @@ bool AnimationRegistry::setSkipUpdate(uint64_t id,bool value,std::string& error)
 bool AnimationRegistry::linkTimeMultiplier(uint64_t id,int32_t owner,uint64_t lifetime,std::string& error){auto it=live_.find(id);if(it==live_.end()||!it->second.initialized||it->second.ownerId!=owner||it->second.ownerLifetime!=lifetime){error="Actual animation clock attachment lifetime unavailable";return false;}it->second.attachedToTimeMultiplier=true;error.clear();return true;}
 bool AnimationRegistry::cancel(uint64_t id,std::string& error){auto it=live_.find(id);if(it==live_.end()){error="Actual canceled animation lifetime missing";return false;}it->second.canceled=true;return true;}
 bool AnimationRegistry::restart(uint64_t id,std::string& error){auto it=live_.find(id);if(it==live_.end()||!it->second.initialized){error="Actual initialized animation lifetime missing for source Restart";return false;}it->second.canceled=false;return true;}
+bool AnimationRegistry::reparentChild(uint64_t child,uint64_t parent,std::string& error){
+ auto found=live_.find(child);if(found==live_.end()||found->second.ownership!=AnimationOwnership::Child||found->second.managerMember){error="Native child transfer requires its actual child allocation";return false;}
+ auto& c=found->second;
+ if(parent){const auto* p=find(parent);if(!p||p->child||p->ownerId!=c.ownerId||p->ownerLifetime!=c.ownerLifetime||p->manager!=c.manager){error="Native child transfer parent/owner lifetime mismatch";return false;}
+  for(auto ancestor=parent;ancestor;){if(ancestor==child){error="Native child transfer would form a cycle";return false;}const auto* p=find(ancestor);if(!p){error="Native child transfer ancestor lifetime missing";return false;}ancestor=p->parent;}}
+ if(c.parent){auto p=live_.find(c.parent);if(p==live_.end()||p->second.child!=child){error="Native child transfer old parent link mismatch";return false;}p->second.child=0;}
+ c.parent=parent;if(parent)live_.at(parent).child=child;error.clear();return true;
+}
 bool AnimationRegistry::dispose(uint64_t id,std::string& error){auto it=live_.find(id);if(it==live_.end()){error="Actual animation disposal lifetime missing";return false;}const auto entry=it->second;if(entry.child&&!dispose(entry.child,error))return false;if(entry.parent){auto p=live_.find(entry.parent);if(p!=live_.end())p->second.child=0;}if(entry.managerMember){auto& order=managed_.at(entry.manager);const auto i=std::find(order.begin(),order.end(),id);if(i==order.end())throw std::runtime_error("Native animation manager ownership invariant");order.erase(i);}live_.erase(id);return true;}
 std::span<const uint64_t> AnimationRegistry::managed(uint32_t manager)const{auto i=managed_.find(manager);return i==managed_.end()?std::span<const uint64_t>{}:std::span<const uint64_t>{i->second};}
 size_t AnimationRegistry::managerCount(uint32_t manager)const{return managed(manager).size();}

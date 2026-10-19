@@ -978,6 +978,7 @@ bool ScriptRuntime::effectOwner(int32_t id,hades::EffectOwnerState& state,std::s
     state.lifetime=actor->entityHandle;
     if(!actorWorld_.location(id,state.x,state.y,error)||!actorWorld_.zLocation(id,state.z,error))return false;
     state.scale=object->scale*object->scaleFraction;state.angle=object->angle;
+    state.bookOwnerAngle=actorAnimationFacing(*actor);
     state.scaleVector={actor->fractions[2].current(),actor->fractions[3].current()};
     state.velocity.reset();if(actor->physics)state.velocity=std::array<float,2>{actor->physics->velocity.x,actor->physics->velocity.y};
     state.group=object->group;

@@ -99,16 +99,20 @@ def main(a):
   name=queue.pop(0)
   if name in admitted or name in rejected:continue
   d,_=merged(animations,name)
-  if not d.get('VideoTexture')or d.get('Type')not in ['Slide','Book']:rejected[name]='Nonmovie animation belongs to existing action/scene banks';continue
-  unsupported=[k for k in ['PlayBackwards','LoopFramesOnly','PingPong','StartRed','StartGreen','StartBlue','DurationFrames','Duration','StartAlpha','EndAlpha','Color']if d.get(k)]
-  if unsupported:rejected[name]='Movie primary operation not reconstructed: '+','.join(unsupported);continue
-  extra={k for slide in d.get('Slides',[])for k in native_slide(slide)}-SLIDE_EVENTS
-  if extra:rejected[name]='Movie slide operation not reconstructed: '+','.join(sorted(extra));continue
-  if d.get('Type')=='Book'and d.get('Slides'):rejected[name]='Authored Book slide-event expansion not reconstructed';continue
-  admitted.append(name)
-  for key in ['ChainTo','MoveAnimation','StopAnimation']:
+  # The native dependency graph crosses resource backends. A Constant
+  # activation container can own/chain to an original movie Book; rejecting
+  # its image shape must not stop ChildAnimation/ChainTo discovery.
+  for key in ['ChildAnimation','ChainTo','MoveAnimation','StopAnimation']:
    target=d.get(key)
    if target and target!='null'and target in animations:roots.setdefault(target,[]).append({'kind':key,'name':name});queue.append(target)
+  if not d.get('VideoTexture')or d.get('Type')not in ['Slide','Book']:rejected[name]='Nonmovie animation belongs to existing action/scene banks';continue
+  # Movie Books use the same native ActionEffect Book timing/color/child
+  # consumer as atlas Books. Slide-only timing/event limits remain explicit.
+  unsupported=[k for k in (['PingPong']if d['Type']=='Book'else ['PlayBackwards','LoopFramesOnly','PingPong','StartRed','StartGreen','StartBlue','DurationFrames','Duration','StartAlpha','EndAlpha','Color'])if d.get(k)]
+  if unsupported:rejected[name]='Movie primary operation not reconstructed: '+','.join(unsupported);continue
+  extra=({k for slide in d.get('Slides',[])for k in native_slide(slide)}-SLIDE_EVENTS)if d['Type']=='Slide'else set()
+  if extra:rejected[name]='Movie slide operation not reconstructed: '+','.join(sorted(extra));continue
+  admitted.append(name)
  coverage={'room':closure['room'],'encounter':closure['encounter'],'units':unit_names,'roots':roots,'admitted':admitted,'rejected':rejected,'sources':proof,'limits':['Bounded to forced encounter units and their Lua/native weapon options.','Unimplemented movie operations remain explicit; action-bank resources retain their own admission.']}
  a.decode_output.parent.mkdir(parents=True,exist_ok=True)
  existing={clip['name']for clip in json.loads((a.base/'manifest.json').read_text())['clips']}

@@ -55,8 +55,8 @@
     "Book fallback recursive owner marker/tip policies, child delegation and nonzero random/radial initialization attach offsets remain explicit until their actual initialized components are available."
   ],
   "validation": {
-    "build": ".local/reports/takeover-enemy-ai-build-r20.log",
-    "replay": ".local/reports/takeover-enemy-ai-mixed-r5.json",
-    "result": "Fresh strict original mixed-combat replay reached actual HeavyMelee damage to hero at2544 (health50 to40), original PlayerHitSpark plus standalone screen BloodFrame, then subsequent released hero Sword fire2578 (enemy100 to80). No held input/request/strafe remained at2580. Replay first failed2598 on original OnTouchdown unknown source weapon RubbleFall, immediately before four-cardinal input sequence2600. All-cardinal recovery and full projectile disposal remain unverified until that source weapon closure is staged."
+    "build": ".local/reports/takeover-child-movie-build-r24.log",
+    "replay": ".local/reports/takeover-child-movie-nextwave-r1.json",
+    "result": "Strict original lethal pulse route completed3100/3100 with no blocked stage. First enemy health20 to0 at2626. Both original next-wave HeavyMelee Units reached ActivationFinished=true, IsAggroed=true, active original EnemyAI threads and real A* paths. A next-wave HeavyMelee projectile damagedhero50 to40 at2974; all projectiles disposed by3100 with fault0. The separate mixed/cardinal recovery route is owned by coverage worker; full game, Android touch/pixel equivalence and remaining explicit branches are not claimed."
   }
 }

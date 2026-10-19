@@ -12,12 +12,13 @@ def normalize(projectile,defaults):
         typ=typed.get(k,{}).get('type','source_json');value=copy.deepcopy(v)
         if typ=='float32':value=f32(value)
         if k in NULLABLE and value=='null':value=''
-        # Source Color.Opacity is preserved verbatim rather than silently
-        # overlaid with the compiled Color.Alpha name from the DTO decoder.
-        if k in ('Color','OutlineColor','SubtitleColor')and isinstance(value,dict):
-            current=copy.deepcopy(values.get(k,{}));current.update(value)
-            if 'Opacity'in value:current.pop('Alpha',None)
-            value=current
+        # ThingDataDef uses packed-color SGD_Deserialize2060a0. Each source
+        # color starts with four 1.0 channels; long keys precede aliases and
+        # alpha lookup is Alpha, then Opacity, then A. Keep raw source below
+        # while normalizing the exact semantic channels consumed by Thing.Init.
+        if typ=='packed_color_rgba' and isinstance(value,dict):
+            aliases={'Red':('Red','R'),'Green':('Green','G'),'Blue':('Blue','B'),'Alpha':('Alpha','Opacity','A')}
+            value={channel:f32(next((value[key] for key in keys if key in value),1.0))for channel,keys in aliases.items()}
         properties[k]=value;typed[k]={'type':typ,'value':value,'provenance':{'kind':'original_nested_Thing_override','property':k,'projectile_Thing_source':original['provenance']}}
     # Native ThingDataDef SGD_Deserialize post-loop folds integer Width/Height
     # and OffsetX/Y into Point2 only if both existing components equal zero.
@@ -34,6 +35,6 @@ def normalize(projectile,defaults):
     return {'name':projectile['name'],'thing':properties,'thing_property_types':{k:v['type']for k,v in typed.items()},'unresolved_thing_fields':unresolved,'source_thing':raw}
 def write_sidecar(output,projectiles,defaults,target):
     rows=[normalize(p,defaults)for p in projectiles]
-    packet={'schema':'hades-projectile-thing-catalog-v1','target_sha256':target,'projectiles':{r['name']:r for r in rows},'limits':['Original source inheritance and proven compiled Thing defaults. This does not allocate a projectile or claim World registration.','All omitted Thing definition fields have source-backed semantic defaults; native storage padding remains unmodeled. Actual source polygon values are retained.','Color source Opacity spelling is preserved; actual renderer must apply native packed color conversion.']}
+    packet={'schema':'hades-projectile-thing-catalog-v1','target_sha256':target,'projectiles':{r['name']:r for r in rows},'limits':['Original source inheritance and proven compiled Thing defaults. This does not allocate a projectile or claim World registration.','All omitted Thing definition fields have source-backed semantic defaults; native storage padding remains unmodeled. Actual source polygon values are retained.','Source colors retain raw provenance and use native SGD_Deserialize2060a0 channel defaults/alias precedence; runtime applies packed color conversion.']}
     (output/'projectiles.lua').write_text('return '+literal(packet)+'\n')
     return rows

@@ -122,7 +122,17 @@ bool ScriptRuntime::setActorAnimation(int32_t id,const std::string& name,std::st
             const auto block=animationBank_->exactBlockNewOwnerAnims(actor->animation.clipIndex());if(!block){error="SetAnimation requires current primary BlockNewOwnerAnims";return false;}
             if(*block)return true;
         }
-        const auto target=animationBank_->find(name);if(!target){
+        const auto target=animationBank_->find(name);
+        // Movie Books with actual own duration/color operations use the same
+        // native Book consumer as atlas images. HAA primary playback cannot
+        // acknowledge these fields without executing them. Unit-only move
+        // policy remains an explicit factory boundary if reached.
+        if(target&&actionEffects_.movie(name)){
+            const auto record=actorAnimationDefinitions_.find(name);if(record==actorAnimationDefinitions_.end()||!record->second.get("definition")){error="Movie Book source definition unavailable: "+name;return false;}
+            const auto& source=*record->second.get("definition");
+            for(const char* key:{"Duration","DurationFrames","RandomDurationMin","RandomDurationMax","LoopFramesOnly","PlayBackwards","Color","StartRed","StartGreen","StartBlue","EndRed","EndGreen","EndBlue","StartAlpha","EndAlpha"})if(source.get(key))return setActionPrimaryAnimation(id,name,error);
+        }
+        if(!target){
             if(scenePrimaries_.recipe(id)||scenePrimaries_.admitsDynamic(name))return setScenePrimaryAnimation(id,name,error);
             if(actionEffects_.admits(name))return setActionPrimaryAnimation(id,name,error);
             const auto* why=actionEffects_.rejection(name);

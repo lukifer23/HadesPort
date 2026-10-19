@@ -15,7 +15,7 @@ batch fixes before rerunning, use the shortest replay that reaches the changed
 path, and do one sanitized (ASan/UBSan) run at the end. Device installs only for
 meaningful milestones.
 
-## Current repair checkpoint (2026-10-18)
+## Current repair checkpoint (2026-10-19)
 
 Prototype scope remains the original native Android game, with the current repair
 focused on controls, animation recovery, cast, actual enemy combat and progression.
@@ -23,8 +23,8 @@ Main coordinates Android builds/installs; the user drives the device. No injecte
 input during manual play. All game-derived packs/captures/reports remain ignored.
 
 Current selected packs: opening-actors-v13, actor-simple-v4 via room-packs-v6,
-actor-actions-v8, actor-markers-v8, actor-properties-v13 (HAP6),
-player-weapons-v24, action-effects-v20, screen-opening-v12, original-text-v7, audio-events-v26.
+actor-actions-v9, actor-markers-v9, actor-properties-v14 (HAP6),
+player-weapons-v25, action-effects-v22, screen-opening-v12, original-text-v7, audio-events-v29.
 RoomOpening and RoomSimple01 have validated original assets; no fallback scene.
 
 The latest installed/verified result is in the device table. Iteration8 allowed
@@ -71,27 +71,25 @@ Focused evidence (all private/local):
 
 | Work | Owner | Current boundary |
 |---|---|---|
-| Device/builds, shared combat lifecycle, clocks, diagnostics, docs/remote | main | Iteration10a preserved; iteration11 candidate includes shared primary completion, hitstop and pre-allocation sound coverage checks |
-| Actual enemy AI and mixed combat recovery | movement_controls | Original enemy FireWeaponFromUnit/HeavyMelee OnHit reached; strict post-hit recovery against final selected resources pending |
-| Room/encounter resources and progression | progression_coverage | Selected action20/audio26 source closure; actual enemy Health160→0 proven; checking original Kill cleanup after money primary repair |
-| Native path, attachment and styled text | door_runtime | Shared path/repath, Unattach, owner-Z text and real format runs saved; reached prompt verification pending |
+| Android build/install, shared combat lifecycle/clocks, logs, docs/remote | main | Candidate12 built; strict ASan/UBSan2950 passed; full device install underway, baseline10a preserved |
+| Original enemy AI, firing/markers, movie Book resources and timed audio | movement_controls | Source complete; next-wave3100 strict pass, mixed2950 strict pass |
+| Progression resources, zero-fuse Instant, native color normalization | progression_coverage | Source/selected closure complete; actual mixed2950 passes original touchdown detonation/audio and all cardinal recovery |
+| Shared path/attachment, interaction, child lifetime/rendering and text | door_runtime | Source complete; real next-wave child chains and AI/attack passed host integration |
 
-Candidate evidence distinguishes reached source operations, strict completion,
-contained diagnostics and actual device play:
+Focused candidate evidence (all private/local):
 
-- Strict mixed combat r5: actual enemy hit lowers hero50→40; hit-stun clears,
-  Sword2578 damages enemy100→80, held/requests empty and strafe0. Enemy projectile
-  fully disposes2597; FX/audio worlds fault0. Weapon24 closes the original inherited ObstacleData touchdown-weapon class
-  (all prior57 weapons/49 projectiles unchanged). The next strict stop2599 is
-  RubbleFall Type INSTANT6 subclass initialization, before final cardinals.
-- Strict death v4: original enemy Health160→0 at2626, native death and cleanup
-  continue, money pickup passes former DestroyOnUse fence. Second-wave spawn is
-  attempted2689; owner invulnerability/untargetability gates are now reconstructed. The remaining
-  next-wave dependency is a child-owned movie Book, requiring real ownership and
-  presentation support across resource banks.
-- Full forced encounter, Athena reward and next-room transition remain unproven.
-  These candidate repairs have not yet been installed on the device.
-  A full review APK11 built, but is withheld at the real INSTANT6 boundary.
+- Strict mixed2950: no initialization/presentation/mixer/input error; two real
+  enemy hits lower hero50→40→30, sword/special fire afterward. All four cardinal
+  velocities/angles are correct; final held/requests/effects empty, strafe0,
+  statusFault0. Rubble INSTANT6 and original explosion sound complete.
+- Strict next-wave3100: enemy dies2626; two next-wave enemies finish activation,
+  start original AI, follow actual paths and damage the hero2974. Projectile,
+  effect and scheduler faults remain0; no blocked stage/presentation error.
+- Audio29 adds four source graph admissions using the same1976 original samples;
+  836 events and5 explicit unsupported graphs remain.
+- Final ASan/UBSan mixed2950 passed with no findings; device verification is
+  recorded separately below. Full forced
+  encounter, Athena reward and next-room transition remain unverified.
 
 ## Device (Galaxy Z Fold, `$HADES_DEVICE_SERIAL`)
 
@@ -198,7 +196,7 @@ contained diagnostics and actual device play:
 - RoomOpening and RoomSimple01 are packed. Subsequent rooms require validated map packs and lifecycle coverage.
 - ApplyShift uses documented portable polygon/grid ordering; actual unit-unit push and callbacks now run, with reached collision weapon/effect boundaries still explicit.
 - ReRandomizeOnLoop: engine default true, native loop never re-randomizes.
-- Audio still has unsupported cues/DSP/loop behaviour; inspect audio-events-v23 and actual runtime errors. Dropped cast ammo reaches original DSP14; no silent bypass.
+- Audio still has unsupported graphs/loop behaviour; inspect the selected receipt and actual runtime errors. The cast/pickup replay already passed; do not attribute its sound to the old unsupported Chorus boundary.
 - APK ~2.2 GB after adding actual enemy movies; ZIP32 packaging is bounded below4GiB.
 - Old export dirs (audio-events-opening-v1..v16, earlier action-effects) can be pruned once v17/v8 are confirmed on device.
 

@@ -97,6 +97,10 @@ public:
     // Exact native full-angle quantization then nearest exported source angle.
     // Requires hash-bound actor-facing.bin + actor-animations-sha256.bin.
     uint32_t selectedAngleForFacing(size_t clip,float ownerRadians)const;
+    // Book.GetAngleNum uses the same recovered inverse-isometric table even
+    // for a child whose dynamic own/attached angle is composed elsewhere.
+    float inverseIsometricAngle(float radians)const;
+    uint32_t selectedAngleFromOriginal(size_t clip,uint32_t originalAngle)const;
     // Full original angle, before the visible bank's selected-angle reduction.
     uint32_t originalAngleForFacing(size_t clip,float ownerRadians)const;
     // Result span is valid until the next bank sample/reset/load. Upload it

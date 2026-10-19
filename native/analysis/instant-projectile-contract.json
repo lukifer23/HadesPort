@@ -1,0 +1,56 @@
+{
+  "schema": "hades-instant-projectile-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence": {
+    "init_rva": "0x65f90",
+    "init_length": 2232,
+    "init_evidence": "ev_a3b81e6a92d4cf1f35a2e9e24bda652346bfde372f5bc105f8225084f55c2526",
+    "vtable_rva": "0x5d86e8",
+    "manager_create_rva": "0x79d40",
+    "manager_update_rva": "0x78db0",
+    "thing_color_deserialize_rva": "0x2060a0"
+  },
+  "native_facts": [
+    "Instant vtable Defaults slot0x160 points to Thing::Defaults2dbbb0, retaining public Thing id -1. UpdateSelf slot0x30 points to base Projectile::UpdateSelf6a720; Detonate slot0x180 points to Projectile::Detonate6d670. No invented Instant-only disposal path.",
+    "Init selects the actual attached-aware target location unless UseStartLocation (full data+0x654). Without a live target, nonzero FireRequest target XY wins over the actual firing-origin fallback.",
+    "Nonzero SpawnRadius(+0x658) consumes angle then radial RandomDouble. GaussianSpawnDistribution(+0x65c) additionally consumes two RandomDouble values and uses absolute difference times radius. Offset uses cosine X and negative-sine Y.",
+    "The entire base Projectile.Init69910 runs, including actual pending queue admission, before Instant subclass completion. If Fuse(+0x47c)<=0 and the FuseMin/FuseMax(+0x480/+0x484) pair is not both nondefault, Init synchronously calls virtual Detonate.",
+    "Manager78db0 promotes pending projectiles normally, invokes vslot0x30, and disposes on its actual return1. Base UpdateSelf owns OnDeath and blast-duration retirement; Instant does not bypass that lifecycle.",
+    "GetImpactAngle6e7d0 uses Body angle only when (SpawnOnDetonate pointer null AND Type<3) OR previous location equals impact; otherwise nonradial angle is from previous to impact location.",
+    "ThingDataDef Color calls packed-color SGD_Deserialize2060a0 (ThingDataDef callsite ee3a0). A present color object starts four channels at 1.0 and reads Red before R, Green before G, Blue before B, Alpha before Opacity before A; missing keys retain those channel defaults. Runtime DTO uses canonical RGBA channels while the export retains raw source."
+  ],
+  "implemented_scope": [
+    "Native zero-fuse Instant placement/RNG/base initialization/synchronous detonation/normal manager retirement.",
+    "Delayed-fuse Instant without a live target uses the inherited base update.",
+    "Synchronous detonation accepts an initialized pending lifetime; it does not prematurely promote unrelated pending shots or fabricate an active body."
+  ],
+  "unreconstructed": [
+    "Delayed-fuse Instant with a live target requires the native immediate LOS, reflection/dodge, immunity and penetration initialization pass; strict failure remains explicit.",
+    "Remaining shared detonation, hit, audio, animation and disposal boundaries remain enforced when actually reached."
+  ],
+  "validation": {
+    "method": "Actual original Lua/Input replay through native World; no health injection or skipped native action.",
+    "strict_mixed_world_updates": 2950,
+    "source_pcm_samples": 4720000,
+    "presentation_samples": 1361,
+    "initialization_error": "",
+    "presentation_error": "",
+    "mixer_or_input_error": "",
+    "original_gameplay_reached": [
+      "Original opening-door transition into first encounter",
+      "Actual enemy attack damage followed by hero Sword and Special hits",
+      "Native physics OnTouchdown original Lua FireWeaponFromUnit reaches generic Instant initialization and synchronous original detonation",
+      "Post-melee cardinal input changes actual body/goal/velocity; post-Special disable effects expire and requests/strafe clear"
+    ],
+    "selected_resource_versions": {
+      "weapon": 25,
+      "action": 22,
+      "actor": 9,
+      "audio": 29
+    },
+    "audio_events": 836,
+    "audio_samples": 1976,
+    "audio_remaining_unsupported_graphs": 5,
+    "limits": "Bounded first-encounter replay. No claim of complete encounter, all rooms or all Instant variants."
+  }
+}

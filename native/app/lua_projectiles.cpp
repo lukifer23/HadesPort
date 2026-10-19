@@ -131,6 +131,12 @@ bool ScriptRuntime::createWeaponProjectile(const hades::WeaponOutput& op,uint64_
             float x=0,y=0;if(!projectileWorld_.projectileLocation(p,x,y,detail))return false;uint64_t h=0;if(!createActionEffect(operation.name,projectileFxOwner(p.request.lifetimeHandle),std::array<float,3>{x,y,0},h,detail))return false;return !h||actionEffects_.preferUnmodifiedTime(h,detail);}
         detail="Unconsumed projectile initialization operation";return false;
     };
+    providers.detonate=[this](uint64_t projectile,std::string& detail){
+        hades::ProjectileImpactProviders impact;fillImpactProviders(impact);
+        hades::ProjectileDetonationProviders blast;blast.worldTime=worldTime_;blast.applyImpact=impact.detonationImpact;blast.impact=&impact;
+        blast.teams=impact.teams;
+        return projectileWorld_.detonate(projectile,blast,detail);
+    };
     return projectileWorld_.initializeShot(std::move(request),*owner->arsenal,actorWorld_,providers,handle,error);
 }
 

@@ -75,7 +75,7 @@ bool ProjectileWorld::checkArcProjectileDefense(uint64_t handle,const Projectile
 // angle(+0x54); reflect direction uses both GetLocations.
 bool ProjectileWorld::checkProjectileDefense(uint64_t handle,const ProjectileDefenseProviders& providers,bool arc,std::string& error){
     bool mutated=false;
-    try{auto* defending=actor(handle);if(!defending||!defending->active||defending->disposed||!defending->firingWorld||(arc!=(defending->descriptor.concreteClass==ProjectileClass::Arc)))throw std::runtime_error("Projectile defense requires actual active source binding of the dispatched class");
+    try{auto* defending=actor(handle);if(!defending||!defending->initializedLifetime()||!defending->firingWorld||(arc!=(defending->descriptor.concreteClass==ProjectileClass::Arc)))throw std::runtime_error("Projectile defense requires actual initialized pending/active source binding of the dispatched class");
         const auto& defense=currentData(*defending);const float radius=number(defense,"ProjectileDefenseRadius");
         if(arc?radius<=0:(!(radius>0)&&!boolean(defense,"UseDetonationForProjectileDefense"))){error.clear();return true;}
         if(!arc&&canBeReflected_.empty()){error.clear();return true;}
@@ -420,7 +420,7 @@ bool ProjectileWorld::impactAngle(uint64_t handle,int32_t victim,float x,float y
         // else atan2 from mPrevLocation to impact. Otherwise the owner branch below.
         if(!arc&&!boolean(data,"AttachToOwner")){
             if(boolean(data,"UseRadialImpact")){float vx=0,vy=0;if(!world.location(victim,vx,vy,error))throw std::runtime_error(error);output.angle=normalizedAngle(std::atan2(-(vy-y),vx-x));}
-            else if(string(data,"SpawnOnDetonate").empty()||(p->previousX==x&&p->previousY==y))output.angle=p->body.angle;
+            else if((string(data,"SpawnOnDetonate").empty()&&int32_t(p->descriptor.concreteClass)<3)||(p->previousX==x&&p->previousY==y))output.angle=p->body.angle;
             else output.angle=normalizedAngle(std::atan2(-(y-p->previousY),x-p->previousX));
             error.clear();angle=output.angle;return true;
         }
@@ -510,7 +510,7 @@ bool ProjectileWorld::updateDetonation(uint64_t handle,float elapsed,const Proje
         if(!boolean(d,"DrawAsBeam")&&(p->attachedAnimation||!p->attachedAnimations.empty()))throw std::runtime_error("UpdateDetonation attached Animation::SetRadius consumer not reconstructed");
         if(!(p->state.blastRadius>0)){error.clear();return true;}
         // Virtual slot0x1b8: base CheckProjectileDefense72560 / Arc626e0.
-        if(p->descriptor.concreteClass!=ProjectileClass::Straight&&p->descriptor.concreteClass!=ProjectileClass::Homing)throw std::runtime_error("UpdateDetonation derived CheckProjectileDefense override not reconstructed");
+        if(p->descriptor.concreteClass!=ProjectileClass::Straight&&p->descriptor.concreteClass!=ProjectileClass::Homing&&p->descriptor.concreteClass!=ProjectileClass::Instant)throw std::runtime_error("UpdateDetonation derived CheckProjectileDefense override not reconstructed");
         if(!checkBaseProjectileDefense(handle,error))throw std::runtime_error(error);
         p=actor(handle);const float r=p->state.blastRadius,px=p->body.x,py=p->body.y;
         // GetUnits309b20 visits cells touched by the UNSCALED rectangle and
@@ -608,7 +608,7 @@ bool ProjectileWorld::detonate(uint64_t handle,const ProjectileDetonationProvide
     // .local/reports/native-projectile-detonate-pseudocode.c). ProjectileData
     // native offsets are ProjectileDataDef offsets + 0x50.
     bool mutated=false;
-    try{auto* p=actor(handle);if(!p||!p->active||p->disposed||!p->firingWorld||!p->firingArsenal)throw std::runtime_error("Detonate requires actual active projectile source binding");
+    try{auto* p=actor(handle);if(!p||!p->initializedLifetime()||!p->firingWorld||!p->firingArsenal)throw std::runtime_error("Detonate requires actual initialized pending/active projectile source binding");
         const auto& d=currentData(*p);const bool multi=boolean(d,"MultiDetonate");const float maxRaw=number(d,"MaxDetonations");
         if(std::floor(maxRaw)!=maxRaw)throw std::runtime_error("Noninteger native MaxDetonations");const int32_t maximum=int32_t(maxRaw);
         // VA6d6b2-6d6e1 admission.

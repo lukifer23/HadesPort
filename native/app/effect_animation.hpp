@@ -14,6 +14,9 @@ namespace hades {
 struct EffectOwnerState {
     uint64_t lifetime=0;
     float x=0,y=0,z=0,scale=1,angle=0;
+    // Book.GetAngleNum2b0652: Unit owners supply cosmetic angle (+3d0),
+    // independently of the Body angle used by other owner policies.
+    std::optional<float> bookOwnerAngle;
     std::array<float,2> scaleVector{1,1}; // Body+60/+64 x live +140/+1a0 helpers.
     bool hasPrimaryAnimation=false,isUnit=false;
     // Absent means the owning Thing has no PhysicsComponent (Thing+0xd8).

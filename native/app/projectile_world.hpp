@@ -41,6 +41,10 @@ struct ProjectileActor {
     float spawnX=0,spawnY=0,spawnTime=0,arcAngleOffset=0;
     bool bodyPending=false,physicsPending=false,thingInitialized=false;
     bool pending=false,active=false,disposed=false;
+    // Native Instant.Init65f90 invokes Detonate while still in the pending
+    // manager queue. Active-list membership is not a prerequisite for these
+    // synchronous calls; a genuinely completed base Init is.
+    bool initializedLifetime()const{return shotInitialized&&thingInitialized&&!disposed&&(pending||active);}
     uint8_t lifeStatus=0; // Thing::IsAlive reads ALIVE0, independent of mExpired.
     // Native vector stores Entity IDs (Thing base+44), never public map IDs.
     // Parent portable lifetime handles preserve that identity domain.
@@ -177,6 +181,7 @@ struct ProjectileThingProviders {
     std::function<bool(ProjectileActor&,const std::string&,std::string&)> createActivateFx;
 };
 struct ProjectileShotProviders {
+    std::function<bool(uint64_t,std::string&)> detonate; // Instant.Init vslot0x180, before manager promotion.
     ProjectileThingProviders thing;
     ActorRandom random;
     float worldTime=0;

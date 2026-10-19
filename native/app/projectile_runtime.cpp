@@ -27,8 +27,10 @@ bool describeProjectileCreation(const ProjectileDefinition& definition,Projectil
     // -> HomingProjectile::Defaults RVA65450 -> Thing::Defaults. No public ID
     // allocation/write occurs in the covered Create/Init paths. Other subclass
     // initializers have not been audited for identity/side effects here.
+    // INSTANT vtable RVA5d86e8 likewise uses Thing::Defaults; its Init65f90
+    // invokes base Init before the derived synchronous detonation/target pass.
     switch(staged.concreteClass){
-    case ProjectileClass::Straight:case ProjectileClass::Arc:
+    case ProjectileClass::Straight:case ProjectileClass::Arc:case ProjectileClass::Instant:
         staged.usesBaseProjectileInit=true;break;
     case ProjectileClass::Homing:
         staged.usesBaseProjectileInit=true;staged.requiresHomingDefaults=true;break;

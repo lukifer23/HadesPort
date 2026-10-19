@@ -42,7 +42,7 @@ bool ProjectileWorld::applyImpact(uint64_t handle,int32_t victim,const Projectil
     bool mutated=false;
     try{
         if(!providers.damageMultiplier||!providers.damageTakenMultiplier||!providers.disableDamage||!std::isfinite(*providers.damageMultiplier)||!std::isfinite(*providers.damageTakenMultiplier))throw std::runtime_error("Impact requires actual current damage configuration");
-        auto* p=actor(handle);if(!p||!p->active||!p->firingWorld||!p->firingArsenal)throw std::runtime_error("Impact lost actual projectile/World/weapon");
+        auto* p=actor(handle);if(!p||!p->initializedLifetime()||!p->firingWorld||!p->firingArsenal)throw std::runtime_error("Impact lost actual projectile/World/weapon");
         auto& world=*p->firingWorld;auto* target=world.actor(victim);if(!target||!target->registered||!target->object)throw std::runtime_error("Impact lost actual victim");const uint64_t victimLifetime=target->entityHandle;
         auto weapon=[&]()->const WeaponSnapshot&{std::string detail;const auto* value=p->firingArsenal->weaponState(p->request.weaponName,detail);if(!value)throw std::runtime_error(detail);return *value;};
         auto data=[&]()->const ProjectileDefinition&{std::string detail;const auto* value=p->firingArsenal->projectileData(p->request.weaponName,p->spawnedDefinition,detail);if(!value)throw std::runtime_error(detail);return *value;};

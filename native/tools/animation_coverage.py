@@ -288,6 +288,20 @@ class Coverage:
         enemy_data = self.lua_table('UnitSetData.Enemies')
         weapon_data = self.lua_table('WeaponData'); projectile_data = self.lua_table('ProjectileData')
         effect_data = self.lua_table('EffectData'); obstacle_data = self.lua_table('ObstacleData')
+        # Original native touchdown dispatch executes Combat.OnTouchdown,
+        # which reads the inherited Lua obstacle OnTouchdown.Weapon producer.
+        # These weapons are independent of unit arsenal selection; follow the
+        # complete producer class before weapon/projectile animation closure.
+        touchdown_roots=[]
+        for obstacle in sorted(obstacle_data):
+            record=self.lua_record(obstacle_data,obstacle)
+            touchdown=record.get('OnTouchdown')
+            weapon=touchdown.get('Weapon') if isinstance(touchdown,dict) else None
+            if not isinstance(weapon,str) or not weapon or weapon=='null':continue
+            if weapon not in self.things['Weapons']:raise ValueError('Original obstacle touchdown weapon absent: '+weapon)
+            weapons.add(weapon);self.entity_origin.setdefault(weapon,'ObstacleData.'+obstacle+'.OnTouchdown.Weapon')
+            touchdown_roots.append({'obstacle':obstacle,'weapon':weapon,'field':'OnTouchdown.Weapon'})
+        scope['obstacle_touchdown_weapon_roots']=touchdown_roots
         loot_data = self.lua_table('LootData'); trait_data = self.lua_table('TraitData'); consumable_data = self.lua_table('ConsumableData')
         rooms_lua = self.lua_table('RoomSetData.Tartarus'); rooms_base = self.lua_table('RoomSetData.Base')
         function_seeds = set(SEED_FUNCTIONS)
