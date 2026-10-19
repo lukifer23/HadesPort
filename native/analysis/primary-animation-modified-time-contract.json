@@ -1,0 +1,43 @@
+{
+  "schema": "hades-primary-animation-modified-time-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "status": "native lifetime clock links and HAA consumer implemented; first actual hit replay pending",
+  "evidence": {
+    "effect_affect": ".local/reports/native-effect-affect-unit.json",
+    "effect_affect_call": "0x18005ce4c -> Animation.UseAttachedToTimeMultiplier",
+    "effect_clear": ".local/reports/native-combat-effect-clear-rea.json",
+    "clock_link": ".local/reports/takeover-animation-use-attached-time-static.json",
+    "attach": ".local/reports/native-effect-animation-attach.json",
+    "named_primary_replace": ".local/reports/native-thing-set-animation-name-static-v1.json"
+  },
+  "facts": [
+    "Animation.Attach299fd3 checks source UseAttachedTimeMultiplier (full data+60) before attaching its clock.",
+    "Effect.AffectUnit5cb40 changes Thing elapsedTimeMultiplier(+80) and explicitly links the current primary at5ce4c when an actual animation exists.",
+    "Animation.UseAttachedToTimeMultiplier299d40 adds ModifiedTime and AttachedToTimeMultiplier components carrying the actual owner pointer.",
+    "Named Thing.SetAnimation2df43c..2df45c links a new primary whenever the current owner multiplier differs from1, independent of its authored UseAttachedTimeMultiplier.",
+    "Effect.Clear5d560 divides the live owner multiplier when its applied multiplier differs from1; it does not remove the animation clock link.",
+    "Animation time fraction is the animation definition TimeModifierFraction; Thing TimeModifierFraction is separate and must not be reapplied to animation time."
+  ],
+  "runtime": [
+    "native/app/animation_registry.cpp",
+    "native/app/animation_registry.hpp",
+    "native/app/lua_actor_animation.cpp",
+    "native/app/lua_effects.cpp",
+    "native/app/lua_primaries.cpp",
+    "native/app/action_effect.cpp"
+  ],
+  "implemented": [
+    "Each actual animation lifetime records the source or explicit time-multiplier attachment; disposal removes that record.",
+    "Primary HAA animation advances using its own fraction and the live owner multiplier only when the actual lifetime is linked.",
+    "Action FX elapsed uses the same lifetime link, including explicitly linked primary effects.",
+    "Clear naturally restores time through the owner value without a fabricated animation reset."
+  ],
+  "limits": [
+    "This change does not reconstruct the separate ScenePrimaryWorld modified-time update consumer.",
+    "Portable component clock evaluation occurs in the existing world phase; native ECS task scheduling is not reproduced."
+  ],
+  "validation": {
+    "build": ".local/reports/takeover-cast-graphics-build-r14.log",
+    "result": "Fast host target linked successfully. Existing first-hit input path is being replayed; no gameplay or hitstop recovery claim is made from compilation."
+  }
+}

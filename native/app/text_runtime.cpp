@@ -117,7 +117,16 @@ float argFloat(lua_State*L,int t,const char*key,float fallback){lua_getfield(L,t
 int32_t argInt(lua_State*L,int t,const char*key,int32_t fallback){lua_getfield(L,t,key);int32_t out=fallback;if(lua_isnumber(L,-1)){const double v=std::trunc(lua_tonumber(L,-1));if(!(v>=INT32_MIN&&v<=INT32_MAX)){lua_pop(L,1);throw std::runtime_error(std::string("Text integer argument bound: ")+key);}out=int32_t(v);}lua_pop(L,1);return out;}
 bool argBool(lua_State*L,int t,const char*key,bool fallback){lua_getfield(L,t,key);const bool out=lua_isboolean(L,-1)?lua_toboolean(L,-1):fallback;lua_pop(L,1);return out;}
 // LuaTableExtensions::GetColor / ScriptArgs::ColorByName over original arrays.
-bool argColor(lua_State*L,int t,const char*key,Color&out){lua_getfield(L,t,key);if(lua_isnil(L,-1)){lua_pop(L,1);return false;}if(!lua_istable(L,-1)){lua_pop(L,1);throw std::runtime_error(std::string("Original named/packed text color unreconstructed: ")+key);}const int a=lua_absindex(L,-1);if(lua_rawlen(L,a)!=4){lua_pop(L,1);throw std::runtime_error(std::string("Text color requires four channels: ")+key);}std::vector<double>c;for(int i=1;i<=4;++i){lua_rawgeti(L,a,i);if(!lua_isnumber(L,-1)){lua_pop(L,2);throw std::runtime_error("Text color channel requires number");}c.push_back(lua_tonumber(L,-1));lua_pop(L,1);}lua_pop(L,1);out=hades::textSourceColor(c);return true;}
+bool argColor(lua_State*L,int t,const char*key,Color&out){
+ lua_getfield(L,t,key);if(lua_isnil(L,-1)){lua_pop(L,1);return false;}
+ if(!lua_istable(L,-1)){lua_pop(L,1);throw std::runtime_error(std::string("Original named/packed text color unreconstructed: ")+key);}
+ // LuaTableExtensions.GetColor2497bf..2498f6 reads RGB independently with
+ // default0, then optional alpha with default1. A three-channel source table
+ // is valid; RGB selects normalized/byte conversion independently of alpha.
+ const int a=lua_absindex(L,-1);std::vector<double>c{0,0,0,1};
+ for(int i=1;i<=4;++i){lua_rawgeti(L,a,i);if(lua_isnumber(L,-1))c[size_t(i-1)]=lua_tonumber(L,-1);lua_pop(L,1);}
+ lua_pop(L,1);out=hades::textSourceColor(c);return true;
+}
 hades::TextJustification horizontalJustification(const std::string&v){std::string u=v;std::transform(u.begin(),u.end(),u.begin(),[](unsigned char c){return char(std::toupper(c));});if(u=="LEFT")return hades::TextJustification::Start;if(u=="RIGHT")return hades::TextJustification::End;if(u=="UNKNOWN")throw std::runtime_error("Original UNKNOWN text justification unreconstructed");return hades::TextJustification::Center;}
 hades::TextJustification verticalJustification(const std::string&v){std::string u=v;std::transform(u.begin(),u.end(),u.begin(),[](unsigned char c){return char(std::toupper(c));});if(u=="TOP")return hades::TextJustification::Start;if(u=="BOTTOM")return hades::TextJustification::End;return hades::TextJustification::Center;}
 // SetLuaParam 0x175c80: key -> any (LuaValue), dirty.

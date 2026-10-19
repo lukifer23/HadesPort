@@ -280,7 +280,9 @@ def export(output,projectile_defaults='native-player-projectile-compiled-default
     for p in projectiles:
         fields=p['effective_fields'];text(p['name']);i(fields['SpawnType']['value'])
         for k in ('SpawnOnDetonate','SpawnOnImpact','SpawnOnDeath'):text(fields[k]['value'])
-        text(js({'name':p['name'],'effective_fields':{k:{'type':v['type'],'value':v['value']}for k,v in p['effective_fields'].items()},'effects':p['effects'],'unresolved_fields':[f['name']for f in p['unresolved_fields']]}))
+        # Keep the constructor/source closure proof in the consumed packet,
+        # alongside the catalog. Runtime cannot infer it from omitted fields.
+        text(js({'name':p['name'],'effective_fields':{k:{'type':v['type'],'value':v['value']}for k,v in p['effective_fields'].items()},'effects':p['effects'],'unresolved_fields':[f['name']for f in p['unresolved_fields']],'remove_effects_known_empty':p['remove_effects_known_empty']}))
     u(len(data['controls']))
     for c in data['controls']:text(c['name']);i(c['native_index'])
     u(len(data['unit_loadouts']))

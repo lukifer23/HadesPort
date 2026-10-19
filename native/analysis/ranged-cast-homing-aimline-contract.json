@@ -1,0 +1,70 @@
+{
+  "schema": "hades-ranged-cast-homing-aimline-v1",
+  "target": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1
+  },
+  "status": "original-script cast/pickup/recast and post-cast cardinal recovery completed in strict host replay",
+  "homing": {
+    "evidence": [
+      ".local/reports/native-player-homing-defaults.json",
+      ".local/reports/native-player-projectile-homing-adjust-bonus.json",
+      ".local/reports/takeover-homing-move-static.json",
+      ".local/reports/takeover-homing-track-static.json",
+      ".local/reports/takeover-homing-retarget-static.json",
+      ".local/reports/takeover-homing-closest-target-static.json",
+      ".local/reports/takeover-homing-onhit-static.json",
+      ".local/reports/takeover-homing-step-angle-static.json",
+      ".local/reports/native-engine-pdb-homing.json"
+    ],
+    "facts": [
+      "Homing Defaults RVA0x65450 initializes actual maximum adjustment rate plus current projectile-effector bonus before owner assignment.",
+      "Homing UpdateSelf inherits base projectile update; derived Move retargets, tracks eligible live Units, then performs base movement.",
+      "HomingAllegiance compiled default is Any4; PDB enum Enemies0 Friends1 Neutral2 Player3 Any4.",
+      "Target score is squared distance times (1 + (angle/pi)*(64/maxAdjustmentRate)); query uses current units, eligibility, targetability, invulnerability, raw Z, allegiance and ignore lists.",
+      "Homing.OnHit clears target and linked target only when HomingIgnoreHits is true."
+    ],
+    "limits": [
+      "Closest-edge targeting when RequireHitCenter=false, linked Thing targeting, traitor LOS/charm and indistinguishable equal-score native hash ordering retain explicit unsupported gates.",
+      "Original-script replay observed obstacle impacts and second-shot travel exceeding400world units. Enemy-target homing and visual trail appearance still need device/runtime evidence."
+    ]
+  },
+  "aim_line": {
+    "evidence": [
+      ".local/reports/native-player-show-aim-line.json",
+      ".local/reports/takeover-player-ui-aim-line-static.json",
+      ".local/reports/takeover-player-ui-setup-aim-line-static.json",
+      ".local/reports/takeover-gui-line-draw-static.json",
+      ".local/reports/takeover-weapon-effective-range-static.json",
+      ".local/reports/takeover-projectile-calcwidth-static.json",
+      ".local/reports/takeover-grid-projectile-intersection.json"
+    ],
+    "facts": [
+      "Weapon.ShowAimLine RVA0x86650 runs during unfinished charge using charge fraction; minimum-charge suppression applies only when LockTriggerForCharge is false.",
+      "PlayerUI.ShowAimLine RVA0x1daf20 creates an actual GUI animation with original source pixels and GUI-component ownership.",
+      "Effective range RVA0x85670 combines positive barrel length, projectile range with charge multiplier, and maximum unscaled source polygon X. Projectile width RVA0xdcb50 is source polygon Y span times Thing scale.",
+      "Intersection RVA0x3086e0 filters current projectile-stopping geometry with native Z overlap, penetration rules and ordered edge hits; Point mode uses one ray, other supported geometry uses three.",
+      "GUI line drawing RVA0x170520 uses source ScaleLength and ScaleWidth dimensions, actual endpoints and source pivot."
+    ],
+    "limits": [
+      "Portable sparse spatial queries and Combat_UI_World draw grouping adapt source grid and GUI render integration.",
+      "Unsupported reticle, cached player free-aim and other weapon-specific branches fail explicitly.",
+      "Static implementation and host original-pixel sampling do not prove Android visual equivalence."
+    ]
+  },
+  "runtime": [
+    "native/app/projectile_world.cpp",
+    "native/app/projectile_runtime.cpp",
+    "native/app/projectile_hit.cpp",
+    "native/app/weapon_execution.cpp",
+    "native/app/lua_combat.cpp",
+    "native/app/lua_presentation.cpp",
+    "native/app/action_effect.cpp"
+  ],
+  "validation": {
+    "charge_line": ".local/reports/takeover-aimline-cast-r1.json",
+    "cast_impact_death": ".local/reports/takeover-cast-cardinals-r5.json",
+    "result": "1810strictframes complete; native ammo drop, auto-use and actual ammo actor disposal enabled second cast1764; both Ranged projectiles retired, manager0active/fault0. Four cardinal velocity signs/source facing verified. Android and enemy-target homing remain unproven."
+  }
+}

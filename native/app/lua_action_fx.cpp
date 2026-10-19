@@ -20,10 +20,20 @@ bool ScriptRuntime::loadActionEffectDefinitions(){try{
 hades::ActionEffectProviders ScriptRuntime::actionEffectProviders(){hades::ActionEffectProviders p;
  p.owner=[this](int32_t id,hades::EffectOwnerState&o,std::string&e){return effectOwner(id,o,e);};p.marker=[this](int32_t id,const std::string&name,std::array<float,3>&point,std::string&e){return effectMarker(id,name,point,e);};
  p.random=[this](double&v,std::string&e){if(nextRecoveredEngineRandom(state_,v))return true;e="Actual action FX uniform RNG unavailable";return false;};p.bounded=[this](uint32_t bound,uint32_t&v,std::string&e){if(nextRecoveredEngineBoundedRandom(state_,bound,v))return true;e="Actual action FX bounded PCG unavailable";return false;};p.worldFrame=worldFrame_;
- p.sound=[this](const std::string&cue,int32_t owner,const std::array<float,3>&position,uint32_t cap,uint32_t&id,std::string&e){if(cap!=16&&cap!=0){e="Actual FX source SoundManagerCap adapter unavailable";return false;}return owner==0?playLocationAudioCue(cue,position,int32_t(cap),id,e):playAudioCue(cue,owner,position,id,e);};
- p.elapsed=[this](int32_t owner,float,float dt,float&result,std::string&e){
-  if(owner<0){const auto it=projectileFxOwners_.find(owner);const auto* q=it==projectileFxOwners_.end()?nullptr:projectileWorld_.actor(it->second);if(!q||q->disposed){e="Actual action FX elapsed projectile owner unavailable";return false;}if(q->timeMultiplier!=1||q->timeModifierFraction!=1||worldSpeedModifier_!=1){e="Non-default projectile-owned FX ModifiedTime/TimeModifierFraction requires clock adapter";return false;}result=dt;return true;}
-  const auto* a=actorWorld_.actor(owner);if(!a||!a->registered){e="Actual action FX elapsed owner unavailable";return false;}if(a->timeMultiplier!=1||a->timeModifierFraction!=1||worldSpeedModifier_!=1){e="Non-default actual action FX ModifiedTime/TimeModifierFraction requires clock adapter";return false;}result=dt;return true;};
+ p.sound=[this](const std::string&cue,int32_t owner,const std::array<float,3>&position,uint32_t cap,uint32_t&id,std::string&e){return owner==0?playLocationAudioCue(cue,position,int32_t(cap),id,e):playAudioCue(cue,owner,position,id,e,int32_t(cap));};
+ p.elapsed=[this](int32_t owner,float fraction,bool attachedTime,float dt,float&result,std::string&e){
+  // InitData2927a1 adds TimeModifierFraction only for authored values>=0;
+  // PreferUnmodifiedTime supplies fraction0 for a formerly absent component.
+  // TimeModifierSystem188e02..188eba divides by undo+(1-undo)*fraction,
+  // then188ff0..189061 multiplies Thing+80 ONLY for AttachedToTimeMultiplier.
+  // Attach299fd3 gates that link on source UseAttachedTimeMultiplier(+60).
+  // The owner's separate TimeModifierFraction is not the animation's fraction.
+  float multiplier=1;
+  if(attachedTime){
+   if(owner<0){const auto it=projectileFxOwners_.find(owner);const auto* q=it==projectileFxOwners_.end()?nullptr:projectileWorld_.actor(it->second);if(!q||q->disposed){e="Actual action FX elapsed projectile owner unavailable";return false;}multiplier=q->timeMultiplier;}
+   else{const auto* a=actorWorld_.actor(owner);if(!a||!a->registered){e="Actual action FX elapsed owner unavailable";return false;}multiplier=a->timeMultiplier;}
+  }
+  return hades::physicsComponentElapsed(dt,worldSpeedModifier_,fraction>=0?fraction:1,multiplier,result,e);};
  p.locationBlocked=[this](float x,float y,bool&blocked,std::string&e){return gridLocationBlocked(x,y,blocked,e);};return p;
 }
 // GridManager::IsLocationBlocked 0x180307f70 as called by CreateAndInit

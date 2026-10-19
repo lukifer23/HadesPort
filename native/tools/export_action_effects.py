@@ -20,9 +20,10 @@ from export_effect_initialization import lua
 from export_actor_animations import string
 from hades_assets import Package, xnb_image
 from build_room_scene import identity
+from animation_postread import normalize_animation_postread
 TARGET = 'd98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254'
 TYPES = ('Slide', 'Book', 'Constant', 'ConstantNoUpdate')
-DEP_FIELDS = ['ChildAnimation', 'CreateAnimation', 'VisualFx', 'Light', 'ChainTo']
+DEP_FIELDS = ['ChildAnimation', 'CreateAnimation', 'CreateAnimationOnEnd', 'VisualFx', 'Light', 'ChainTo']
 MAX_CANVAS = 2048  # ActorAnimationBank::load canvas bound
 MAX_FRAMES = 1000
 MAX_ANGLES = 64  # ActorAnimationBank::load clip angle bound
@@ -63,6 +64,7 @@ def export(a):
         source, raw, span = origins[name]
         provenance[name] = {'path': str(source), 'file_sha256': hashlib.sha256(raw).hexdigest(), 'range': span,
                             'range_sha256': hashlib.sha256(raw[span[0]:sum(span)]).hexdigest(), 'inherit_from': parent}
+        d = normalize_animation_postread(d)
         resolved[name] = d; return d
 
     missing = [n for n in roots if n not in records]
@@ -177,7 +179,7 @@ def export(a):
     catalog = {'Schema': 'HadesActionEffectResources1', 'Target': TARGET, 'Roots': roots, 'Definitions': exported,
                'Rejected': dict(sorted(rejected.items())), 'Clips': clips, 'FrameMetadata': frame_meta,
                'ImageBankSha256': hashlib.sha256(packet.read_bytes()).hexdigest(), 'CompiledDefaults': {},
-               'NativeNormalizationEvidence': ['native-action-animation-deserialize-static.json', 'native-action-animation-create-list-static.json']}
+               'NativeNormalizationEvidence': ['native-action-animation-deserialize-static.json', 'native-action-animation-create-list-static.json', 'takeover-animation-data-postread-static.json', 'takeover-animation-data-has-duration-static.json']}
     (a.output / 'catalog.json').write_text(json.dumps(catalog, indent=1) + '\n'); (a.output / 'action-effects.lua').write_text('return ' + lua(catalog) + '\n')
     report = {'schema': 'hades-action-effect-resources-v1', 'target_sha256': TARGET, 'packet': identity(packet), 'catalog': identity(a.output / 'catalog.json'),
               'lua': identity(a.output / 'action-effects.lua'), 'coverage': identity(a.coverage),

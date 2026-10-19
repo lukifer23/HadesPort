@@ -63,7 +63,7 @@ bool ScriptRuntime::beginRequestedMap(bool restoreAssetsOnly){try{
  for(const auto&object:snapshotObjects(state_))disposeTextOwner(state_,object.id);
  reconstruct(screenAnimations_);reconstruct(scenePrimaries_);reconstruct(actionEffects_);reconstruct(particles_);reconstruct(effects_);reconstruct(actorLights_,actorWorld_);reconstruct(lifeSystem_,actorWorld_);reconstruct(selfEffects_,actorWorld_);reconstruct(projectileWorld_);
  if(!actorWorld_.resetForMap(error_)||!resetObjectRuntimeForMap(state_,error_))return false;
- actorMotion_={};localMovement_.clear();retainedArsenalOwners_.clear();projectileFxOwners_.clear();projectileFxOwnerIds_.clear();nextProjectileFxOwner_=-0x1000000;
+ actorMotion_={};localMovement_.clear();flashes_.clear();retainedArsenalOwners_.clear();projectileFxOwners_.clear();projectileFxOwnerIds_.clear();nextProjectileFxOwner_=-0x1000000;
  interactions_={};useTargets_.clear();interactionGridReady_=false;previousUseDown_=false;interactUserPrimaryUnknown_=false;
  presentationBases_.clear();sceneSpriteOwners_.clear();originalSceneGroupNames_.clear();presentationGroupFrame_=UINT64_MAX;presentationGroups_.clear();presentationGroupIndices_.clear();presentationShadowFrame_=UINT64_MAX;presentationShadows_.reset();
  primarySpawnerRecipes_.clear();primarySpawnerGraphics_.clear();sceneCorners_.reset();occlusionBaseAnims_.clear();unitCollisionSets_.clear();polygonAxisCache_.fill(0);lastLocationBlocker_=0;

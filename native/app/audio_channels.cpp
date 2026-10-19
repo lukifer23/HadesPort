@@ -1,4 +1,5 @@
 #include "audio_channels.hpp"
+#include "platform_log.hpp"
 #include <cmath>
 #include <limits>
 namespace hades {
@@ -55,18 +56,27 @@ bool AudioChannels::advanceParameterTargets(float elapsed,std::string& error){
     if(faulted_){error=fault_;return false;}if(!std::isfinite(elapsed)||elapsed<0){error="Audio parameter targets require nonnegative finite elapsed time";return false;}
     // Native channel iteration order is not inferred from portable numeric IDs.
     // Each independent renderer has no script callback in this target phase.
-    for(auto& [id,c]:channels_){(void)id;for(auto it=c.targets.begin();it!=c.targets.end();){
+    for(auto& [id,c]:channels_){size_t completed=0;for(auto it=c.targets.begin();it!=c.targets.end();++it){
         float current=0;const auto read=c.renderer->parameter(it->first,current,error);
         if(read==AudioParameterAccess::Failed)return fault(error,error);
-        if(read==AudioParameterAccess::Absent){error="Timed parameter target addresses a missing source parameter; native failure-output behavior is not recovered";return fault(error,error);}
+        // AudioManager::Update 0x18004be67 initializes the output to zero,
+        // ignores getParameterByName's status at4be87, and approaches the
+        // target normally. Shipped fmodstudio getParameterByName81e10 ->
+        // 78680 zeroes outputs at786ab/786b7 before lookup; missing names
+        // return0x4a at7882c without writing a parameter value.
+        if(read==AudioParameterAccess::Absent){current=0;if(!it->second.missingReported){hades::log(hades::Severity::Info,"HadesAudio","NATIVE_PARAMETER_ABSENT channel=%u cue=%s parameter=%s target=%.6g native_read=0 native_status=74",id,c.name.c_str(),it->first.c_str(),double(it->second.value));it->second.missingReported=true;}}
         if(!std::isfinite(current))return fault("Audio renderer returned a nonfinite parameter",error);
-        if(current==it->second.value){it=c.targets.erase(it);continue;}
+        if(current==it->second.value){++completed;continue;}
         const float step=elapsed*it->second.speed;const float distance=std::fabs(it->second.value-current);
         if(!std::isfinite(step)||!std::isfinite(distance))return fault("Audio parameter approach exceeds finite range",error);
         const float next=step>=distance?it->second.value:current+(it->second.value>current?step:-step);
-        if(c.renderer->setParameter(it->first,next,error)!=AudioParameterAccess::Present)return fault(error,error);
-        ++it;
-    }}
+        // Native4bef7 also ignores the setter's missing-name status. Keep
+        // the target queued; a nonexistent parameter is never synthesized.
+        if(c.renderer->setParameter(it->first,next,error)==AudioParameterAccess::Failed)return fault(error,error);
+    }
+    // Native4bf2f..4bf5c retires this channel's target group only after all
+    // values were already at their destinations at the start of the update.
+    if(completed==c.targets.size())c.targets.clear();}
     error.clear();return true;
 }
 std::vector<AudioChannelSnapshot> AudioChannels::snapshot()const{std::vector<AudioChannelSnapshot> out;for(const auto& [id,c]:channels_)out.push_back({id,c.name,c.started,c.paused,c.targets.size()});return out;}

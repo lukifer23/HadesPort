@@ -17,67 +17,71 @@ meaningful milestones.
 
 ## Current repair checkpoint (2026-10-18)
 
-The user is driving the Fold. Main only installs and captures; do not mix scripted
-movement with manual input. Current symptoms were reproduced: actions could stop
-movement, cast blocked, and Use faded to black. The previous successful 2400-frame
-combat prefix did not cover those failures.
+Prototype scope remains the original native Android game, with the current repair
+focused on controls, animation recovery, cast, actual enemy combat and progression.
+Main coordinates Android builds/installs; the user drives the device. No injected
+input during manual play. All game-derived packs/captures/reports remain ignored.
 
-- Opening animation recovery now retains per-animation speed and completes finite
-  run-stop/action transitions. Native atlas cardinals were inspected; no blind axis
-  flip. New source uses the original cosmetic facing for Unit Book frames/markers,
-  updates it before body rotation, and normalizes authored angular speeds exactly
-  once. Compiled native angular defaults stay in radians.
-- Native use callback/resource closure now covers the forced RoomSimple01 route.
-  Prompt text resolves original control aliases to live touch/controller labels.
-  Detached FX retain their actual owner group; OnOutOfAmmo dispatch is rebuilt.
-- Unit collision filtering/push/callback gates and unit detonation gates/impact are
-  reconstructed. The focused pot replay kills 410188 and 410189 and resumes actual
-  retreat/run/stop through frame1740 with no failure. The former detonation center
-  rectangle assertion was wrong: native GetUnits unions touched grid cell lists.
-  Portable sparse grid ordering/origin remain labelled approximations.
-- Deferred LoadMapInternal now retains Lua/scheduler/clocks/RNG and rebuilds actual
-  map managers, player binding, original room assets and the GLES renderer. Actual
-  device build99ec56c4 logs transition complete to RoomSimple01, then failed drawing
-  unsupported blend12. Source now supports that original Displacement path and
-  the new room's polygon camera clamp. This is not yet encounter completion.
-- Cast now creates its original aim line, Bloodstone primary/child/shadow,
-  moves with homing, hits an obstacle, expires, draws BloodstoneHitFx and calls
-  the original ammo-drop Lua. The next strict gap is AmmoPackSparkle: omitted
-  native Type defaults to ConstantNoUpdate and still needs resource/consumer repair.
-  Do not call the full cast/pickup loop working yet.
-- SpawnUnit reached the actual forced SimpleMelee wave. Weapon closure now includes
-  encounter Unit startup arsenals (weapon22 retains native-defaults-v3); the next
-  strict blocker is NotifyOnAllDead at2157, after an actual SimpleMelee spawn with its original
-  EnemyWretchThugIdle movie and HeavyMelee weapon. Its bank now has47clips and
-  native random Slide timing. Scene completion capture reaches2750 without the
-  former Book ChainTo failure; that contained run is not encounter completion.
+Current selected packs: opening-actors-v13, actor-simple-v4 via room-packs-v4,
+actor-actions-v7, actor-markers-v7, actor-properties-v11 (HAP5),
+player-weapons-v23, action-effects-v15, screen-opening-v12, audio-events-v23.
+RoomOpening and RoomSimple01 have validated original assets; no fallback scene.
 
-Selected pack defaults: opening-actors-v12, room-packs-v3/RoomSimple01,
-player-weapons-v22, action-effects-v12, screen-opening-v12, audio-events-v21,
-hero-properties-v7 (HAP4). Room packs validate and stage26room-bound files; there is
-no opening-scene fallback for other rooms. Full encounters, boons and later rooms
-remain incomplete. Reports/captures/packs stay local and ignored.
+The latest installed/verified result is in the device table. Iteration8 allowed
+real enemy hits and movement, then failed in projectile defense: local code read
+nonexistent EffectData.Reflection instead of original ReflectAddition(+3b0).
+Device traces showed held=[] but queued RushWeapon/SwordWeapon3 and strafing=1,
+explaining the persistent direction lock. Both collision/detonation paths are
+corrected in iteration9. Never fix this by clearing legitimate input requests.
 
-At takeover no previous build/export/replay/REA task was active; baseline was
-c8b8378. The sibling REA bridge has an existing modification and is untouched.
-Build receipts now separate package creation from device gameplay verification.
+Other reconstructed repairs in the iteration9 source batch:
+
+- Per-animation clock ownership and native own-fraction/global-speed handling;
+  live owner multiplier links from actual Effect.Apply and primary replacement.
+- Original shader Flash blending, native lifetime/order, source flasher inheritance
+  preserved in HAP5; actual enemy-blood isometric matrix path.
+- Native randomized VisualFxCap, CreateAnimationOnEnd lifecycle/dependency closure,
+  velocity-derived owner angle and original enemy-hit resources.
+- Cast primary/child/shadow, homing, impact, disposal, ammo obstacle physics/Z,
+  landing FX, auto-use audio, RunWeaponMethod AddAmmo and native Life sound defaults.
+- Weapon packet preserves all49 proven-empty RemoveEffects flags. Dropping that
+  proof from the serialized file previously interrupted every real Unit hit.
+- Continue restores actual RoomSimple01 resources before original Lua Load; native
+  missing music parameter behavior now matches zero-output/ignored missing-name
+  returns instead of poisoning the audio world.
+- Native optional-alpha text colors, first-live-parent SpawnObstacle attachment,
+  and Book frame targeting for actual world health bars (latter source after APK8).
+
+Focused evidence (all private/local):
+
+- Actual phone checkpoint: former first-frame Continue crash now passes600 strict
+  frames and147127 live presentation samples with no error.
+- Cast/pickup/recast: strict1810 frames succeeds; first ammo obstacle retires,
+  ammo returns, second projectile fires and retires, all four movement/facing
+  directions settle correctly, final held/requests/effects empty and strafing0.
+  ASan/UBSan replay of this sequence also passes539433 presentation samples.
+- Actual sword/special/cardinal input: contained2950-frame diagnostic completes
+  with correct right/down/left/up velocities and body/goal angles after melee and
+  special; former repeating world projectile fault is gone. Six contained gaps
+  remain, so this does NOT establish strict encounter/reward completion.
+- Device iteration8 logs actual SimpleMelee and real OnHit; enemy attack behavior
+  is NOT yet proven. Three agents are active on AI, effects and progression assets.
 
 ## Active repair work
 
 | Work | Owner | Current boundary |
 |---|---|---|
-| 2026-10-18 21:57 | 3dd916ac (iteration4) | Installed/restarted after failed iteration3. Includes native blend12, polygon clamp, cosmetic Unit facing and source-aware native angular speeds, cell-based detonation Unit query, cast aim line, SpawnUnit and encounter startup arsenals. Cast graphics and enemy movie/timing consumers remain active work; Actual device entered and rendered RoomSimple01, then stopped on a finishing/chaining primary Book animation after the missing enemy primary. Next source fixes that completion path and exports enemy movie resources. |
-| 2026-10-18 21:47–21:50 | 99ec56c4 (iteration3) | Installed/restarted. Actual Use completes native transition RoomOpening→RoomSimple01 at frame2010, then ENGINE_FRAME_FAILURE: scene blend12 unsupported. Captured failure; blend12 and polygon camera fixes now in source for iteration4. |
-| 2026-10-18 21:32 | 89e281aa (iteration2) | User play exposed unit-unit collision and Unit detonation gaps, then missing default Move and LoadMapInternal after exit fade; actual blank screen captured. Mixed manual/scripted24s video is historical evidence, not a controlled movement validation. |
-| Build/install, cosmetic facing, collision range, docs/remote | main | Iteration5 fully installed and SHA-verified; awaiting device play |
-| Cast aim line, homing, source projectile graphics | movement_controls | Aim line passes; attached Bloodstone graphics/lifetime work |
-| Room transition, assets, first enemy animation/timing | progression_coverage | Map loads; original enemy movie bank needed |
-| A*, unit collision, blend12, angle catalog | door_runtime | Source implemented; available for follow-up |
+| Device/builds, defense mapping, weapon clocks, logs, UI controls, docs/remote | main | Iteration9 packaging/install; world health-bar frame targets and AddAmmo in source; SetScaleX/IdExists/Shift remain |
+| Cast and primary clocks; actual enemy AI | movement_controls | Strict cast/pickup/recast passed; tracing original AggroAI/AttackerAI waits and live enemy arsenal |
+| Room/encounter resources, FX source matrices | progression_coverage | Dynamic obstacle/rubble dependency closure next; actual next map is chosen only after encounter and Athena reward |
+| Native hit effects | door_runtime | Flash/HAP5 rebuilt and linked; original Thing Shake component/draw inheritance next |
 
 ## Device (Galaxy Z Fold, `$HADES_DEVICE_SERIAL`)
 
 | Date / time | APK sha256 (prefix) | Result |
 |---|---|---|
+| 2026-10-18 22:28 | 3c0732dc (iteration6) | Full install/hash verified. Includes actual victim HitSound, actor scale correction, action13 PostRead normalization and original room VO. Continue restores actual RoomSimple01 assets, then fails at frame1 because timed missing audio parameters incorrectly poison the audio system. Host reproduces from actual device checkpoint; source repair underway. Strict melee additionally reaches original enemy hit FX cap fields; cast reaches actual ammo primary/marker disposal. |
+| 2026-10-18 22:19–22:22 | 3e4ebc1d (iteration5) | Full install and installed SHA verified. User enters RoomSimple01 without immediate crash; guarded screenshot/video confirm actual SimpleMelee visible. Released attack repeats because reached enemy HitSound consumer interrupts firing before request cleanup; source fixes the consumer. Original room VO missing; source exports it. HUD screenshot follows original16s auto-hide; cast pickup remains under investigation. |
 | 2026-10-18 20:58 | b437817c (build 39) | Device turn test (HERO_TRACE in logcat every ~0.5 s): body angle turns correctly (0/π/3π/2/π/2). Host action trace: sword combo animates (Charge1→Attack1), dash moves ~230 units, but dash + special projectiles hit the unreconstructed Detonation obstacle LOS/ApplyImpact branch; after the special the hero stays in ZagreusSwordParryFire (soft-lock) → weapons agent. Device now on wireless ADB (name in .local/private/LOCAL.md) |
 | 2026-10-18 20:48 | 66595fde (build 38) | E2E (fixed harness): sword combo + special fire, no room failure (render-path visuals now skipped+logged). + special DetonateGraphic/DetonateSound, CheckProjectileDefense, AddControlOnFire, timed FocusCamera, PanCamera new-target (room exit/entry), obstacle occlusion fade (UseOcclusion). Remaining soft-lock: special's detonation obstacle ApplyImpact → weapons agent. Next: room progression (Athena boon → door) agent. Harness bug fixed (taps were mis-scaled; it toggled Bloom/Lighting, restored) |
 | 2026-10-18 20:27 | 1dd3ba86 (build 36) | E2E (scripted + user): HUD visible (health 50/50, ammo 1/1, boons), walking/attacks/dash work. action-effects-v10 (root cause: Books playing a later window of an inherited sequence, e.g. SwordSwipeBDark 8-20, were exported only to NumFrames), collision-end fade-in + CollisionAnimation/CollisionEndedAnimation. Soft-lock: sword special RadialNovaSwordParry DetonateGraphic gap keeps the attack active (movement disabled) → weapons agent #1. Touch stick moved above the HUD health band (next build). Hero occlusion silhouette not rebuilt (Zagreus hidden behind foreground statues) |
@@ -171,13 +175,11 @@ Build receipts now separate package creation from device gameplay verification.
 
 - Device "unable to enter" screen = first unreconstructed engine behaviour; read the reason with
   `adb -s $HADES_DEVICE_SERIAL logcat -d -s HadesNative HadesLua | grep -E "FAILED|BLOCKED"`.
-- Only the opening room's assets are packed; leaving the room needs the multi-room/BC7 pipeline.
-- ApplyShift approximations: mRectangle = polygon AABB, obstacle order = Android broadphase order, unit-unit push fails loudly (blink-weapon-contract.json combat6).
+- RoomOpening and RoomSimple01 are packed. Subsequent rooms require validated map packs and lifecycle coverage.
+- ApplyShift uses documented portable polygon/grid ordering; actual unit-unit push and callbacks now run, with reached collision weapon/effect boundaries still explicit.
 - ReRandomizeOnLoop: engine default true, native loop never re-randomizes.
-- Audio still has unsupported cues/DSP/loop behaviour; inspect the current v19
-  manifest and runtime errors rather than the superseded v17 count. Door exit reaches
-  a cue absent from the derived catalog (`InfoPanelOutURSA`).
-- APK ~1.2 GB (RGBA frames); BC7 pass planned.
+- Audio still has unsupported cues/DSP/loop behaviour; inspect audio-events-v23 and actual runtime errors. Dropped cast ammo reaches original DSP14; no silent bypass.
+- APK ~2.2 GB after adding actual enemy movies; ZIP32 packaging is bounded below4GiB.
 - Old export dirs (audio-events-opening-v1..v16, earlier action-effects) can be pruned once v17/v8 are confirmed on device.
 
 ## Build/install reliability
@@ -196,5 +198,5 @@ success. Do not overwrite an APK still being served by an incremental installer.
 
 Full install verification succeeded: device user0 package registration and installed
 APK SHA-256 exactly match3e4ebc1dbc60036a8da2e42584d47541bf92fc49464bf7f815e6fd338d0957a2.
-Actual launch requested after verification; gameplay result is separate. Evidence:
+Actual launch and user-driven RoomSimple01/enemy rendering verified; see device row. Evidence:
 `.local/reports/takeover-iteration5-installed-verification.json`.

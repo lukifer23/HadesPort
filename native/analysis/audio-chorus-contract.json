@@ -1,0 +1,58 @@
+{
+  "schema": "hades-original-fmod-chorus-v1",
+  "status": "original Chorus algorithm executes through original cast ammo-drop event and subsequent live frames",
+  "target": {
+    "file": "fmod.dll",
+    "sha256": "b18951948d753918bce368f283ffb83db6058f7e3c02bf9bd53cb44f2873cc5e",
+    "rsds_guid": "d9c97d46-53a4-44a4-a124-6a7fc7a77e8e",
+    "rsds_age": 1
+  },
+  "pdb_caution": "Adjacent retained fmod.pdb GUID755f4d8e-d6a4-425f-8538-b8dfb7b7c34d does not match this DLL. Its procedure addresses are not used as current binary provenance.",
+  "evidence": {
+    "read": ".local/reports/takeover-fmod-current-chorus-read.json",
+    "read_evidence_id": "ev_fb987aec51d15defc6e16ca86e60b164d8d2e123916b0c05a6b87ecc241c0a37",
+    "descriptor": ".local/reports/takeover-fmod-current-chorus-description-static.json",
+    "read_assembly": ".local/reports/takeover-fmod-current-chorus-read-full-static.json",
+    "reset_assembly": ".local/reports/takeover-fmod-current-chorus-reset-full-static.json",
+    "create_assembly": ".local/reports/takeover-fmod-current-chorus-55000-static.json",
+    "cosine_assembly": ".local/reports/takeover-fmod-current-chorus-cos-static.json",
+    "descriptor_data": ".local/reports/takeover-fmod-current-chorus-descriptor.json"
+  },
+  "identity_chain": [
+    "Descriptor RVA1a4160 spells FMOD Chorus and binds DSP type14 and three float parameters.",
+    "Create callback55000; reset callback55160 tailjumps55c40; read55170 tailjumps55470; setFloat55180 stores Mix+8274, Rate+8278, Depth+8270.",
+    "Parameter descriptor initializer55240 names Mix, Rate and Depth; current native assertion strings identify fmod_dsp_chorus.cpp."
+  ],
+  "facts": [
+    "Quarter-cosine lookup contains8192 float samples at angle i*0.0001917476038215682; four phase quadrants use reflected table indexes.",
+    "Reset initializes phase0, channel phase offsets0/.25/.5, zero delay memory, source rate/sampleRate phase increment and source depth in samples=sampleRate*depthPercent*(depthPercent*1e-5).",
+    "Per-sample depth approaches target by at most1/32 sample.",
+    "Delay input is truncated after multiplication by16384 and stored as signed16 without clipping; reads divide by16384 and linearly interpolate adjacent samples.",
+    "Dry gain200/(Mix+200); wet channel weights clamp(2*Mix), clamp(4*Mix-200), clamp(4*Mix-300), each normalized by100 and dry gain.",
+    "Each channel selects its corresponding phase/weight modulo3. Phase advances once per frame and subtracts1 only when greater than1.",
+    "Native wrap boundary is the immediately preceding float representation of the ring frame count."
+  ],
+  "adaptations": [
+    "The portable audio Processor consumes one frame at a time. Delay allocation uses that actual block size1 in the native120ms allocation formula; Windows rounds the allocation to its System DSP-buffer size. Circular history capacity remains above the source maximum100ms delay.",
+    "Quarter-cosine samples use platform cosf and ordinary float arithmetic; bit-for-bit equivalence to the shipped Windows math library is not claimed."
+  ],
+  "consumer": {
+    "event": "/SFX/BloodshotAmmoAmbienceLoop",
+    "bus": "d5fe25fc-1c95-412f-9cc2-52ee3702ee9e",
+    "parameters": [
+      50.5,
+      0.8199999928474426,
+      48.0
+    ],
+    "runtime": [
+      "native/app/audio_chorus.cpp",
+      "native/app/audio_chorus.hpp",
+      "native/app/audio_world.cpp"
+    ]
+  },
+  "validation": {
+    "build": ".local/reports/takeover-cast-graphics-build-r9.log",
+    "original_script_replay": ".local/reports/takeover-cast-cardinals-r2.json",
+    "result": "Original OnProjectileDeath admitted enabled Chorus14 event; replay continued through projectile cleanup, ammo landing and four directional inputs until actual ammo-pickup audio coverage stopped it. Perceptual audio parity and full game completion remain unproven."
+  }
+}

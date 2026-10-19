@@ -260,6 +260,7 @@ void ScriptRuntime::initialize() {
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,spawnObstacle,1);lua_setglobal(state_,"SpawnObstacle");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,spawnUnit,1);lua_setglobal(state_,"SpawnUnit");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,equipWeapon,1);lua_setglobal(state_,"EquipWeapon");
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,runWeaponMethod,1);lua_setglobal(state_,"RunWeaponMethod");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,setUnitProperty,1);lua_setglobal(state_,"SetUnitProperty");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,setLifeProperty,1);lua_setglobal(state_,"SetLifeProperty");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,setThingProperty,1);lua_setglobal(state_,"SetThingProperty");
@@ -304,6 +305,7 @@ void ScriptRuntime::initialize() {
     registerProjectileActions();
     registerSaveActions(); // luabins module + SaveCheckpoint/ValidateCheckpoint (lua_save.cpp)
     registerMapActions();
+    registerFlashActions();
     // Wrap after every actual native action is registered, including text and
     // speech controls; actions added after this point would bypass source Delay.
     if(!installDelayedActions()){reportError("delayed-actions");return;}
@@ -547,7 +549,7 @@ bool ScriptRuntime::loadActorDefinitions(){
     if(ok)ok=actorWorld_.loadCatalog(std::move(catalog),error_);return ok;
 }
 std::string ScriptRuntime::actorsDump()const{std::string result="ANIMATION_EFFECTS "+effects_.dump()+"\n"+packages_.dump()+movies_.dump()+cameraFade_.dump()+actorWorld_.dump()+projectileWorld_.dump()+selfEffects_.dump()+audio_.dump()+(state_?dumpScriptScheduler(state_)+dumpDelayedActions(state_):"");
-    for(const auto& entry:creationPlan_.creation)if(const auto* a=actorWorld_.actor(entry.id);a&&a->arsenal)result+=a->arsenal->dump();return result;}
+    for(const auto id:actorWorld_.registrationOrder())if(const auto* a=actorWorld_.actor(id);a&&a->registered&&a->arsenal){result+="UNIT_ARSENAL owner="+std::to_string(id)+" timeMultiplier="+std::to_string(a->timeMultiplier)+"\n"+a->arsenal->dump();}return result;}
 bool ScriptRuntime::activateRoom(){
     if(roomActivated_)return true;
     if(!roomBooted_||mapProbeInstalled_||activationStarted_){error_="Native activation requires a fresh booted world; failed activation cannot be replayed";return false;}
@@ -596,6 +598,7 @@ bool ScriptRuntime::advanceWorld(float dt,double screenDt){
     ++worldFrame_;worldTime_+=dt;screenTime_+=screenDt;
     snapshotControlFrame();
     if(!advanceUnitDisposal(false,error_)){if(!containStage("unit-remove-before-update"))return false;}
+    if(!advanceFlashes(dt*worldSpeedModifier_,error_)){if(!containStage("flash-update"))return false;}
     if(!advanceLocalPlayerInput(dt,error_)){if(!containStage("player-input-update"))return false;}
     // UseableManager::Update + PlayerUnitInput use target / manual Use (lua_interaction.cpp, approximation A4).
     if(!advancePlayerUse(error_)){if(!containStage("player-use-update"))return false;}
@@ -788,7 +791,6 @@ bool ScriptRuntime::spawnObstacleImpl(lua_State* L,int32_t& created,std::string&
     // Native SpawnObstacle 0x26f4a0: ThingData UseScreenLocation (e.g. GUI.sjson TraitTray_*) also selects the screen body.
     if(boolean("UseScreenLocation"))return spawnScreenObstacleImpl(L,created,error);
     {lua_getfield(L,1,"Name");const char* n=lua_type(L,-1)==LUA_TSTRING?lua_tostring(L,-1):nullptr;const auto* d=n?actorWorld_.definition(std::string("Obstacles/")+n):nullptr;lua_pop(L,1);const auto* use=d?d->properties.path("Thing.UseScreenLocation"):nullptr;if(use&&use->boolean())return spawnScreenObstacleImpl(L,created,error);}
-    if(boolean("Attach")){error="SpawnObstacle attached-to-first-live-destination branch not reconstructed";return false;}
     auto name=string("Name");lua_getfield(L,1,"Names");
     if(!lua_isnil(L,-1)){
         if(lua_type(L,-1)==LUA_TSTRING)name=lua_tostring(L,-1);
@@ -803,12 +805,12 @@ bool ScriptRuntime::spawnObstacleImpl(lua_State* L,int32_t& created,std::string&
         if(!lua_istable(L,-1)||lua_rawlen(L,-1)>100000)throw std::runtime_error("SpawnObstacle destinations require bounded list");
         for(size_t i=1,n=lua_rawlen(L,-1);i<=n;++i){lua_rawgeti(L,-1,int(i));readId(-1);lua_pop(L,1);}lua_pop(L,1);
     }else{lua_pop(L,1);lua_getfield(L,1,"DestinationId");if(!lua_isnil(L,-1))readId(-1);lua_pop(L,1);}
-    float x=number("LocationX"),y=number("LocationY"),parallax=1;
+    float x=number("LocationX"),y=number("LocationY"),parallax=1;int32_t attachParent=0;
     if(!destinationIds.empty()){
-        x=y=parallax=0;for(const auto id:destinationIds){const auto* o=findObjectSnapshot(L,id);if(o&&o->active&&o->alive){float ox=0,oy=0;if(!actorWorld_.location(id,ox,oy,error))throw std::runtime_error(error);x+=ox;y+=oy;const auto* a=actorWorld_.actor(id);if(!a)throw std::runtime_error("Destination parallax requires actual actor components");parallax+=a->ownParallax*a->mapParallax;}}
+        x=y=parallax=0;for(const auto id:destinationIds){const auto* o=findObjectSnapshot(L,id);if(o&&o->active&&o->alive){float ox=0,oy=0;if(!actorWorld_.location(id,ox,oy,error))throw std::runtime_error(error);x+=ox;y+=oy;const auto* a=actorWorld_.actor(id);if(!a)throw std::runtime_error("Destination parallax requires actual actor components");parallax+=a->ownParallax*a->mapParallax;if(!attachParent)attachParent=id;}}
         x/=destinationIds.size();y/=destinationIds.size();parallax/=destinationIds.size();
     }
-    x+=number("OffsetX");y+=number("OffsetY");const float z=number("OffsetZ");
+    const float offsetX=number("OffsetX"),offsetY=number("OffsetY");x+=offsetX;y+=offsetY;const float z=number("OffsetZ");
     // ScriptAction::SpawnObstacle26f4a0: relocation precedes allocation. Zero
     // sentinel plus SkipIfBlocked returns no object; otherwise retain origin.
     if(boolean("ForceToValidLocation")){float px=0,py=0;if(!closestNonBlockedLocation(x,y,px,py,error))return false;if(px==0&&py==0){if(boolean("SkipIfBlocked")){created=0;return true;}}else{x=px;y=py;}}
@@ -833,9 +835,15 @@ bool ScriptRuntime::spawnObstacleImpl(lua_State* L,int32_t& created,std::string&
     if(!lua_isnil(L,-1)&&!lua_istable(L,-1))throw std::runtime_error("SpawnObstacle AttachedTable requires table or nil");
     setObjectLuaTable(L,created,-1);lua_pop(L,1);
     actor->ownParallax*=parallax;
-    object->z=z;object->screenSpace=boolean("UseScreenLocation",object->screenSpace);object->sortById=boolean("SortById");object->graphicsDirty=true;
+    object->z=z;object->screenSpace=boolean("UseScreenLocation",object->screenSpace);object->graphicsDirty=true;
     if(!actorWorld_.registerObstacleCollision(created,error)||!actorWorld_.initializeOccluder(created,error)||!actorWorld_.updateOccluder(created,error))return false;
     if(boolean("DestroyIfBlocked")){bool blocked=false;if(!spawnPointBlocked(x,y,blocked,error))return false;if(blocked&&!markThingDead(created,false,error))return false;}
+    // SpawnObstacle26f974 attaches to the first live selected destination,
+    // after allocation/callbacks/blocking and before SortById. AttachTo receives
+    // raw OffsetXY, not the averaged/relocated world point or scaled offsets.
+    // It leaves the new Thing's constructor Z attachment offset at zero.
+    if(boolean("Attach")&&!actorWorld_.attach(created,attachParent,offsetX,offsetY,0,false,error))return false;
+    object->sortById=boolean("SortById");
     return true;
 }
 int ScriptRuntime::spawnObstacle(lua_State* L){
@@ -845,6 +853,31 @@ int ScriptRuntime::spawnObstacle(lua_State* L){
     if(!ok)return luaL_error(L,"%s",message);lua_pushnumber(L,id);return 1;
 }
 
+bool ScriptRuntime::runWeaponMethodImpl(lua_State* L,std::string& error){try{
+    hades::SourceValue args;if(!lua_istable(L,1)||!hades::readSourceValue(L,1,args,error))throw std::runtime_error("RunWeaponMethod requires an actual argument table");
+    const auto* method=args.get("Method");const auto* weapon=args.get("Weapon");
+    const std::string methodName=method?method->text():"",weaponName=weapon?weapon->text():"";
+    // ScriptAction.RunWeaponMethod268b80 selects live Things, then the owned
+    // weapon; this bounded branch implements actual consumable AddAmmo only.
+    if(methodName!="AddAmmo")throw std::runtime_error("Native RunWeaponMethod not reconstructed: "+methodName);
+    if(weaponName=="All"||weaponName=="NonMultiFireRequestWeapons")throw std::runtime_error("RunWeaponMethod arsenal selector not reconstructed: "+weaponName);
+    const auto* parameters=args.get("Parameters");
+    if(!parameters||!std::holds_alternative<hades::SourceValue::Array>(parameters->value)||parameters->array().size()!=1)throw std::runtime_error("Native AddAmmo requires its actual first parameter");
+    const float value=float(parameters->array().front().number());
+    // Parameters are native float anys; INT_FromAny250d80 truncates to int32.
+    if(!std::isfinite(value)||value<-2147483648.f||value>=2147483648.f)throw std::runtime_error("AddAmmo parameter outside native finite int32 subset");
+    std::vector<int32_t> selected;if(!resolveObjectTargets(L,false,selected,error))return false;
+    for(const auto id:selected){const auto* object=findObjectSnapshot(L,id);auto* actor=actorWorld_.actor(id);
+        if(!object||!object->active||!object->alive||!actor||!actor->registered||!actor->arsenal||!actor->arsenal->hasWeapon(weaponName))continue;
+        if(!actor->arsenal->addAmmo(weaponName,int32_t(value),error))return false;
+    }
+    error.clear();return true;
+}catch(const std::exception& exception){error=exception.what();return false;}}
+int ScriptRuntime::runWeaponMethod(lua_State* L){
+    char message[2048]{};bool ok=false;
+    {std::string error;try{ok=runtime(L)->runWeaponMethodImpl(L,error);}catch(const std::exception& exception){error=exception.what();}if(!ok)std::snprintf(message,sizeof(message),"%s",error.c_str());}
+    if(!ok)return luaL_error(L,"%s",message);return 0;
+}
 bool ScriptRuntime::weaponPropertyImpl(lua_State* L,int mode,std::string& error){
     std::vector<int32_t> selected;if(!resolveObjectTargets(L,mode==0||mode==3,selected,error))return false;
     auto text=[&](const char* key,const char* fallback=""){lua_getfield(L,1,key);const char* p=lua_tostring(L,-1);std::string value=p?p:fallback;lua_pop(L,1);return value;};
@@ -930,6 +963,7 @@ bool ScriptRuntime::effectOwner(int32_t id,hades::EffectOwnerState& state,std::s
     state.lifetime=actor->entityHandle;
     if(!actorWorld_.location(id,state.x,state.y,error)||!actorWorld_.zLocation(id,state.z,error))return false;
     state.scale=object->scale*object->scaleFraction;state.angle=object->angle;
+    state.velocity.reset();if(actor->physics)state.velocity=std::array<float,2>{actor->physics->velocity.x,actor->physics->velocity.y};
     state.group=object->group;
     state.baseColor=actor->baseColorBytes;state.baseHsv=std::array<float,4>{actor->hsv[0],actor->hsv[1],actor->hsv[2],0};
     state.hasPrimaryAnimation=actor->animation.active()||actor->primaryEffectAnimation||actor->primaryAnimationLifetime;state.isUnit=bool(actor->arsenal);error.clear();return true;

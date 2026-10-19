@@ -80,6 +80,18 @@ def recover(category,ctor_file,copy_file,assignment,base):
     fields={};unknown=[];primitives={0x30:('bool',1,'?'),0x40:('float32',4,'f'),0x74:('int32',4,'i'),0x75:('uint32',4,'I'),0x20:('uint8',1,'B'),0x70:('char',1,'b')}
     for item in members:
         off=item['offset'];typ=item['type_index'];enum=None
+        if typ==0x56a1: # PDB SoundCue: owner+0, EASTL name+8, valid+33; size40.
+            # Copy ctor43450 is not initialization. Prove the actual inline
+            # defaults from this definition constructor, omitting functor and
+            # padding bytes whose storage has no supported semantic consumer.
+            selected=list(range(off,off+32))+[off+33]
+            if direct[off:off+8]!=[0]*8 or direct[off+8:off+32]!=[0]*23+[23] or direct[off+33]!=0:
+                unknown.append({**item,'reason':'SoundCue semantic default bytes remain unproven'});continue
+            proof=[]
+            for index in selected:
+                if direct_prov[index] not in proof:proof.append(direct_prov[index])
+            fields[item['name']]={'type':'sound_cue','value':{'owner':None,'name':'','valid':False},'native_member':item['member'],'offset':off,'full_data_offset':off+base,'enum':None,'provenance':proof,'unproven_storage_byte_offsets':[i for i in range(40)if direct[off+i]is None]}
+            continue
         if typ in by and by[typ]['debug'].startswith('Enumeration'):
             enum=by[typ].get('name');typ=int(re.search(r'underlying_type: TypeIndex\((0x[\da-f]+)',by[typ]['debug'])[1],16)
         primitive=primitives.get(typ)

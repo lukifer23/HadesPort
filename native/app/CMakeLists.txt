@@ -16,7 +16,7 @@ target_link_options(hades_native PRIVATE -uANativeActivity_onCreate -Wl,-z,max-p
 target_link_libraries(hades_native PRIVATE native_app_glue lua52 android log EGL GLESv3 z)
 
 # Original compressed audio/event graphs and native API26 output.
-target_sources(hades_native PRIVATE audio_world.cpp audio_channels.cpp audio_timeline.cpp audio_limiter.cpp audio_three_eq.cpp audio_sample_stream.cpp audio_bank_decoder.cpp audio_output.cpp)
+target_sources(hades_native PRIVATE audio_world.cpp audio_channels.cpp audio_timeline.cpp audio_limiter.cpp audio_three_eq.cpp audio_chorus.cpp audio_sample_stream.cpp audio_bank_decoder.cpp audio_output.cpp)
 include(${CMAKE_CURRENT_SOURCE_DIR}/../audio_decoder.cmake)
 hades_link_audio_decoder(hades_native "${CMAKE_CURRENT_SOURCE_DIR}/../../.local/native-audio-build/android-arm64-api26-verified-v2/verification.json")
 
@@ -82,3 +82,5 @@ target_link_libraries(hades_native PRIVATE luabins03 lz4block)
 
 # Original Profile<N>.sjson / .ctrls persistence (config file agent).
 target_sources(hades_native PRIVATE config_file.cpp)
+
+target_sources(hades_native PRIVATE native_flash.cpp lua_flash.cpp)

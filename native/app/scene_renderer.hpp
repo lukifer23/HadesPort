@@ -36,6 +36,7 @@ struct ActorVisual {
     std::optional<float> sourceSortY;
     uint32_t blend=0;
     bool addColor=false;
+    std::array<float,4> flashColor{};
     std::array<float,3> hsv{};
     bool flipX=false,flipY=false;
     bool screenSpace=false; // Original1920x1080 UI coordinates; no world camera/Z.
@@ -63,6 +64,7 @@ class SceneRenderer {
     int groupWidth_=0,groupHeight_=0;
     int backgroundWidth_=0,backgroundHeight_=0,blendLocation_=-1,addLocation_=-1;
     int postLocation_=-1,exposureLocation_=-1;
+    int flashLocation_=-1;
     int regionLocation_=-1;
     int lightLocation_=-1,shadowResolutionLocation_=-1;
     uint32_t heroWidth_=0,heroHeight_=0,heroActiveWidth_=0,heroActiveHeight_=0;

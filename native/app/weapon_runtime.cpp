@@ -4,6 +4,7 @@
 #include <functional>
 #include <set>
 #include <algorithm>
+#include <bit>
 #include <cmath>
 #include <sstream>
 #include <stdexcept>
@@ -397,6 +398,17 @@ bool WeaponArsenal::stateProperty(const std::string& name,const std::string& pro
         return true;
     }
     error="No staged weapon named "+name;return false;
+}
+bool WeaponArsenal::addAmmo(const std::string& name,int32_t amount,std::string& error){
+    // RunMethod("AddAmmo") VA1802512d8..12ff mutates this weapon's raw
+    // mAmmo(+34), then max(sum,0), min(result,WeaponData.MaxAmmo+6e8).
+    // It does not follow ShareAmmoWeapon or call script/charge/reload hooks.
+    for(auto& weapon:weapons_)if(weapon.definition.name==name){
+        const auto sum=std::bit_cast<int32_t>(uint32_t(weapon.ammo)+uint32_t(amount));
+        weapon.ammo=std::min(std::max(sum,int32_t(0)),weapon.definition.maxAmmo);
+        error.clear();return true;
+    }
+    error="AddAmmo requires an actual owned weapon: "+name;return false;
 }
 bool WeaponArsenal::getAmmo(const std::string& name,int32_t& result,std::string& error) const {
     // Native Weapon::GetAmmo RVA83af0 follows an existing ShareAmmoWeapon,

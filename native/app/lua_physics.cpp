@@ -83,13 +83,11 @@ bool ScriptRuntime::advancePhysics(float dt,std::string& error){
                 if(parent&&parent->registered&&parent->entityHandle==a->attachedParentLifetime){float parentZ=0;if(!actorWorld_.zLocation(parent->id,parentZ,detail))return false;z+=(parentZ+a->attachOffsetZ);}
                 detail.clear();return true;
             };
-            callbacks.shiftZ=[this,id](float delta,bool,std::string& detail){
-                auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->object){detail="Physics ShiftZ owner expired";return false;}
-                if(a->definition->kind!="Unit"){detail="Moving obstacle ShiftZ requires native obstacle draw-bounds provider";return false;}
-                const auto maximum=physicsNumber(actorWorld_,id,"Thing.MaxZ");
-                a->object->z=std::min(a->object->z+delta,maximum);
-                a->object->graphicsDirty=true; // Actual Android draw snapshot consumer.
-                return actorWorld_.propertiesDirty(id,detail); // Unit virtual MarkSortScoreChanged.
+            callbacks.shiftZ=[this,id](float delta,bool propagate,std::string& detail){
+                // Physics::UpdateSelf passes true for rising and falling
+                // shifts; preserve the shared native virtual setter boundary.
+                if(!propagate){detail="Physics nonpropagating ShiftZ branch unavailable";return false;}
+                return shiftActorZ(id,delta,detail);
             };
             auto script=[this,id](const char* event,std::string& detail){const auto* a=actorWorld_.actor(id);if(!a||!a->object){detail="Physics script owner unavailable";return false;}if(dispatchCallbacks(event,a->object->name.c_str(),id)){detail.clear();return true;}detail=error_;return false;};
             callbacks.onTakeoff=[&](std::string& detail){return script("OnTakeoff",detail);};
@@ -120,7 +118,13 @@ bool ScriptRuntime::advancePhysics(float dt,std::string& error){
                     const auto graphic=physicsProperty(actorWorld_,id,"Thing.TouchdownGraphic").text();
                     if(!setActorAnimation(id,graphic,detail))return false;
                     const auto fx=physicsProperty(actorWorld_,id,"Thing.OnTouchdownFxAnim").text();
-                    if(!fx.empty()&&fx!="null"){detail="Native standalone OnTouchdownFxAnim provider unavailable: "+fx;return false;}
+                    if(!fx.empty()&&fx!="null"){
+                        // Thing.OnTouchdown2dfbaa..2dfc11 calls manager Create
+                        // with actual Thing XY and no owner; source animation
+                        // initializes its own default Z (the ground puff).
+                        std::array<float,3> location{};if(!actorWorld_.location(id,location[0],location[1],detail))return false;
+                        uint64_t handle=0;if(!actionEffects_.createStandalone(fx,location,actionEffectProviders(),handle,detail))return false;
+                    }
                     const auto cue=physicsProperty(actorWorld_,id,"Thing.TouchdownSound").text();
                     bool valid=false;if(!audio_.resolveCue(cue,valid,detail))return false;
                     if(valid){std::array<float,3> location{};if(!actorWorld_.location(id,location[0],location[1],detail)||!actorWorld_.zLocation(id,location[2],detail))return false;uint32_t sound=0;if(!playAudioCue(cue,id,location,sound,detail))return false;}
@@ -137,6 +141,10 @@ bool ScriptRuntime::advancePhysics(float dt,std::string& error){
                 }
                 if(physicsProperty(actorWorld_,id,"Thing.DieOnTouchdown").boolean()){detail="Native DieOnTouchdown Kill provider unavailable";return false;}
                 if(!script("OnTouchdown",detail))return false;
+                // Obstacle.OnTouchdown2c30e0 calls the base callback, then its
+                // PropertiesDirty override (2c314c..3171): sort/cache refresh
+                // and LocationChanged(true), including the final resting Z.
+                if(a->definition->kind=="Obstacle"&&!actorWorld_.propertiesDirty(id,detail))return false;
                 if(a->definition->kind=="Unit"){
                     if(!(physicsTouchdownWeapon_?physicsTouchdownWeapon_(id,detail):physicsUnitTouchdown(id,detail)))return false;
                 }

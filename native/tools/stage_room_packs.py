@@ -55,5 +55,22 @@ def stage_room_pack(manifest,assets):
   if Path(name).name!=name:raise ValueError('Room asset path must be a filename')
   shutil.copyfile(verify(row),destination/name)
  return {'room':room,'files':len(m['files'])}
+def revise_room_actor_catalog(manifest,actors,output):
+ """Fresh bundle: retain immutable validated room bytes, replace actor catalog."""
+ manifest,actors,output=Path(manifest),Path(actors),Path(output)
+ if output.exists():raise ValueError('Fresh room revision output required')
+ base=json.loads(manifest.read_text());actor=json.loads(actors.read_text())
+ if base['schema']!='hades-room-pack-v1' or base['target_sha256']!=TARGET:raise ValueError('Room revision source identity')
+ if actor['schema']!='hades-source-actor-catalog-v1' or actor['room']!=base['room'] or actor.get('native_unit_angles')is not True:raise ValueError('Room revision actor schema/name/angles')
+ for row in [actor['packet'],actor['creation'],actor['defaults'],*actor['source_files']]:verify(row)
+ output.mkdir(parents=True)
+ for name,row in base['files'].items():
+  if Path(name).name!=name:raise ValueError('Room revision filename')
+  source=verify(row)
+  if name=='actors.lua':shutil.copyfile(verify(actor['packet']),output/name)
+  else:(output/name).hardlink_to(source)
+ revised={**base,'revision_source':identity(manifest),'actor_catalog_source':identity(actors),
+  'files':{p.name:identity(p)for p in sorted(output.iterdir())if p.is_file()}}
+ (output/'manifest.json').write_text(json.dumps(revised,indent=2)+'\n');return revised
 if __name__=='__main__':
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--source',type=Path,required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--actor-lights',type=Path);p.add_argument('--actors',type=Path);a=p.parse_args();r=build_room_pack(a.source,a.output,a.actor_lights,a.actors);print(json.dumps({'room':r['room'],'files':len(r['files']),'output':str(a.output)}))

@@ -9,7 +9,7 @@ bool AnimationRegistry::allocate(const AnimationAllocation& a,uint64_t& id,std::
  if(live_.size()>=100000||next_==UINT64_MAX){error="Native animation allocation bound";return false;}
  if(a.ownership==AnimationOwnership::Child){const auto* p=find(a.parent);if(!p||p->child||p->ownerId!=a.ownerId||p->ownerLifetime!=a.ownerLifetime||p->manager!=a.manager){error="Actual parent/owner lifetime for child allocation unavailable";return false;}}
  else if(a.parent){error="Only child admission may have parent";return false;}
- AnimationLifetime value;static_cast<AnimationAllocation&>(value)=a;value.handle=next_++;id=value.handle;live_.emplace(id,std::move(value));if(a.parent)live_.at(a.parent).child=id;return true;
+ AnimationLifetime value;static_cast<AnimationAllocation&>(value)=a;value.handle=next_++;const auto* linked=a.sourceDefinition.get("UseAttachedTimeMultiplier");value.attachedToTimeMultiplier=a.ownerLifetime&&linked&&linked->boolean();id=value.handle;live_.emplace(id,std::move(value));if(a.parent)live_.at(a.parent).child=id;return true;
 }
 bool AnimationRegistry::commitInitialization(uint64_t id,bool skip,std::string& error){auto it=live_.find(id);if(it==live_.end()||it->second.initialized){error="Animation init requires a unique real pending lifetime";return false;}it->second.initialized=true;it->second.skipUpdate=skip;return true;}
 bool AnimationRegistry::addToManager(uint64_t id,uint32_t cap,std::optional<uint64_t>& victim,std::string& error){
@@ -19,6 +19,9 @@ bool AnimationRegistry::addToManager(uint64_t id,uint32_t cap,std::optional<uint
  order.push_back(id);entry.managerMember=true;return true;
 }
 bool AnimationRegistry::setSkipUpdate(uint64_t id,bool value,std::string& error){auto it=live_.find(id);if(it==live_.end()||!it->second.initialized){error="Actual initialized animation visibility lifetime missing";return false;}it->second.skipUpdate=value;return true;}
+// Animation.UseAttachedToTimeMultiplier299d40 adds ModifiedTime and a live
+// Thing pointer component; clearing an effect changes Thing+80, not this link.
+bool AnimationRegistry::linkTimeMultiplier(uint64_t id,int32_t owner,uint64_t lifetime,std::string& error){auto it=live_.find(id);if(it==live_.end()||!it->second.initialized||it->second.ownerId!=owner||it->second.ownerLifetime!=lifetime){error="Actual animation clock attachment lifetime unavailable";return false;}it->second.attachedToTimeMultiplier=true;error.clear();return true;}
 bool AnimationRegistry::cancel(uint64_t id,std::string& error){auto it=live_.find(id);if(it==live_.end()){error="Actual canceled animation lifetime missing";return false;}it->second.canceled=true;return true;}
 bool AnimationRegistry::restart(uint64_t id,std::string& error){auto it=live_.find(id);if(it==live_.end()||!it->second.initialized){error="Actual initialized animation lifetime missing for source Restart";return false;}it->second.canceled=false;return true;}
 bool AnimationRegistry::dispose(uint64_t id,std::string& error){auto it=live_.find(id);if(it==live_.end()){error="Actual animation disposal lifetime missing";return false;}const auto entry=it->second;if(entry.child&&!dispose(entry.child,error))return false;if(entry.parent){auto p=live_.find(entry.parent);if(p!=live_.end())p->second.child=0;}if(entry.managerMember){auto& order=managed_.at(entry.manager);const auto i=std::find(order.begin(),order.end(),id);if(i==order.end())throw std::runtime_error("Native animation manager ownership invariant");order.erase(i);}live_.erase(id);return true;}

@@ -56,6 +56,7 @@ bool ScriptRuntime::sourceSceneSprite(uint32_t index,hades::SceneSprite& sprite,
     for(size_t k=0;k<4;++k){float current=actor->color[k]*(k<3?actor->tint[k]:1),old=base->second.color[k];if(k==3){current*=body.alpha;old*=initial.alpha;}if(old==0){if(current!=0)throw std::runtime_error("Unquantized source color required after zero-channel mutation");sprite.tint[k]=0;}else sprite.tint[k]=std::clamp(sprite.tint[k]*(current/old),0.f,1.f);}
     for(size_t k=0;k<3;++k)sprite.hsv[k]+=actor->hsv[k]-base->second.hsv[k];
     const auto name=body.group!=initial.group?body.group:originalSceneGroupNames_[originalGroup];
+    if(const auto*use=primary->definition.get("UseAttachedFlasher");!use||use->boolean())sprite.flashColor=flashColorForOwner(actor->id,actor->entityHandle);
     sprite.drawGroup=presentationGroup(name);const auto& group=presentationGroups_[sprite.drawGroup];sprite.runtimeSuppressed=!group.visible;sprite.blend=uint32_t(group.blendMode);
     float sortIndex=0;if(const auto* seed=actorWorld_.seed(actor->sourceId))if(const auto* source=seed->map.get("SortIndex"))sortIndex=float(source->number());
     sprite.runtimeSortKey=std::array<float,3>{float(sprite.drawGroup),sortIndex,y};
@@ -91,7 +92,7 @@ std::shared_ptr<const hades::LightShadowGeometry> ScriptRuntime::presentationSha
     presentationShadowFrame_=worldFrame_;return presentationShadows_;
 }
 
-bool ScriptRuntime::samplePresentation(const VisualKey& key,hades::ActorVisual& out,std::string& error){
+bool ScriptRuntime::samplePresentationImpl(const VisualKey& key,hades::ActorVisual& out,std::string& error){
  try{
     out={};
     if(key.kind==VisualKey::Kind::Light){

@@ -15,6 +15,8 @@ struct EffectOwnerState {
     uint64_t lifetime=0;
     float x=0,y=0,z=0,scale=1,angle=0;
     bool hasPrimaryAnimation=false,isUnit=false;
+    // Absent means the owning Thing has no PhysicsComponent (Thing+0xd8).
+    std::optional<std::array<float,2>> velocity;
     // Actual BodyComponent packed base color/HSV, before fraction controls.
     // SetValuesFromOwner reads these fields rather than final shader color.
     std::optional<std::array<uint8_t,4>> baseColor;

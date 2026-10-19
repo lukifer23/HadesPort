@@ -18,7 +18,7 @@ struct ScenePrimaryState {
     std::string name;SourceValue definition;NativeAnimationType type=NativeAnimationType::Dataless;
     PrimaryResourceKind resource=PrimaryResourceKind::Pending;uint32_t resourceIndex=0;
     std::vector<uint32_t> sceneSprites;
-    float frame=1,playSpeed=0,startFrame=1,endFrame=1;
+    float frame=1,playSpeed=0,startFrame=1,endFrame=1,frameTarget=0;
     float ownScale=1,offsetX=0,offsetY=0,offsetZ=0;
     std::array<float,2> atlasScale{1,1};
     float duration=0,durationRemaining=0;
@@ -53,6 +53,7 @@ public:
     bool replace(uint64_t,const std::string&,const EffectOwnerState&,
         const EffectAnimationRandom&,const EffectBoundedRandom&,uint64_t&,std::string&);
     bool advance(float,std::string&);
+    bool setFrameTarget(int32_t,const std::string&,float,bool,std::string&);
     std::vector<uint64_t> completedPrimaries()const;
     bool selectSceneFrame(uint32_t,std::optional<SceneFrameSelection>&,std::string&)const;
     bool submitted(uint32_t,std::string&);

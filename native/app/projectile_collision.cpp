@@ -151,7 +151,7 @@ bool polygonsOverlap(const std::vector<ActorPoint>& a,const std::vector<ActorPoi
     return axisFound&&(!obstacle||minimum>0);
 }
 bool primaryNoCollision(const ActorComponents& a){if(a.animation.active())return (a.animation.clip()->flags&ActorNoCollision)!=0;if(a.primaryEffectAnimation||a.primaryAnimationLifetime){if(!a.primaryOwnerHasNoCollision)throw std::runtime_error("Actual collision primary OwnerHasNoCollision unavailable");return *a.primaryOwnerHasNoCollision;}return false;}
-float effectNumber(const WeaponEffectDefinition& d,const char* key){const auto it=d.fields.find(key);if(it==d.fields.end()||!std::holds_alternative<double>(it->second))throw std::runtime_error(std::string("Actual collision effect scalar unavailable: ")+key);return float(std::get<double>(it->second));}
+float effectNumber(const WeaponEffectDefinition& d,const char* key){const auto it=d.fields.find(key);if(it==d.fields.end()||!std::holds_alternative<double>(it->second))throw std::runtime_error(std::string("Actual collision effect scalar unavailable: ")+key+" effect="+d.name+" type="+std::to_string(d.type));return float(std::get<double>(it->second));}
 }
 bool checkProjectileDodge(const ProjectileActor& p,int32_t id,const ProjectileImpactProviders& providers,bool& dodged,std::string& error){
     // LifeComponent::CheckDodge VA1802b7b70: pending AND active DisableDodge
@@ -267,7 +267,10 @@ bool ProjectileWorld::checkForImpact(uint64_t handle,const ProjectileImpactProvi
             bool reflected=false;
             if(boolean(data,"CanBeReflected")){
                 float reflection=a->hasLife?a->life.reflection:0;
-                if(isUnit&&a->status)for(const auto e:a->status->snapshot().active)reflection+=effectNumber(actualEffect(e),"Reflection");
+                // Life.GetReflection2b930a adds EffectData+3b0, the actual
+                // reflected field ReflectAddition. Life's raw field is named
+                // Reflection; copying that name into EffectData is invalid.
+                if(isUnit&&a->status)for(const auto e:a->status->snapshot().active)reflection+=effectNumber(actualEffect(e),"ReflectAddition");
                 if(reflection>0){if(!providers.random)throw std::runtime_error("Actual reflection RNG unavailable");double draw=0;if(!providers.random(draw,error))throw std::runtime_error(error);if(!std::isfinite(draw)||draw<0||draw>=1)throw std::runtime_error("Reflection RNG outside [0,1)");
                     if(draw<=actorProperty(world,id,"Life.ReflectionChance").number()){const float angle=normalizedAngle(p->body.angle+3.1415927410125732421875f),facing=normalizedAngle(a->object->angle),diff=std::abs(angle-facing);reflected=a->life.armorCoverage*.5f>std::min(diff,6.283185482025146484375f-diff);}
                 }
@@ -564,7 +567,7 @@ bool ProjectileWorld::updateDetonation(uint64_t handle,float elapsed,const Proje
             if(dodged&&(number(data,"Damage")>0||number(data,"DamageLow")>0||number(data,"DamageHigh")>0))throw std::runtime_error("Detonation Unit::OnDodge2f3c10 consumer not reconstructed");
             bool reflected=false;
             if(boolean(data,"CanBeReflected")&&a->hasLife){float reflection=a->life.reflection;
-                if(a->status)for(const auto h:a->status->snapshot().active){const WeaponEffectDefinition* e=nullptr;if(!providers.impact->effectData||!providers.impact->effectData(h,e,error)||!e)throw std::runtime_error(error.empty()?"Detonation reflection effect unavailable":error);reflection+=effectNumber(*e,"Reflection");}
+                if(a->status)for(const auto h:a->status->snapshot().active){const WeaponEffectDefinition* e=nullptr;if(!providers.impact->effectData||!providers.impact->effectData(h,e,error)||!e)throw std::runtime_error(error.empty()?"Detonation reflection effect unavailable":error);reflection+=effectNumber(*e,"ReflectAddition");}
                 if(reflection>0){double draw=0;if(!providers.impact->random||!providers.impact->random(draw,error))throw std::runtime_error(error.empty()?"Detonation reflection RNG unavailable":error);
                     if(draw<=actorProperty(world,id,"Life.ReflectionChance").number()){float x=0,y=0;if(!thingLocation(*p,x,y,error))throw std::runtime_error(error);
                         const float direction=normalizedAngle(std::atan2(-(uy-y),ux-x)+3.1415927410125732421875f),facing=normalizedAngle(a->object->angle),diff=std::abs(direction-facing);reflected=a->life.armorCoverage*.5f>std::min(diff,6.283185482025146484375f-diff);}

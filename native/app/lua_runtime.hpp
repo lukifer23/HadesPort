@@ -32,6 +32,7 @@
 #include "text_layout.hpp"
 #include "audio_output.hpp"
 #include "save_runtime.hpp"
+#include "native_flash.hpp"
 #include <map>
 #include <string>
 #include <unordered_set>
@@ -44,6 +45,12 @@ class ScriptRuntime {
     std::unique_ptr<hades::RoomAssets> roomAssets_;
     std::unordered_set<std::string> loaded_;
     std::string error_;
+    std::map<int32_t,hades::NativeFlash> flashes_;
+    void registerFlashActions();
+    static int flashAction(lua_State*);
+    bool flashActionImpl(lua_State*,bool,std::string&);
+    bool advanceFlashes(float,std::string&);
+    std::array<float,4> flashColorForOwner(int32_t,uint64_t)const;
     bool mainLoaded_ = false, gameLoaded_ = false;
     bool roomBooted_ = false;
     std::string mapName_ = "RoomOpening";
@@ -248,6 +255,8 @@ class ScriptRuntime {
     bool createAnimationImpl(lua_State*,std::string&);
     static int weaponProperty(lua_State*);
     bool weaponPropertyImpl(lua_State*,int mode,std::string&);
+    static int runWeaponMethod(lua_State*);
+    bool runWeaponMethodImpl(lua_State*,std::string&);
     static int spawnUnit(lua_State*);
     bool spawnUnitImpl(lua_State*,int32_t&,std::string&);
     static int spawnObstacle(lua_State*);
@@ -469,6 +478,7 @@ public:
     std::vector<int32_t> screenPresentationIds()const;
     bool sampleScreenPresentation(int32_t,hades::ActorVisual&,std::string&);
     bool samplePresentation(const VisualKey&,hades::ActorVisual&,std::string&);
+    bool samplePresentationImpl(const VisualKey&,hades::ActorVisual&,std::string&);
     bool serviceAssets(size_t textureBudget=1);
     bool assetsPending()const{return packages_.pending();}
     bool startAudio();

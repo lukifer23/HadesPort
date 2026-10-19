@@ -64,13 +64,13 @@ void ActorAnimationBank::load(AssetStore& store,const char* filename,const char*
 void ActorAnimationBank::loadProperties(AssetStore& store,const char* filename,const char* identityFilename){
     properties_.clear();auto packet=store.open(filename);if(!packet)return;
     if(packet->size()<40||packet->size()>2*1024*1024)throw std::runtime_error("Invalid HAP extent");
-    const auto magic=integer(*packet);if(magic!=0x31504148&&magic!=0x32504148&&magic!=0x33504148&&magic!=0x34504148)throw std::runtime_error("Invalid HAP version");const bool v4=magic==0x34504148,v3=magic==0x33504148||v4,v2=magic==0x32504148||v3;
+    const auto magic=integer(*packet);if(magic!=0x31504148&&magic!=0x32504148&&magic!=0x33504148&&magic!=0x34504148&&magic!=0x35504148)throw std::runtime_error("Invalid HAP version");const bool v5=magic==0x35504148,v4=magic==0x34504148||v5,v3=magic==0x33504148||v4,v2=magic==0x32504148||v3;
     std::array<uint8_t,32> bound{},expected{};read(*packet,bound.data(),32);auto identity=store.open(identityFilename);
     if(!identity||identity->size()!=32)throw std::runtime_error("Missing HAP1 bank identity");read(*identity,expected.data(),32);
     if(bound!=expected||integer(*packet)!=clips_.size())throw std::runtime_error("HAP1 bank binding/count mismatch");
     std::vector<Properties> parsed;parsed.reserve(clips_.size());
     for(const auto& clip:clips_){Properties p;p.known=integer(*packet);p.values=integer(*packet);auto count=integer(*packet);
-        if(p.known>(v4?255u:(v3?63u:(v2?7u:3u)))||(p.values&~(p.known&~4u))||count!=clip.slides.size())throw std::runtime_error("HAP property/slide mismatch");
+        if(p.known>(v5?511u:(v4?255u:(v3?63u:(v2?7u:3u))))||(p.values&~(p.known&~4u))||count!=clip.slides.size())throw std::runtime_error("HAP property/slide mismatch");
         if(v2){p.airborneZ=real(*packet);if(std::abs(p.airborneZ)>100000.f||(!(p.known&4u)&&p.airborneZ!=0))throw std::runtime_error("HAP AirborneZ bound/unknown mismatch");}
         for(const auto& slide:clip.slides){auto frame=integer(*packet),air=integer(*packet);
             if(frame!=slide.originalFrame||air>2||((clip.flags&ActorBook)&&air!=1))throw std::runtime_error("HAP1 original slide/airborne mismatch");
@@ -89,6 +89,7 @@ std::optional<bool> ActorAnimationBank::exactDisableOwnerManualInteract(size_t c
 std::optional<bool> ActorAnimationBank::exactOwnerInvulnerable(size_t clip)const{(void)clips_.at(clip);if(properties_.size()!=clips_.size()||!(properties_[clip].known&8u))return {};return bool(properties_[clip].values&8u);}
 std::optional<bool> ActorAnimationBank::exactOwnerNoArmorCoverage(size_t clip)const{(void)clips_.at(clip);if(properties_.size()!=clips_.size()||!(properties_[clip].known&16u))return {};return bool(properties_[clip].values&16u);}
 std::optional<bool> ActorAnimationBank::exactOwnerNoInvulnerableCoverage(size_t clip)const{(void)clips_.at(clip);if(properties_.size()!=clips_.size()||!(properties_[clip].known&32u))return {};return bool(properties_[clip].values&32u);}
+std::optional<bool> ActorAnimationBank::exactUseAttachedFlasher(size_t clip)const{(void)clips_.at(clip);if(properties_.size()!=clips_.size()||!(properties_[clip].known&256u))return {};return bool(properties_[clip].values&256u);}
 std::optional<bool> ActorAnimationBank::exactAirborne(size_t clip,size_t slide)const{
     const auto& c=clips_.at(clip);(void)c.slides.at(slide);if(c.flags&ActorBook)return false;
     if(properties_.size()!=clips_.size()||!properties_[clip].airborne[slide])return {};return properties_[clip].airborne[slide]==2;

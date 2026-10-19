@@ -26,7 +26,7 @@ void configureTexture(unsigned texture){
     glBindTexture(GL_TEXTURE_2D,texture);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
 }
-bool sameMaterial(const SceneSprite& a,const SceneSprite& b){return a.texture==b.texture&&a.blend==b.blend&&a.addColor==b.addColor&&a.lightEffect==b.lightEffect&&a.shadowTexture==b.shadowTexture;}
+bool sameMaterial(const SceneSprite& a,const SceneSprite& b){return a.texture==b.texture&&a.blend==b.blend&&a.addColor==b.addColor&&a.lightEffect==b.lightEffect&&a.shadowTexture==b.shadowTexture&&a.flashColor==b.flashColor;}
 uint32_t textureExtent(uint32_t value){uint32_t result=1;while(result<value)result*=2;return result;}
 bool visible(const SceneSprite& sprite,const SceneView& view){
     if(sprite.runtimeSuppressed)return false;
@@ -65,7 +65,7 @@ void SceneRenderer::initialize(AssetStore& assets){
     // offscreen composition route; absent companions retain the earlier path.
     constexpr const char* fragment=SHADER_HEADER R"(
         uniform sampler2D image; uniform sampler2D background;
-        uniform int blendMode; uniform int addColor;
+        uniform int blendMode; uniform int addColor; uniform vec4 flashColor;
         uniform int displayPass; uniform float displayExposure;
         uniform int lightEffect;uniform sampler2D shadowMap;uniform float shadowResolution;
         uniform vec4 imageRegion;
@@ -126,6 +126,9 @@ void SceneRenderer::initialize(AssetStore& assets){
             }
             if(any(notEqual(hsvShift,vec3(0.)))){vec3 h=rgb2hsv(sampled.rgb);h.yz=clamp(h.yz+hsvShift.yz,0.,1.);h.x=fract(h.x+hsvShift.x+1.);sampled.rgb=hsv2rgb(h);}
             vec4 source=vec4(addColor!=0?sampled.rgb+multiplier.rgb:sampled.rgb*multiplier.rgb,sampled.a*multiplier.a);
+            // Shipped MultiplyAndLerp and AddColorMultiplyAndLerp perform
+            // this RGB interpolation after tint/HSV, preserving source alpha.
+            source.rgb=mix(source.rgb,flashColor.rgb,flashColor.a);
             if(blendMode==9||blendMode==11){
                 vec3 dest=texelFetch(background,ivec2(gl_FragCoord.xy),0).rgb;
                 vec3 result;
@@ -142,6 +145,7 @@ void SceneRenderer::initialize(AssetStore& assets){
     glUseProgram(program_);glUniform1i(glGetUniformLocation(program_,"image"),0);glUniform1i(glGetUniformLocation(program_,"background"),1);
     glUniform1i(glGetUniformLocation(program_,"shadowMap"),2);lightLocation_=glGetUniformLocation(program_,"lightEffect");shadowResolutionLocation_=glGetUniformLocation(program_,"shadowResolution");
     blendLocation_=glGetUniformLocation(program_,"blendMode");addLocation_=glGetUniformLocation(program_,"addColor");
+    flashLocation_=glGetUniformLocation(program_,"flashColor");
     postLocation_=glGetUniformLocation(program_,"displayPass");exposureLocation_=glGetUniformLocation(program_,"displayExposure");
     regionLocation_=glGetUniformLocation(program_,"imageRegion");glUniform4f(regionLocation_,1,1,0,0);
     glUniform1i(postLocation_,0);glUniform1f(exposureLocation_,options_.displayExposure);
@@ -272,6 +276,7 @@ void SceneRenderer::drawRange(size_t start,size_t count,const SceneSprite& sprit
     if(!vertices)return;
     const auto blend=groupSourceOver?0:sprite.blend;
     glUniform1i(blendLocation_,blend);glUniform1i(addLocation_,sprite.addColor);
+    glUniform4fv(flashLocation_,1,sprite.flashColor.data());
     glUniform1i(lightLocation_,sprite.lightEffect);
     if(sprite.lightEffect){
         glEnable(GL_BLEND);glBlendFuncSeparate(GL_DST_COLOR,GL_SRC_COLOR,GL_DST_ALPHA,GL_SRC_ALPHA);
@@ -389,7 +394,7 @@ void SceneRenderer::renderImpl(const SceneView& view,int width,int height,const 
                 for(size_t corner=0;corner<4;++corner){visual.corners[corner*2]=cx+(visual.corners[corner*2]-960.f)*s;visual.corners[corner*2+1]=cy+(visual.corners[corner*2+1]-540.f)*s;}
             }
             if(value.flipX)std::swap(visual.uv[0],visual.uv[2]);if(value.flipY)std::swap(visual.uv[1],visual.uv[3]);
-            visual.drawGroup=value.drawGroup;visual.blend=value.blend;visual.addColor=value.addColor;visual.tint=value.color;visual.hsv=value.hsv;
+            visual.drawGroup=value.drawGroup;visual.blend=value.blend;visual.addColor=value.addColor;visual.tint=value.color;visual.hsv=value.hsv;visual.flashColor=value.flashColor;
             visual.parallax=value.parallax;visual.parallaxOrigin={value.x,value.y};if(value.parallax!=1)applySceneParallax(visual,view);
             // Do not equate alpha/culling with native SkipUpdate state.
             if(!visible(visual,view))continue;

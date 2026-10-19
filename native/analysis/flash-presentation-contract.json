@@ -1,0 +1,27 @@
+{
+  "schema": "hades-native-flash-presentation-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "source_actions": {
+    "Flash": "Thing.RunScriptAction case0x79: Duration0 resets GUIFlasher and reads ExpireAfterCycle; nonzero invokes FlashForDuration2e1c90, whose positive-duration gate resets GUIFlasher, speed*pi and remaining duration. Both paths subsequently assign raw MinFraction and MaxFraction (default0).",
+    "StopFlashing": "Thing.RunScriptAction case0x7a removes Thing FlashComponent and its FlashSystem membership. Own animation-specific flashers remain separate providers.",
+    "allocation": "Thing.EnsureFlash2dd970 allocates112-byte FlashComponent; GUIFlasher at+30. Its constructor initialized flag isfalse; GUIFlasher.Init167ed0 sets true, phase=-pi/4, current/target overrides=-1, min.25/max.65, durationFLT_MAX, previous-value0 and previous-ascendingtrue."
+  },
+  "update": {
+    "clock": "World.Update314f45 scales elapsed by World+20. World calls ThingSystem.Update2d9d10;2d9d54 forwards elapsed unchanged to UpdateThing, without Thing time multipliers.",
+    "gui": "GUIFlasher.Update151e20 subtracts elapsed from remaining, adds elapsed*speed to phase, approaches an optional fixed-value target, otherwise computes the sine envelope. ExpireAfterCycle sets remaining=-1 on the next ascending edge after a descending phase. Reversed min/max are supported.",
+    "retirement": "FlashSystem.UpdateThing2cf560 updates first, then remaining<0 drops system membership; component allocation survives. Book.PrepDraw2afc14 independently skips expired flashers. No Lua completion callback is emitted by this path.",
+    "phase": "Thing systems precede UnitManager and ProjectileManager in World.Update. New hit callbacks therefore become visible before their first FlashSystem update."
+  },
+  "render": {
+    "inheritance": "Animation.GetDrawFlasher293e50 selects an initialized own animation flasher, then inherited animation parents, then attached Thing FlashComponent when Data.UseAttachedFlasher istrue.",
+    "owner_flag": "HAP5 adds hash-bound UseAttachedFlasher metadata bit256. Authoredfalse is preserved; omitted source uses native ctor1800941ff word0101 atfull+5d, setting flagfull+5e true.",
+    "color": "GUIFlasher.GetFlashedOpacityColor16b960 retains RGB bytes, replaces alpha with the low byte of trunc(envelope*255).",
+    "shader": "Shipped MultiplyAndLerp, MultiplyAndLerpYRB and AddColorMultiplyAndLerp original HLSL source streams interpolate premultiplied sourceRGB toward flashRGB*sourceAlpha using flashAlpha, preserving sourceAlpha. Runtime straight-RGB interpolation before existing premultiplication is algebraically equivalent.",
+    "batching": "Flash color is part of runtime material equality so distinct owners cannot share an incorrect flash constant. HDS immutable packet layout is unchanged."
+  },
+  "limits": [
+    "Native animation-owned Flash/ContinueFlashing components remain explicit unsupported producer boundaries where reached; this module reconstructs Thing Flash actions and their inherited presentation.",
+    "Flash ColorByName lookup remains explicit unsupported; selected enemy-hit Color byte arrays are supported.",
+    "Host compilation and hash-bound metadata validation do not establish Android visual execution."
+  ]
+}

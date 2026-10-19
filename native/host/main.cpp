@@ -26,7 +26,7 @@ static void jsonString(std::ostream& out,const std::string& text) {
 }
 
 int main(int argc,char** argv) {
-    bool capture=false,activate=false,probe=false,weaponProbe=false,survey=false,contain=false,validatePresentation=false;int worldFrames=120;std::string inputReplay,saveProbeDirectory;
+    bool capture=false,activate=false,probe=false,weaponProbe=false,survey=false,contain=false,validatePresentation=false;int worldFrames=120;std::string inputReplay,saveProbeDirectory,loadSaveDirectory;
     for(int i=3;i<argc;++i){const std::string arg=argv[i];
         if(arg=="--capture-active-room")capture=activate=true;
         else if(arg=="--activate-room")activate=true;
@@ -36,6 +36,7 @@ int main(int argc,char** argv) {
         else if(arg=="--probe-load-callbacks")probe=true;
         else if(arg=="--probe-staged-weapons")weaponProbe=true;
         else if(arg.starts_with("--probe-save="))saveProbeDirectory=arg.substr(13);
+        else if(arg.starts_with("--load-save="))loadSaveDirectory=arg.substr(12);
         else if(arg.starts_with("--world-frames=")){try{worldFrames=std::stoi(arg.substr(15));}catch(...){worldFrames=0;}}
         else if(arg.starts_with("--input-replay="))inputReplay=arg.substr(15);
         else{std::cerr<<"Unknown debug argument: "<<arg<<'\n';return 64;}}
@@ -59,6 +60,13 @@ int main(int argc,char** argv) {
             error="Host touch prompt has no available input: "+name;return false;
         });
         scripts.initialize();
+        // Reproduce Continue with an actual captured checkpoint in a private
+        // scratch directory. Never replace it with a fresh opening-room run.
+        if(!loadSaveDirectory.empty()){
+            if(!activate||!std::filesystem::is_directory(loadSaveDirectory))throw std::runtime_error("Continue replay requires activation and an existing save directory");
+            scripts.setSaveDirectory(loadSaveDirectory);
+            if(!scripts.hasSave()||!scripts.loadSave())throw std::runtime_error("Continue replay load failed: "+scripts.error());
+        }
         if(survey){std::string e;if(!scripts.enableBlockerSurvey(e))throw std::runtime_error(e);}
         if(contain)scripts.setFaultContainment(true);
         std::string cameraError;if(!scripts.setCameraViewport(1728,1080,cameraError))throw std::runtime_error(cameraError);

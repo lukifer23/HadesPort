@@ -43,6 +43,7 @@ bank, unsupported shape, package outside scope, missing image) and nothing is
 dropped silently. Read-only: no Lua or game code is executed.
 """
 import argparse, copy, hashlib, json, re
+from animation_postread import normalize_animation_postread
 from collections import defaultdict
 from pathlib import Path
 from build_room_scene import Sjson, merge
@@ -89,7 +90,7 @@ ANIM_CALLS = {'SetAnimation', 'CreateAnimation', 'CreateAnimationsBetween', 'Pla
               'SetAnimationFrameTarget', 'SwapAnimation', 'StopStatusAnimation', 'CreateAnimations'}
 OBSTACLE_CALLS = {'SpawnObstacle', 'CreateScreenObstacle', 'CreateScreenComponent'}
 ANIM_KEY = re.compile(r'(Fx|FxL|FxR|Graphic|Anim|Animation|Animations|Icon|Light|Preview)$')
-DEP_FIELDS = ['ChildAnimation', 'CreateAnimation', 'VisualFx', 'Light', 'ChainTo']
+DEP_FIELDS = ['ChildAnimation', 'CreateAnimation', 'CreateAnimationOnEnd', 'VisualFx', 'Light', 'ChainTo']
 SLIDE_EVENT_FIELDS = ['VisualFx', 'FootstepFxL', 'FootstepFxR']
 
 
@@ -134,6 +135,7 @@ class Coverage:
         if own.get('ClearCreateAnimations'): d['CreateAnimations'] = []
         old = d.get('CreateAnimations', []); d.update(copy.deepcopy(own))
         if 'CreateAnimations' in own: d['CreateAnimations'] = old + copy.deepcopy(own['CreateAnimations'])
+        d = normalize_animation_postread(d)
         self._resolved[name] = d
         return d
 
@@ -578,11 +580,25 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--content', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
+    p.add_argument('--encounter-manifest',type=Path,help='Source-derived forced-encounter actor bank roots/provenance')
     a = p.parse_args()
     if a.output.exists():
         raise ValueError('Fresh output required')
     cov = Coverage(a.content)
     roots, scope = cov.run()
+    if a.encounter_manifest:
+        encounter=json.loads(a.encounter_manifest.read_text())
+        if encounter.get('schema')!='hades-original-actor-animations-v1' or 'encounter_coverage'not in encounter:raise ValueError('Expected source-bound encounter actor manifest')
+        extra=encounter['encounter_coverage'];cov.sources.append(a.encounter_manifest)
+        for source in extra['sources']:
+            path=Path(source['path'])
+            if sha(path)!=source['sha256']:raise ValueError('Forced encounter source changed: '+str(path))
+            cov.sources.append(path)
+        for name,origins in extra['roots'].items():
+            if name not in cov.anims:raise ValueError('Forced encounter resource absent original data: '+name)
+            roots.setdefault(name,None)
+            for origin in origins:cov.note(name,{'kind':'forced-encounter-unit-weapon-data','room':extra['room'],'encounter':extra['encounter'],'manifest':str(a.encounter_manifest),'origin':origin})
+        scope['forced_encounter_asset_roots']={'room':extra['room'],'encounter':extra['encounter'],'units':extra['units'],'manifest':str(a.encounter_manifest),'root_count':len(extra['roots'])}
     names, edges = cov.closure(sorted(roots))
     while True:  # concatenation/closure fixed point
         extra = [(n, o) for n, o in cov.resolve_concat(names) if n not in roots]

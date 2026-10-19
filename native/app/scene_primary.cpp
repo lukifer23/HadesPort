@@ -114,6 +114,19 @@ bool ScenePrimaryWorld::replace(uint64_t previous,const std::string& name,const 
  if(old->name==name&&!life->canceled&&!old->finished){if(!registry_->restart(previous,error))return false;auto& s=states_.at(previous);if(s.allowRestart)s.frame=s.startFrame;current=previous;return true;}
  const auto id=old->ownerId;if(!create(id,name,owner,random,integers,current,error))return false;return destroy(previous,error);
 }
+bool ScenePrimaryWorld::setFrameTarget(int32_t owner,const std::string& name,float fraction,bool instant,std::string& error){
+ if(!std::isfinite(fraction)){error="Native primary Book frame target must be finite";return false;}
+ for(auto& [handle,s]:states_){(void)handle;if(s.ownerId!=owner||s.name!=name)continue;
+  if(s.type==NativeAnimationType::Slide){error="Native frame target on scene Slide not reconstructed: "+name;return false;}
+  if(s.type!=NativeAnimationType::Book)continue;
+  // Animation.GetFrameForFraction2960e0 / PlayToFraction2961f0,
+  // consumed by the same DataPlaySpeed target update as screen Books.
+  const float target=std::clamp(s.startFrame+(s.endFrame-s.startFrame+1)*fraction,s.startFrame,s.endFrame);
+  if(instant)s.frame=target;
+  if(s.playSpeed!=0)s.frameTarget=instant?s.frame:target;
+ }
+ error.clear();return true;
+}
 bool ScenePrimaryWorld::advance(float seconds,std::string& error){
  if(faulted_||!std::isfinite(seconds)||seconds<0||seconds>1){error="Invalid/faulted source primary clock";return false;}
  for(auto& [id,s]:states_){
@@ -121,7 +134,9 @@ bool ScenePrimaryWorld::advance(float seconds,std::string& error){
   if(life->skipUpdate||life->canceled||s.finished)continue;
   if(s.type==NativeAnimationType::Constant&&s.hasDuration){s.durationRemaining-=seconds;if(s.durationRemaining<0)s.finished=true;}
   if(s.type!=NativeAnimationType::Book)continue;
-  s.frame+=s.playSpeed*seconds;
+  const float step=s.playSpeed*seconds;
+  if(s.frameTarget>0){if(step>=std::abs(s.frameTarget-s.frame))s.frame=s.frameTarget;else if(s.frameTarget>s.frame)s.frame+=step;else if(s.frameTarget<s.frame)s.frame-=step;}
+  else s.frame+=step;
   if(s.frame>=s.endFrame+1){
    if(s.loop||s.loopFramesOnly)s.frame=s.startFrame;
    else if(s.holdLastFrame)s.frame=s.endFrame;

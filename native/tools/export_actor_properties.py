@@ -42,6 +42,8 @@ def export(bank, output, version=1):
         read=json.loads((reports/'native-action-animation-deserialize-static.json').read_text())
         if read['dll_sha256']!=DLL_SHA or not all(t in read['assembly'] for t in ['180092f96:','0x86(%r14)','180092fbf:','0x87(%r14)']):
             raise ValueError('Native primary interaction deserialize mismatch')
+    if version>=5 and not all(t in ctor['assembly'] for t in ['1800941ff:', '0x101, 0x5d(%rdi)']):
+        raise ValueError('Missing native UseAttachedFlasher true initializer')
     manifest = json.loads((bank / 'manifest.json').read_text())
     packet = bank / 'actor-animations.bin'
     digest = hashlib.sha256(packet.read_bytes()).digest()
@@ -51,15 +53,15 @@ def export(bank, output, version=1):
         definition = clip['definition']
         props = {}
         values = 0
-        for bit, key in ([(1, 'OwnerImmobile'), (2, 'BlockNewOwnerAnims')]+([(8,'OwnerInvulnerable'),(16,'OwnerNoArmorCoverage'),(32,'OwnerNoInvulnerableCoverage')]if version>=3 else [])+([(64,'DisableOwnerInteract'),(128,'DisableOwnerManualInteract')]if version>=4 else [])):
-            value = definition.get(key, False)
+        for bit, key in ([(1, 'OwnerImmobile'), (2, 'BlockNewOwnerAnims')]+([(8,'OwnerInvulnerable'),(16,'OwnerNoArmorCoverage'),(32,'OwnerNoInvulnerableCoverage')]if version>=3 else [])+([(64,'DisableOwnerInteract'),(128,'DisableOwnerManualInteract')]if version>=4 else [])+([(256,'UseAttachedFlasher')]if version>=5 else [])):
+            value = definition.get(key, key=='UseAttachedFlasher')
             if type(value) is not bool:
                 raise ValueError(f'Untyped {key}')
             values |= bit if value else 0
             props[key] = {'value': value, 'provenance': 'resolved-source' if key in definition else 'native-compiled-default'}
         book = bool(clip['flags'] & 512)
         sequence = clip['source_sequence']
-        data += struct.pack('<III', 255 if version>=4 else(63 if version>=3 else(7 if version==2 else 3)), values, len(sequence))
+        data += struct.pack('<III', 511 if version>=5 else(255 if version>=4 else(63 if version>=3 else(7 if version==2 else 3))), values, len(sequence))
         if version>=2:
             # Later explicit constructor override after the zero-template copy.
             if '180094273:' not in ctor['assembly'] or '0x42c80000, 0x2a8(%rdi)' not in ctor['assembly']:
@@ -91,12 +93,12 @@ def export(bank, output, version=1):
     report = {'schema': 'hades-primary-animation-properties-v'+str(version), 'packet': identity(target),
               'bank': identity(packet), 'source_manifest': identity(bank / 'manifest.json'),
               'dll_sha256': DLL_SHA, 'records': records,
-              'format': 'HAP'+str(version)+' + raw32 HAA SHA + u32 clipCount; per clip u32 knownMask/valueMask/slideCount; '+('float AirborneZ;' if version>=2 else '')+' per slide u32 originalFrame1/u32 airborne(0 unknown,1 false,2 true). Property mask OwnerImmobile=1,BlockNewOwnerAnims=2'+(',OwnerInvulnerable=8,OwnerNoArmorCoverage=16,OwnerNoInvulnerableCoverage=32'if version>=3 else '')+(',DisableOwnerInteract=64,DisableOwnerManualInteract=128'if version>=4 else '')+(',AirborneZ-known=4.' if version>=2 else '.'),
+              'format': 'HAP'+str(version)+' + raw32 HAA SHA + u32 clipCount; per clip u32 knownMask/valueMask/slideCount; '+('float AirborneZ;' if version>=2 else '')+' per slide u32 originalFrame1/u32 airborne(0 unknown,1 false,2 true). Property mask OwnerImmobile=1,BlockNewOwnerAnims=2'+(',OwnerInvulnerable=8,OwnerNoArmorCoverage=16,OwnerNoInvulnerableCoverage=32'if version>=3 else '')+(',DisableOwnerInteract=64,DisableOwnerManualInteract=128'if version>=4 else '')+(',UseAttachedFlasher=256' if version>=5 else '')+(',AirborneZ-known=4.' if version>=2 else '.'),
               'evidence': [identity(reports / n) for n in [
                   'native-active-animation-data-ctor-static.json', 'native-fields-AnimationDataDef.txt',
                   'native-primary-slide-fields.json', 'native-primary-slide-fill-default-static.json',
                   'native-primary-slide-assign-static.json', 'native-active-unit-airborne-static.json','native-action-animation-deserialize-static.json']],
-              'native_defaults': {'interact':'Def+0x2e/2f(full+0x86/87) zero template copied1800940b5; postcopy writes inspected no overlap. Native Read DisableOwnerInteract comparison180092f83 -> bool destination86 at180092f96; ManualInteract comparison180092fac -> destination87 at180092fbf.', 'combat': 'Def+0x32/33/34 (fullData+0x8a/8b/8c) zero-template copied at1800940b5; all post-copy writes inspected, none overlap. Exact native deserialize keys OwnerInvulnerable/OwnerNoArmorCoverage/OwnerNoInvulnerableCoverage retained.', 'primary': 'AnimationData ctor 180093d7a..180093d85 zeros template rsp+0x38 for 0x2e0 bytes; 180093eae selects template, 180093eba selects mDef+0x58; operator= call 1800940b5. No subsequent writes to full offsets 0x8e/0xb0.',
+              'native_defaults': {'flasher':'Def+6 / fullData+0x5e initialized true by word0x0101 atfull+5d VA1800941ff. Native GetDrawFlasher293fab..293fd6 gates owner component inheritance on this field.', 'interact':'Def+0x2e/2f(full+0x86/87) zero template copied1800940b5; postcopy writes inspected no overlap. Native Read DisableOwnerInteract comparison180092f83 -> bool destination86 at180092f96; ManualInteract comparison180092fac -> destination87 at180092fbf.', 'combat': 'Def+0x32/33/34 (fullData+0x8a/8b/8c) zero-template copied at1800940b5; all post-copy writes inspected, none overlap. Exact native deserialize keys OwnerInvulnerable/OwnerNoArmorCoverage/OwnerNoInvulnerableCoverage retained.', 'primary': 'AnimationData ctor 180093d7a..180093d85 zeros template rsp+0x38 for 0x2e0 bytes; 180093eae selects template, 180093eba selects mDef+0x58; operator= call 1800940b5. No subsequent writes to full offsets 0x8e/0xb0.',
                                  'slide': 'SlideData fill 18009e3b0 zeros eax, 18009e492 zeros temporary rsp+0x50 (template+0x30); 18009e501 copies default via SlideDataDef::operator=. Assignment 1800e930a/e copies byte+0x30. PDB mAirborne offset48, SlideData.mDef offset0; stride0x110.'},
               'limits': ['Native compiled defaults apply to this exact build only.', 'No effect execution or movement decisions are performed by the packet.', 'Book airborne false is the source native type gate, not an inference from actor height.']}
     (output / 'manifest.json').write_text(json.dumps(report, indent=2) + '\n')
@@ -106,6 +108,6 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--bank', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
-    p.add_argument('--version',type=int,choices=[1,2,3,4],default=1)
+    p.add_argument('--version',type=int,choices=[1,2,3,4,5],default=1)
     a = p.parse_args()
     export(a.bank, a.output,a.version)

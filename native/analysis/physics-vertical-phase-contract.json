@@ -207,5 +207,32 @@
       ],
       "limits": "Helper boundary tests and compilation do not establish actual complete world gameplay execution."
     }
+  },
+  "ammo_drop_obstacle_recovery": {
+    "evidence": [
+      ".local/reports/takeover-obstacle-shiftz-static.json",
+      ".local/reports/takeover-thing-shiftz-static.json",
+      ".local/reports/takeover-unit-shiftz-static.json",
+      ".local/reports/takeover-thing-on-touchdown-static.json",
+      ".local/reports/takeover-obstacle-on-touchdown-static.json"
+    ],
+    "facts": [
+      "Obstacle.ShiftZLocation RVA0x2c42b0 invokes Thing.ShiftZLocation0x2e0ae0, then calls LocationChanged(false) when propagation is true, including zero-delta calls.",
+      "Thing.ShiftZLocation adds delta and clamps to Thing.MaxZ when data exists; nonzero shifts dirty draw-grid state.",
+      "Thing.OnTouchdown0x2dfbaa..2dfc11 creates source OnTouchdownFxAnim with actual Thing XY through AnimationManager.Create, with no owner and default animation Z.",
+      "Obstacle.OnTouchdown0x2c314c..2c3171 performs its PropertiesDirty override after the base callback, refreshing sort, stop caches and LocationChanged(true) for final resting Z."
+    ],
+    "runtime": [
+      "native/app/lua_actor_motion.cpp",
+      "native/app/lua_physics.cpp"
+    ],
+    "observed_reconstruction": {
+      "report": ".local/reports/takeover-cast-cardinals-r2.json",
+      "result": "Original cast ammo obstacle launches, rises/falls and lands with original BallDropPuff before actual AmmoPack auto-use reaches a missing pickup audio event."
+    },
+    "limits": [
+      "Attached Thing ShiftZ and nonpropagating Physics callback remain explicit unsupported boundaries.",
+      "Native deferred obstacle-manager bookkeeping uses the existing portable registered-actor/physics lifetime containers; Windows container identity is not reproduced."
+    ]
   }
 }

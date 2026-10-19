@@ -439,9 +439,13 @@ bool ScriptRuntime::advanceWeapons(float dt,std::string& error){
         // Source per-arsenal creation/priority order is owned by its cursor.
         for(auto id:actorWorld_.registrationOrder()){
             auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered||!actor->arsenal||actor->arsenal->empty())continue;
-            if(actor->timeModifierFraction!=1||actor->timeMultiplier!=1){error="Unit weapon elapsed requires non-default source time adapter";return false;}
+            // Unit.UpdateSelf2f1497..14a7 multiplies its incoming elapsed by
+            // live Thing+80, then passes that value to Arsenal.Update2f15e5.
+            // Its own ECS physics TimeModifierFraction is a separate clock.
+            const float elapsed=dt*actor->timeMultiplier;
+            if(!std::isfinite(elapsed)||elapsed<0){error="Unit weapon elapsed outside finite native subset owner="+std::to_string(id);return false;}
             if(!actor->arsenal->clearDelayedProjectiles([this](uint64_t h,bool& clear,std::string& e){const auto* p=projectileWorld_.actor(h);clear=!p||p->state.hasStarted||p->state.detonated||p->lifeStatus==1;e.clear();return true;},error))return false;
-            hades::WeaponArsenalFrameExecution execution(*actor->arsenal,dt);hades::WeaponTriggerReply reply;
+            hades::WeaponArsenalFrameExecution execution(*actor->arsenal,elapsed);hades::WeaponTriggerReply reply;
             const auto support=[this](const hades::WeaponOutput& op,std::string& e){return weaponOperationSupported(op,e);};
             bool done=false;
             for(unsigned operation=0;operation<16384;++operation){
@@ -452,9 +456,9 @@ bool ScriptRuntime::advanceWeapons(float dt,std::string& error){
                 if(!continuous||!priority){error="Actual Unit arsenal ordering data unavailable";return false;}
                 frame.continuousWeapon=continuous->text();frame.priorityWeapon=priority->text();
                 hades::WeaponArsenalFrameStep step;
-                if(!execution.advance(frame,reply,support,step,error))return false;reply={};
+                if(!execution.advance(frame,reply,support,step,error)){error="Arsenal.Update owner="+std::to_string(id)+" frame="+std::to_string(worldFrame_)+" operationIndex="+std::to_string(operation)+" detail="+error;return false;}reply={};
                 if(step.progress!=hades::WeaponArsenalFrameProgress::Yielded){done=true;break;}
-                if(!consumeWeaponOperation(step.operation,reply,error))return false;
+                if(!consumeWeaponOperation(step.operation,reply,error)){error="Weapon.operation owner="+std::to_string(id)+" weapon="+step.operation.weaponName+" operation="+step.operation.name+" kind="+std::to_string(int(step.operation.kind))+" frame="+std::to_string(worldFrame_)+" detail="+error;return false;}
                 if(!step.expectsRandomReply)reply.randomDouble.reset();
                 if(!step.expectsProjectileReply)reply.createdProjectile.reset();
                 if(!step.expectsAnimationReply)reply.createdAnimation.reset();

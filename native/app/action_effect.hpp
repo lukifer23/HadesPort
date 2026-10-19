@@ -13,7 +13,7 @@ struct ActionEffectProviders {
  // Concrete Animation.InitData sound branch, attached3D/standalone3DWithCap.
  std::function<bool(const std::string&,int32_t,const std::array<float,3>&,uint32_t,uint32_t&,std::string&)> sound;
  // Source ModifiedTime/TimeModifierFraction adapter. Must use actual clocks.
- std::function<bool(int32_t,float,float,float&,std::string&)> elapsed;
+ std::function<bool(int32_t,float,bool,float,float&,std::string&)> elapsed;
  // AnimationManager::CreateAndInit 0x18029fd65: RequiresUnblocked (data+0x64)
  // -> GridManager::IsLocationBlocked 0x180307f70(location, units=true,
  // PathfindersPreferAvoid=false, BlockSpawns=true); blocked -> no Animation.
@@ -23,7 +23,7 @@ struct ActionEffectState {
  uint64_t handle=0,parent=0,child=0,light=0,ownerLifetime=0;
  int32_t ownerId=0;std::string name;SourceValue definition;
  NativeAnimationType type=NativeAnimationType::Constant;
- size_t imageClip=0,slide=0;float frame=1,remaining=0,duration=0,playSpeed=0,fraction=0;
+ size_t imageClip=0,slide=0;float frame=1,remaining=0,duration=0,playSpeed=0,fraction=0,frameTarget=0;
  std::array<float,3> position{},spawnPosition{};
  EffectOwnerState ownerSnapshot;
  bool detached=false,preferUnmodified=false;
@@ -37,6 +37,8 @@ struct ActionEffectState {
  // (0x180292970), UpwardVelocity if Gravity!=0 (0x180292a8e), RotateWithGravity (0x180292df6).
  bool speedComponent=false,upwardComponent=false,rotateWithGravity=false,rotationComponent=false;
  uint32_t totalSpawned=0,sound=0;
+ // Animation+0x6e4, sampled once by InitData from VisualFxCapMin/Max.
+ int32_t visualFxCap=0;
  std::array<uint8_t,4> baseColor{255,255,255,255};
  std::array<float,3> hsv{};
  std::vector<uint64_t> created;
@@ -115,6 +117,7 @@ public:
  // the PlaySpeedMultiplier component, and PreferUnmodifiedTime 0x18029a5c0.
  bool timeRemaining(uint64_t,float&,std::string&)const;
  bool setPlaySpeedMultiplier(uint64_t,float,std::string&);
+ bool setFrameTarget(int32_t,const std::string&,float,bool,std::string&);
  bool preferUnmodifiedTime(uint64_t,std::string&);
  bool prepare(const std::string&,int32_t,const ActionEffectProviders&,std::string&,bool guiLine=false)const;
  bool create(const std::string&,int32_t,std::optional<std::array<float,3>>,const ActionEffectProviders&,uint64_t&,std::string&,bool guiLine=false);

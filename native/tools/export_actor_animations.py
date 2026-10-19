@@ -17,7 +17,7 @@ def merged(defs,name,stack=()):
  raw=defs[name];p=raw.get('InheritFrom');d=merged(defs,p,stack+(name,))[0] if p and p!='null'else {};d={**d,**raw};return d,list(stack)+( [p]if p else [])
 def export(a):
  if a.output.exists():raise ValueError('New output required')
- a.output.mkdir(parents=True);source=getattr(a,'source',None)or a.content/'Game/Animations/CharacterAnimationsHero.sjson';source_files=getattr(a,'sources',None)or[source];defs={x['Name']:x for p in source_files for x in Sjson(p.read_text()).parse()['Animations']};unitfile=a.content/'Game/Units/PlayerUnits.sjson';unit=next(x for x in Sjson(unitfile.read_text()).parse()['Units']if x['Name']=='_PlayerUnit');unit_scale=unit['Thing']['Scale']if getattr(a,'unit_scale',None)is None else a.unit_scale;names=list(getattr(a,'names',None)or NAMES);clips=[];movies={};sources=[*[identity(p)for p in source_files],identity(unitfile)]
+ a.output.mkdir(parents=True);source=getattr(a,'source',None)or a.content/'Game/Animations/CharacterAnimationsHero.sjson';source_files=getattr(a,'sources',None)or[source];defs={x['Name']:x for p in source_files for x in Sjson(p.read_text()).parse()['Animations']};unitfile=a.content/'Game/Units/PlayerUnits.sjson';unit=next(x for x in Sjson(unitfile.read_text()).parse()['Units']if x['Name']=='_PlayerUnit');unit_scale=1.0 if getattr(a,'unit_scale',None)is None else a.unit_scale;names=list(getattr(a,'names',None)or NAMES);clips=[];movies={};sources=[*[identity(p)for p in source_files],identity(unitfile)]
  for n in names:
   d,_=merged(defs,n);d.setdefault('NumAngles',1);chain=d.get('ChainTo');
   if chain and chain!='null'and chain!='ZagreusIdle'and chain not in names:names.append(chain)

@@ -37,7 +37,7 @@ if(APPLE)
 endif()
 
 # The host debug executable uses the same compressed-asset event renderer.
-target_sources(hades-debug PRIVATE ../app/audio_world.cpp ../app/audio_channels.cpp ../app/audio_timeline.cpp ../app/audio_limiter.cpp ../app/audio_three_eq.cpp ../app/audio_sample_stream.cpp ../app/audio_bank_decoder.cpp ../app/audio_output.cpp)
+target_sources(hades-debug PRIVATE ../app/audio_world.cpp ../app/audio_channels.cpp ../app/audio_timeline.cpp ../app/audio_limiter.cpp ../app/audio_three_eq.cpp ../app/audio_chorus.cpp ../app/audio_sample_stream.cpp ../app/audio_bank_decoder.cpp ../app/audio_output.cpp)
 target_include_directories(hades-debug PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../.local/tools/vgmstream-db77f98f/src)
 target_link_directories(hades-debug PRIVATE /opt/homebrew/lib)
 target_link_libraries(hades-debug PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../.local/tools/vgmstream-db77f98f/build/src/libvgmstream.a vorbisfile vorbis ogg m)
@@ -122,3 +122,5 @@ add_executable(hades-config-file-smoke ../analysis/config_file_smoke.cpp ../app/
 target_include_directories(hades-config-file-smoke PRIVATE ../app)
 target_compile_options(hades-config-file-smoke PRIVATE -Wall -Wextra -Wpedantic)
 # --- end original settings/bindings persistence ---
+
+target_sources(hades-debug PRIVATE ../app/native_flash.cpp ../app/lua_flash.cpp)

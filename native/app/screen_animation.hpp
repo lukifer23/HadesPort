@@ -59,6 +59,7 @@ public:
  void setTextDimensionsProvider(std::function<bool(int32_t,std::array<float,2>&,std::string&)> provider){textDimensions_=std::move(provider);}
  bool load(SourceValue,std::shared_ptr<ActorAnimationBank>,std::shared_ptr<AnimationRegistry>,std::string&);
  bool admits(const std::string& name)const{return definitions_.contains(name);}
+ const SourceValue* definition(const std::string& name)const{const auto it=definitions_.find(name);return it==definitions_.end()?nullptr:&it->second;}
  bool create(ObjectSnapshot&,std::array<float,4>,const ScreenAnimationSound&,std::string&);
  bool setAnimation(int32_t,const std::string&,const ScreenAnimationSound&,std::string&);
  bool setAnimation(int32_t,const std::string&,const ScreenAnimationRequest&,const ScreenAnimationSound&,std::string&);

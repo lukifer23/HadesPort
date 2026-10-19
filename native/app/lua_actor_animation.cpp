@@ -139,6 +139,10 @@ bool ScriptRuntime::setActorAnimation(int32_t id,const std::string& name,std::st
         if(!retirePrimaryAnimation(actor->primaryAnimationLifetime,error)||!retirePrimaryAnimation(actor->primaryEffectAnimation,error))return false;
         actor->primaryEffectAnimation=0;
         actor->primaryAnimationLifetime=handle;actor->object->animation=name;actor->object->graphicsDirty=true;
+        // Named Thing.SetAnimation2df43c..45c links a newly bound primary
+        // whenever the real owner multiplier is nondefault, independently
+        // of the animation's authored UseAttachedTimeMultiplier flag.
+        if(actor->timeMultiplier!=1&&!effects_.registry()->linkTimeMultiplier(handle,id,actor->entityHandle,error))return false;
         actor->object->frame=actor->animation.originalFrame();actor->object->numFrames=uint32_t(clip.slides.size());
         // Unit inherits the base OnAnimationSet no-op (matched DLL RVA2c730).
         return true;
@@ -148,11 +152,19 @@ bool ScriptRuntime::advanceActorAnimations(float dt,std::string& error){
     try{
         for(auto id:actorWorld_.registrationOrder()){
             auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered||!actor->animation.active())continue;
-            if(actor->timeModifierFraction!=1||actor->timeMultiplier!=1){error="Actor animation requires non-default source time adapter";return false;}
+            const auto* lifetime=effects_.registry()->find(actor->primaryAnimationLifetime);
+            if(!lifetime||!lifetime->initialized||lifetime->ownerId!=id||lifetime->ownerLifetime!=actor->entityHandle){error="Primary animation modified-time lifetime unavailable";return false;}
+            const auto* fraction=lifetime->sourceDefinition.get("TimeModifierFraction");
+            const float ownFraction=fraction?float(fraction->number()):-1.f;float elapsed=0;
+            // Animation.InitData2927a1 adds its own fraction only when>=0.
+            // TimeModifierSystem188ae0 applies that fraction and the explicit
+            // AttachedToTimeMultiplier link; Thing's separate fraction is not
+            // an animation input. Effect Clear changes the live linked value.
+            if(!hades::physicsComponentElapsed(dt,worldSpeedModifier_,ownFraction>=0?ownFraction:1,lifetime->attachedToTimeMultiplier?actor->timeMultiplier:1,elapsed,error))return false;
             // Unit::MoveInput VA1802f6220 writes PlaySpeedMultiplier only on
             // accepted movement input. Recomputing it here from zero velocity
             // freezes NativeMoveSpeed stop animations at their first frame.
-            const auto chain=actor->animation.advance(dt,actor->animation.playSpeedMultiplier(),[&](const auto& clip,const auto& slide){if(!actorSlideEvent(id,clip,slide,error))throw std::runtime_error(error);});
+            const auto chain=actor->animation.advance(elapsed,actor->animation.playSpeedMultiplier(),[&](const auto& clip,const auto& slide){if(!actorSlideEvent(id,clip,slide,error))throw std::runtime_error(error);});
             if(chain&&!setActorAnimation(id,*chain,error))return false;
             // Unit::UpdateAnimation VA1802f1a80 advances first, then handles
             // completion and movement cancellation on the resulting primary.
@@ -173,6 +185,15 @@ bool ScriptRuntime::setActionPrimaryAnimation(int32_t id,const std::string& name
     uint64_t handle=0;if(!actionEffects_.createPrimary(name,id,actionEffectProviders(),handle,error))return false;
     if(!retirePrimaryAnimation(actor->primaryAnimationLifetime,error)||!retirePrimaryAnimation(actor->primaryEffectAnimation,error))return false;
     actor->primaryEffectAnimation=0;actor->primaryAnimationLifetime=handle;actor->object->animation=name;actor->object->graphicsDirty=true;
+    if(actor->timeMultiplier!=1&&!effects_.registry()->linkTimeMultiplier(handle,id,actor->entityHandle,error))return false;
+    const auto* source=actionEffects_.state(handle);if(!source){error="Actual new action primary state unavailable";return false;}
+    // AnimationData+8d OwnerHasNoCollision, +8e OwnerImmobile, +84
+    // DisableOwnerWeapons: source overrides or ctor93c70 zero-template defaults.
+    // Obstacle::StopsUnits/StopsProjectiles reads the actual new primary before
+    // its property-dirty refresh; leaving these unknown blocks real ammo drops.
+    const auto flag=[&](const char* key){const auto* value=source->definition.get(key);return value&&value->boolean();};
+    actor->primaryOwnerHasNoCollision=flag("OwnerHasNoCollision");actor->primaryOwnerImmobile=flag("OwnerImmobile");actor->primaryDisableWeapons=flag("DisableOwnerWeapons");
+    if(source->type!=hades::NativeAnimationType::Slide)actor->primaryAirborne=false;else actor->primaryAirborne.reset(); // Base/Book IsAirborne=false; Slide requires current-slide metadata.
     if(const auto* pending=actionEffects_.pendingFields(name)){std::string list;for(const auto& f:*pending)list+=(list.empty()?"":",")+f;hades::log(hades::Severity::Info,"HadesLua","NATIVE_ACTION_FX_PENDING_PRESENTATION name=%s fields=%s",name.c_str(),list.c_str());}
     return true;
 }

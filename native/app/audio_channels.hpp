@@ -30,7 +30,7 @@ struct AudioChannelSnapshot {
 // creates the renderer and ID immediately; it never pretends the sound started.
 // Call under the parent's AudioWorld lock; this class adds no thread scheduling.
 class AudioChannels {
-    struct Target {float value=0,speed=0;};
+    struct Target {float value=0,speed=0;bool missingReported=false;};
     struct Channel {
         std::string name;
         std::unique_ptr<AudioEventInstance> renderer;

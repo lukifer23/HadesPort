@@ -38,6 +38,14 @@ hades::WeaponSelfEffectProviders ScriptRuntime::selfEffectProviders(){
     providers.randomStream0=[this](double& value,std::string& error){if(nextRecoveredEngineRandom(state_,value))return true;error="Effect source RNG unavailable";return false;};
     providers.affect=[this](hades::EffectAffectOperation operation,hades::WeaponSelfEffectInstance& instance,hades::EffectAffectOwner& owner,const hades::WeaponEffectDefinition& data,bool reapplied,std::string& error){
         using K=hades::EffectAffectOperation;
+        if(operation==K::RefreshAttachedAnimationTime){
+            // Effect.AffectUnit5ce4c refreshes the current primary's
+            // clock link after applying the real Thing elapsed multiplier.
+            auto* actor=actorWorld_.actor(owner.id);if(!actor||!actor->registered){error="Effect animation clock owner unavailable";return false;}
+            const auto handle=actor->primaryAnimationLifetime?actor->primaryAnimationLifetime:actor->primaryEffectAnimation;
+            if(!handle){error="Effect animation clock requires actual primary lifetime";return false;}
+            return effects_.registry()->linkTimeMultiplier(handle,actor->id,actor->entityHandle,error);
+        }
         if(operation==K::OnEffectApply)return effectCallback(instance,data,reapplied,false,error);
         hades::WeaponEffectRuntimeData projected;if(!hades::projectWeaponEffectRuntimeData(data,instance.dataHandle,projected,error))return false;
         if(operation==K::StartAnimation)return setActorAnimation(owner.id,projected.base.startAnimation,error);

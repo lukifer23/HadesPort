@@ -84,6 +84,7 @@ public:
     std::optional<bool> exactOwnerInvulnerable(size_t clip)const;
     std::optional<bool> exactOwnerNoArmorCoverage(size_t clip)const;
     std::optional<bool> exactOwnerNoInvulnerableCoverage(size_t clip)const;
+    std::optional<bool> exactUseAttachedFlasher(size_t clip)const;
     std::optional<bool> exactAirborne(size_t clip,size_t slide)const;
     // Native AnimationDataDef.mAirborneZ; only contributes to Unit.GetTotalZ
     // when the actual primary is Slide and its current SlideData.Airborne.

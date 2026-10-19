@@ -148,6 +148,7 @@ bool ScriptRuntime::projectileEffectOwner(int32_t id,hades::EffectOwnerState& st
     state.group=p->body.group;
     if(!projectileWorld_.projectileLocation(*p,state.x,state.y,error)||!projectileWorld_.projectileZ(*p,state.z,error))return false;
     state.scale=p->body.scale*p->body.scaleFraction;state.angle=p->body.angle;state.baseColor=p->baseColor;state.baseHsv=std::array<float,4>{p->hsv[0],p->hsv[1],p->hsv[2],0};
+    if(p->physics)state.velocity=std::array<float,2>{p->physics->velocity.x,p->physics->velocity.y};
     state.hasPrimaryAnimation=p->primaryAnimation!=0;state.isUnit=false;error.clear();return true;
 }
 bool ScriptRuntime::releaseProjectileFxOwner(uint64_t handle,std::string& error){

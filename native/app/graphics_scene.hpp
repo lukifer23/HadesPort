@@ -19,6 +19,7 @@ struct SceneSprite {
     uint32_t texture = 0, blend = 0;
     uint32_t drawGroup = UINT32_MAX;
     bool addColor = false;
+    std::array<float,4> flashColor{}; // Runtime MultiplyAndLerp constant, no HDS packet change.
     std::array<float,8> corners{}; // TL, TR, BL, BR, in world coordinates
     std::array<float,4> uv{0,0,1,1}, tint{1,1,1,1};
     std::array<float,3> hsv{};

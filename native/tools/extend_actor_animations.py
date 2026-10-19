@@ -29,6 +29,16 @@ def append_banks(base,addition,output,coverage):
   if identity(packet)['sha256']!=manifest['packet']['sha256']:raise ValueError('Actor source packet identity changed')
   frame_base=len(frames);frames.extend(copy.deepcopy(manifest['frames']))
   for clip in copy.deepcopy(manifest['clips']):
+   # Legacy hero export predates actual Actor body ownership and baked its
+   # UnitData Scale into the clip. Animation.GetScale298bb0/298490 applies
+   # owner Body.Scale exactly once at runtime. Keep only animation/atlas
+   # scale and animation offsets in this file; markers already use that rule.
+   baked=clip.get('unit_scale',1)
+   if not isinstance(baked,(int,float))or not 0<baked<=16:raise ValueError('Legacy baked actor body scale outside bound')
+   if baked!=1:
+    clip['legacy_baked_unit_scale_removed']=baked
+    for field in ['world_scale','offset_x','offset_y']:clip[field]/=baked
+    clip['unit_scale']=1.0
    if any(c['name']==clip['name']for c in clips):raise ValueError('Duplicate actor clip')
    for slide in clip['source_sequence']:slide['frame_indices']=[n+frame_base for n in slide['frame_indices']]
    clips.append(clip)
@@ -59,6 +69,7 @@ def append_banks(base,addition,output,coverage):
  report['sources']=list({x['path']:x for m in manifests for x in m['sources']}.values());report['movies']=[x for m in manifests for x in m['movies']]
  report['statistics']={'clips':len(clips),'movie_frames':len(frames),'cropped_raw_bytes':sum(f['raw_bytes']for f in frames),'zlib_bytes':sum(f['compressed_bytes']for f in frames),'max_frame_rgba_bytes':max(f['raw_bytes']for f in frames)}
  report['appended_banks']=[identity(p)for p,_ in packets];report['encounter_coverage']=coverage
+ report['native_scale_composition']={'owner_body_scale':'Applied once by actual runtime Actor body; not baked into clip.','clip_scale':'Source Animation.Scale / original Bink atlas scale.','clip_offset':'Source Animation.OffsetX/Y; actual body scale applied by renderer once.','marker_scale':'Source ownScale and live owner body scale, same native GetScale contract.','evidence':['native-actor-animation-get-scale.json','native-actor-animation-base-draw-scale.json']}
  (output/'manifest.json').write_text(json.dumps(report,indent=2)+'\n')
  return report
 

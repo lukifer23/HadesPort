@@ -111,7 +111,12 @@ bool ScriptRuntime::screenActionImpl(lua_State*L,int mode,std::string&e){
   // SetAnimationFrameTarget 0x263770: single integer DestinationId, Name, Fraction, Instant.
   const auto*d=v.get("DestinationId");if(!d)return true;const double n=d->number();if(n<1||n>INT32_MAX||n!=std::trunc(n))return true;const int32_t id=int32_t(n);
   const auto*name=v.get("Name");if(!name)return true;
-  if(worldThing(id)){e="SetAnimationFrameTarget on world Thing not reconstructed";return false;}
+  if(worldThing(id)){
+   const auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered)return true;
+   if(actor->animation.active()&&actor->object->animation==name->text()){e="SetAnimationFrameTarget on HAA primary not reconstructed";return false;}
+   const auto fraction=screenArg(v,"Fraction");const auto instant=screenFlag(v,"Instant");
+   return actionEffects_.setFrameTarget(id,name->text(),fraction,instant,e)&&scenePrimaries_.setFrameTarget(id,name->text(),fraction,instant,e);
+  }
   if(!live(id))return true;return screenAnimations_.setFrameTarget(id,name->text(),screenArg(v,"Fraction"),screenFlag(v,"Instant"),e);
  }
  if(mode==1||mode==2){

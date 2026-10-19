@@ -240,6 +240,7 @@ public:
     bool hasWeapon(const std::string& name) const;
     bool hasAmmo(const std::string& name, std::string& error) const;
     bool getAmmo(const std::string& name,int32_t& result,std::string& error) const;
+    bool addAmmo(const std::string& name,int32_t amount,std::string& error);
     bool isPerfectCharge(const std::string& name,std::string& error) const;
     bool recordProjectilePerfectCharge(const std::string& name,bool,std::string& error);
     bool canFire(const std::string& name,const WeaponOwnerFrame&,std::string& error) const;

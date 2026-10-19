@@ -22,6 +22,7 @@ struct AnimationAllocation {
 struct AnimationLifetime:AnimationAllocation {
     uint64_t handle=0,child=0;
     bool initialized=false,managerMember=false,canceled=false,skipUpdate=false;
+    bool attachedToTimeMultiplier=false;
 };
 // Allocation ownership and Add's ordered vector are deliberately distinct.
 // This store does not pretend that a scene sprite or metadata recipe is an
@@ -37,6 +38,7 @@ public:
     // and counted until disposal. Caller must mirror canceled in actual state.
     bool addToManager(uint64_t,uint32_t permanentCap,std::optional<uint64_t>& victim,std::string&);
     bool setSkipUpdate(uint64_t,bool,std::string&);
+    bool linkTimeMultiplier(uint64_t,int32_t ownerId,uint64_t ownerLifetime,std::string&);
     bool cancel(uint64_t,std::string&);
     bool restart(uint64_t,std::string&); // Base Restart clears actual canceled.
     bool dispose(uint64_t,std::string&);

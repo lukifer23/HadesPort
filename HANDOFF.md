@@ -74,58 +74,52 @@ action-name switch (regenerate it from the DLL if missing). Android SDK pieces:
 
 ## Current checkpoint (2026-10-18)
 
-The installed build is recorded in `STATUS.md`. User reports are reproducible:
-movement can stop after actions, cast stops at ShowAimLine, and Use previously
-faded to black because LoadMapInternal was absent. A successful first-combat
-prefix did not cover these failures. Preserve actual input sequences and logs.
+Read STATUS.md for the current installed APK and active owners. The user drives
+manual device play; main alone builds/installs and captures passively. Full
+non-incremental user0 installs plus installed SHA verification are mandatory.
+Do not overwrite an APK during installation. Build success is separate from play.
 
-The fresh-save route is **RoomOpening exit door → RoomSimple01** with forced
-EnemyIntroFight01, followed by its encounter/reward and Athena flow.
+Source now covers actual RoomOpening exit -> RoomSimple01, original forced enemy
+spawn, hit resources, clocks and cast projectile/ammo lifecycle. Current selected
+packs: opening-actors-v13, room-packs-v4/RoomSimple01 (actor-simple-v4),
+actor-actions-v7, actor-markers-v7, actor-properties-v11 (HAP5),
+player-weapons-v23, action-effects-v15, screen-opening-v12, audio-events-v23.
+All packs are ignored and must be regenerated from original assets; never publish.
 
-Implemented in the current source:
-
-- Persistent animation play-speed multiplier and move/stop/idle recovery after
-  finite animations; native move-animation override and CancelOnMove gates.
-- Unit collision candidate filters, polygon push, and native collision callbacks;
-  unit detonation LOS/arc/dodge/reflection/immunity gates and shared impact path.
-- Source-bound interaction resources, original control aliases rendered with live
-  touch labels, retained detached FX owner state, and OnOutOfAmmo dispatch.
-- SetObstacleProperty/GetUnitDataValue and native default Move using A*.
-- Deferred LoadMapInternal; normal transition retains Lua, scheduler, clocks and
-  RNG, resets map managers/player binding, loads actual map assets and switches
-  the GLES renderer. No opening scene fallback for other rooms.
-- Animated Book lights needed by RoomSimple01 and polygon camera clamp.
-- Homing movement with original allegiance defaults in player-weapons-v22.
-  Normal cast now reaches actual impact/death/ammo-drop; pickup sparkle is the
-  next native default/type/resource gap.
-
-Current pack defaults: action-effects-v12, screen-opening-v12, audio-events-v21,
-actor-actions-v6 with matching actor-markers-v6/actor-properties-v9 (HAP4),
-player-weapons-v22, room-packs-v3/RoomSimple01.
-The room pack stages 26 map-bound resources under `rooms/RoomSimple01/`.
-Other rooms must get their own validated packs and lifecycle coverage.
+Critical prior direction-lock causes: hit consumers interrupted firing before
+request cleanup, leaving held=[] but queued requests/Strafe. Metadata serialization
+omitted proven RemoveEffects closure; defense queried EffectData.Reflection when
+native GetReflection actually adds ReflectAddition. Both are repaired. Do not
+replace the original input/trigger-lock policy with blanket request clearing.
+HERO_TRACE now reports held controls, requests, strafe, effects, timers, velocity,
+body/goal/cosmetic facing and animation state. New AI diagnostics preserve actual
+coroutine waits/stacks and dynamic enemy arsenals.
 
 ## Immediate iteration
 
-1. Finish AmmoPackSparkle ConstantNoUpdate default/components/resource coverage;
-   cast now fires/moves/hits/expires and runs original ammo-drop. Verify pickup
-   and movement/attacks after repeated casts.
-2. Continue the actual second-room OnAnyLoad/StartRoom path, then first enemies.
-   Distinguish map instantiation from a functioning room/encounter.
-3. Reproduce unit/breakable collisions and special attacks on the device;
-   newly reached collision weapons, effect clears, death and hit branches still
-   have explicit boundaries. Do not reset faults to claim recovery.
-4. Continue animation direction/recovery checks after every action. Native run
-   atlas cardinal directions were verified; do not blindly flip coordinates.
-5. Save/restart/reload and subsequent progression after combat works.
+1. Verify iteration9 on the device after actual enemy hits, dash/special/cast and
+   all four directions. Strict cast/pickup/recast1810 passes, including a bounded
+   ASan/UBSan run; this does not establish whole-encounter completeness.
+2. Trace why the actual SimpleMelee never attacks: original AggroAI distance800,
+   AggroUnit and AttackerAI. Prove approach/attack from real scripts and weapons;
+   do not substitute a handmade enemy loop. Three agents are active.
+3. Finish reached UI/healthbar actions (world SetScaleX, IdExists, Shift), native
+   Shake, and dynamic ObstacleData/rubble coverage. Flash, frame targeting,
+   source clocks and native optional-alpha colors are in current source.
+4. Complete all forced encounter waves and Athena reward/boon. DoUnlockRoomExits
+   chooses the next actual map only afterward; RoomSimple01 has no fixed linked
+   room. Do not pick a guessed third map or substitute the opening scene.
+5. Continue/save/reload and later-room resources. The actual device checkpoint
+   now passes600 strict Continue frames after the native absent music-parameter
+   repair. Screenshot HUD absence was original16-second auto-hide, not reset loss.
 
-User steering: favor rapid fixes, builds and device play. Avoid new test scaffolds
-or broad repeat runs. Use a short existing reproduction when it resolves a concrete
-blocker. Main session alone builds/installs; avoid mixing manual and scripted input.
-Local `.local/tools/e2e-resume.sh` checks game foreground and preserves logcat.
-Screenshots/video and all derived packs remain ignored under `.local/`.
+Favor rapid fixes, builds and device play. Use short existing input reproductions
+only to resolve concrete failures; no broad new test scaffolds. Save screenshots,
+video and complete logs under .local/reports. Passive captures require the game
+foreground. Root's scratch build dirs are temporary and must be deleted at final
+cleanup; keep active agent scratch dirs until their assigned verification ends.
 
-At takeover there were no active prior build/export/REA processes. The sibling REA
-checkout has a pre-existing bridge modification; leave it untouched. Tool use is via
-`scripts/rea.py`, one decompile at a time. Historical agent owners in old tracker
-rows are history, not live assignments.
+The sibling REA checkout has a pre-existing bridge modification; leave it alone.
+Use scripts/rea.py, one decompile at a time, recover actual behavior from the
+matching EngineWin64s DLL/PDB. The current shipped fmod DLL does NOT match the
+adjacent old fmod PDB; use the documented descriptor/static evidence for Chorus.

@@ -81,7 +81,8 @@
     "path": ".local/native-assets/player-weapons-v16/weapons.bin",
     "sha256": "7df4e23ccda2d6769aa2d3a3d24094d839b6fcfa25c2f24c6af37a1ba1d6786a",
     "bytes": 10052065,
-    "format": "HWA3 unchanged; normalized victim effects/cues/RemoveEffects proof"
+    "format": "HWA3 unchanged; normalized victim effects/cues/RemoveEffects proof",
+    "consumed_proof": "The projectile JSON embedded in weapons.bin must include remove_effects_known_empty from resolved source. Recording it only in catalog.json leaves runtime closure unknown. Exporter now retains this proof for every exported projectile; current source rejects any nonempty RemoveEffects override and the native default constructor is proven empty."
   },
   "sessions": "All three owned public REA sessions were closed successfully; no owned Ghidra/REA process remained. No new session for bounded PDB/LLVM follow-ups.",
   "limitations": [

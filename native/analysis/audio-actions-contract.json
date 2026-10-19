@@ -63,7 +63,9 @@
     "names": "ScriptArgs Name/Names are PARAMETER names. No names => early return.",
     "defaults": "Value0; Duration via getDuration.",
     "operation": "Each parameter name over each selected channelID. Duration>0 creates parameter target rate1/duration; otherwise immediate setParameterByName(ignoreSeekSpeed=false), status ignored.",
-    "native_absent": "Guitar/Bass absent on opening music are real missing parameters and immediate errors ignored, no invented controls."
+    "native_absent": "Guitar/Bass absent on opening music are real missing parameters and immediate errors ignored, no invented controls.",
+    "timed_absent": "AudioManager.Update VA18004be67 initializes current parameter output0;4be87 ignores getParameterByName status;4be98 compares output to target;4bef7 ignores setter status. Missing target0 counts as complete; a nonzero missing target remains queued and retries from0 each update without synthesizing a parameter.4bf2f compares completed count with whole channel target count: target group retires only when all values already matched at frame start.",
+    "fmod_missing_output": "Shipped fmodstudio.dll SHA25690d6d809215666f86f2e5a156c17e8b04e5e0c7bd848e9fa7a8377e97576abb1 export EventInstance.getParameterByName VA180081e10 calls180078680. That function zeroes supplied output pointers at786ab/786b7 before name lookup; missing local name returns FMOD_RESULT74 at7882c without further output writes. Addresses resolved from current DLL exports/instructions, not its mismatched PDB."
   },
   "pause_sound": {
     "rva": "0x25d470",

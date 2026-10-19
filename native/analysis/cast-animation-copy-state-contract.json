@@ -1,6 +1,6 @@
 {
   "schema": "hades-cast-animation-copy-state-v1",
-  "status": "native normal-source CopyState and ownerless death-animation consumer implemented; full cast cleanup still blocked at AmmoPackSparkle catalog coverage",
+  "status": "original-script first cast, ammo pickup/disposal and second cast completed1810 strict host frames",
   "target": {
     "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
     "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
@@ -12,7 +12,8 @@
     "on_death": ".local/reports/native-rea-on-death-fn.json",
     "on_death_rva": "0x6f5c0",
     "pdb_body_component_field_list": "0xd7ea",
-    "pdb_animation_data_definition_field_list": 60719
+    "pdb_animation_data_definition_field_list": 60719,
+    "attached_predispose": ".local/reports/takeover-animation-attached-predispose-static.json"
   },
   "field_facts": {
     "BodyComponent.mScale": "offset 0x48; inline Animation body at 0x110 makes full offset 0x158",
@@ -25,12 +26,14 @@
   "implemented": [
     "Normal source without optional mCopyBody: copy location, Z/offset/parallax, optional rotation, radius, play-speed multiplier, attach offset, flips and guarded draw group/angle.",
     "Copy source scale and scale vector when either source or destination TransferScale is true; presentation consumes copied scale vector.",
-    "Native projectile death creates an ownerless original dissipate animation, copies primary-animation state, transfers projectile draw layer and sets projectile Z."
+    "Native projectile death creates an ownerless original dissipate animation, copies primary-animation state, transfers projectile draw layer and sets projectile Z.",
+    "OnAttachedToPreDispose RVA0x29a280 has no marker special case: Maintain XY snapshots Thing.GetLocation, then attached Thing/body pointers clear. Marker-attached surviving animations use own location after disposal.",
+    "Action primary binding publishes actual OwnerHasNoCollision/OwnerImmobile/DisableOwnerWeapons source flags with native zero-template defaults before obstacle property refresh."
   ],
   "explicit_limits": [
     "Optional mCopyBody and child/frame transfer branches remain unsupported.",
     "Shared animation update phase differs from the original per-projectile animation-call timing.",
-    "The original-script cast replay reached native hit/death and ammo-drop creation, but AmmoPackSparkle was unsupported in action-effects-v12; disposal and ammo recovery were not yet proven."
+    "Enemy homing, Android touch/visual equivalence and full game progression are unproven by this host sequence."
   ],
   "runtime": [
     "native/app/action_effect.hpp",
@@ -39,8 +42,9 @@
     "native/app/lua_projectiles.cpp"
   ],
   "validation": {
-    "report": ".local/reports/takeover-cast-graphics-r5.json",
-    "log": ".local/reports/takeover-cast-graphics-r5.log",
-    "result": "Original scripts fired Ranged, entered impact/death, created BloodstoneHitFx and children, then stopped at AmmoPackSparkle unsupported_type. Scale-field correction reviewed against PDB and assembly after this run."
+    "report": ".local/reports/takeover-cast-cardinals-r5.json",
+    "log": ".local/reports/takeover-cast-cardinals-r5.log",
+    "result": "1810frames complete with no script/world/audio/presentation error. Original first Ranged projectile hit/died and dropped ammo; actual AmmoPack auto-use restored ammo and disposed first ammo actor; second Ranged fired1764 and retired. Projectile manager allocated/pending/active0 fault0. Up/right/down/left movement velocity signs and settled source facing16/0/48/32 observed after first cast. Final held controls/weapon requests/effects empty, strafing false, velocity zero.",
+    "limits": "Host original-script evidence does not establish Android touch/pixel/audio equivalence, homing onto enemies or full progression."
   }
 }

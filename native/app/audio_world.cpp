@@ -1,5 +1,6 @@
 #include "audio_world.hpp"
 #include "audio_channels.hpp"
+#include "audio_chorus.hpp"
 #include "audio_limiter.hpp"
 #include "audio_sample_stream.hpp"
 #include "audio_three_eq.hpp"
@@ -45,7 +46,7 @@ struct Biquad {std::array<float,5> c{};Stereo z1{},z2{};
 struct Comb {std::vector<Stereo> data;size_t at=0;Stereo low{};Stereo process(Stereo x,float feedback,float damp){auto y=data[at];for(size_t c=0;c<2;++c){low[c]+=(y[c]-low[c])*damp;data[at][c]=x[c]+low[c]*feedback;}at=(at+1)%data.size();return y;}};
 struct Processor {
  std::string id,kind,returnBus,unsupported;int type=0;bool bypass=false,sidechain=false,active=false;
- std::vector<std::string> targets;std::vector<int> targetIndices;int detectorIndex=-1,returnIndex=-1;bool returnGlobal=false;std::vector<float> p;AudioLimiter limiter;AudioThreeEq eq;Biquad filter;
+ std::vector<std::string> targets;std::vector<int> targetIndices;int detectorIndex=-1,returnIndex=-1;bool returnGlobal=false;std::vector<float> p;AudioLimiter limiter;AudioThreeEq eq;AudioChorus chorus;Biquad filter;
  float envelope=0,attack=0,release=0,makeup=1;std::vector<Stereo> delay;size_t delayAt=0;
  std::array<Comb,4> combs;float feedback=0,damping=0,wet=0,dry=0;
  void configure(const std::string& g,const SourceValue& v){id=g;kind=field(v,"kind").text();if(auto* b=v.get("legacy_bypass"))bypass=b->boolean();
@@ -55,6 +56,7 @@ struct Processor {
   type=int(integer(field(v,"type")));for(const auto& x:field(v,"parameters").array())p.push_back(std::holds_alternative<double>(x.value)?number(x):std::holds_alternative<bool>(x.value)?float(x.boolean()):0);
   const auto& args=field(v,"parameters").array();std::string error;
   if(type==11){if(p.size()!=4||!limiter.configure(48000,{p[0],p[1],p[2],args[3].boolean()},error))throw std::runtime_error("Limiter source parameters unsupported: "+error);}
+  else if(type==14){if(p.size()!=3||!chorus.configure(48000,{p[0],p[1],p[2]},error))throw std::runtime_error("Chorus source parameters unsupported: "+error);}
   else if(type==28){if(p.size()!=6||!eq.configure(48000,{p[0],p[1],p[2],p[3],p[4],int(p[5])},error))throw std::runtime_error("Three-EQ source parameters unsupported: "+error);}
   else if(type==3||type==5){if(p.size()!=2)throw std::runtime_error("Source filter parameters missing");filter.configure(p[0],p[1],type==5);}
   else if(type==18){if(p.size()!=7)throw std::runtime_error("Source compressor parameters missing");sidechain=args[5].text()!="00000000";attack=std::exp(-1/(std::max(0.01f,p[2])*48));release=std::exp(-1/(std::max(0.01f,p[3])*48));makeup=dbGain(p[4]);}
@@ -76,6 +78,7 @@ struct Processor {
   if(kind=="SEFB"){auto& signal=(returnGlobal?context.global:context.local)[size_t(returnIndex)];signal=add(signal,gain(x,p[0]*(returnGlobal?context.externalGain:1)));return x;}
   if(kind=="SCEF"){if(active)for(int t:targetIndices)context.nextSidechains[size_t(t)]=std::max(context.nextSidechains[size_t(t)],peak(x));return x;}
   if(type==11){if(!limiter.process(x.data(),1,2,error))throw std::runtime_error(error);return x;}
+  if(type==14){if(!chorus.process(x.data(),1,2,error))throw std::runtime_error(error);return x;}
   if(type==28){if(!eq.process(x.data(),1,2,error))throw std::runtime_error(error);return x;}
   if(type==3||type==5)return filter.process(x);
   if(type==18){const float input=sidechain?detector:peak(x);const float coeff=input>envelope?attack:release;envelope=input+(envelope-input)*coeff;const float inputDb=20*std::log10(std::max(envelope,1e-20f));const float reduction=inputDb>p[0]?(p[0]+(inputDb-p[0])/std::max(p[1],1.0f))-inputDb:0;return gain(x,makeup*dbGain(reduction));}

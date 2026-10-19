@@ -246,7 +246,7 @@ def stage_room_scene(args, assets, include_shared=True):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--scene', type=Path)
-    parser.add_argument('--room-pack', type=Path, action='append', default=[PROJECT / '.local/native-assets/room-packs-v3/RoomSimple01/manifest.json'], help='Validated map-scoped room bundle; repeat for additional maps')
+    parser.add_argument('--room-pack', type=Path, action='append', default=[PROJECT / '.local/native-assets/room-packs-v4/RoomSimple01/manifest.json'], help='Validated map-scoped room bundle; repeat for additional maps')
     parser.add_argument('--geometry', type=Path, help='Decoded original room geometry, if stored separately from the scene')
     parser.add_argument('--animations', type=Path, help='HDA1 original-frame animation companion bound to this exact HDS3 scene')
     parser.add_argument('--creation', type=Path, default=PROJECT / '.local/native-assets/opening-creation-v2/creation.json',
@@ -259,25 +259,25 @@ def main():
     parser.add_argument('--composition', type=Path, default=PROJECT / '.local/native-assets/opening-composition-v1/composition.bin')
     parser.add_argument('--collision', type=Path, default=PROJECT / '.local/native-assets/opening-collision-v1/room-geometry.json',
                         help='Source-verified deterministic collision transforms')
-    parser.add_argument('--weapons', type=Path, default=PROJECT / '.local/native-assets/player-weapons-v22/weapons.bin',
+    parser.add_argument('--weapons', type=Path, default=PROJECT / '.local/native-assets/player-weapons-v23/weapons.bin',
                         help='Source-bound staged weapon initialization catalog; no firing support')
-    parser.add_argument('--actors',type=Path,default=PROJECT / '.local/native-assets/opening-actors-v12/actors.lua')
+    parser.add_argument('--actors',type=Path,default=PROJECT / '.local/native-assets/opening-actors-v13/actors.lua')
     parser.add_argument('--parallax',type=Path,default=PROJECT / '.local/native-assets/opening-parallax-v1/parallax.bin')
     parser.add_argument('--hulls',type=Path,default=PROJECT / '.local/native-assets/opening-hulls-v1/hulls.bin')
     parser.add_argument('--packages',type=Path,default=PROJECT / '.local/native-assets/player-packages-v1/packages.lua')
-    parser.add_argument('--actor-animations',type=Path,default=PROJECT / '.local/native-assets/actor-actions-v6/actor-animations.bin')
+    parser.add_argument('--actor-animations',type=Path,default=PROJECT / '.local/native-assets/actor-actions-v7/actor-animations.bin')
     parser.add_argument('--effects',type=Path,default=PROJECT / '.local/native-assets/opening-spawners-v1/effects.lua')
-    parser.add_argument('--actor-markers',type=Path,default=PROJECT / '.local/native-assets/actor-markers-v6/actor-markers.bin')
-    parser.add_argument('--actor-properties',type=Path,default=PROJECT / '.local/native-assets/actor-properties-v9/actor-properties.bin')
+    parser.add_argument('--actor-markers',type=Path,default=PROJECT / '.local/native-assets/actor-markers-v7/actor-markers.bin')
+    parser.add_argument('--actor-properties',type=Path,default=PROJECT / '.local/native-assets/actor-properties-v11/actor-properties.bin')
     parser.add_argument('--actor-lights',type=Path,default=PROJECT / '.local/native-assets/actor-lights-opening-v1/manifest.json')
     parser.add_argument('--text-resources',type=Path,default=PROJECT / '.local/native-assets/original-text-v6/manifest.json')
-    parser.add_argument('--action-effects',type=Path,default=PROJECT / '.local/native-assets/action-effects-v12/manifest.json')
+    parser.add_argument('--action-effects',type=Path,default=PROJECT / '.local/native-assets/action-effects-v15/manifest.json')
     parser.add_argument('--screen-animations',type=Path,default=PROJECT / '.local/native-assets/screen-opening-v12/manifest.json')
     parser.add_argument('--particle-frames',type=Path,default=PROJECT / '.local/native-assets/cinder-frames-v1/cinder-frames.bin')
     parser.add_argument('--primaries',type=Path,default=PROJECT / '.local/native-assets/opening-primaries-v4/manifest.json')
     parser.add_argument('--bloom-settings',type=Path,default=PROJECT / '.local/native-assets/bloom-settings-v1/manifest.json')
     parser.add_argument('--color-grading',type=Path,default=PROJECT / '.local/native-assets/color-grading-v1/manifest.json')
-    parser.add_argument('--audio-events',type=Path,default=PROJECT / '.local/native-assets/audio-events-v21/receipt.json')
+    parser.add_argument('--audio-events',type=Path,default=PROJECT / '.local/native-assets/audio-events-v23/receipt.json')
     parser.add_argument('--room-leaf-frames',type=Path,default=PROJECT / '.local/native-assets/opening-leaf-frames-v1/room-leaf-frames.bin')
     parser.add_argument('--app-icon',type=Path,default=PROJECT / '.local/native-assets/app-icon-v1/manifest.json',
                         help='Original Hades.exe icon mipmaps (native/tools/export_app_icon.py)')
@@ -395,10 +395,10 @@ def main():
     shutil.copyfile(args.actor_markers,assets/'actor-markers.bin')
     properties_manifest=json.loads((args.actor_properties.parent/'manifest.json').read_text())
     properties=args.actor_properties.read_bytes()
-    properties_schemas={('HAP'+str(version)).encode(): 'hades-primary-animation-properties-v'+str(version) for version in range(1,5)}
+    properties_schemas={('HAP'+str(version)).encode(): 'hades-primary-animation-properties-v'+str(version) for version in range(1,6)}
     if properties_manifest['schema']!=properties_schemas.get(properties[:4]) or hashlib.sha256(properties).hexdigest()!=properties_manifest['packet']['sha256'] or properties[4:36]!=action_hash:
         raise RuntimeError('Primary animation properties do not match original actor bank')
-    if properties[:4] in (b'HAP2',b'HAP3',b'HAP4'):
+    if properties[:4] in (b'HAP2',b'HAP3',b'HAP4',b'HAP5'):
         for record in properties_manifest['records']:
             value=record['properties']['AirborneZ']
             if value['provenance']=='native-compiled-default' and value['value']!=100.0:

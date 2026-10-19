@@ -175,5 +175,8 @@
     "Actualsource shadow/outline parameters exposed; GPUkernel equivalence is root renderer scope. Subtitlebackinggraphic not allocated bytextpipeline.",
     "Focused source-title andcaptionDTO checks proveCPUstate+glyphs, noAndroidvisual/gameplay claim."
   ],
-  "rea_sessions_owned_open": 0
+  "rea_sessions_owned_open": 0,
+  "source_color_defaults": {
+    "GetColor2497bf..2498f6": "Indexed RGB channels read independently with default0, alpha defaults1; absent fourth channel is valid. RGB alone selects float normalized versus byte conversion. No rawlen==4 gate in native."
+  }
 }

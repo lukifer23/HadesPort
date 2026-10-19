@@ -55,6 +55,7 @@ bool ScriptRuntime::setScenePrimaryAnimation(int32_t id,const std::string& name,
     actor->animation.reset();actor->primaryEffectAnimation=0;
     const auto* source=scenePrimaries_.state(handle);if(!source){error="New actual scene primary source state unavailable";return false;}
     actor->primaryAnimationLifetime=handle;actor->primaryOwnerHasNoCollision=source->ownerHasNoCollision;actor->primaryOwnerImmobile=source->ownerImmobile;actor->primaryDisableWeapons=source->disableWeapons;actor->primaryAirborne=false;actor->object->animation=source->name;
+    if(actor->timeMultiplier!=1&&!effects_.registry()->linkTimeMultiplier(handle,id,actor->entityHandle,error))return false;
     actor->object->animationScale=source->ownScale;actor->object->animationOffsetX=source->offsetX;actor->object->animationOffsetY=source->offsetY;actor->object->graphicsDirty=true;
     return true;
 }

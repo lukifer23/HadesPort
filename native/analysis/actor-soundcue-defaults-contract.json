@@ -1,0 +1,59 @@
+{
+  "schema": "hades-actor-soundcue-defaults-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+  "pdb_age": 1,
+  "status": "generic actor cue defaults exported; actual cast ammo disposal and recast passed strict host replay",
+  "source": [
+    ".local/reports/native-active-life-ctor-static.json",
+    ".local/reports/native-active-life-def-assignment.json",
+    ".local/reports/native-engine-pdb-weapon-defaults-next.json",
+    ".local/reports/native-actor-compiled-defaults-v5.json",
+    ".local/reports/native-active-thing-destroy-static.json"
+  ],
+  "facts": [
+    "SoundCue size40, pOwner offset0, EASTL mName offset8, mValid offset33. Copy constructor43450 does not establish initialization.",
+    "Definition-constructor stores must independently prove owner=null, empty name storage and valid=false; unknown functor/padding bytes are excluded from semantic projection.",
+    "LifeData.SoundManagerCap full offset0x130 is compiled0; LifeData.DeathSound full offset0xe0 is an invalid empty cue.",
+    "Thing.Destroy2e1ef0 gates Life branches on actual pLife, copies DeathSound and passes actual XY and Life.SoundManagerCap to PlayCue3DWithCap. It does not test descriptor valid at that call.",
+    "Obstacle.NeedsLife compiled true is established by constructor0d4314; BaseLoot/AmmoPack do not remove it."
+  ],
+  "default_names_by_class": {
+    "Thing": [
+      "AmbientSound",
+      "ImpulsingSound",
+      "FootstepSound",
+      "RotationSound",
+      "TouchdownSound"
+    ],
+    "Unit": [],
+    "Obstacle": [
+      "CollisionSound",
+      "ImpactSound"
+    ],
+    "Life": [
+      "DeathSound",
+      "HitSound"
+    ]
+  },
+  "death_sound_default_store_addresses": [
+    "0x1800c8684",
+    "0x1800c8688",
+    "0x1800c868c",
+    "0x1800c864c",
+    "0x1800c8660",
+    "0x1800c8690"
+  ],
+  "runtime_projection": "Actor catalog projects the proven invalid default to an empty cue-name string; authored source cue strings override it through original inheritance. Runtime resolution still handles actual cue validity and coverage.",
+  "limits": [
+    "Native SoundCue hash functor and padding are not fabricated or serialized as known bytes.",
+    "Named cue resolution and source graphs remain separate real audio consumers."
+  ],
+  "validation": {
+    "defaults_report": ".local/reports/native-actor-compiled-defaults-v5.json",
+    "comparison": "All prior v4 scalar field values unchanged; adds9 semantic cue defaults.",
+    "opening_manifest": ".local/native-assets/opening-actors-v13/manifest.json",
+    "replay": ".local/reports/takeover-cast-cardinals-r5.json",
+    "result": "Actual first ammo actor unregistered/handle0 after original auto-use; second Ranged fired and retired,1810frames completed without script/world/audio/presentation errors."
+  }
+}

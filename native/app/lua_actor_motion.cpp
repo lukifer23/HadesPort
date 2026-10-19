@@ -123,15 +123,21 @@ bool ScriptRuntime::actorMotionActionImpl(lua_State*L,int mode,std::string&error
  error.clear();return true;
  }catch(const std::exception&e){error=e.what();return false;}}
 
-// Thing.ShiftZLocation2e0ae0 + Unit.ShiftZLocation2f2e40. This setter
+// Thing.ShiftZLocation2e0ae0 + Unit.ShiftZLocation2f2e40 /
+// Obstacle.ShiftZLocation2c42b0 (propagate=true). This setter
 // deliberately does not fabricate Physics membership; real MoveInput/OnForce
 // admission owns that component transition.
 bool ScriptRuntime::shiftActorZ(int32_t id,float delta,std::string&error){try{
  auto*a=actorWorld_.actor(id);if(!a||!a->registered||!a->object)throw std::runtime_error("Native ShiftZ actual owner unavailable");
- if(a->definition->kind!="Unit"||a->attachedParent)throw std::runtime_error("Native ShiftZ requires unparented Unit source branch");
+ if((a->definition->kind!="Unit"&&a->definition->kind!="Obstacle")||a->attachedParent)throw std::runtime_error("Native ShiftZ requires unparented Unit/Obstacle source branch");
  const auto*limit=actorWorld_.currentProperty(id,"Thing.MaxZ");if(!limit)throw std::runtime_error("Native ShiftZ compiled MaxZ unavailable");const float maximum=float(limit->number());
  if(!std::isfinite(delta)||!std::isfinite(maximum)||!std::isfinite(a->object->z+delta))throw std::runtime_error("Native ShiftZ numeric bounds");
- if(delta!=0){a->object->z=std::min(a->object->z+delta,maximum);a->object->graphicsDirty=true;if(!actorWorld_.propertiesDirty(id,error))return false;}error.clear();return true;
+ if(delta!=0){a->object->z=std::min(a->object->z+delta,maximum);a->object->graphicsDirty=true;}
+ // Obstacle override calls LocationChanged(false) after the base setter,
+ // even when delta==0 (2c42c6..2c42cf). The actual provider updates spatial,
+ // draw bounds, interaction, lights, occluders and attached animations.
+ if(a->definition->kind=="Obstacle")return actorWorld_.obstacleLocationChanged(id,false,error);
+ return actorWorld_.propertiesDirty(id,error); // Unit override marks its sort score.
  }catch(const std::exception&e){error=e.what();return false;}}
 bool ScriptRuntime::advanceActorMotion(float dt,std::string&error){try{
  if(!std::isfinite(dt)||dt<0||dt>1)throw std::runtime_error("Native script motion elapsed bounds");

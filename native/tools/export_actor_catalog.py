@@ -28,6 +28,16 @@ def native_angle(value):
     rounded=struct.unpack('<f',struct.pack('<f',number))[0]
     return struct.unpack('<f',struct.pack('<f',rounded*float.fromhex('0x1.1df46a2529d39p-6')))[0]
 
+def runtime_default(field):
+    if field['type']=='sound_cue':
+        # The native actor API consumes a cue name. A proven default cue has
+        # null owner, empty name and mValid=false; preserve that empty name,
+        # then real authored strings override it through ordinary inheritance.
+        cue=field['value']
+        if cue!={'owner':None,'name':'','valid':False}:raise ValueError('Uncovered compiled actor SoundCue default')
+        return cue['name']
+    return field['value']
+
 def export(content,creation,defaults,output):
     if output.exists():raise ValueError('Output must be new')
     source=json.loads(creation.read_text());compiled=json.loads(defaults.read_text())
@@ -59,14 +69,14 @@ def export(content,creation,defaults,output):
         native='Unit'if category=='Units'else'Obstacle'
         for name in table:
             key=category+'/'+name;raw=resolve(category,name)
-            fields={n:v['value']for n,v in compiled['definitions'][native]['fields'].items()if v['type']!='null_pointer'}
+            fields={n:runtime_default(v)for n,v in compiled['definitions'][native]['fields'].items()if v['type']!='null_pointer'}
             fields=merge(fields,raw)
             if category=='Units':
                 for angular_speed in ('RotationSpeed','CosmeticRotationSpeed'):
                     if angular_speed in raw:fields[angular_speed]=native_angle(raw[angular_speed])
-            fields['Thing']=merge({n:v['value']for n,v in compiled['definitions']['Thing']['fields'].items()if v['type']!='null_pointer'},raw.get('Thing',{}))
+            fields['Thing']=merge({n:runtime_default(v)for n,v in compiled['definitions']['Thing']['fields'].items()if v['type']!='null_pointer'},raw.get('Thing',{}))
             if category=='Units'or fields.get('NeedsLife'):
-                fields['Life']=merge({n:v['value']for n,v in compiled['definitions']['Life']['fields'].items()if v['type']!='null_pointer'},raw.get('Life',{}))
+                fields['Life']=merge({n:runtime_default(v)for n,v in compiled['definitions']['Life']['fields'].items()if v['type']!='null_pointer'},raw.get('Life',{}))
             definitions[key]={'key':key,'name':name,'kind':native,'properties':fields,'unresolved_compiled_fields':[f['name']for f in compiled['definitions'][native]['unknown']],'unresolved_thing_fields':[f['name']for f in compiled['definitions']['Thing']['unknown']]}
     rows=[]
     for record in source['records']:
