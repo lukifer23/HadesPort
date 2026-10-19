@@ -96,5 +96,18 @@ std::string ScriptRuntime::heroMotionTrace(){
     const auto facing=a->animation.active()?int(animationBank_->originalAngleForFacing(a->animation.clipIndex(),actorAnimationFacing(*a))):-1;
     std::snprintf(line,sizeof(line),"hero x=%.1f y=%.1f angle=%.3f goal=%.3f input=%.2f,%.2f consumedSpeedFraction=%.2f velocity=%.1f,%.1f moving=%d anim=%s frame=%u finished=%d playSpeed=%.2f facing=%d cam=%.1f,%.1f zoom=%.3f targets=[%s] panActive=%d",a->object->x,a->object->y,a->object->angle,
         m!=localMovement_.end()?m->second.goalAngle:-1.f,localMoveX_,localMoveY_,m!=localMovement_.end()?m->second.previousSpeedFraction:-1.f,vx,vy,int(m!=localMovement_.end()&&m->second.moving),a->object->animation.c_str(),a->animation.originalFrame(),int(a->animation.finished()),a->animation.playSpeedMultiplier(),facing,cam.x,cam.y,cam.zoom,tg.c_str(),int(cam.panX.duration>0||cam.panY.duration>0));
-    return line;
+    // Keep the actual rotation/control gates beside direction evidence: an
+    // interrupted weapon can leave a request or disable active after release.
+    std::ostringstream gates;gates<<line<<" held=[";
+    for(const auto& name:localActionDown_)gates<<name<<',';
+    gates<<"] animFlags="<<(a->animation.active()?a->animation.clip()->flags:0);
+    if(const auto* speed=actorWorld_.currentProperty(id,"RotationSpeed"))gates<<" rotationSpeed="<<speed->number();
+    if(m!=localMovement_.end())gates<<" cosmetic="<<m->second.cosmeticAngle;
+    if(a->status){const auto status=a->status->snapshot();gates<<" disableTimers="<<status.timers.move<<','<<status.timers.attack<<','<<status.timers.rotate<<" statusFault="<<status.faulted<<" effects=[";
+        for(const auto* list:{&status.active,&status.pending})for(const auto handle:*list){std::string detail;const auto* effect=selfEffects_.effectData(handle,detail);if(effect)gates<<effect->name<<',';}
+        gates<<']';}
+    if(a->arsenal){std::string detail;gates<<" strafing="<<a->arsenal->isStrafing("",detail)<<" requests=[";
+        for(const auto& name:a->arsenal->controllableWeapons()){const auto* weapon=a->arsenal->weaponState(name,detail);if(weapon&&weapon->currentFireRequest)gates<<name<<',';}
+        gates<<']';}
+    return gates.str();
 }

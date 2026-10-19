@@ -62,7 +62,7 @@ bool ScriptRuntime::audioActionImpl(lua_State* L,int mode,uint32_t& result,std::
         // The shipped 2D path ignores ManagerCap. The 3D path uses global
         // manager/frame counters; never substitute a per-cue count.
         if(source.spatial&&!(delay>0)){
-            bool allowed=false;if(!admitOwnerAudio(cue,sourceId,allowed,error))return false;if(!allowed){result=0;return true;}
+            bool allowed=false;if(!admitOwnerAudio(cue,sourceId,allowed,error,int32_t(number(args,"ManagerCap"))))return false;if(!allowed){result=0;return true;}
         }
         if(!audio_.createCue(cue,source,result,error,!(delay>0)))return false;
         if(result&&flag(args,"AddCallbacks"))audioCallbacks_.insert(result);
@@ -123,10 +123,10 @@ void ScriptRuntime::stopAudio(){audioOutput_.stop();}
 
 // Source Play3D admission reads the actual owner's HighPrioritySfx and the
 // global per-frame counter (default16); VO cues bypass the frame cap.
-bool ScriptRuntime::playAudioCue(const std::string& cue,int32_t owner,const std::array<float,3>& p,uint32_t& id,std::string& error){
+bool ScriptRuntime::playAudioCue(const std::string& cue,int32_t owner,const std::array<float,3>& p,uint32_t& id,std::string& error,int32_t managerCap){
     bool valid=false;if(!audio_.resolveCue(cue,valid,error,true))return false;if(!valid){id=0;return true;}
     const auto players=snapshotInputPlayers(state_);const bool spatial=owner<0||(owner>0&&(players.empty()||players.front().activeUnitId!=owner));
-    if(spatial){bool allowed=false;if(!admitOwnerAudio(cue,owner,allowed,error))return false;if(!allowed){id=0;return true;}}
+    if(spatial){bool allowed=false;if(!admitOwnerAudio(cue,owner,allowed,error,managerCap))return false;if(!allowed){id=0;return true;}}
     hades::AudioSource source{spatial,p[0],p[1],0};if(spatial&&!actorAudioSource(owner,source,error))return false;
     if(!audio_.createCue(cue,source,id,error,true)||!audio_.play(id,error))return false;
     if(id)++audioFramePlays_;return true;
@@ -169,7 +169,7 @@ bool ScriptRuntime::stopActorAmbientSound(int32_t id,std::string& error){
  return !a->ambientSoundId||audio_.stop(a->ambientSoundId,false,error);
 }
 
-bool ScriptRuntime::admitOwnerAudio(const std::string& cue,int32_t owner,bool& allowed,std::string& error){
+bool ScriptRuntime::admitOwnerAudio(const std::string& cue,int32_t owner,bool& allowed,std::string& error,int32_t managerCap){
  allowed=false;
  if(owner<0){const auto it=projectileFxOwners_.find(owner);const auto* p=it==projectileFxOwners_.end()?nullptr:projectileWorld_.actor(it->second);if(!p||!p->bodyPending||!p->thing){error="Projectile owner3D sound requires actual initialized Thing";return false;}bool voice=false;if(!audio_.voiceCue(cue,voice,error))return false;if(p->suppressSounds&&!voice)return true;const auto* priority=p->thing->get("HighPrioritySfx");if(!priority){error="Projectile sound source HighPrioritySfx unavailable";return false;}allowed=priority->boolean()||audioFramePlays_<16||voice;return true;}
  const auto* a=actorWorld_.actor(owner);if(!a||!a->registered){error="Owner3D sound requires registered Thing";return false;}
@@ -178,5 +178,9 @@ bool ScriptRuntime::admitOwnerAudio(const std::string& cue,int32_t owner,bool& a
  // Active-listener owner2D and delayed CreateCue3D bypass this entire path.
  if(a->suppressSounds&&!voice)return true;
  const auto* priority=actorWorld_.currentProperty(owner,"Thing.HighPrioritySfx");if(!priority){error="Owner3D sound requires actual HighPrioritySfx";return false;}
- allowed=priority->boolean()||audioFramePlays_<16||voice;return true;
+ // Play3D49db8..49dff: manager cap counts ALL allocated channels, not
+ // instances of this cue. Exceeding it alone does not reject an ordinary
+ // sound: native falls through to the VO/frame admission test.
+ const bool frameAllowed=audioFramePlays_<16;
+ allowed=priority->boolean()||(frameAllowed&&uint64_t(audio_.allocatedChannelCount())<uint64_t(int64_t(managerCap)))||voice||frameAllowed;return true;
 }

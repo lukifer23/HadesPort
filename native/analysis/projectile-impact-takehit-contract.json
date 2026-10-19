@@ -51,7 +51,8 @@
     "Native source GetCritChance2f3ab0 consumes every active attacker CritAddition, then victim stacks+1 times CritVulnerabilityAddition followed by CritVulnerabilityMultiplier in vector order. Real instance stack and primary flags now supplied.",
     "TakeHit critical multiplier uses projectile CriticalHitMultiplier + direct Unit.CritMultiplierAddition + active victim CritMultiplierVulnerabilityAddition, then adds delta to total multiplier.",
     "Real ClearAfterNAttacks and ClearOnCritted invoke virtual Clear and enqueue the actual retained status effect into duplicate-preserving mToDelete.",
-    "OnHitWeapon tail now implements owned lookup/null skip, armor/data gate, exact status attack predicate/CanFireWhileDisarmed and actual captured request; no implicit equip."
+    "OnHitWeapon tail now implements owned lookup/null skip, armor/data gate, exact status attack predicate/CanFireWhileDisarmed and actual captured request; no implicit equip.",
+    "Life.TakeHit VA1802b7fa7..7fd1 copies Life.HitSound and passes victim Thing plus Life.SoundManagerCap into PlayCue3DWithCap4a770. Its returned channel is NOT assigned to Weapon.impactCueId; manager admission uses total allocated channels then native frame/VO fallback, with owner HighPrioritySfx and live suppression gates."
   ],
   "portable_adaptations": [
     "World dirty hash traversal uses encounter order with lifetime handles, not Windows pointer-hash iteration.",
@@ -60,12 +61,11 @@
   ],
   "explicit_barriers": [
     "Positive source healing/life-steal, spawns, impact forces and charm",
-    "Native HitSound SoundManagerCap-aware valid sound consumer",
     "Nonempty native ImpactFx resource angle/Z/time consumer",
     "Valid InvincibleImpactSound branch",
     "Partial armor/directional invulnerability branches",
     "Actual victim factories other than Speed0/UNKNOWN12Tag; cross-source duplicate Reapply identity replacement",
-    "Valid native HitSound/ImpactSound manager-aware audio and nonempty native impact animation resources (root consumers pending)",
+    "Valid native ImpactSound manager-aware audio and nonempty native impact animation resources (root consumers pending)",
     "Actual positive source spawns/heal/life-steal/impactforce/charm/TriggerEffect/RemoveEffects closure beyond proven empty"
   ],
   "validation": {

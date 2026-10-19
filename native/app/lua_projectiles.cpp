@@ -381,7 +381,15 @@ bool ScriptRuntime::applyProjectileImpact(uint64_t handle,int32_t victim,const h
                 if((!weapon->validProjectileData||hitFlag(weapon->projectileData.fields,"TriggerHitSound"))&&!weapon->impactCueId){
                     // Source omission keeps the LifeData ctor temporary default SoundCue (Life ctor VA1800c86b6 copies a default-constructed def), i.e. an invalid cue, as Thing.ImpulsingSound.
                     const auto* hitCue=actorWorld_.currentProperty(op.victim,"Life.HitSound");const auto cue=hitCue?hitCue->text():std::string{};bool valid=false;if(!audio_.resolveCue(cue,valid,detail))return false;
-                    if(valid){detail="Native TakeHit HitSound requires source SoundManagerCap-aware PlayCue3D consumer: "+cue;return false;}
+                    if(valid){
+                        // LifeComponent::TakeHit VA1802b7fa7..7fd1 copies
+                        // Life.HitSound and passes the VICTIM Thing plus its
+                        // Life.SoundManagerCap to PlayCue3DWithCap4a770.
+                        // The returned ID is not stored in Weapon.impactCueId.
+                        const auto managerCap=int32_t(hitProperty(actorWorld_,op.victim,"Life.SoundManagerCap").number());
+                        float x=0,y=0,z=0;uint32_t channel=0;
+                        if(!actorWorld_.location(op.victim,x,y,detail)||!actorWorld_.zLocation(op.victim,z,detail)||!playAudioCue(cue,op.victim,{x,y,z},channel,detail,managerCap))return false;
+                    }
                 }
                 detail.clear();return true;
             }

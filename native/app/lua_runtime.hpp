@@ -130,10 +130,10 @@ class ScriptRuntime {
     std::vector<DelayedSound> delayedSounds_;
     std::unordered_set<uint32_t> audioCallbacks_;
     uint32_t audioFramePlays_=0;
-    bool playAudioCue(const std::string&,int32_t,const std::array<float,3>&,uint32_t&,std::string&);
+    bool playAudioCue(const std::string&,int32_t,const std::array<float,3>&,uint32_t&,std::string&,int32_t managerCap=0);
     bool audioOwnerDeath(int32_t,std::string&);
     bool stopActorAmbientSound(int32_t,std::string&);
-    bool admitOwnerAudio(const std::string&,int32_t,bool&,std::string&);
+    bool admitOwnerAudio(const std::string&,int32_t,bool&,std::string&,int32_t managerCap=0);
     bool actorAudioSource(int32_t,hades::AudioSource&,std::string&);
     bool playLocationAudioCue(const std::string&,const std::array<float,3>&,int32_t,uint32_t&,std::string&);
     bool loadAudioDefinitions();
