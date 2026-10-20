@@ -5,12 +5,12 @@ An unofficial, work-in-progress **native ARM64 Android engine** for **Hades (Sup
 purchased PC copy** — on a C++/OpenGL ES engine reconstructed from the PC engine binary.
 No emulation, Wine, CPU translation, ads, accounts or network access.
 
-> **Status: prototype; full gameplay remains incomplete** (2026-10-18). The Fold
-> runs the title, settings, intro, opening room, HUD, movement, sword attacks,
-> dash and audio. Animation recovery, collisions, cast and room progression are
-> under active repair. RoomSimple01 now has a real map pack and transition path;
-> successful full encounters are not yet verified. Missing engine behavior is
-> logged as engine gaps. See [`STATUS.md`](STATUS.md) for current build evidence.
+> **Status: prototype; full gameplay remains incomplete** (2026-10-20). Iteration12
+> is installed and hash verified. Device captures prove title and RoomOpening;
+> strict host replays prove enemy damage/death, next-wave AI, cast lifecycle and
+> movement recovery on the recorded routes. Full encounter completion, Athena's
+> reward and subsequent room progression still need device verification. Missing
+> engine behavior is logged as engine gaps. See [`STATUS.md`](STATUS.md).
 
 **This repository contains no game files.** You must own Hades (e.g. on Steam or the Epic
 Games Store) and supply its files yourself. Read [`DISCLAIMER.md`](DISCLAIMER.md).
@@ -35,7 +35,7 @@ Games Store) and supply its files yourself. Read [`DISCLAIMER.md`](DISCLAIMER.md
 
 | Path | Contents |
 |---|---|
-| `native/app/` | Engine: C++17, GLES 3, Android NativeActivity + a small Java bridge (vibration, controllers, game mode) |
+| `native/app/` | Engine: C++20, GLES 3, Android NativeActivity + a small Java bridge (vibration, controllers, game mode) |
 | `native/host/` | macOS host debugger (`hades-debug`) and capture tools for fast replays without a device |
 | `native/tools/` | Asset exporters and stagers (write fresh, versioned output dirs under `.local/`) |
 | `native/analysis/` | Recovered contracts (`*-contract.json`), engine identity, RE helper scripts |

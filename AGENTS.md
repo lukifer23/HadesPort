@@ -2,6 +2,8 @@
 
 Start with `HANDOFF.md` (how to resume) and `STATUS.md` (live state). If a private
 `.local/private/LOCAL.md` exists, read it too (device identifiers and local notes; never commit).
+Read `.local/private/RESTART_HANDOFF.md` when present for the detailed local restart
+checkpoint. Keep that handoff and all session-specific notes outside git.
 
 ## Goal and architecture
 

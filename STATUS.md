@@ -15,81 +15,93 @@ batch fixes before rerunning, use the shortest replay that reaches the changed
 path, and do one sanitized (ASan/UBSan) run at the end. Device installs only for
 meaningful milestones.
 
-## Current repair checkpoint (2026-10-19)
+## Current checkpoint (reviewed 2026-10-20)
 
-Prototype scope remains the original native Android game, with the current repair
-focused on controls, animation recovery, cast, actual enemy combat and progression.
-Main coordinates Android builds/installs; the user drives the device. No injected
-input during manual play. All game-derived packs/captures/reports remain ignored.
+Iteration12 is the latest installed build: SHA-256
+`d39fefae60155eafbce5806dcb4502403c04b2a7d65f3358813041248aabb351`,
+2,453,881,955 bytes. Its runtime source checkpoint is `2e3cba3`; subsequent commits
+record deployment evidence and documentation. Installation used a full
+non-incremental user0 stream, followed by on-device hash/size verification and launch.
+Iteration10a remains the preserved, user-confirmed improved-controls rollback.
+
+The goal is a complete offline native Android game using the original Lua and assets.
+This remains a prototype. The current repair focuses on shared combat, controls,
+animation recovery, cast, enemy AI/death and progression. Main coordinates builds
+and installs; the user drives manual device play. Do not inject device input.
 
 Current selected packs: opening-actors-v13, actor-simple-v4 via room-packs-v6,
 actor-actions-v9, actor-markers-v9, actor-properties-v14 (HAP6),
-player-weapons-v25, action-effects-v22, screen-opening-v12, original-text-v7, audio-events-v29.
-RoomOpening and RoomSimple01 have validated original assets; no fallback scene.
+player-weapons-v25, action-effects-v22, screen-opening-v12, original-text-v7,
+audio-events-v29. RoomOpening and RoomSimple01 are packaged; later rooms need
+validated original packs and lifecycle coverage. No fallback scene is supplied.
 
-The latest installed/verified result is in the device table. Iteration8 allowed
-real enemy hits and movement, then failed in projectile defense: local code read
-nonexistent EffectData.Reflection instead of original ReflectAddition(+3b0).
-Device traces showed held=[] but queued RushWeapon/SwordWeapon3 and strafing=1,
-explaining the persistent direction lock. Both collision/detonation paths are
-corrected in iteration9. Never fix this by clearing legitimate input requests.
+### Verification and its limits
 
-Other reconstructed repairs in the iteration9 source batch:
+- Device: verified installation, title launch and live RoomOpening capture. The
+  room screenshot shows 84 FPS / 11.8 ms; the captured process log has no fault
+  lines. A 12-second passive video is retained locally. These captures do not
+  prove device combat or encounter completion.
+- Strict mixed route: 2,950 frames, empty initialization/presentation/mixer/input
+  errors. Two real enemy hits lower hero health 50→40→30; sword and special fire
+  afterward. All four directions recover after melee; the first post-special
+  left window overlaps its legitimate disable effect. That effect then expires,
+  later movement resumes, and final requests/effects are empty with strafe0.
+  Original zero-fuse Instant touchdown detonation and explosion audio complete.
+  These final host runs use sampled presentation; validated_presentation_frames
+  is0, so they do not establish full per-frame rendering correctness.
+- Strict next-wave route: 3,100 frames, no blocked stage or presentation error.
+  First enemy dies at2626 after eight real20-damage hits; money pickup completes.
+  Two next-wave enemies finish child-movie activation, run original AI/pathing
+  and damage the hero at2974. Projectile/effect/scheduler faults remain0.
+- Final ASan/UBSan: the 2,950-frame mixed route passes without findings.
+- Earlier cast/pickup/recast: strict and sanitized1,810-frame route passed,
+  including ammo return, second cast and cardinal recovery. This was earlier in
+  the repair batch; the final candidate has not repeated this route on device.
+- Full forced encounter, Athena dialogue/boon, subsequent room selection and
+  transition, and device save/reload remain unverified.
 
-- Per-animation clock ownership and native own-fraction/global-speed handling;
-  live owner multiplier links from actual Effect.Apply and primary replacement.
-- Original shader Flash blending, native lifetime/order, source flasher inheritance
-  preserved in HAP5; actual enemy-blood isometric matrix path.
-- Native randomized VisualFxCap, CreateAnimationOnEnd lifecycle/dependency closure,
-  velocity-derived owner angle and original enemy-hit resources.
-- Cast primary/child/shadow, homing, impact, disposal, ammo obstacle physics/Z,
-  landing FX, auto-use audio, RunWeaponMethod AddAmmo and native Life sound defaults.
-- Weapon packet preserves all49 proven-empty RemoveEffects flags. Dropping that
-  proof from the serialized file previously interrupted every real Unit hit.
-- Continue restores actual RoomSimple01 resources before original Lua Load; native
-  missing music parameter behavior now matches zero-output/ignored missing-name
-  returns instead of poisoning the audio world.
-- Native optional-alpha text colors, first-live-parent SpawnObstacle attachment,
-  and Book frame targeting for actual world health bars (latter source after APK8).
+Evidence is private under `.local/reports/`: `takeover-instant-mixed-strict-v4`,
+`takeover-child-movie-nextwave-r1`, `takeover-iteration12-sanitized-pass`,
+`takeover-iteration12-installed-verification.json` and `takeover-iteration12-device/`.
+Use these final results; earlier contained surveys and failed intermediate runs
+are retained history, not current blockers.
 
-Focused evidence (all private/local):
+### Root repairs to preserve
 
-- Actual phone checkpoint: former first-frame Continue crash now passes600 strict
-  frames and147127 live presentation samples with no error.
-- Cast/pickup/recast: strict1810 frames succeeds; first ammo obstacle retires,
-  ammo returns, second projectile fires and retires, all four movement/facing
-  directions settle correctly, final held/requests/effects empty and strafing0.
-  ASan/UBSan replay of this sequence also passes539433 presentation samples.
-- Actual sword/special/cardinal input: contained2950-frame diagnostic completes
-  with correct right/down/left/up velocities and body/goal angles after melee and
-  special; former repeating world projectile fault is gone. Six contained gaps
-  remain, so this does NOT establish strict encounter/reward completion.
-- Device iteration8 logs actual SimpleMelee and real OnHit; enemy attack behavior
-  is NOT yet proven. Three agents are active on AI, effects and progression assets.
+- Same-name victim Effect reapplication retains its original data/factory/source
+  identity across weapons. A false identity guard interrupted firing cleanup and
+  repeatedly renewed disable effects. Do not clear legitimate requests to hide it.
+- Native reflection reads ReflectAddition; packed weapons preserve proven-empty
+  RemoveEffects. Missing hit consumers previously prevented request cleanup.
+- Native world/animation clock ownership prevents hitstop or effects from applying
+  global speed twice. HERO_TRACE reports held controls, requests, strafe, timers,
+  velocity, facing and animation; COMBAT_HIT reports actual health/life changes.
+- Real Unit activation, firing/markers, A* movement, targetability and child-movie
+  ownership allow original Lua AI to progress. Attach and draw offsets remain
+  separate. Money pickups use deferred native destruction.
+- Zero-fuse Instant uses base initialization and synchronous native detonation.
+  Audio coverage preflights before FX allocation; first faults remain visible.
+- Resource closure derives dependencies across native producers, child/chain
+  animations and map namespaces. Fresh validated staging removes stale assets;
+  packaging verifies audio bindings to the selected actor/action closure.
 
-## Active repair work
+### Workstream checkpoint
 
-| Work | Owner | Current boundary |
+All previous repair assignments are complete; no build/install/replay worker is
+running at this checkpoint. Agent sessions and PIDs are not restart dependencies.
+The roles below are useful for assigning new work when evidence warrants it.
+
+| Area | Previous owner | Completed boundary |
 |---|---|---|
-| Android build/install, shared combat lifecycle/clocks, logs, docs/remote | main | Iteration12 installed/hash verified and launched; strict ASan/UBSan2950 passed, baseline10a preserved |
-| Original enemy AI, firing/markers, movie Book resources and timed audio | movement_controls | Source complete; next-wave3100 strict pass, mixed2950 strict pass |
-| Progression resources, zero-fuse Instant, native color normalization | progression_coverage | Source/selected closure complete; actual mixed2950 passes original touchdown detonation/audio and all cardinal recovery |
-| Shared path/attachment, interaction, child lifetime/rendering and text | door_runtime | Source complete; real next-wave child chains and AI/attack passed host integration |
+| Android deployment, lifecycle/clocks, diagnostics, documentation | main | Iteration12 installed and verified; final sanitizer pass; rollback preserved |
+| AI/firing/markers, movie resources, timed audio | movement_controls | Mixed2950 and next-wave3100 strict integration passed |
+| Asset closure, native Instant and color defaults | progression_coverage | Weapon25/action22/audio29 selected and validated |
+| Pathing/interaction, child lifetime/rendering, text/targetability | door_runtime | Real next-wave child activation and AI/attack passed host integration |
 
-Focused candidate evidence (all private/local):
-
-- Strict mixed2950: no initialization/presentation/mixer/input error; two real
-  enemy hits lower hero50→40→30, sword/special fire afterward. All four cardinal
-  velocities/angles are correct; final held/requests/effects empty, strafe0,
-  statusFault0. Rubble INSTANT6 and original explosion sound complete.
-- Strict next-wave3100: enemy dies2626; two next-wave enemies finish activation,
-  start original AI, follow actual paths and damage the hero2974. Projectile,
-  effect and scheduler faults remain0; no blocked stage/presentation error.
-- Audio29 adds four source graph admissions using the same1976 original samples;
-  836 events and5 explicit unsupported graphs remain.
-- Final ASan/UBSan mixed2950 passed with no findings; device verification is
-  recorded separately below. Full forced
-  encounter, Athena reward and next-room transition remain unverified.
+At the documentation review, ADB lists no connected device. Reconnect and rediscover
+its current transport after restart. The detailed restart steps, local identifiers,
+artifact inventory and prioritized next actions are in ignored
+`.local/private/RESTART_HANDOFF.md`; never commit it.
 
 ## Device (Galaxy Z Fold, `$HADES_DEVICE_SERIAL`)
 
@@ -126,7 +138,7 @@ Focused candidate evidence (all private/local):
 | 2026-10-18 17:23 | (build 17) | Past control handoff; stops ~0.5 s later at `StatusIconSpeaking.OffsetZ` (SetupAnimation option) — animation-coverage agent |
 | 2026-10-18 16:53 | 9fbfb6d4 | HUD graphics + text ("50 / 50", "1 / 1") created; stops same tick at `NotifyWithinDistanceAny` (RoomManager.lua:5237), before control |
 
-## Fixed today (evidence in `.local/reports/`, contracts in `native/analysis/`)
+## Earlier implementation history (2026-10-18)
 
 - Perf: lazy animation decode, 384 MB hashed GPU frame cache, resampler fast path.
 - Aspect: uniform fit of the 1920x1080 script UI reference; overlays cover.
@@ -137,7 +149,7 @@ Focused candidate evidence (all private/local):
 - Landing: rumble, PostFire disable timers, base `Projectile::UpdateSelf`/`Detonate`/`OnDeath` (STRAIGHT),
   RubbleFall decal coverage, `"null"` animations, `DustPuffALarge`, `SetSoundSource`, script `Rumble`.
 
-## Active workstreams
+## Earlier completed workstreams (historical pack versions)
 
 | Workstream | Owner | State |
 |---|---|---|
@@ -181,14 +193,16 @@ Focused candidate evidence (all private/local):
 
 ## Next milestones
 
-1. Player control, combo and dash already run on device; verify each meaningful gameplay change.
-2. Strict opening-door interaction: derive missing animation/audio coverage from native
-   callback roots, then reconstruct prompt markup, property/query actions and Move.
-3. Exit door → deferred LoadMapInternal → RoomSimple01 loading (multi-room asset pipeline;
-   ship original BC7 blocks via `GL_EXT_texture_compression_bptc`, extension verified on the Fold).
-4. EnemyIntroFight01, then Athena first boon: loot → USE → dialogue → boon choice.
-5. Save / restart / reload on device (Continue button wired; needs first room checkpoint).
-6. ~~Gamepad/keyboard with the original default bindings~~ (done; verify on device with a controller).
+1. Reconnect the device, verify the installed iteration12 package and collect fresh
+   logs during user-driven combat. Confirm mixed attacks/cast/dash, four directions,
+   enemy attacks/death and recovery after repeated actions.
+2. Complete every original forced encounter wave, money pickup and Athena reward:
+   loot → Use → dialogue → boon selection. Reconstruct the first reached native gap.
+3. Let original scripts select the next map. Export its complete validated resource
+   closure and verify the real transition; RoomSimple01 has no fixed third-room link.
+4. Verify actual device save, restart and Continue without overwriting its profile.
+5. Verify original controller/keyboard bindings with a physical controller, then
+   expand later rooms/biomes and the full run/House loop.
 
 ## Known issues
 
@@ -196,10 +210,16 @@ Focused candidate evidence (all private/local):
   `adb -s $HADES_DEVICE_SERIAL logcat -d -s HadesNative HadesLua | grep -E "FAILED|BLOCKED"`.
 - RoomOpening and RoomSimple01 are packed. Subsequent rooms require validated map packs and lifecycle coverage.
 - ApplyShift uses documented portable polygon/grid ordering; actual unit-unit push and callbacks now run, with reached collision weapon/effect boundaries still explicit.
-- ReRandomizeOnLoop: engine default true, native loop never re-randomizes.
+- ReRandomizeOnLoop=true remains explicitly unsupported in the reached action
+  animation implementation. Other unrebuilt branches must retain loud diagnostics.
 - Audio still has unsupported graphs/loop behaviour; inspect the selected receipt and actual runtime errors. The cast/pickup replay already passed; do not attribute its sound to the old unsupported Chorus boundary.
-- APK ~2.2 GB after adding actual enemy movies; ZIP32 packaging is bounded below4GiB.
-- Old export dirs (audio-events-opening-v1..v16, earlier action-effects) can be pruned once v17/v8 are confirmed on device.
+- Audio29 has836 events/1976 original samples and5 explicit unsupported cues
+  (three graph failures and two Skelly subtitle ambiguities).
+  Delayed-fuse/live-target specialized Instant initialization remains unsupported;
+  grouped phase ordering and documented animation/audio adaptations need parity work.
+- Current APK is2,453,881,955 bytes; ZIP32 packaging stays below4GiB minus1MiB.
+- Preserve selected versioned packs, rollback APK and evidence across restart. Do
+  not prune earlier packs indiscriminately: receipts can retain their provenance.
 
 ## Build/install reliability
 
@@ -215,7 +235,7 @@ registered for device user0. Treat that attempt as failed. Use full installs
 `pm path --user 0`, installed file size/hash and actual launch before claiming
 success. Do not overwrite an APK still being served by an incremental installer.
 
-Full install verification succeeded: device user0 package registration and installed
+Historical iteration5 install verification succeeded: device user0 package registration and installed
 APK SHA-256 exactly match3e4ebc1dbc60036a8da2e42584d47541bf92fc49464bf7f815e6fd338d0957a2.
 Actual launch and user-driven RoomSimple01/enemy rendering verified; see device row. Evidence:
 `.local/reports/takeover-iteration5-installed-verification.json`.

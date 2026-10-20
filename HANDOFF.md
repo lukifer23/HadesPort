@@ -2,6 +2,9 @@
 
 Read this first, then `STATUS.md` (live state) and `AGENTS.md` (rules). Repository:
 https://github.com/lukifer23/HadesPort (`main` only).
+The detailed machine/session restart checkpoint, when present, is
+`.local/private/RESTART_HANDOFF.md`; read it together with `.local/private/LOCAL.md`.
+Both are ignored local files and must never be committed.
 
 ## Scope and end goal
 
@@ -51,16 +54,17 @@ python3 scripts/build_native.py --scene .local/native-assets/opening-fx-v5/scene
 #   --assets-only  stage .local/native-build/assets for host runs;  --compile-only  Android .so only
 # Device
 adb -s "$HADES_DEVICE_SERIAL" install --no-incremental -r --user 0 .local/build/native/hades-native-engine-preview.apk
-adb -s "$HADES_DEVICE_SERIAL" logcat -d -s HadesNative HadesLua | grep -E "FAILED|BLOCKED|PERF"
+adb -s "$HADES_DEVICE_SERIAL" logcat -d -v threadtime -s HadesNative HadesLua HadesSurvey AndroidRuntime
+# Save complete logs before filtering; retained faults can precede the visible symptom.
 adb -s "$HADES_DEVICE_SERIAL" exec-out screencap -d "$HADES_DISPLAY_ID" -p > .local/reports/shot.png
 # Fast host replay (own build dir), first-combat input file
 cmake -S native/host -B .local/native-host-build-X -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DHADES_SANITIZE=OFF
 cmake --build .local/native-host-build-X --target hades-debug
 .local/native-host-build-X/hades-debug .local/native-build/assets .local/reports/NEW.json \
-  --activate-room --world-frames=2400 --input-replay=.local/reports/native-first-combat-replay-v2.tsv
+  --activate-room --world-frames=2950 --input-replay=.local/reports/native-firstcombat-replay-v1.tsv
 # Blocker survey (host-only diagnostic): records every failure instead of stopping
 .local/native-host-build-X/hades-debug .local/native-build/assets .local/reports/SURVEY.json \
-  --activate-room --world-frames=2400 --survey-blockers --input-replay=.local/reports/native-first-combat-replay-v2.tsv
+  --activate-room --world-frames=2950 --survey-blockers --input-replay=.local/reports/native-firstcombat-replay-v1.tsv
 # Hero motion/camera trace: HADES_TRACE_HERO=1 hades-debug ... (host, every 10 frames);
 #   on device the engine logs HERO_TRACE every ~0.5 s (logcat -s HadesNative)
 # RE helpers
@@ -72,9 +76,11 @@ Script action ids: `.local/reports/native-action-enum.json` is decoded from the 
 action-name switch (regenerate it from the DLL if missing). Android SDK pieces:
 `ndk;29.0.14206865`, `build-tools;37.0.0`, `platforms;android-36`.
 
-## Current checkpoint (2026-10-19)
+## Current checkpoint (reviewed 2026-10-20)
 
-Read STATUS.md for the current installed APK and active owners. The user drives
+Read STATUS.md for the current installed APK and verification boundaries.
+Previous repair workstreams are complete; agent processes do not survive a host
+restart. Recreate assignments only when new work requires them. The user drives
 manual device play; main alone builds/installs and captures passively. Full
 non-incremental user0 installs plus installed SHA verification are mandatory.
 Do not overwrite an APK during installation. Build success is separate from play.
@@ -128,12 +134,16 @@ coroutine waits/stacks and dynamic enemy arsenals.
    Source attachment and authored draw offsets stay separate through CopyState,
    rendering and VFX. The source closure traverses nonmovie containers as well.
 5. Audio29 admits original time-locked weighted playlists with parent region/fades;
-   836 events and1976 samples,5 explicit unsupported graphs remain. No silent
+   836 events and1976 samples,5 explicit unsupported cues remain. No silent
    replacement. Audio closure binds actor9/action22; stale assets fail packaging.
 6. Finish all forced encounter waves and Athena reward/boon before selecting the
    next original map. Full encounter/reward/next-room completion, later map/biome
    coverage and device save/reload remain unverified. RoomSimple01 has no fixed
    linked third room. Do not fabricate a next-room choice or fallback scene.
+
+The final host runs sample presentation; they do not validate every rendered
+frame. Read the private restart inventory before assuming any scratch directory
+was removed.
 
 Favor rapid fixes, builds and device play. Use short existing input reproductions
 only to resolve concrete failures; no broad new test scaffolds. Save screenshots,
