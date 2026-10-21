@@ -11,7 +11,10 @@ from build_graphics_scene import atlas_center,project_quad,CAMERA_Z_SCALE
 def frame_quad(sprite,rec,clip,frame):
  ob=rec['object'];definition=clip['definition'];atlas=frame['sprite'];origin=[definition.get('OriginX',atlas['original'][0]/2),definition.get('OriginY',atlas['original'][1]/2)];ox,oy=atlas_center(atlas,origin,ob['FlipHorizontal'],ob['FlipVertical']);scale=ob['Scale']*rec['obstacle_thing'].get('Scale',1)*definition.get('Scale',1);offset=rec['obstacle_thing'].get('Offset',{});ox=(ox+offset.get('X',0)+definition.get('OffsetX',0))*scale;oy=(oy+offset.get('Y',0)+definition.get('OffsetY',0))*scale;angle=math.radians(ob['Angle']);c,ss=math.cos(angle),math.sin(angle);w,h=frame['width']*atlas['scale_ratio'][0]*scale,frame['height']*atlas['scale_ratio'][1]*scale
  if sprite.get('native_transform_profile')=='v5':
-  if definition.get('OffsetX',0)or definition.get('OffsetY',0):raise ValueError('Unverified explicit Animation.Offset')
+  # GetDrawLocation 0x180297d60: draw Offset x attached Body scale is part of
+  # the v5 draw anchor (build_graphics_scene records it); never re-derived here.
+  body=ob['Scale']*rec['obstacle_thing'].get('Scale',1);expected=[definition.get('OffsetX',0)*body,definition.get('OffsetY',0)*body]
+  if (expected[0] or expected[1]) and sprite.get('animation_draw_offset')!=expected:raise ValueError('Explicit Animation.Offset absent from the v5 draw anchor')
   ox,oy=atlas_center(atlas,origin,ob['FlipHorizontal'],ob['FlipVertical']);ox*=scale;oy*=scale;anchor=sprite['draw_anchor'];draw=[0,anchor[0]+ox*c-oy*ss,anchor[1]+ox*ss+oy*c,w,h,0,0,1,1,angle,1]
   return project_quad(draw,ob,definition.get('PostRotateScaleX',1),definition.get('PostRotateScaleY',1),anchor=anchor,mesh_type=rec['obstacle_thing'].get('MeshType','Flat'),full_stretch=bool(sprite['material']['squash_stretch_required']))
  draw=[0,ob['Location']['X']+ox*c-oy*ss,ob['Location']['Y']+ox*ss+oy*c-ob['OffsetZ']*CAMERA_Z_SCALE,w,h,0,0,1,1,angle,1]

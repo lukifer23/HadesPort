@@ -1,5 +1,6 @@
 """Bounded action FX staging, callable from native packaging (no builds)."""
 import hashlib,json,shutil
+from build_native import clone_file
 from pathlib import Path
 
 def stage_action_effects(manifest_path,assets):
@@ -10,6 +11,6 @@ def stage_action_effects(manifest_path,assets):
   if hashlib.file_digest(p.open('rb'),'sha256').hexdigest()!=item['sha256']:raise ValueError('Original action effect source identity changed: '+str(p))
  catalog=json.loads(Path(report['catalog']['path']).read_text())
  if not catalog.get('FrameMetadata')or catalog['ImageBankSha256']!=report['packet']['sha256']:raise ValueError('Original action effect atlas metadata/hash unavailable')
- for key,name in [('packet','action-effect-frames.bin'),('lua','action-effects.lua')]:shutil.copyfile(report[key]['path'],assets/name)
+ for key,name in [('packet','action-effect-frames.bin'),('lua','action-effects.lua')]:clone_file(report[key]['path'],assets/name)
  (assets/'action-effect-sha256.bin').write_bytes(bytes.fromhex(report['packet']['sha256']))
  return {'definitions':len(catalog['Definitions']),'original_frames':len(catalog['FrameMetadata']),'bytes':report['packet']['bytes']}

@@ -21,6 +21,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/../audio_decoder.cmake)
 hades_link_audio_decoder(hades_native "${CMAKE_CURRENT_SOURCE_DIR}/../../.local/native-audio-build/android-arm64-api26-verified-v2/verification.json")
 
 target_sources(hades_native PRIVATE lua_audio.cpp)
+target_sources(hades_native PRIVATE content_store.cpp)
 
 target_sources(hades_native PRIVATE lua_vfx.cpp)
 
@@ -40,7 +41,7 @@ target_sources(hades_native PRIVATE lua_actor_motion.cpp unit_path.cpp)
 
 target_sources(hades_native PRIVATE scene_primary.cpp lua_primaries.cpp)
 
-target_sources(hades_native PRIVATE lua_combat.cpp actor_lifecycle.cpp)
+target_sources(hades_native PRIVATE lua_combat.cpp actor_lifecycle.cpp life_take_hit.cpp)
 
 target_sources(hades_native PRIVATE lua_physics.cpp self_effect_world.cpp)
 
@@ -66,6 +67,7 @@ target_sources(hades_native PRIVATE color_grading.cpp lua_color_grading.cpp)
 target_sources(hades_native PRIVATE color_grading_renderer.cpp)
 
 target_sources(hades_native PRIVATE bloom_state.cpp lua_bloom.cpp bloom_renderer.cpp)
+target_sources(hades_native PRIVATE fullscreen_blur.cpp lua_fullscreen_blur.cpp fullscreen_blur_renderer.cpp)
 
 # Original save pipeline (save agent): pinned Luabins 0.3 serializer and LZ4 1.9.4
 # block codec from scripts/prepare_native_dependencies.py.

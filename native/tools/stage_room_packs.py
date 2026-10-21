@@ -5,7 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'scripts'))
-from build_native import stage_room_scene
+from build_native import stage_room_scene,clone_file
 from stage_actor_lights import stage_actor_lights
 
 TARGET='d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254'
@@ -27,23 +27,25 @@ def build_room_pack(source,output,lights=None,actors=None):
  actor=json.loads(Path(actors or source/'actors/manifest.json').read_text())
  if actor['schema']!='hades-source-actor-catalog-v1' or actor['room']!=room or actor.get('native_unit_angles')is not True:raise ValueError('Room actor schema/name mismatch')
  for row in [actor['packet'],actor['creation'],actor['defaults'],*actor['source_files']]:verify(row)
- shutil.copyfile(verify(actor['packet']),output/'actors.lua')
+ clone_file(verify(actor['packet']),output/'actors.lua')
  effects=json.loads((source/'spawners/manifest.json').read_text())
  if effects['schema']!='hades-original-room-spawner-assets-v1':raise ValueError('Room spawner schema')
  registry=json.loads(verify(effects['registry']).read_text())
- for row in [effects[k]for k in ['lua','source_catalog','catalog','packet']]+effects['source_manifests']+[registry[k]for k in ['creation','scene','hda','haa']]+registry['sources']:verify(row)
- for key,name in [('lua','effects.lua'),('packet','spawner-frames.bin')]:shutil.copyfile(verify(effects[key]),output/name)
+ for row in [effects[k]for k in ['lua','source_catalog','catalog','packet']if effects[k]is not None]+effects['source_manifests']+[registry[k]for k in ['creation','scene','hda','haa']]+registry['sources']:verify(row)
+ for key,name in [('lua','effects.lua'),('packet','spawner-frames.bin')]:
+  if effects[key] is not None:clone_file(verify(effects[key]),output/name)
  leaf=json.loads((source/'leaf/manifest.json').read_text())
  if leaf['schema']!='hades-original-room-leaf-frames-v1':raise ValueError('Room leaf schema')
- for row in [leaf[k]for k in ['packet','facing','identity','registry']]+leaf['sources']:verify(row)
+ for row in [leaf[k]for k in ['packet','facing','identity','registry']if leaf[k]is not None]+leaf['sources']:verify(row)
  for key in ['packet','facing','identity']:
-  path=verify(leaf[key]);shutil.copyfile(path,output/path.name)
+  if leaf[key] is None:continue
+  path=verify(leaf[key]);clone_file(path,output/path.name)
  primary=json.loads((source/'primaries/manifest.json').read_text())
  if primary['schema']not in ['hades-source-scene-primaries-v1','hades-source-scene-primaries-v2']:raise ValueError('Room primary schema')
  for key in ['catalog','lua','aux_bank','registry','source']:verify(primary[key])
  for row in primary['definition_provenance'].values():verify({'path':row['path'],'sha256':row['file_sha256']})
  for key in ['lua','aux_bank']:
-  path=verify(primary[key]);shutil.copyfile(path,output/path.name)
+  path=verify(primary[key]);clone_file(path,output/path.name)
  stage_actor_lights(lights or source/'lights/manifest.json',output)
  result={'schema':'hades-room-pack-v1','target_sha256':TARGET,'room':room,'source':str(source),'files':{p.name:identity(p)for p in sorted(output.iterdir())if p.is_file()},'reports':reports}
  (output/'manifest.json').write_text(json.dumps(result,indent=2)+'\n');return result
@@ -53,7 +55,7 @@ def stage_room_pack(manifest,assets):
  destination=Path(assets)/'rooms'/room;destination.mkdir(parents=True,exist_ok=True)
  for name,row in m['files'].items():
   if Path(name).name!=name:raise ValueError('Room asset path must be a filename')
-  shutil.copyfile(verify(row),destination/name)
+  clone_file(verify(row),destination/name)
  return {'room':room,'files':len(m['files'])}
 def revise_room_actor_catalog(manifest,actors,output,primaries=None):
  """Fresh bundle: retain immutable room bytes, replace validated catalogs."""

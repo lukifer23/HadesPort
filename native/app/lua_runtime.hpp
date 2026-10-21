@@ -9,6 +9,8 @@
 #include "weapon_runtime.hpp"
 #include "actor_runtime.hpp"
 #include "life_runtime.hpp"
+#include "life_take_hit.hpp"
+#include "hit_arguments.hpp"
 #include "actor_light_world.hpp"
 #include "self_effect_world.hpp"
 #include "asset_packages.hpp"
@@ -22,6 +24,7 @@
 #include "camera_fade.hpp"
 #include "color_grading.hpp"
 #include "bloom_state.hpp"
+#include "fullscreen_blur.hpp"
 #include "native_camera.hpp"
 #include "actor_motion.hpp"
 #include "interaction_runtime.hpp"
@@ -163,6 +166,13 @@ class ScriptRuntime {
     bool bloomActionImpl(lua_State*,std::string&);
     void loadBloomDefinitions(hades::AssetStore&);
     bool advanceBloom(std::string&);
+    // BlurComponent radial blur + Camera vignette frame (lua_fullscreen_blur.cpp).
+    hades::RadialBlurState radialBlur_;hades::VignetteFrameState vignetteFrame_;bool drawHealthFx_=true;
+    void registerFullscreenBlurActions();
+    static int fullscreenBlurAction(lua_State*);
+    bool fullscreenBlurActionImpl(lua_State*,int,std::string&);
+    bool advanceRadialBlur(float appElapsed,std::string&);
+    bool advanceVignetteFrame(float cameraElapsed,std::string&);
     static int colorGradingAction(lua_State*);
     bool colorGradingActionImpl(lua_State*,std::string&);
     hades::NativeCamera camera_;
@@ -272,6 +282,7 @@ class ScriptRuntime {
     static int fade(lua_State*);
 
     static int applyUpwardForce(lua_State*);
+    static int applyForceAction(lua_State*); // ScriptAction::ApplyForce25a370 (lua_combat.cpp)
     bool fadeImpl(lua_State*,bool in,std::string&);
     bool setColorImpl(lua_State*,std::string&);
     bool createAnimationImpl(lua_State*,std::string&);
@@ -335,6 +346,17 @@ class ScriptRuntime {
     bool unitApplyShift(int32_t,float nx,float ny,float sx,float sy,bool ignoreNoCollisionAnim,bool& collided,std::string&);
     bool unitOnUnitCollision(int32_t unit,int32_t other,float velocity,std::string&);
     bool unitOnObstacleCollision(int32_t unit,int32_t obstacle,float sx,float sy,float px,float py,float& damage,std::string&);
+    // Weapon::RequestFire83160 issued by native collision consumers (lua_combat.cpp).
+    bool collisionWeaponRequestFire(int32_t owner,const std::string& weapon,hades::WeaponFireRequest request,std::string&);
+    // WeaponArsenal::FireCollisionWeapon2ff380 (lua_combat.cpp).
+    bool fireCollisionWeapon(int32_t owner,float angle,float velocity,std::string&);
+    static std::array<float,2> collisionIntersectionPoint(const std::vector<hades::ActorPoint>&,float ox,float oy,const std::vector<hades::ActorPoint>&);
+    bool collisionForce(int32_t unit,float dx,float dy,float force,float cap,std::string&);
+    bool unitGoalAngleSound(int32_t unit,float goal,std::string&); // Unit::SetGoalAngle2f85f0 RotationSound (lua_actor_motion.cpp)
+    // Shared sgg::LifeComponent::TakeHit2b7cd0 core (life_take_hit.cpp).
+    bool lifeTakeHit(const hades::LifeTakeHitRequest&,hades::NativeDamageResult&,std::string&);
+    // GridManager::GetLineOfSightBlocker3076a0 (lua_collision_notify.cpp); blocker 0 = clear.
+    bool lineOfSightBlocker(float x0,float y0,float x1,float y1,int32_t ignore,float z,float width,bool stopsProjectiles,bool stopsUnits,int32_t& blocker,std::string&);
     struct UnitCollisionSets {std::vector<std::pair<int32_t,uint64_t>> previous,current;float lastTranslationX=0,lastTranslationY=0;};
     std::map<uint64_t,UnitCollisionSets> unitCollisionSets_; // Unit+0x4f8 mPrevColliding, +0x528 mCurrentlyColliding, +0x410 mLastCollisionTranslation
     std::array<uint64_t,1999> polygonAxisCache_{}; // PolygonCollisionOpt2cefd0 DAT_181a095d0 separating-axis cache
@@ -446,6 +468,8 @@ class ScriptRuntime {
 public:
     hades::AssetStore& currentRoomAssets(){return *assets_;}
     const std::string& currentMapName()const{return mapName_;}
+    // Host diagnostic (--start-map): run the original LeaveRoomWithNoDoor(nil,{ObjectId=hero,NextMap=map}) in a Lua thread.
+    bool requestDiagnosticMapEntry(const std::string& map,std::string& error);
     uint64_t mapRevision()const{return mapRevision_;}
     bool loadTextDefinitions();
     const std::shared_ptr<hades::TextFontBank>& textFonts()const{return textFonts_;}
@@ -526,6 +550,9 @@ public:
     bool roomActivated()const{return roomActivated_;}
     bool fullscreenPresentation(uint32_t&group,bool&drawColor,bool&drawBloom,std::string&error)const;
     const hades::FullscreenBloom& bloom()const{return bloom_;}
+    const hades::RadialBlurState& radialBlur()const{return radialBlur_;}
+    // GameplayScreen::Draw 0x1801b0da2 gate (ConfigOptions::DrawHealthFX) + frame state.
+    hades::VignetteFrameState::Draw vignetteFrame()const{auto d=vignetteFrame_.draw();d.visible=d.visible&&drawHealthFx_;return d;}
     const hades::ColorGrading& colorGrading()const{return colorGrading_;}
     const std::array<float,4>& cameraFadeColor()const{return cameraFade_.color();}
     void registerCameraActions();

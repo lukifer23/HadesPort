@@ -27,7 +27,9 @@
 #include "scene_renderer.hpp"
 #include "color_grading_renderer.hpp"
 #include "bloom_renderer.hpp"
+#include "fullscreen_blur_renderer.hpp"
 #include "android_assets.hpp"
+#include "content_store.hpp"
 #include "game_ui.hpp"
 #include "ui_renderer.hpp"
 #include "touch_controls.hpp"
@@ -48,12 +50,15 @@ class Engine {
     hades::SceneRenderer renderer_;
     hades::ColorGradingRenderer colorGradingRenderer_;
     hades::BloomRenderer bloomRenderer_;
+    hades::FullscreenBlurRenderer blurRenderer_;
     hades::UiRenderer uiRenderer_;
     hades::GameUi ui_;
     std::string settingsPath_;
     std::unique_ptr<ScriptRuntime> scripts_;
     std::shared_ptr<hades::ActorAnimationBank> heroBank_;
-    hades::AndroidAssets assets_;
+    hades::AndroidAssets apkAssets_;
+    // Slim APK bootstrap + versioned external content store (content_store.hpp).
+    hades::ContentAssets assets_;
     std::chrono::steady_clock::time_point lastFrame_ = std::chrono::steady_clock::now();
     hades::TouchControls controls_;
     hades::CameraRig camera_;
@@ -156,7 +161,10 @@ class Engine {
     uint64_t metricFrames_=0;
     std::chrono::steady_clock::time_point interval_ = std::chrono::steady_clock::now();
 public:
-    explicit Engine(android_app* app) : app_(app), assets_(app->activity->assetManager) {
+    explicit Engine(android_app* app) : app_(app), apkAssets_(app->activity->assetManager), assets_(apkAssets_) {
+        {const std::string external=app->activity->externalDataPath?std::string(app->activity->externalDataPath)+"/hades-content":std::string();
+         assets_.configure(external,app->activity->internalDataPath?std::string(app->activity->internalDataPath)+"/content-verified.txt":std::string());
+         INFO("CONTENT_STORE required=%d root=%s id=%s files=%zu",assets_.required(),external.c_str(),assets_.store().id().c_str(),assets_.store().files());}
         if(app->activity->internalDataPath){
             settingsPath_=std::string(app->activity->internalDataPath)+"/native-ui-settings.cfg";
             savesDir_=std::string(app->activity->internalDataPath)+"/Saves";::mkdir(savesDir_.c_str(),0700);
@@ -322,7 +330,7 @@ public:
         if (display_ == EGL_NO_DISPLAY) return;
         if(scripts_)scripts_->stopAudio();
         uiRenderer_.shutdown();
-        colorGradingRenderer_.shutdown();bloomRenderer_.shutdown();
+        colorGradingRenderer_.shutdown();bloomRenderer_.shutdown();blurRenderer_.shutdown();
         renderer_.shutdown();
         if(sceneFbo_){glDeleteFramebuffers(1,&sceneFbo_);glDeleteTextures(1,&sceneColor_);sceneFbo_=sceneColor_=0;sceneW_=sceneH_=0;}hintedCap_=-1;
         sceneReady_=false;loadStage_=LoadStage::Scene;loadSeconds_=0;ui_.loadingProgress=0;ui_.roomReady(false);
@@ -338,14 +346,14 @@ public:
         if(ui_.screen()==hades::UiScreen::Title&&(saveProbe_-=1.f/60)<=0){saveProbe_=1;ui_.saveAvailable=saveExists();}
         if(!ui_.loading())return;
         if(loadStage_==LoadStage::Failed){
-            colorGradingRenderer_.shutdown();bloomRenderer_.shutdown();
+            colorGradingRenderer_.shutdown();bloomRenderer_.shutdown();blurRenderer_.shutdown();
             renderer_.shutdown();sceneReady_=false;
             scripts_.reset();loadStage_=LoadStage::Scene;loadError_.clear();
         }
         const auto started=std::chrono::steady_clock::now();
         const int stage=static_cast<int>(loadStage_);
         try {
-            if(loadStage_==LoadStage::Scene){renderer_.initialize(assets_);renderedMapRevision_=0;sceneReady_=true;loadStage_=LoadStage::Player;}
+            if(loadStage_==LoadStage::Scene){assets_.ensureReady([](uint64_t done,uint64_t total){static uint64_t step=0;if(done/(512ull<<20)!=step){step=done/(512ull<<20);INFO("CONTENT_VERIFY bytes=%llu/%llu",(unsigned long long)done,(unsigned long long)total);}});renderer_.initialize(assets_);renderedMapRevision_=0;sceneReady_=true;loadStage_=LoadStage::Player;}
             else if(loadStage_==LoadStage::Player){
                 if(!heroBank_){heroBank_=std::make_shared<hades::ActorAnimationBank>();heroBank_->load(assets_);}
                 loadStage_=LoadStage::Scripts;
@@ -474,13 +482,15 @@ public:
             if(sourceCamera.initialized)camera_.updateSource(dt,sourceCamera.x+sourceCamera.shakeOffsetX(),sourceCamera.y+sourceCamera.shakeOffsetY(),sourceCamera.zoom,ui_.settings.cameraHeight,controls_.pinching());
             else camera_.update(dt,player->x,player->y,ui_.settings.cameraHeight,ui_.playing(),controls_.pinching());
             uint32_t effectGroup=UINT32_MAX;bool drawColor=false,drawBloom=false;std::string effectError;if(!scripts_->fullscreenPresentation(effectGroup,drawColor,drawBloom,effectError))throw std::runtime_error(effectError);
-            renderer_.setFullscreenEffects(effectGroup,[this,drawColor,drawBloom](int width,int height){if(drawColor)colorGradingRenderer_.render(scripts_->colorGrading(),width,height);bloomRenderer_.render(scripts_->bloom(),drawBloom,width,height);});
+            renderer_.setFullscreenEffects(effectGroup,[this,drawColor,drawBloom](int width,int height){if(drawColor)colorGradingRenderer_.render(scripts_->colorGrading(),width,height);bloomRenderer_.render(scripts_->bloom(),drawBloom,width,height);blurRenderer_.renderRadialBlur(scripts_->radialBlur(),width,height);});
             const auto visuals=scripts_->presentationVisuals();
             const auto rect=sceneRect();
             const float scale=std::clamp(ui_.settings.renderScale,.5f,1.f);const int sw=std::max(1,int(std::lround(rect[2]*scale))),sh=std::max(1,int(std::lround(rect[3]*scale)));
             bindSceneTarget(sw,sh,rect[2]!=width_||rect[3]!=height_);
             renderer_.renderActors(camera_.view(rect[2],rect[3]),sw,sh,visuals.size(),[this,&visuals](size_t i,hades::ActorVisual& visual,std::string& error){return scripts_->samplePresentation(visuals.at(i),visual,error);},animationSeconds_);
             if(scripts_->textFonts())uiRenderer_.renderText(scripts_->textVisuals(),*scripts_->textFonts(),sw,sh,camera_.view(rect[2],rect[3]));
+            // GameplayScreen::Draw 0x1801b0f04: Camera::DrawVignetteFrame over the drawn world.
+            blurRenderer_.renderVignetteFrame(scripts_->vignetteFrame(),sw,sh);
             resolveSceneTarget(sw,sh,rect);
         }else {glViewport(0,0,width_,height_);glClearColor(.012f,.018f,.02f,1);glClear(GL_COLOR_BUFFER_BIT);}
         const float scale=height_/1080.f;

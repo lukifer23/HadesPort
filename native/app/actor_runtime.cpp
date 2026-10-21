@@ -500,6 +500,23 @@ bool ActorWorld::setThingProperty(int32_t n,const std::string& key,const Propert
             return propertiesDirty(n,error);
         }
         const auto type=thingPropertyTypes_.find(key);if(type==thingPropertyTypes_.end()){error="ThingData field/side effect not reconstructed: "+key;return false;}
+        if(key=="CausesOcclusion"){
+            // Thing::SetThingProperty 0x1802e66d0: ReflectionHelper writes
+            // ThingData+0x22e, then (0x1802e6d05..0x1802e6de8) the side effect:
+            // true -> if Thing+8 flags contain 0x121 (APPROXIMATION: a live
+            // registered obstacle), AddToSet(GetRoot(Thing+0x644), 7); false ->
+            // if OcclusionOpacity(+0x238) >= 0, BodyComponent::Adjust 0x1802b7440
+            // on Body+0x320 alpha {target 1, initial 1, OcclusionInterpolateDuration
+            // (+0x23c)} - the same record ObstacleManager::Update 0x1802c98be
+            // builds for an unoccluded group. Then OnPropertiesDirty (vfunc+0x118).
+            const auto* value=currentProperty(n,"Thing.CausesOcclusion");if(!value)throw std::runtime_error("Original ThingData value unavailable: CausesOcclusion");
+            PropertyPrimitive next;if(mutatePrimitiveProperty(PropertyPrimitive{value->boolean()},input,change,next,error)!=PropertyMutation::Applied)return false;
+            const bool on=std::get<bool>(next);a->propertyOverrides["Thing.CausesOcclusion"]=propertyPrimitiveToSource(next);
+            if(on){if(a->definition&&a->definition->kind=="Obstacle"&&a->object&&a->object->alive&&!a->isDisposed){int32_t root=n;for(int guard=0;guard<64;++guard){const auto* r=actor(root);if(!r||!r->parentId||!actor(r->parentId))break;root=r->parentId;}occlusionRootSet.insert(root);}}
+            else{const auto* opacity=currentProperty(n,"Thing.OcclusionOpacity");const auto* duration=currentProperty(n,"Thing.OcclusionInterpolateDuration");if(!opacity||!duration)throw std::runtime_error("Original occlusion ThingData fields unavailable");
+                if(float(opacity->number())>=0.f){BodyTransitionOptions o;o.duration=float(duration->number());if(!adjustColorChannel(n,3,1.f,1.f,o,error))return false;}}
+            return propertiesDirty(n,error);
+        }
         for(const auto* special:{"ParallaxAmount","Graphic","CausesOcclusion","StopsLight","LerpCueParamDistance"})
             if(key==special){error="ThingData mutation requires native side-effect consumer: "+key;return false;}
         const std::string path="Thing."+key;const auto* value=currentProperty(n,path);if(!value)throw std::runtime_error("Original ThingData value unavailable: "+key);

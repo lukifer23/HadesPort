@@ -108,7 +108,8 @@ bool EffectAnimationWorld::advancePrimaryDurations(float seconds,const EffectOwn
  if(inMutation_||faulted_||!std::isfinite(seconds)||seconds<0||seconds>1){error="Invalid/reentrant primary duration phase";return false;}struct Step{uint64_t id;float remaining;};std::vector<Step> steps;
  for(const auto& [id,e]:entities_){const auto* a=registry_->find(id);if(!a||!a->initialized){error="Primary duration actual lifetime unavailable";return false;}if(!e.hasDuration||a->ownership!=AnimationOwnership::ThingPrimary||a->skipUpdate||a->canceled)continue;
   if(e.definition->name!="BatCluster"&&e.definition->name!="BatClusterWait"){error="Unsupported original primary Duration/ChainTo class";return false;}EffectOwnerState owner;if(!owners||!owners(e.ownerId,owner,error)||owner.lifetime!=e.ownerLifetime)return false;
-  const float remaining=e.durationRemaining-seconds;if(remaining<0&&(e.definition->chain!="BatCluster"&&e.definition->chain!="BatClusterWait")){error="Original primary duration ChainTo unavailable";return false;}steps.push_back({id,remaining});}
+  float elapsed=seconds;if(elapsed_&&!elapsed_(e,seconds,elapsed,error))return false;
+  const float remaining=e.durationRemaining-elapsed;if(remaining<0&&(e.definition->chain!="BatCluster"&&e.definition->chain!="BatClusterWait")){error="Original primary duration ChainTo unavailable";return false;}steps.push_back({id,remaining});}
  for(const auto& step:steps){auto& e=entities_.at(step.id);if(step.remaining>=0){e.durationRemaining=step.remaining;continue;}const auto name=e.definition->chain;const auto owner=e.ownerId;const EffectTexture image=*e.texture;uint64_t next=0;
   // Native Thing.SetAnimation creates/initializes replacement before Release
   // of the old primary. Both source classes use the same original arrow atlas.
@@ -147,7 +148,7 @@ bool EffectAnimationWorld::update(float seconds,const EffectOwnerProvider& owner
    if(!d.marker.empty()&&owner.hasPrimaryAnimation){if(!markers){error="Original effect marker provider required: "+d.marker;return false;}if(!markers(e.ownerId,d.marker,location,error))return false;}
    for(float v:location)if(!std::isfinite(v)){error="Non-finite original effect marker/location";return false;}
    float time=e.timeRemaining,distance=e.distanceRemaining,delta=0;
-   if(kind==EffectSpawnerKind::Time)time=std::max(time-seconds,-d.intervalMax);
+   if(kind==EffectSpawnerKind::Time){float elapsed=seconds;if(elapsed_&&!elapsed_(e,seconds,elapsed,error))return false;time=std::max(time-elapsed,-d.intervalMax);}
    else{
     const bool hasPrevious=e.previousVfxLocation[0]!=0||e.previousVfxLocation[1]!=0;
     if(hasPrevious){const float dx=location[0]-e.previousVfxLocation[0],dy=location[1]-e.previousVfxLocation[1];delta=std::min(std::sqrt(dx*dx+dy*dy),1920.f);if(delta>=d.distanceMinChange)distance-=delta;}

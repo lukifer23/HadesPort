@@ -8,7 +8,7 @@ import argparse,collections,hashlib,json,math,shutil,struct
 from pathlib import Path
 from PIL import Image
 from hades_assets import Package,xnb_image,map_objects
-from build_room_scene import Sjson,merge,identity
+from build_room_scene import Sjson,merge,identity,map_packages
 CAMERA_Z_SCALE=math.sqrt(3)/2 # Original gCamRotation/CamRotation X rotation -60deg.
 
 def native_axis_stretch(ob):
@@ -80,7 +80,7 @@ def build(content,base,out):
  if len(visited)!=len(bygroup):raise ValueError('Orphan group')
  groups={g['Id']['Name']:(i,g)for i,g in enumerate(flattened)}
  index=collections.defaultdict(list);paths={}
- for package in ('Tartarus','Fx'):
+ for package in (*map_packages(content,m['room']),'Fx','GUI'):
   man=content/'Win/Packages'/f'{package}.pkg_manifest';paths[package]=content/'Win/Packages'/f'{package}.pkg'
   sources.extend([identity(man),identity(paths[package])])
   for a in Package(man).entries():
@@ -143,11 +143,15 @@ def build(content,base,out):
    t={'index':len(textures),'width':fr['width'],'height':fr['height'],'rgba_path':fr['rgba_path'],'png':fr['png'],'sha256':fr['sha256'],'graphic':fr['graphic'],'atlas':fr['atlas'],'atlas_rect':fr['sprite']['rect'],'clip':key};textures.append(t)
   s=fr['sprite'];ratio=s['scale_ratio'];scale=ob['Scale']*rec['obstacle_thing'].get('Scale',1)*clip['definition'].get('Scale',1);w,h=fr['width'],fr['height'];trim=s['trim'];original=s['original'];a=clip['definition'];origin=[a.get('OriginX',original[0]/2),a.get('OriginY',original[1]/2)]
   ox,oy=atlas_center(s,origin,ob['FlipHorizontal'],ob['FlipVertical'])
-  if a.get('OffsetX',0)or a.get('OffsetY',0):raise ValueError('Explicit Animation.Offset needs separately verified native scale/call ordering')
-  offset=rec['obstacle_thing'].get('Offset',{});body_scale=ob['Scale']*rec['obstacle_thing'].get('Scale',1);anchor=[ob['Location']['X']+offset.get('X',0)*body_scale,ob['Location']['Y']+offset.get('Y',0)*body_scale-ob['OffsetZ']*CAMERA_Z_SCALE];ox*=scale;oy*=scale
+  offset=rec['obstacle_thing'].get('Offset',{});body_scale=ob['Scale']*rec['obstacle_thing'].get('Scale',1)
+  # Animation.GetDrawLocation 0x180297d60: source draw OffsetX/Y (Animation+90)
+  # is added unrotated, scaled by the attached Body scale only (not the
+  # animation's own Scale), the same contract action_effect.cpp consumes.
+  draw_offset=[a.get('OffsetX',0)*body_scale,a.get('OffsetY',0)*body_scale]
+  anchor=[ob['Location']['X']+offset.get('X',0)*body_scale+draw_offset[0],ob['Location']['Y']+offset.get('Y',0)*body_scale+draw_offset[1]-ob['OffsetZ']*CAMERA_Z_SCALE];ox*=scale;oy*=scale
   angle=math.radians(ob['Angle']);c,ss=math.cos(angle),math.sin(angle);cx=anchor[0]+ox*c-oy*ss;cy=anchor[1]+ox*ss+oy*c;sw,sh=w*ratio[0]*scale,h*ratio[1]*scale
   row=[t['index'],cx,cy,sw,sh,1. if ob['FlipHorizontal']else 0.,1. if ob['FlipVertical']else 0.,0. if ob['FlipHorizontal']else 1.,0. if ob['FlipVertical']else 1.,angle,ob['Color'][3]/255]
-  sprites.append({'object_id':ob['Id'],'name':ob['Name'],'graphic':rec['graphic'],'group_names':ob['GroupNames'],'source_layer':min((groups[g][0]for g in ob['GroupNames']if g in groups),default=999),'draw':row,'draw_anchor':anchor,'native_transform_profile':'v5','color_rgba':ob['Color'],'angle_degrees':ob['Angle'],'skew_angle':ob['SkewAngle'],'skew_scale':ob['SkewScale'],'animation':key,'source_pivot':{'trim':trim,'original':original,'origin':origin,'scale_ratio':ratio,'frame_rect':s['rect'],'flags':s['flags']}})
+  sprites.append({'object_id':ob['Id'],'name':ob['Name'],'graphic':rec['graphic'],'group_names':ob['GroupNames'],'source_layer':min((groups[g][0]for g in ob['GroupNames']if g in groups),default=999),'draw':row,'draw_anchor':anchor,'native_transform_profile':'v5','color_rgba':ob['Color'],'angle_degrees':ob['Angle'],'skew_angle':ob['SkewAngle'],'skew_scale':ob['SkewScale'],'animation':key,'source_pivot':{'trim':trim,'original':original,'origin':origin,'scale_ratio':ratio,'frame_rect':s['rect'],'flags':s['flags']},**({'animation_draw_offset':draw_offset}if draw_offset[0]or draw_offset[1]else{})})
  for s in sprites:
   ob=object_index[s['object_id']]['object'];anim=clips.get(s.get('animation'),{}).get('definition',{});n,cx,cy,w,h,u0,v0,u1,v1,angle,alpha=s['draw'];c,ss=math.cos(angle),math.sin(angle);sx,sy=anim.get('PostRotateScaleX',1),anim.get('PostRotateScaleY',1)
   # World anchor is preserved for post-rotation scale, including trimmed pivot.

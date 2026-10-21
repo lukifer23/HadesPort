@@ -70,6 +70,22 @@ bool ScriptRuntime::actorMotionActionImpl(lua_State*L,int mode,std::string&error
  }
  // Screen (UseScreenLocation) obstacles are not ActorWorld actors: Move takes
  // the Obstacle::MoveTo screen branch; other modes fail rather than no-op.
+ // Teleport of screen (GameUI) obstacles: runWithDestination25eea0 passes
+ // check=false, so Obstacle::TeleportTo VA1802c3ab0 goes straight to
+ // ShiftLocationWithChildren2c3510(target - location). Portable screen bodies
+ // carry no structural children, so the shift is the body location itself.
+ if(mode==0){std::vector<int32_t> screenSources;bool world=false;
+  for(const char*k:{"Id","Ids"})if(const auto*p=args.get(k)){const auto add=[&](const hades::SourceValue&v){const double n=v.number();if(!std::isfinite(n)||n<INT32_MIN||n>INT32_MAX)return;const auto*o=findObjectSnapshot(L,int32_t(n));if(o&&o->screenSpace)screenSources.push_back(int32_t(n));else world=true;};if(std::string(k)=="Id")add(*p);else for(const auto&v:p->array())add(v);}
+  if(!screenSources.empty()){
+   if(world)throw std::runtime_error("Native Teleport mixed screen/world source selection not reconstructed");
+   for(const auto*k:{"Name","Names","DestinationName","DestinationNames","RelativeOffsetId"})if(args.get(k))throw std::runtime_error(std::string("Native screen Teleport argument not reconstructed: ")+k);
+   for(const auto*k:{"DestinationIsScreenRelative","UseCurrentLocation","KeepRelativeOffsets","ShiftThingsByOffset"})if(motionFlag(args,k))throw std::runtime_error(std::string("Uncovered native screen Teleport branch: ")+k);
+   std::vector<const ObjectSnapshot*> dests;for(const char*k:{"DestinationId","DestinationIds"})if(const auto*p=args.get(k)){const auto add=[&](const hades::SourceValue&v){const auto*o=findObjectSnapshot(L,int32_t(v.number()));if(!o)return;if(!o->screenSpace)throw std::runtime_error("Native screen Teleport toward world Thing not reconstructed");dests.push_back(o);};if(std::string(k)=="DestinationId")add(*p);else for(const auto&v:p->array())add(v);}
+   if(dests.empty()&&motionFlag(args,"OnlyIfDestinationExits")){error.clear();return true;}
+   float x=motionNumber(args,"OffsetX"),y=motionNumber(args,"OffsetY");
+   if(!dests.empty()){float sx=0,sy=0;for(const auto*o:dests){sx+=o->x;sy+=o->y;}x+=sx/float(dests.size());y+=sy/float(dests.size());}
+   for(const auto id:screenSources){auto*s=screenAnimations_.thing(id);if(!s||s->dead||!s->body)continue;if(s->body->x==x&&s->body->y==y)continue;s->body->x=x;s->body->y=y;s->body->graphicsDirty=true;}
+   error.clear();return true;}}
  {bool screen=false;if(mode==2){if(!screenMoveImpl(args,screen,error))return false;if(screen){error.clear();return true;}}
   else for(const char*k:{"Id","Ids"})if(const auto*p=args.get(k)){const auto check=[&](const hades::SourceValue&v){const auto*o=findObjectSnapshot(L,int32_t(v.number()));if(o&&o->screenSpace)throw std::runtime_error("Native screen Thing motion action not reconstructed");};if(std::string(k)=="Id")check(*p);else for(const auto&v:p->array())check(v);}}
  const auto select=[&](const char*single,const char*plural){std::vector<int32_t>out;const auto add=[&](const hades::SourceValue&v){const int32_t id=motionId(v);const auto*a=actorWorld_.actor(id);if(a&&a->registered&&a->object)out.push_back(id);};if(const auto*p=args.get(single))add(*p);if(const auto*p=args.get(plural))for(const auto&v:p->array())add(v);std::sort(out.begin(),out.end());out.erase(std::unique(out.begin(),out.end()),out.end());return out;};
@@ -89,7 +105,7 @@ bool ScriptRuntime::actorMotionActionImpl(lua_State*L,int mode,std::string&error
   for(auto id:sources){auto*a=actorWorld_.actor(id);const bool unit=a->definition&&a->definition->kind=="Unit";
    if(unit&&mode==6){auto&body=*a->object;auto&movement=localMovement_[a->entityHandle];
     if(motionFlag(args,"CompleteAngle")){if(!actorWorld_.setAngle(id,radians,error))return false;movement.cosmeticAngle=movement.cosmeticAngleTarget=radians;}
-    else if(const auto*sound=actorWorld_.currentProperty(id,"Unit.RotationSound");sound&&std::holds_alternative<std::string>(sound->value)&&!sound->text().empty())throw std::runtime_error("Unit::SetGoalAngle RotationSound not reconstructed");
+    else if(!unitGoalAngleSound(id,radians,error))return false;
     if(!movement.initialized){movement.initialized=true;movement.lastMoveStartX=body.x;movement.lastMoveStartY=body.y;}
     movement.goalAngle=radians;continue;}
    if(unit&&!actorWorld_.setAngle(id,radians,error))return false;
@@ -125,7 +141,7 @@ bool ScriptRuntime::actorMotionActionImpl(lua_State*L,int mode,std::string&error
  // Obstacle::MoveTo 0x2c5bf0; the remaining (Unit) sources keep the Unit path.
  if(mode==2){std::vector<int32_t> obstacles,others;for(auto id:sources){const auto*a=actorWorld_.actor(id);(a->definition&&a->definition->kind=="Obstacle"?obstacles:others).push_back(id);}
   if(!obstacles.empty()){if(!obstacleMoveImpl(args,sources,obstacles,targets,error))return false;sources=std::move(others);if(sources.empty()){error.clear();return true;}}}
- if(mode==2||mode==4){if(targets.empty()){error.clear();return true;}for(const auto*k:{"Name","Names","DestinationName","DestinationNames","LiveOffsetFromId","LiveOffsetDistance","LiveOffsetAngle","Duration","EaseIn","EaseOut","SmoothStep","Speed","Distance","Angle","TimeModifierFraction","DestinationIsScreenRelative"})if(args.get(k)&&!(mode==4&&(std::string_view(k)=="Duration"||std::string_view(k)=="EaseIn"||std::string_view(k)=="EaseOut"||std::string_view(k)=="SmoothStep")))throw std::runtime_error(std::string("Uncovered selected native motion argument: ")+k);float x=motionNumber(args,"OffsetX"),y=motionNumber(args,"OffsetY"),sumX=0,sumY=0;for(auto id:targets){float tx=0,ty=0;if(!actorWorld_.location(id,tx,ty,error))return false;sumX+=tx;sumY+=ty;}x+=sumX/targets.size();y+=sumY/targets.size();for(auto id:sources){auto*a=actorWorld_.actor(id);if(mode==4&&!(a->definition&&a->definition->kind=="Unit"))continue;if(a->definition->kind!="Unit"||a->attachedParent)throw std::runtime_error("Script Unit target requires unparented actual Unit");auto&move=localMovement_[a->entityHandle];if(!move.initialized){move.initialized=true;move.goalAngle=move.cosmeticAngle=move.cosmeticAngleTarget=a->object->angle;move.lastMoveStartX=a->object->x;move.lastMoveStartY=a->object->y;}if(mode==2){
+ if(mode==2||mode==4){if(targets.empty()){error.clear();return true;}for(const auto*k:{"Name","Names","DestinationName","DestinationNames","Duration","EaseIn","EaseOut","SmoothStep","Speed","Distance","Angle","TimeModifierFraction","DestinationIsScreenRelative"})if(args.get(k)&&!(mode==4&&(std::string_view(k)=="Duration"||std::string_view(k)=="EaseIn"||std::string_view(k)=="EaseOut"||std::string_view(k)=="SmoothStep")))throw std::runtime_error(std::string("Uncovered selected native motion argument: ")+k);float x=motionNumber(args,"OffsetX"),y=motionNumber(args,"OffsetY"),sumX=0,sumY=0;for(auto id:targets){float tx=0,ty=0;if(!actorWorld_.location(id,tx,ty,error))return false;sumX+=tx;sumY+=ty;}x+=sumX/targets.size();y+=sumY/targets.size();for(auto id:sources){auto*a=actorWorld_.actor(id);if(mode==4&&!(a->definition&&a->definition->kind=="Unit"))continue;if(a->definition->kind!="Unit"||a->attachedParent)throw std::runtime_error("Script Unit target requires unparented actual Unit");auto&move=localMovement_[a->entityHandle];if(!move.initialized){move.initialized=true;move.goalAngle=move.cosmeticAngle=move.cosmeticAngleTarget=a->object->angle;move.lastMoveStartX=a->object->x;move.lastMoveStartY=a->object->y;}if(mode==2){
  const auto* sourceMode=args.get("Mode");const bool precise=sourceMode&&strcasecmp(sourceMode->text().c_str(),"Precise")==0;
  hades::ActorMoveOrder order{id,a->entityHandle,x,y,precise,{},{}};
  order.path.repathRemaining=actorMotion_.pathRepathDelays[a->entityHandle];
@@ -136,18 +152,33 @@ bool ScriptRuntime::actorMotionActionImpl(lua_State*L,int mode,std::string&error
   const auto num=[&](const char*k,float fallback){return ai?motionNumber(*ai,k,fallback):fallback;};
   const auto flag=[&](const char*k,bool fallback){return ai?motionFlag(*ai,k,fallback):fallback;};
   for(const auto*k:{"StayOnCamera","FinishAtGoal","RequiresLoS"})if(flag(k,false))throw std::runtime_error(std::string("Native default Move data branch not reconstructed: ")+k);
-  if(ai&&ai->get("OnFailBehavior"))throw std::runtime_error("Native authored MoveAI OnFailBehavior parser not reconstructed");
+  if(ai)if(const auto* fail=ai->get("OnFailBehavior")){
+   // MoveAIDataDef reader VA1800d3a31..3a91: exact strcmp, nonmatching text -> 0.
+   if(!std::holds_alternative<std::string>(fail->value))throw std::runtime_error("Native MoveAI OnFailBehavior requires source enum text");
+   const auto& t=fail->text();c.onFailBehavior=t=="GOTO_NEAREST_TO_GOAL"?0:(t=="GOTO_LAST_NODE_FILLED"?1:0);}
   if(ai&&ai->get("Algorithm"))throw std::runtime_error("Native authored MoveAI Algorithm parser not reconstructed");
-  if(num("AlternateNodeDistance",0)!=0||num("NodeSuccessDistanceRequiresLoS",0)!=0||num("TargetHeadingShift",0)!=0)throw std::runtime_error("Native alternate/LOS/heading path state not reconstructed");
+  if(num("AlternateNodeDistance",0)!=0||num("NodeSuccessDistanceRequiresLoS",0)!=0)throw std::runtime_error("Native alternate/LOS path state not reconstructed");
+  order.targetHeadingShift=num("TargetHeadingShift",0);
   c.nodeDistance=num("NodeDistance",c.nodeDistance);c.nodeSuccessDistance=num("NodeSuccessDistance",c.nodeSuccessDistance);c.lookAheadDistance=num("LookAheadDistance",c.lookAheadDistance);c.lookAheadMultiplier=motionNumber(args,"LookAheadMultiplier",1.f);
-  c.successDistance=num("SuccessDistance",c.successDistance);if(motionNumber(args,"SuccessDistance")>0)c.successDistance=motionNumber(args,"SuccessDistance");if(precise)c.successDistance=32.f;
+  c.successDistance=num("SuccessDistance",c.successDistance);
+  if(motionNumber(args,"SuccessDistance")>0)actorMotion_.successDistanceOverrides[a->entityHandle]=motionNumber(args,"SuccessDistance");
+  if(const auto o=actorMotion_.successDistanceOverrides.find(a->entityHandle);o!=actorMotion_.successDistanceOverrides.end())c.successDistance=o->second;
+  if(precise)c.successDistance=32.f;
+  // VA180274a1b..a77: LiveOffsetFromId (Int), LiveOffsetDistance, LiveOffsetAngle
+  // (degrees -> radians in double) are rewritten on every Unit Move.
+  {const double from=motionNumber(args,"LiveOffsetFromId");order.liveOffsetFromId=from>=INT32_MIN&&from<=INT32_MAX?int32_t(from):0;}
+  order.liveOffsetDistance=motionNumber(args,"LiveOffsetDistance");order.liveOffsetAngle=float(double(motionNumber(args,"LiveOffsetAngle"))*0.017453292519943295);
+  // VA1802748ac..b0: only the first source receives the first destination
+  // Thing (native hash order; portable sorted order is an approximation for
+  // multi-destination calls). SetTarget then tracks that Thing's live location.
+  if(sources.front()==id&&!targets.empty()){const auto* t=actorWorld_.actor(targets.front());if(t&&t->registered&&t->object){order.targetId=t->id;order.targetLifetime=t->entityHandle;}}
   c.moveWithoutPath=flag("MoveWithoutPath",false);c.avoidLocationDistance=num("AvoidLocationDistance",0);
   c.repathDelayMin=num("RepathDelayMin",c.repathDelayMin);c.repathDelayMax=num("RepathDelayMax",c.repathDelayMax);c.repathTargetMoveDistance=num("RepathTargetMoveDistance",c.repathTargetMoveDistance);c.stopToRotate=flag("StopToRotate",c.stopToRotate);c.slowToRotate=flag("SlowToRotate",c.slowToRotate);
   if(ai&&ai->get("NodeCountLimit"))c.nodeCountLimit=int32_t(motionNumber(*ai,"NodeCountLimit"));if(ai&&ai->get("SkippedNodeLimit"))c.skippedNodeLimit=int32_t(motionNumber(*ai,"SkippedNodeLimit"));
   if(c.repathTargetMoveDistance<0||c.repathDelayMin<0||c.repathDelayMax<c.repathDelayMin)throw std::runtime_error("Native default Move repath bounds");
  }
  if(x!=0||y!=0)actorMotion_.moves[a->entityHandle]=std::move(order);
-}else{constexpr float tau=6.2831854820251465f;const float raw=std::atan2(-(y-a->object->y),x-a->object->x),angle=raw-std::floor(raw/tau)*tau;move.goalAngle=angle;if(motionFlag(args,"CompleteAngle")){move.cosmeticAngle=move.cosmeticAngleTarget=angle;if(!actorWorld_.setAngle(id,angle,error))return false;}}}error.clear();return true;}
+}else{constexpr float tau=6.2831854820251465f;const float raw=std::atan2(-(y-a->object->y),x-a->object->x),angle=raw-std::floor(raw/tau)*tau;if(!motionFlag(args,"CompleteAngle")&&!unitGoalAngleSound(id,angle,error))return false;move.goalAngle=angle;if(motionFlag(args,"CompleteAngle")){move.cosmeticAngle=move.cosmeticAngleTarget=angle;if(!actorWorld_.setAngle(id,angle,error))return false;}}}error.clear();return true;}
  if(mode!=0)throw std::runtime_error("Unknown original script motion action");
  for(const auto*k:{"Name","Names","DestinationName","DestinationNames"})if(args.get(k))throw std::runtime_error("Native Teleport name selection requires actual name-query provider");
  for(const auto*k:{"DestinationIsScreenRelative","UseCurrentLocation","KeepRelativeOffsets","ShiftThingsByOffset"})if(motionFlag(args,k))throw std::runtime_error(std::string("Uncovered native Teleport branch: ")+k);
@@ -207,6 +238,23 @@ bool ScriptRuntime::advanceActorMotion(float dt,std::string&error){try{
  const auto boolean=[&](int32_t id,const char*k){const auto*p=actorWorld_.currentProperty(id,k);if(!p)throw std::runtime_error(std::string("Script Move actual flag unavailable: ")+k);return p->boolean();};
  for(auto i=actorMotion_.moves.begin();i!=actorMotion_.moves.end();){auto& order=i->second;auto*a=actorWorld_.actor(order.ownerId);if(!a||!a->registered||a->entityHandle!=order.lifetime||!a->object||!a->object->alive){i=actorMotion_.moves.erase(i);continue;}
   float x=0,y=0;if(!actorWorld_.location(a->id,x,y,error))return false;auto& move=localMovement_[a->entityHandle];
+  // MoveAI::CalcGoalLocation VA1802e8960: Target::GetLocation2ebc40 (live Thing
+  // location while it is in the World, else the stored location), then with a
+  // target Thing: +TargetHeadingShift along its body angle, and LiveOffsetFromId
+  // > 0 adds Distance at wrap(wrap(atan2(-(t.y-f.y), t.x-f.x)) + Angle).
+  // APPROXIMATION: a removed target keeps the computed Move location here;
+  // native keeps the Target's previous location field.
+  if(order.targetId){const auto* t=actorWorld_.actor(order.targetId);
+   if(t&&t->registered&&t->object&&t->entityHandle==order.targetLifetime){
+    float gx=0,gy=0;if(!actorWorld_.location(t->id,gx,gy,error))return false;
+    if(order.targetHeadingShift>0){gx+=std::cos(t->object->angle)*order.targetHeadingShift;gy+=-(std::sin(t->object->angle)*order.targetHeadingShift);}
+    if(order.liveOffsetFromId>0){const auto* f=actorWorld_.actor(order.liveOffsetFromId);
+     if(f&&f->registered&&f->object&&f->object->active){float fx=0,fy=0;if(!actorWorld_.location(f->id,fx,fy,error))return false;
+      constexpr float tau=6.2831855f;
+      float tlx=0,tly=0;if(!actorWorld_.location(t->id,tlx,tly,error))return false;
+      float angle=std::atan2((tly-fy)*-1.f,tlx-fx);angle-=std::floor(angle/tau)*tau;angle+=order.liveOffsetAngle;angle-=std::floor(angle/tau)*tau;
+      gx+=std::cos(angle)*order.liveOffsetDistance;gy+=-(std::sin(angle)*order.liveOffsetDistance);}}
+    order.goalX=gx;order.goalY=gy;}}
   // Same strict success check as default Move; precise changes only its
   // radius to 32 (FindPath VA1802e8da0..2e8e27), before CalcPath and RNG.
   const float goalDx=order.goalX-x,goalDy=order.goalY-y;
@@ -262,9 +310,10 @@ bool ScriptRuntime::advanceActorMotion(float dt,std::string&error){try{
    bool rotateOnly=c.stopToRotate&&difference>.0001f;
    if(!c.slowToRotate)fraction=1;
    else if(step<=distance&&maximum>0){float rotation=number(a->id,"RotationSpeed");if(a->status)for(const auto handle:a->status->snapshot().pending){const auto* effect=selfEffects_.effectData(handle,error);if(!effect)return false;const auto multiplier=effect->fields.find("RotationMultiplier");if(multiplier==effect->fields.end())throw std::runtime_error("Native MoveAI pending rotation modifier unavailable");rotation*=float(std::get<double>(multiplier->second));}rotateOnly=rotateOnly||(rotation>0&&difference/rotation>distance/maximum*.5f);}
-   if(rotateOnly){move.goalAngle=angle;order.path.rotationPending=true;++i;continue;}
+   if(rotateOnly){if(!unitGoalAngleSound(a->id,angle,error))return false;move.goalAngle=angle;order.path.rotationPending=true;++i;continue;}
   }
   if(directFallback)fraction=1;
+  if(!unitGoalAngleSound(a->id,angle,error))return false;
   move.goalAngle=angle;
   // ApplyDirectForce 0x1802bcffb multiplies ThingData+0x1fc = mSpinFactor (Thing.SpinFactor); no ImpactRotation field exists. Evidence: .local/reports/native-impact-rotation-default-recovery.json
   hades::PhysicsForceOwner force;force.impactRotation=number(a->id,"Thing.SpinFactor");hades::PhysicsForceCallbacks callbacks;callbacks.onForce=[this,a](float,std::string&detail){return onActorForce(a->id,true,detail);};callbacks.addComponent=[a](std::string&){a->physicsPending=true;return true;};
@@ -344,3 +393,37 @@ bool ScriptRuntime::shiftObstacleWithChildren(int32_t root,float dx,float dy,std
  }
  error.clear();return true;
  }catch(const std::exception&e){error=e.what();return false;}}
+
+// Unit::SetGoalAngle VA1802f85f0 sound tail (.local/reports/combat-SetGoalAngle-static.json):
+// ThingData RotationSoundThreshold(+0x138, read in degrees x pi/180 by reader
+// VA180205cf0) > 0 && Unit::CanRotate2f6050 -> wrapped |body angle - goal|
+// (shorter way round) > threshold plays RotationSound(+0x110) through
+// PlayCue3D4a690(owner=Unit, empty parameters, play=true).
+// CanRotate: primary DisableRotation, GetRotationSpeed>0 (RotationSpeed times
+// pending RotationMultiplier, as Unit.MoveInput uses), rotate timer <= 0, and no
+// pending/active effect with DisableRotate.
+bool ScriptRuntime::unitGoalAngleSound(int32_t id,float goal,std::string& error){try{
+ auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->object||!a->definition||a->definition->kind!="Unit")throw std::runtime_error("SetGoalAngle requires actual Unit");
+ const auto* thresholdValue=actorWorld_.currentProperty(id,"Thing.RotationSoundThreshold");if(!thresholdValue)throw std::runtime_error("SetGoalAngle RotationSoundThreshold unavailable");
+ const float threshold=float(double(thresholdValue->number())*0.017453292519943295);
+ if(!(threshold>0)){error.clear();return true;}
+ bool canRotate=true;
+ if(a->animation.active())canRotate=!(a->animation.clip()->flags&hades::ActorDisableRotation);
+ else if(a->primaryAnimationLifetime||a->primaryEffectAnimation)throw std::runtime_error("SetGoalAngle CanRotate non-HAA primary DisableRotation not reconstructed");
+ float rotation=0;{const auto* r=actorWorld_.currentProperty(id,"RotationSpeed");if(!r)throw std::runtime_error("SetGoalAngle RotationSpeed unavailable");rotation=float(r->number());}
+ if(a->status){const auto st=a->status->snapshot();
+  for(const auto h:st.pending){const auto* d=selfEffects_.effectData(h,error);if(!d)return false;const auto dis=d->fields.find("DisableRotate"),mul=d->fields.find("RotationMultiplier");if(dis==d->fields.end()||mul==d->fields.end())throw std::runtime_error("SetGoalAngle pending rotation effect fields unavailable");if(std::get<bool>(dis->second))canRotate=false;rotation*=float(std::get<double>(mul->second));}
+  for(const auto h:st.active){const auto* d=selfEffects_.effectData(h,error);if(!d)return false;const auto dis=d->fields.find("DisableRotate");if(dis==d->fields.end())throw std::runtime_error("SetGoalAngle active rotation effect fields unavailable");if(std::get<bool>(dis->second))canRotate=false;}
+  if(a->status->timers.rotate>0)canRotate=false;}
+ if(!(rotation>0))canRotate=false;
+ if(!canRotate){error.clear();return true;}
+ constexpr float tau=6.2831855f;
+ float body=a->object->angle;body-=std::floor(body/tau)*tau;float g=goal-std::floor(goal/tau)*tau;
+ const float lo=std::min(g,body),hi=std::max(g,body);float diff=hi-lo;diff=std::min(tau-diff,diff);
+ if(!(diff>threshold)){error.clear();return true;}
+ const auto* sound=actorWorld_.currentProperty(id,"Thing.RotationSound");if(!sound)throw std::runtime_error("SetGoalAngle RotationSound unavailable");
+ std::string cue;if(std::holds_alternative<std::string>(sound->value))cue=sound->text();else if(const auto* n=sound->get("name"))cue=n->text();
+ if(cue.empty()||cue=="null"){error.clear();return true;}
+ float x=0,y=0,z=0;uint32_t channel=0;if(!actorWorld_.location(id,x,y,error)||!actorWorld_.zLocation(id,z,error))return false;
+ return playAudioCue(cue,id,{x,y,z},channel,error);
+ }catch(const std::exception& e){error=e.what();return false;}}

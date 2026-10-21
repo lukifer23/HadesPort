@@ -14,7 +14,14 @@ def export(a):
  # Derived from this room's map primary spawners (registry first-appearance
  # order); RoomOpening reproduces the previously reviewed Dust/Bat/Ember set.
  names=list(dict.fromkeys(x['name'] for x in registry['map_primary_spawners']))
- if not names:raise ValueError('Room has no map primary spawners')
+ if not names:
+  # A map without primary spawners (e.g. A_Combat02) loads the world spawner
+  # catalog alone: no PrimaryRecipes, no spawner bank (lua_runtime.cpp loads
+  # spawner-frames.bin only for PrimaryRecipes). Nothing is substituted.
+  a.output.mkdir(parents=True);catalog['Definitions'].update(rows)
+  (a.output/'effects.lua').write_text('return '+lua(catalog)+'\n');(a.output/'catalog.json').write_text(json.dumps(catalog,indent=2)+'\n')
+  report={'schema':'hades-original-room-spawner-assets-v1','registry':identity(a.registry),'source_catalog':identity(a.laurel),'packet':None,'lua':identity(a.output/'effects.lua'),'catalog':identity(a.output/'catalog.json'),'graphics':[],'source_manifests':[],'source_payloads':[],'limits':['Room has no map primary spawners; no spawner bank exported.']}
+  (a.output/'manifest.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps({'lua':report['lua'],'recipes':0}));return
  wanted={rows[n]['FilePath'] for n in names};matches={};manifests=[]
  # Exact namespaces already loaded for this room. Do not select arbitrary
  # duplicates from unrelated packages or replace a missing graphic.

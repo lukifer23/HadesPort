@@ -43,6 +43,7 @@ target_link_directories(hades-debug PRIVATE /opt/homebrew/lib)
 target_link_libraries(hades-debug PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../.local/tools/vgmstream-db77f98f/build/src/libvgmstream.a vorbisfile vorbis ogg m)
 
 target_sources(hades-debug PRIVATE ../app/lua_audio.cpp)
+target_sources(hades-debug PRIVATE ../app/content_store.cpp)
 
 target_sources(hades-debug PRIVATE ../app/lua_vfx.cpp)
 target_sources(hades-debug PRIVATE ${HADES_MAP_SOURCE})
@@ -64,7 +65,7 @@ target_sources(hades-debug PRIVATE ../app/lua_actor_motion.cpp ../app/unit_path.
 
 target_sources(hades-debug PRIVATE ../app/scene_primary.cpp ../app/lua_primaries.cpp ../app/scene_animation.cpp)
 
-target_sources(hades-debug PRIVATE ../app/lua_combat.cpp ../app/actor_lifecycle.cpp)
+target_sources(hades-debug PRIVATE ../app/lua_combat.cpp ../app/actor_lifecycle.cpp ../app/life_take_hit.cpp)
 
 target_sources(hades-debug PRIVATE ../app/lua_physics.cpp ../app/self_effect_world.cpp)
 
@@ -96,6 +97,7 @@ target_sources(hades-debug PRIVATE ../app/color_grading_renderer.cpp)
 endif()
 
 target_sources(hades-debug PRIVATE ../app/bloom_state.cpp ../app/lua_bloom.cpp ../app/bloom_renderer.cpp)
+target_sources(hades-debug PRIVATE ../app/fullscreen_blur.cpp ../app/lua_fullscreen_blur.cpp ../app/fullscreen_blur_renderer.cpp)
 
 # Original save pipeline (save agent): pinned Luabins 0.3 serializer and LZ4 1.9.4
 # block codec from scripts/prepare_native_dependencies.py.

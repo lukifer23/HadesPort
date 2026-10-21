@@ -97,6 +97,10 @@ struct EffectEmissionProvider {
     std::function<bool(const EffectSpawnRequest&,uint64_t&,std::string&)> create;
     std::function<bool(uint64_t)> alive;
 };
+// Per-entity ModifiedTime adapter (TimeModifierSystem 0x188ae0): converts the
+// world-scaled frame delta into this animation entity's own elapsed time from
+// its source TimeModifierFraction and AttachedToTimeMultiplier owner link.
+using EffectElapsedProvider=std::function<bool(const EffectAnimationEntity&,float,float&,std::string&)>;
 struct EffectPrimaryReplacement {int32_t ownerId=0;uint64_t previous=0,current=0;std::string name;};
 class EffectAnimationWorld {
     std::map<std::string,EffectDefinition> definitions_;
@@ -117,6 +121,10 @@ private:
         const EffectAnimationRandom&,std::map<uint64_t,EffectAnimationEntity>&,uint64_t&,std::string&,
         AnimationOwnership rootOwnership=AnimationOwnership::ManagerCreate,const EffectTexture* primaryTexture=nullptr);
 public:
+    EffectElapsedProvider elapsed_;
+public:
+    // Absent provider = world delta for every entity (native defaults only).
+    void setElapsedProvider(EffectElapsedProvider provider){elapsed_=std::move(provider);}
     bool setRegistry(std::shared_ptr<AnimationRegistry>,std::string&);
     const std::shared_ptr<AnimationRegistry>& registry()const{return registry_;}
     bool loadCatalog(SourceValue,std::string&);

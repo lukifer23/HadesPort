@@ -8,7 +8,7 @@ from export_actor_catalog import literal
 from export_audio_evidence import wav_metadata
 ROOT=Path(__file__).resolve().parents[2]
 
-def export(content,decoder,output,cues,max_pcm_bytes=32*1024*1024,coverage=None):
+def export(content,decoder,output,cues,max_pcm_bytes=32*1024*1024,coverage=None,exclude=()):
     content=content.resolve();decoder=decoder.resolve()
     if output.exists() or output.is_symlink():raise ValueError('Voice output must be new')
     output=output.resolve()
@@ -30,7 +30,9 @@ def export(content,decoder,output,cues,max_pcm_bytes=32*1024*1024,coverage=None)
         # Derived voice set (audio_coverage.py): every in-scope VO.fsb cue.
         raw,coverage_identity=read_original(coverage);report=json.loads(raw)
         if report['schema']!='hades-audio-coverage-v1':raise ValueError('Expected audio coverage report')
-        cues=list(cues)+[c for c,r in sorted(report['cues'].items())if r['kind']=='programmer_voice'and c not in cues]
+        done=set()
+        for path in exclude:done.update(json.loads(read_original(path)[0])['events'])
+        cues=list(cues)+[c for c,r in sorted(report['cues'].items())if r['kind']=='programmer_voice'and c not in cues and c not in done]
     for cue in cues:
         if not cue.startswith('/VO/') or '/' in cue[4:]:raise ValueError('This bounded export accepts direct /VO/sample only')
         name=cue[4:].lower()

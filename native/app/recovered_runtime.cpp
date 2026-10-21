@@ -140,6 +140,7 @@ int getConfigDefault(lua_State* state) {
         {"AllowStripRequirements", false}, // RVA0x10930
         {"DrawColorGrading", true}, // Source initializer18000f670 writes true at181a0f298.
         {"DrawBloom", true}, // RVA0xf4e0
+        {"DrawHealthFX", true}, // initializer RVA0xea80: movb $1 at 0x18000eaf0 -> 0x181a0f035 (GameplayScreen::Draw vignette gate)
         {"DumpRunStatsOnLoad", false}, // RVA0x9b50
         {"EditingMode", false}, // RVA0xbb30
         {"EnableConsoleMenus", false}, // RVA0x12af0

@@ -57,7 +57,12 @@ TARGET = 'd98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254'
 # LoadPackages{Name=lootName}, Combat.lua:3742 EquipWeapon LoadPackages).
 BASE_PACKAGES = ['Fx', 'GUI', 'RoomManager', 'Dev', 'Tartarus']
 ROOMS = re.compile(r'^(RoomOpening|RoomSimple01|A_Combat\d+[AB]?)$')
-LOOT = ['AthenaUpgrade']
+LOOT = ['AthenaUpgrade']                      # arsenal edges only (GodUpgradeWeaponSwap); rewards are derived below
+# Reward closure (Coverage.reward_objects): every LootData record that is an
+# original spawnable obstacle (RoomManager.lua:2785 SpawnObstacle Name=lootData.Name:
+# gods, Hammer WeaponUpgrade, Pom StackUpgrade, Hermes, Chaos TrialUpgrade) and
+# every RewardStoreData / ConsumableData reward drop name that is an obstacle
+# (money, Centaur heart, Darkness, keys, gems, ...). No room or god names here.
 HERO_SET = 'SwordWeapon'                      # WeaponSets.lua HeroWeaponSets (fresh save)
 HERO_EXTRA_WEAPONS = ['RushWeapon', 'RangedWeapon']  # PlayerUnits _PlayerUnit dash / cast
 ENEMY_SETS = ['EnemiesBiome1', 'TrapsBiome1']
@@ -100,6 +105,7 @@ def sha(path):
 
 class Coverage:
     def __init__(self, content):
+        self.swap_loot = set(LOOT)
         self.content = content
         self.sources = []
         self.provenance = defaultdict(list)  # name -> [provenance strings]
@@ -173,6 +179,20 @@ class Coverage:
                 if r['name']:
                     self.functions[r['name']].append((fname, r))
 
+    def reward_objects(self, loot_data, consumable_data):
+        """Spawnable reward objects named by original reward data (see module note)."""
+        obstacles = self.things['Obstacles']
+        loot = sorted(k for k, v in loot_data.items() if isinstance(v, dict) and k in obstacles)
+        store = self.lua_table('RewardStoreData') if 'RewardStoreData' in self.data else {}
+        names = set(self.strings(store))
+        drops = sorted(n for n in names if n in obstacles and n not in loot and (n in consumable_data or n in obstacles))
+        # Reward drops spawned through ConsumableData (RoomManager.lua reward
+        # handlers) that the stores name by an alias are reached via their
+        # ConsumableData records' own strings.
+        for n in list(drops):
+            drops += [x for x in self.strings(self.lua_record(consumable_data, n)) if x in obstacles and x in consumable_data and x not in drops and x not in loot]
+        return loot, sorted(set(drops))
+
     def lua_table(self, name):
         return self.data[name][0]
 
@@ -220,13 +240,14 @@ class Coverage:
         if isinstance(value, dict):
             for k, v in value.items():
                 k = str(k)
-                if EDGE_SKIP.search(k) and not (path and path[-1] == 'GodUpgradeWeaponSwap' and k in LOOT):
+                swap = bool(path) and path[-1] == 'GodUpgradeWeaponSwap' and k in self.swap_loot
+                if EDGE_SKIP.search(k) and not swap:
                     continue
                 yield from self.edge_strings(v, path + (k,))
         elif isinstance(value, list):
             for v in value:
                 yield from self.edge_strings(v, path)
-        elif isinstance(value, str) and path and EDGE_KEY.search(path[-1]) and not value.startswith('Elite'):
+        elif isinstance(value, str) and path and (EDGE_KEY.search(path[-1]) or (len(path) >= 2 and path[-2] == 'GodUpgradeWeaponSwap' and path[-1] in self.swap_loot)) and not value.startswith('Elite'):
             yield value
 
     def strings(self, value):
@@ -303,6 +324,16 @@ class Coverage:
             touchdown_roots.append({'obstacle':obstacle,'weapon':weapon,'field':'OnTouchdown.Weapon'})
         scope['obstacle_touchdown_weapon_roots']=touchdown_roots
         loot_data = self.lua_table('LootData'); trait_data = self.lua_table('TraitData'); consumable_data = self.lua_table('ConsumableData')
+        reward_loot, reward_drops = self.reward_objects(loot_data, consumable_data)
+        # EnemyAI.lua:1072 GodUpgradeWeaponSwap[enemy.GodUpgrade]: every reward god loot.
+        self.swap_loot = set(LOOT) | set(reward_loot)
+        scope['reward_loot'] = reward_loot; scope['reward_drops'] = reward_drops
+        for name in reward_loot + reward_drops:
+            if name not in obstacles:
+                obstacles.add(name); self.entity_origin.setdefault(name, 'reward object (LootData/RewardStoreData/ConsumableData) spawned by SpawnObstacle Name=data.Name')
+            graphic = self.thing('Obstacles', name).get('Thing', {}).get('Graphic')
+            if isinstance(graphic, str) and graphic and graphic not in self.anims and graphic != 'null':
+                self.obstacle_graphics.setdefault(graphic, []).append(f'reward object Obstacles.{name}.Thing.Graphic')
         rooms_lua = self.lua_table('RoomSetData.Tartarus'); rooms_base = self.lua_table('RoomSetData.Base')
         function_seeds = set(SEED_FUNCTIONS)
         lua_scope = []
@@ -324,12 +355,14 @@ class Coverage:
             for o in sorted(obstacles):
                 if o in self.things['Obstacles']: records.append(('Obstacles', o, self.thing('Obstacles', o)))
                 if o in obstacle_data: records.append(('ObstacleData', o, self.lua_record(obstacle_data, o)))
-            for key in LOOT:
+            for key in reward_loot:
                 loot = self.lua_record(loot_data, key)
                 records.append(('LootData', key, loot))
                 # Boons this god offers (UpgradeChoice.lua boon screen icons).
                 for trait in sorted(set(self.strings(loot)) & set(trait_data)):
                     records.append(('TraitData', trait, self.lua_record(trait_data, trait)))
+            for key in reward_drops:
+                if key in consumable_data: records.append(('ConsumableData', key, self.lua_record(consumable_data, key)))
             for room in scope['rooms']:
                 table = rooms_lua if room in rooms_lua else rooms_base
                 if room in table: records.append(('RoomData', room, self.lua_record({**rooms_base, **rooms_lua}, room)))
@@ -395,7 +428,7 @@ class Coverage:
         callback_source = Path(__file__).resolve().parents[1] / 'app/lua_interaction.cpp'
         self.sources.append(callback_source)
         events = set(re.findall(r'dispatchThingCallbacks\("(On\w+)"', callback_source.read_text()))
-        callback_selectors.update(units | weapons | projectiles | obstacles | set(LOOT) | self.universe)
+        callback_selectors.update(units | weapons | projectiles | obstacles | set(LOOT) | set(scope['reward_loot']) | self.universe)
         registrations, excluded = [], []
         pending = [(fname, entry) for fname, f in self.lua.items() for entry in f.registrations if entry['event'] in events]
         while True:
@@ -664,7 +697,7 @@ def main():
         for n, o in extra:
             roots.setdefault(n, None); cov.note(n, o)
         names, edges = cov.closure(sorted(roots))
-    packages = BASE_PACKAGES + sorted({n for n in scope['weapons'] + LOOT if (a.content / 'Win/Packages' / (n + '.pkg_manifest')).exists()})
+    packages = BASE_PACKAGES + sorted({n for n in scope['weapons'] + LOOT + scope['reward_loot'] if (a.content / 'Win/Packages' / (n + '.pkg_manifest')).exists()})
     index = cov.sprites(packages)
     all_packages = sorted(x.stem for x in (a.content / 'Win/Packages').glob('*.pkg_manifest'))
     all_index = cov.sprites([x for x in all_packages if x not in packages]) | index

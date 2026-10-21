@@ -96,6 +96,10 @@ bool ScriptRuntime::advanceObstacleOcclusion(std::string& error){
         int32_t root=id;for(int guard=0;guard<64;++guard){const auto* r=actorWorld_.actor(root);if(!r||!r->parentId||!live(r->parentId))break;root=r->parentId;}
         roots.insert(root);
     }
+    // ObstacleSet 7 membership persists after CausesOcclusion is cleared by
+    // SetThingProperty (0x1802e6d5c only adds); such a root keeps its group in
+    // the update, which then takes the unoccluded fade path.
+    for(const auto root:actorWorld_.occlusionRootSet)if(live(root))roots.insert(root);
     hades::BodyTransitionOptions linear;
     hades::BodyTransitionOptions smooth;smooth.smoothStep=true; // Interpolate(..., true, -1, -1)
     for(const auto root:roots){

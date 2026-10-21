@@ -50,7 +50,7 @@ bool ScriptRuntime::spatialQueryImpl(lua_State* L,int mode,double& result,std::s
         for(auto entry:{std::pair{"Id",&sources},std::pair{"DestinationId",&destinations}}){const float id=number(L,entry.first);if(id>0&&double(id)<=INT32_MAX&&id==std::trunc(id))entry.second->push_back(int32_t(id));}
     }else{
         if(!resolveObjectTargets(L,false,sources,error)||!resolveObjectTargets(L,true,destinations,error))return false;
-        for(const char* key:{"StopsProjectiles","StopsUnits","IgnoreHomingIneligible","IgnoreInvulnerable","RequiredLocationUnblocked"})if(flag(L,key))throw std::runtime_error(std::string("GetClosest native filter requires its actual provider: ")+key);
+        for(const char* key:{"IgnoreHomingIneligible","IgnoreInvulnerable","RequiredLocationUnblocked"})if(flag(L,key))throw std::runtime_error(std::string("GetClosest native filter requires its actual provider: ")+key);
     }
     float x=0,y=0;int32_t lastSource=0;size_t count=0;
     for(auto id:sources){if(!live(actorWorld_.actor(id)))continue;float px=0,py=0;if(!actorWorld_.location(id,px,py,error))return false;x+=px;y+=py;++count;lastSource=id;}
@@ -64,7 +64,15 @@ bool ScriptRuntime::spatialQueryImpl(lua_State* L,int mode,double& result,std::s
     }
     const bool ignoreSelf=flag(L,"IgnoreSelf");if(ignoreSelf&&count>1)throw std::runtime_error("GetClosest multi-source IgnoreSelf depends on native pointer hash iteration");
     const float distance=number(L,"Distance"),limit=distance*distance;float best=std::numeric_limits<float>::max();
-    for(auto id:destinations){if(!live(actorWorld_.actor(id))||(ignoreSelf&&id==lastSource))continue;float px=0,py=0;if(!actorWorld_.location(id,px,py,error))return false;const float dx=x-px,dy=y-py,d2=dy*dy+dx*dx;if(limit>0&&d2>limit)continue;if(d2<best){best=d2;result=float(id);}}
+    // ScriptAction::GetClosest VA180278180 (.local/reports/native-script-get-closest-pseudocode-v1.txt):
+    // StopsUnits / StopsProjectiles admit only Obstacle-typed destinations (type
+    // mask 0x121) whose Obstacle::StopsUnits2c55b0 / StopsProjectiles2c5640 holds.
+    const bool stopsUnits=flag(L,"StopsUnits"),stopsProjectiles=flag(L,"StopsProjectiles");
+    for(auto id:destinations){if(!live(actorWorld_.actor(id))||(ignoreSelf&&id==lastSource))continue;
+        if(stopsUnits||stopsProjectiles){const auto* d=actorWorld_.actor(id);if(!d->definition||d->definition->kind!="Obstacle")continue;bool stops=false;
+            if(stopsUnits){if(!actorWorld_.obstacleStops(id,false,stops,error))return false;if(!stops)continue;}
+            if(stopsProjectiles){if(!actorWorld_.obstacleStops(id,true,stops,error))return false;if(!stops)continue;}}
+        float px=0,py=0;if(!actorWorld_.location(id,px,py,error))return false;const float dx=x-px,dy=y-py,d2=dy*dy+dx*dx;if(limit>0&&d2>limit)continue;if(d2<best){best=d2;result=float(id);}}
     // Distinct equal-distance candidates retain portable sorted-ID order; the
     // source's pointer hash order cannot be inferred from Windows addresses.
     return true;

@@ -134,7 +134,8 @@ def coverage_roots(a,records,origin):
  reviewed,rejected={},{}
  for name,prov in cov['provenance'].items():
   if name not in records:continue
-  reviewed[name]='; '.join(prov[:3]) or 'coverage closure'
+  # Later coverage reports carry structured (forced-encounter) provenance rows.
+  reviewed[name]='; '.join(x if isinstance(x,str) else json.dumps(x,sort_keys=True) for x in prov[:3]) or 'coverage closure'
  graphics={g:'; '.join(p[:3]) for g,p in cov.get('obstacle_graphics',{}).items()}
  return reviewed,graphics,rejected,cov
 

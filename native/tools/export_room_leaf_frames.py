@@ -27,6 +27,12 @@ def export(a):
     registry=json.loads(a.registry.read_text())
     if registry['target_sha256']!='d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254':raise ValueError('Native source target identity mismatch')
     definitions={r['name']:r['definition'] for r in registry['definitions']}
+    if not registry['map_primary_spawners']:
+        # No map primary spawners (see export_room_spawner_assets): no leaf
+        # images are reachable; the runtime loads the leaf bank only if present.
+        a.output.mkdir(parents=True)
+        report={'schema':'hades-original-room-leaf-frames-v1','packet':None,'facing':None,'identity':None,'registry':identity(a.registry),'sources':[],'source_payloads':[],'clips':[],'frames':[],'raw_bytes':0,'limits':['Room has no map primary spawners; no leaf bank exported.']}
+        (a.output/'manifest.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps({'frames':0}));return
     names=room_leaf_names(registry,definitions)
     wanted=set();clipnames={}
     for name in names:

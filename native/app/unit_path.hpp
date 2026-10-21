@@ -12,6 +12,10 @@ struct UnitPathConfig {
  int32_t nodeCountLimit=INT32_MAX,skippedNodeLimit=4;
  bool stopToRotate=false,slowToRotate=true,moveWithoutPath=false;
  float avoidLocationDistance=0;
+ // MoveAIDataDef+0x4c mOnFailBehavior (MoveAIData+0x9c). Ctor VA1800d3388 stores 1;
+ // reader VA1800d3a58..3a8e: "GOTO_NEAREST_TO_GOAL" -> 0, otherwise
+ // (strcmp "GOTO_LAST_NODE_FILLED")==0 -> 1, any other string -> 0.
+ uint8_t onFailBehavior=1;
 };
 struct UnitPathNode {int32_t x=0,y=0,cost=0,distance=0;bool alternate=false;};
 struct UnitPathState {

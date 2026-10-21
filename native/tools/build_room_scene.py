@@ -66,6 +66,19 @@ def merge(a,b):
  r=dict(a)
  for k,v in b.items():r[k]=merge(r[k],v)if isinstance(v,dict)and isinstance(r.get(k),dict)else v
  return r
+def map_packages(content,room):
+ """Original MapGroups.sjson: the map group whose Maps glob names this map.
+
+ The group name is the biome package (Tartarus.pkg, DeathArea.pkg, ...);
+ the engine reads MapGroups.sjson in GameDataManager (string "MapGroups.sjson").
+ Fx/GUI global residency is supplied by the caller and labeled there.
+ """
+ import fnmatch
+ groups=Sjson((content/'Game/MapGroups.sjson').read_text(encoding='utf-8-sig')).parse()['MapGroups']
+ found=[g['Name']for g in groups if any(fnmatch.fnmatchcase(room,m['Name'])for m in g.get('Maps',[]))]
+ if len(found)!=1:raise ValueError(f'Map {room} matches {len(found)} original MapGroups')
+ if not (content/'Win/Packages'/f'{found[0]}.pkg_manifest').is_file():raise ValueError('Map group package absent: '+found[0])
+ return found
 def identity(p):return {'path':str(p.resolve()),'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()}
 def build(content,out,room):
  if out.exists():raise ValueError('Output must be new')
@@ -82,7 +95,7 @@ def build(content,out,room):
   return merge(resolve(own['InheritFrom'],seen+(name,)),own)if isinstance(own.get('InheritFrom'),str)else own
  mappath=content/'Win/Maps'/f'{room}.thing_bin';metapath=content/'Maps'/f'{room}.map_text'
  objs=map_objects(mappath);meta=json.loads(metapath.read_text());sources.extend([identity(mappath),identity(metapath)])
- manifest=content/'Win/Packages/Tartarus.pkg_manifest';pkgpath=content/'Win/Packages/Tartarus.pkg';sources.extend([identity(manifest),identity(pkgpath)])
+ package=map_packages(content,room)[0];manifest=content/'Win/Packages'/f'{package}.pkg_manifest';pkgpath=content/'Win/Packages'/f'{package}.pkg';sources.extend([identity(manifest),identity(pkgpath),identity(content/'Game/MapGroups.sjson')])
  manifests=list(Package(manifest).entries());index=collections.defaultdict(list)
  for atlas in manifests:
   for s in atlas.get('sprites',[]):

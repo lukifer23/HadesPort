@@ -282,6 +282,7 @@ void ScriptRuntime::initialize() {
     {const char* names[]{"PlaySound","PauseSound","ResumeSound","StopSound","SetVolume","SetSoundCueValue","SwapSound","SetAudioEffectState","GetMixingId","SetSoundSource"};
      for(int mode=0;mode<10;++mode){lua_pushlightuserdata(state_,this);lua_pushinteger(state_,mode);lua_pushcclosure(state_,audioAction,2);lua_setglobal(state_,names[mode]);}}
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,applyUpwardForce,1);lua_setglobal(state_,"ApplyUpwardForce");
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,applyForceAction,1);lua_setglobal(state_,"ApplyForce");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,attach,1);lua_setglobal(state_,"Attach");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,switchActiveUnit,1);lua_setglobal(state_,"SwitchActiveUnit");
     for(int mode=0;mode<2;++mode){lua_pushlightuserdata(state_,this);lua_pushboolean(state_,mode);lua_pushcclosure(state_,inactiveIds,2);lua_setglobal(state_,mode?"GetInactiveIdsByType":"GetInactiveIds");}
@@ -314,6 +315,7 @@ void ScriptRuntime::initialize() {
     registerFlashActions();
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,simulationSpeedAction,1);lua_setglobal(state_,"AdjustSimulationSpeed");
     registerShakeAction();
+    registerFullscreenBlurActions();
     // Wrap after every actual native action is registered, including text and
     // speech controls; actions added after this point would bypass source Delay.
     if(!installDelayedActions()){reportError("delayed-actions");return;}
@@ -647,6 +649,7 @@ bool ScriptRuntime::advanceWorld(float dt,double screenDt){
     if(!advanceText(dt,float(screenDt),error_)){if(!containStage("text-update"))return false;}
     if(!advanceNativeNotifies(dt,error_)){if(!containStage("native-notify-update"))return false;}
     if(!advanceCamera(dt,error_)){if(!containStage("camera-update"))return false;}
+    if(!advanceVignetteFrame(dt,error_)){if(!containStage("vignette-frame-update"))return false;}
     // A package or delayed-action gap must never skip the script scheduler
     // (every original Lua thread), or game logic freezes while audio runs.
     if(!packages_.pump(1,error_)){if(!containStage("package-update"))return false;}
@@ -654,6 +657,8 @@ bool ScriptRuntime::advanceWorld(float dt,double screenDt){
     if(!advanceScriptScheduler(state_,worldTime_,screenTime_,error_)){if(!containStage("world-update"))return false;}
     if(!colorGrading_.advance(worldTime_,float(screenTime_),error_)){if(!containStage("color-grading-update"))return false;}
     if(!advanceBloom(error_)){if(!containStage("bloom-update"))return false;}
+    // App::Update 0x18003712e runs the BlurComponent helpers on App elapsed after World update.
+    if(!advanceRadialBlur(realElapsed,error_)){if(!containStage("radial-blur-update"))return false;}
     return true;
 }
 
@@ -755,9 +760,14 @@ bool ScriptRuntime::setActorPropertyImpl(lua_State* L,int kind,std::string& erro
     lua_getfield(L,1,"DataValue");const bool data=lua_isnil(L,-1)||lua_toboolean(L,-1);lua_pop(L,1);
     if(kind==2){hades::log(hades::Severity::Info,tag,"SET_THING_PROPERTY property=%s data=%d targets=%zu",property.c_str(),int(data),ids.size());
         if(!data){
-            if(property!="SuppressSounds"){error="SetThingProperty live reflection not reconstructed: "+property;return false;}
+            // ReflectionHelper::GetPropertyInfo<Thing>2e6eb0: ElapsedTimeMultiplier is
+            // plain float Thing+0x80 (VA1802e6fe2, type4), no setter side effect; it is
+            // the same live multiplier SpeedEffect elapsed-time changes divide/multiply.
+            if(property!="SuppressSounds"&&property!="ElapsedTimeMultiplier"){error="SetThingProperty live reflection not reconstructed: "+property;return false;}
             for(const auto id:ids){auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered||!actor->object||!actor->object->active||!actor->object->alive)continue;
-                hades::PropertyPrimitive next;if(hades::mutatePrimitiveProperty(actor->suppressSounds,input,change,next,error)!=hades::PropertyMutation::Applied)return false;actor->suppressSounds=std::get<bool>(next);}
+                hades::PropertyPrimitive next;
+                if(property=="ElapsedTimeMultiplier"){if(hades::mutatePrimitiveProperty(actor->timeMultiplier,input,change,next,error)!=hades::PropertyMutation::Applied)return false;actor->timeMultiplier=std::get<float>(next);continue;}
+                if(hades::mutatePrimitiveProperty(actor->suppressSounds,input,change,next,error)!=hades::PropertyMutation::Applied)return false;actor->suppressSounds=std::get<bool>(next);}
             return true;
         }}
     for(const auto id:ids){const auto* o=findObjectSnapshot(L,id);if(!o||!o->active||!o->alive||o->queryProxy)continue;if(!(kind==1?actorWorld_.setLifeProperty(id,property,input,change,data,error):(kind==2?actorWorld_.setThingProperty(id,property,input,change,error):(kind==3?actorWorld_.setObstacleProperty(id,property,input,change,error):actorWorld_.setUnitProperty(id,property,input,change,error)))))return false;}
@@ -950,8 +960,9 @@ bool ScriptRuntime::loadEffectDefinitions(){
         particleBank_=std::make_shared<hades::ActorAnimationBank>();particleBank_->load(*assets_,"cinder-frames.bin");
         if(!particles_.setRegistry(effects_.registry(),error_)||!particles_.load(value,particleBank_,error_))return false;
         particles_.setExternalOwner([this](uint64_t id){return actionEffects_.state(id)!=nullptr;});
-        leafBank_=std::make_shared<hades::ActorAnimationBank>();leafBank_->load(*assets_,"room-leaf-frames.bin","room-leaf-facing.bin","room-leaf-sha256.bin");
-        if(!particles_.addImageBank(leafBank_,error_))return false;
+        // Room leaf bank exists only for maps whose primary spawners reach leaf images (export_room_leaf_frames.py).
+        if(assets_->open("room-leaf-frames.bin")){leafBank_=std::make_shared<hades::ActorAnimationBank>();leafBank_->load(*assets_,"room-leaf-frames.bin","room-leaf-facing.bin","room-leaf-sha256.bin");
+        if(!particles_.addImageBank(leafBank_,error_))return false;}else leafBank_.reset();
         if(const auto* recipes=value.get("PrimaryRecipes")){
             spawnerBank_=std::make_shared<hades::ActorAnimationBank>();spawnerBank_->load(*assets_,"spawner-frames.bin");
             for(const auto& recipe:recipes->array()){

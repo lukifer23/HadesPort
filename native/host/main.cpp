@@ -1,4 +1,5 @@
 #include "file_assets.hpp"
+#include "host_assets.hpp"
 #include "../app/lua_runtime.hpp"
 #include "../app/player.hpp"
 #include "../app/scene_renderer.hpp"
@@ -27,6 +28,7 @@ static void jsonString(std::ostream& out,const std::string& text) {
 }
 
 int main(int argc,char** argv) {
+    std::string startMap;int startMapFrame=1;
     bool autoplay=false,capture=false,activate=false,probe=false,weaponProbe=false,survey=false,contain=false,validatePresentation=false;int worldFrames=120;std::string inputReplay,saveProbeDirectory,loadSaveDirectory;
     for(int i=3;i<argc;++i){const std::string arg=argv[i];
         if(arg=="--capture-active-room")capture=activate=true;
@@ -41,6 +43,8 @@ int main(int argc,char** argv) {
         else if(arg.starts_with("--load-save="))loadSaveDirectory=arg.substr(12);
         else if(arg.starts_with("--world-frames=")){try{worldFrames=std::stoi(arg.substr(15));}catch(...){worldFrames=0;}}
         else if(arg.starts_with("--input-replay="))inputReplay=arg.substr(15);
+        else if(arg.starts_with("--start-map="))startMap=arg.substr(12); // diagnostic: original LeaveRoomWithNoDoor into this map
+        else if(arg.starts_with("--start-map-frame=")){try{startMapFrame=std::stoi(arg.substr(18));}catch(...){startMapFrame=-1;}}
         else{std::cerr<<"Unknown debug argument: "<<arg<<'\n';return 64;}}
     if(argc<3||worldFrames<1||worldFrames>36000){std::cerr<<"Usage: hades-debug ASSET_ROOT NEW_TRACE.json [--capture-active-room|--activate-room] [--world-frames=1..36000] [--input-replay=TSV]\n";return 64;}
     try {
@@ -54,7 +58,8 @@ int main(int argc,char** argv) {
                 if(!(row>>input.frame>>input.x>>input.y>>controls)||input.frame<0||input.frame>=worldFrames||(!replay.empty()&&input.frame<=replay.back().frame))throw std::runtime_error("Invalid ordered debug input recording");
                 if(controls!="-"){std::istringstream names(controls);std::string name;while(std::getline(names,name,','))input.controls.push_back(name);}replay.push_back(std::move(input));if(replay.size()>36000)throw std::runtime_error("Input recording bound");}
         }
-        hades::FileAssets assets(argv[1]);
+        hades::HostAssets assets(argv[1]);
+        if(!startMap.empty()&&(!activate||startMapFrame<0||startMapFrame>=worldFrames))throw std::runtime_error("--start-map requires --activate-room and 0<=--start-map-frame<world frames");
         hades::TouchControls touchLabels;
         ScriptRuntime scripts(&assets);
         scripts.setControlLabelProvider([&](const std::string&name,std::string&label,std::string&error){
@@ -96,6 +101,7 @@ int main(int argc,char** argv) {
             if(autoplay){const auto view=scripts.autoplayView();const auto input=autoplayDriver.step(i,view);if(!scripts.setLocalInput(input.x,input.y,input.controls,mixerError)){updateComplete=false;break;}
                 if(i%60==0||view.map!=autoplayMap){autoplayMap=view.map;std::cout<<"AUTOPLAY frame="<<i<<" allowed="<<view.inputAllowed<<" hero="<<int(view.x)<<','<<int(view.y)<<' '<<input.summary<<" map="<<view.map<<'\n';}}
             if(replayAt<replay.size()&&replay[replayAt].frame==i){const auto& input=replay[replayAt++];if(!scripts.setLocalInput(input.x,input.y,input.controls,mixerError)){updateComplete=false;break;}}
+            if(!startMap.empty()&&i==startMapFrame){std::string e;if(!scripts.requestDiagnosticMapEntry(startMap,e))throw std::runtime_error("Diagnostic map entry: "+e);}
             if(!scripts.advanceWorld(1.f/60,1./60)){if(survey){scripts.surveyRecordWorldFault();continue;}updateComplete=false;break;}
             if(validatePresentation){
                 // Sample transient visuals while their owners are actually

@@ -17,6 +17,28 @@ struct ProjectileActor {
         float adjustRate=0;
         bool retargetRequested=false;
     } homing;
+    // BeamProjectile (PDB TypeIndex f2c0, size0x570): +0x510 mStartingAllegiance,
+    // +0x514 mTargetId, +0x518 mAdjustRateVelocity, +0x51c mAdjustRate,
+    // +0x520 mAngleOffset, +0x524 mImpactInterval, +0x528 mEndLocation,
+    // +0x530 pTipAnim, +0x538 mTestedIds.
+    struct BeamState {
+        bool startingAllegiance=false;int32_t targetId=0;
+        float adjustRateVelocity=0,adjustRate=0,angleOffset=0,impactInterval=0,endX=0,endY=0;
+        uint64_t tipAnimation=0;std::vector<int32_t> testedIds;
+    } beam;
+    // LobProjectile (PDB TypeIndex dc0f, size0x530): +0x510 mTheta(double),
+    // +0x518 mTimeSinceLaunch, +0x51c mEstTimeUntilImpact, +0x520 mStartZ,
+    // +0x524 mImpact, +0x528 pReticleAnimation.
+    struct LobState {
+        double theta=0;float timeSinceLaunch=0,estimatedTimeUntilImpact=0,startZ=0;
+        bool impact=false;uint64_t reticleAnimation=0;
+    } lob;
+    // SkyProjectile (PDB TypeIndex e6db, size0x530): +0x510 mInPit, +0x511
+    // mTravelState (ASCENDING0/IN_SKY1/DESCENDING2), +0x514 mStartDescentTime,
+    // +0x518 mSpread, +0x51c mTargetLocation.
+    struct SkyState {
+        bool inPit=false;uint8_t travelState=0;float startDescentTime=0,spread=0,targetX=0,targetY=0;
+    } sky;
     ProjectileInitializationRequest request;
     ProjectileCreationDescriptor descriptor;
     ProjectileInitialState state;
@@ -292,6 +314,9 @@ public:
     // AudioManager::PlayCue3D4a8a0(cue, location): parent resolves validity and plays.
     void setDetonateSoundProvider(std::function<bool(const std::string&,float,float,std::string&)> fn){detonateSound_=std::move(fn);}
     bool projectileZ(const ProjectileActor& p,float& z,std::string& e)const{return thingZ(p,z,e);}
+    // Virtual slot0x188 CalcTipLocation: base Projectile6e2d0 (polygon vertices
+    // farthest from mSpawnLocation, averaged within 1.0, else GetLocation).
+    bool tipLocation(const ProjectileActor&,float& x,float& y,std::string&)const;
     void setPrimaryCombatProvider(std::function<bool(int32_t,bool& invulnerable,bool& noCoverage,std::string&)> fn){primaryCombat_=std::move(fn);}
     void setOwnerMarkerProvider(std::function<bool(int32_t,const std::string&,float&,float&,std::string&)> fn){ownerMarker_=std::move(fn);}
     // Unit::SetLocation2f2a40 -> Thing::OnAttachedToMoved2e5960 for each

@@ -38,7 +38,7 @@ bool ScriptRuntime::beginRequestedMap(bool restoreAssetsOnly){try{
  // never falls back to the opening scene, even for an unimplemented map.
  // Probe the selected persistent view temporarily, restoring it before reset/save.
  if(!roomAssets_->selectMap(request.name))throw std::runtime_error("Map request name rejected");
- for(const auto name:hades::kRoomBoundAssets)if(!assets_->open(name)){roomAssets_->selectMap(mapName_);throw std::runtime_error("Actual room asset unavailable: "+request.name+"/"+std::string(name));}
+ for(const auto name:hades::kRoomBoundAssets)if(!hades::isOptionalRoomAsset(name)&&!assets_->open(name)){roomAssets_->selectMap(mapName_);throw std::runtime_error("Actual room asset unavailable: "+request.name+"/"+std::string(name));}
  roomAssets_->selectMap(mapName_);
  const std::string previous=mapName_;
  hades::log(hades::Severity::Info,"HadesLua","NATIVE_MAP_BEGIN from=%s to=%s frame=%llu lua_retained=true clocks_retained=true",previous.c_str(),request.name.c_str(),(unsigned long long)worldFrame_);
@@ -88,3 +88,24 @@ bool ScriptRuntime::beginRequestedMap(bool restoreAssetsOnly){try{
  hades::log(hades::Severity::Info,"HadesLua","NATIVE_MAP_TRANSITION_COMPLETE from=%s to=%s revision=%llu lua_retained=true world_time=%.6f screen_time=%.6f",previous.c_str(),mapName_.c_str(),(unsigned long long)mapRevision_,worldTime_,screenTime_);
  return true;
  }catch(const std::exception&e){error_=e.what();return false;}}
+bool ScriptRuntime::requestDiagnosticMapEntry(const std::string& map,std::string& error){
+ // Host-only diagnostic entry into an original map. Nothing is synthesized:
+ // the original RunManager.lua LeaveRoomWithNoDoor builds the door with
+ // CreateRoom(RoomData[NextMap]) and runs the full original LeaveRoom
+ // (ChooseEncounter, exit presentation, SaveCheckpoint, LoadMap). The engine
+ // then performs the genuine World::RequestBegin/Begin transition above.
+ if(!hades::validMapName(map)){error="Diagnostic map name is not an original map identifier";return false;}
+ if(!roomActivated_){error="Diagnostic map entry requires an activated current room";return false;}
+ const int top=lua_gettop(state_);
+ lua_getglobal(state_,"RoomData");const bool known=lua_istable(state_,-1)&&(lua_getfield(state_,-1,map.c_str()),lua_istable(state_,-1));lua_settop(state_,top);
+ if(!known){error="RoomData has no original room "+map;return false;}
+ lua_getglobal(state_,"thread");lua_getglobal(state_,"LeaveRoomWithNoDoor");
+ if(!lua_isfunction(state_,-2)||!lua_isfunction(state_,-1)){lua_settop(state_,top);error="Original thread/LeaveRoomWithNoDoor unavailable";return false;}
+ lua_pushnil(state_);lua_newtable(state_);
+ lua_getglobal(state_,"CurrentRun");if(lua_istable(state_,-1)){lua_getfield(state_,-1,"Hero");if(lua_istable(state_,-1)){lua_getfield(state_,-1,"ObjectId");lua_setfield(state_,-4,"ObjectId");}lua_pop(state_,1);}lua_pop(state_,1);
+ lua_pushstring(state_,map.c_str());lua_setfield(state_,-2,"NextMap");
+ if(lua_pcall(state_,3,0,0)!=LUA_OK){error=lua_tostring(state_,-1)?lua_tostring(state_,-1):"diagnostic thread failed";lua_settop(state_,top);return false;}
+ lua_settop(state_,top);
+ hades::log(hades::Severity::Info,"HadesLua","DIAGNOSTIC_MAP_ENTRY from=%s to=%s frame=%llu via=LeaveRoomWithNoDoor",mapName_.c_str(),map.c_str(),(unsigned long long)worldFrame_);
+ error.clear();return true;
+}

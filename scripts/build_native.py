@@ -24,6 +24,97 @@ BUILD = PROJECT / '.local/native-build'
 TOOLS = SDK / 'build-tools/37.0.0'
 
 
+def clone_file(source, destination):
+    """Copy-on-write clone (APFS clonefile) when available, else a byte copy.
+
+    Room packs and the external content store hold several 100 MiB+ packets;
+    clones keep one physical copy per unique byte stream on the build host.
+    """
+    source, destination = Path(source), Path(destination)
+    if destination.exists() or destination.is_symlink():
+        destination.unlink()
+    if sys.platform == 'darwin':
+        import ctypes
+        libc = ctypes.CDLL('/usr/lib/libSystem.dylib', use_errno=True)
+        if libc.clonefile(os.fsencode(source), os.fsencode(destination), 0) == 0:
+            return destination
+    shutil.copyfile(source, destination)
+    return destination
+
+
+CONTENT_BOOTSTRAP_PREFIXES = ('ui/',)  # title/failure UI must render before external content is verified
+
+
+def write_content_bundle(staged, output):
+    """Move a fully validated staged asset tree into a fresh external content bundle.
+
+    Layout (read by native/app/content_store.cpp and native/host/host_assets.hpp):
+      output/hades-content/manifests/<id>.txt  'hades-content-store-v1', count, then
+                                               '<sha256> <bytes> <path>' sorted by path; id=sha256(manifest)
+      output/hades-content/blobs/<sha256>      content-addressed bytes (identical files stored once)
+      output/apk-assets/                       slim APK assets: ui/ + content-requirement.txt
+    Built in a temporary sibling, re-verified, then published by rename.
+    """
+    staged, output = Path(staged), Path(output)
+    work = Path(tempfile.mkdtemp(prefix='.content-bundle-', dir=output.parent))
+    try:
+        store, apk = work / 'hades-content', work / 'apk-assets'
+        (store / 'blobs').mkdir(parents=True); (store / 'manifests').mkdir(); apk.mkdir()
+        rows, unique_bytes = [], 0
+        for path in sorted(p for p in staged.rglob('*') if p.is_file() or p.is_symlink()):
+            if path.is_symlink():raise RuntimeError('Staged asset is a symlink: '+str(path))
+            relative = path.relative_to(staged).as_posix()
+            if any(c in relative for c in ' \n\r\\') or '..' in relative.split('/'):
+                raise RuntimeError('Unsupported staged asset path: '+relative)
+            if relative.startswith(CONTENT_BOOTSTRAP_PREFIXES):
+                (apk / relative).parent.mkdir(parents=True, exist_ok=True); path.rename(apk / relative); continue
+            digest = hashlib.file_digest(path.open('rb'), 'sha256').hexdigest(); size = path.stat().st_size
+            blob = store / 'blobs' / digest
+            if blob.exists():
+                if blob.stat().st_size != size:raise RuntimeError('Blob collision size mismatch: '+digest)
+                path.unlink()
+            else:
+                path.rename(blob); unique_bytes += size
+            rows.append((relative, digest, size))
+        if not rows:raise RuntimeError('Empty content bundle')
+        rows.sort()  # byte-wise path order; the native reader requires strictly increasing paths
+        text = 'hades-content-store-v1\n%d\n' % len(rows) + ''.join(f'{d} {n} {r}\n' for r, d, n in rows)
+        content_id = hashlib.sha256(text.encode()).hexdigest()
+        (store / 'manifests' / f'{content_id}.txt').write_text(text)
+        (apk / 'content-requirement.txt').write_text(f'hades-content-requirement-v1\n{content_id}\n')
+        # Independent re-verification of the published bytes before rename.
+        for relative, digest, size in rows:
+            blob = store / 'blobs' / digest
+            if blob.stat().st_size != size or hashlib.file_digest(blob.open('rb'), 'sha256').hexdigest() != digest:
+                raise RuntimeError('Content bundle verification failed: '+relative)
+        receipt = {'schema': 'hades-content-bundle-v1', 'content_id': content_id, 'files': len(rows),
+                   'logical_bytes': sum(n for _, _, n in rows), 'unique_blobs': len({d for _, d, _ in rows}),
+                   'unique_bytes': unique_bytes,
+                   'apk_bootstrap_bytes': sum(p.stat().st_size for p in apk.rglob('*') if p.is_file()),
+                   'device_path': 'Android/data/dev.hades.reconstruction/files/hades-content',
+                   'push': 'adb -s "$HADES_DEVICE_SERIAL" push --sync OUT/hades-content /sdcard/Android/data/dev.hades.reconstruction/files/'}
+        (work / 'bundle-receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
+        work.rename(output)
+        return {**receipt, 'output': str(output.resolve())}
+    except BaseException:
+        shutil.rmtree(work, ignore_errors=True)
+        raise
+
+
+def verify_apk_bootstrap(bundle):
+    """Slim APK assets: the bundle's apk-assets, bound to its own content manifest."""
+    bundle = Path(bundle); apk = bundle / 'apk-assets'
+    lines = (apk / 'content-requirement.txt').read_text().splitlines()
+    if len(lines) != 2 or lines[0] != 'hades-content-requirement-v1':raise RuntimeError('Malformed content requirement')
+    manifest = bundle / 'hades-content/manifests' / f'{lines[1]}.txt'
+    if hashlib.file_digest(manifest.open('rb'), 'sha256').hexdigest() != lines[1]:
+        raise RuntimeError('APK bootstrap is not bound to this bundle manifest')
+    unexpected = [p for p in apk.rglob('*') if p.is_file() and p.name != 'content-requirement.txt'
+                  and not p.relative_to(apk).as_posix().startswith(CONTENT_BOOTSTRAP_PREFIXES)]
+    if unexpected:raise RuntimeError('Unexpected file in APK bootstrap: '+str(unexpected[0]))
+    return apk
+
+
 def run(command):
     subprocess.run([str(arg) for arg in command], check=True,
                    env=dict(os.environ, JAVA_HOME=str(JAVA)))
@@ -31,7 +122,7 @@ def run(command):
 
 def stage_room_scene(args, assets, include_shared=True):
     """Validate and stage one actual scene/map/collision bundle; shared boot assets are optional."""
-    shutil.copyfile(args.scene, assets / 'scene.bin')
+    clone_file(args.scene, assets / 'scene.bin')
     with args.scene.open('rb') as source:
         scene_magic = source.read(4)
     if scene_magic == b'HDS3':
@@ -53,7 +144,7 @@ def stage_room_scene(args, assets, include_shared=True):
         ambient_count=struct.unpack_from('<I',ambient,36)[0]
         if ambient_count!=len(manifest['sprites']) or len(ambient)!=52+ambient_count*8:
             raise RuntimeError('Ambient companion sprite count/size differs from the scene')
-        shutil.copyfile(args.ambient,assets / 'ambient.bin')
+        clone_file(args.ambient,assets / 'ambient.bin')
         ambient_report={'path':str(args.ambient.resolve()),'sprites':ambient_count,
                         'sha256':hashlib.sha256(ambient).hexdigest()}
     else:
@@ -66,7 +157,7 @@ def stage_room_scene(args, assets, include_shared=True):
         count=struct.unpack_from('<I',composition,36)[0]
         if count!=len(manifest['sprites']) or len(composition)!=40+count*4:
             raise RuntimeError('Composition companion count/size mismatch')
-        shutil.copyfile(args.composition,assets/'composition.bin')
+        clone_file(args.composition,assets/'composition.bin')
         composition_report={'path':str(args.composition.resolve()),'sha256':hashlib.sha256(composition).hexdigest()}
     else:
         (assets/'composition.bin').unlink(missing_ok=True)
@@ -75,7 +166,7 @@ def stage_room_scene(args, assets, include_shared=True):
             header = source.read(44)
         if scene_magic != b'HDS3' or len(header) != 44 or header[:4] != b'HDA1' or header[12:44] != scene_hash:
             raise RuntimeError('Animation packet is not bound to this exact HDS3 scene')
-        shutil.copyfile(args.animations, assets / 'animations.bin')
+        clone_file(args.animations, assets / 'animations.bin')
         animation_report = {'path': str(args.animations.resolve()), 'bytes': args.animations.stat().st_size,
                             'clips': struct.unpack_from('<I', header, 4)[0],
                             'bindings': struct.unpack_from('<I', header, 8)[0],
@@ -88,7 +179,7 @@ def stage_room_scene(args, assets, include_shared=True):
         count=len(manifest['sprites']) if scene_magic==b'HDS3' else -1
         if len(parallax)!=40+12*count or parallax[:4]!=b'HPP1' or parallax[4:36]!=scene_hash or struct.unpack_from('<I',parallax,36)[0]!=count:
             raise RuntimeError('Parallax companion differs from the exact scene')
-        shutil.copyfile(args.parallax,assets/'parallax.bin')
+        clone_file(args.parallax,assets/'parallax.bin')
     else:
         (assets/'parallax.bin').unlink(missing_ok=True)
     if args.hulls.is_file():
@@ -96,7 +187,7 @@ def stage_room_scene(args, assets, include_shared=True):
         hull=args.hulls.read_bytes()
         if len(hull)<76 or hull[:4]!=b'HHL1' or hull[4:36]!=scene_hash or hull[36:68]!=animation_hash:
             raise RuntimeError('Hull companion differs from scene/animation identity')
-        shutil.copyfile(args.hulls,assets/'hulls.bin')
+        clone_file(args.hulls,assets/'hulls.bin')
         (assets/'animations-sha256.bin').write_bytes(animation_hash)
     else:
         (assets/'hulls.bin').unlink(missing_ok=True)
@@ -146,7 +237,7 @@ def stage_room_scene(args, assets, include_shared=True):
         scripts = assets / 'Scripts'
         scripts.mkdir(exist_ok=True)
         for script in (PROJECT / '.local/game/base/Content/Scripts').glob('*.lua'):
-            shutil.copyfile(script, scripts / script.name)
+            clone_file(script, scripts / script.name)
     player = None
     if args.hero.is_dir():
         if not geometry_path.is_file():
@@ -183,7 +274,7 @@ def stage_room_scene(args, assets, include_shared=True):
                     out.write(struct.pack('<2f', *point))
         if include_shared:
             for clip in ('ZagreusIdle.bin', 'ZagreusRun.bin'):
-                shutil.copyfile(args.hero / clip, assets / clip)
+                clone_file(args.hero / clip, assets / clip)
         manifest = json.loads((args.scene.parent / 'scene-manifest.json').read_text())
         objects = {r['object']['Id']: r['object'] for r in manifest['all_original_objects']}
         creation = json.loads(args.creation.read_text())
@@ -232,7 +323,7 @@ def stage_room_scene(args, assets, include_shared=True):
                 out.write(struct.pack('<3f', sprite['source_layer'], original['SortIndex'], original['Location']['Y']))
         player = {'spawn': spawn, 'speed': unit['Speed'], 'acceleration': unit['Acceleration'],
                   'grip': unit['Thing']['Grip'], 'collision_polygons': len(polygons),
-                  'skipped_collision_transforms': collision['counts']['unresolved_polygons'],
+                  'skipped_collision_transforms': collision['counts'].get('unresolved_polygons',0),
                   'collision_export':str(args.collision.resolve()),
                   'collision_export_sha256':hashlib.file_digest(args.collision.open('rb'),'sha256').hexdigest(),
                   'collision_scope':'Deterministic active obstacle polygons only; source random-scale placements remain unresolved.',
@@ -286,15 +377,36 @@ def main():
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--compile-only', action='store_true')
     mode.add_argument('--assets-only', action='store_true', help='Stage original data for Mac debugging without building an APK')
+    mode.add_argument('--content-bundle', type=Path, metavar='OUT',
+                      help='Stage and validate the full closure, then write a fresh external content bundle: OUT/hades-content '
+                           '(content-addressed store to push to getExternalFilesDir) and OUT/apk-assets (slim APK bootstrap). '
+                           'Host: hades-debug OUT ... reads the same layout. No APK, no .local/native-build writes.')
+    mode.add_argument('--apk-bootstrap', type=Path, metavar='BUNDLE',
+                      help='Build the slim APK from BUNDLE/apk-assets (made by --content-bundle) instead of staging all assets')
+    parser.add_argument('--room-packs-dir', type=Path, action='append', default=[],
+                        help='Add every <Map>/manifest.json room pack under this directory (e.g. room-packs-v7)')
     args = parser.parse_args()
-    if not args.compile_only:
+    for root in args.room_packs_dir:
+        found=sorted(root.glob('*/manifest.json'))
+        if not found:raise RuntimeError('No room packs under '+str(root))
+        args.room_pack+=found
+    rooms_seen={}
+    for manifest in args.room_pack:
+        room=json.loads(manifest.read_text())['room']
+        if room in rooms_seen:raise RuntimeError(f'Room {room} selected twice: {rooms_seen[room]} and {manifest}')
+        rooms_seen[room]=manifest
+    if not args.compile_only and not args.apk_bootstrap:
         sys.path.insert(0,str(PROJECT/'native/tools'))
         from animation_audio_binding import validate as validate_animation_audio_binding
         validate_animation_audio_binding(args.audio_events,args.action_effects,args.actor_animations.parent/'manifest.json')
-    if not args.compile_only and (args.scene is None or not args.scene.is_file()):
+    if not args.compile_only and not args.apk_bootstrap and (args.scene is None or not args.scene.is_file()):
         parser.error('--scene must point to a decoded original HDS1/HDS2/HDS3 room')
-    BUILD.mkdir(parents=True, exist_ok=True)
-    if not args.assets_only:
+    if args.content_bundle:
+        if args.content_bundle.exists():raise RuntimeError('Content bundle output must be a fresh directory')
+        args.content_bundle.parent.mkdir(parents=True,exist_ok=True)
+    else:
+        BUILD.mkdir(parents=True, exist_ok=True)
+    if not args.assets_only and not args.content_bundle:
         run(['cmake', '-S', PROJECT / 'native/app', '-B', BUILD / 'cmake', '-G', 'Ninja',
              f'-DCMAKE_TOOLCHAIN_FILE={NDK}/build/cmake/android.toolchain.cmake',
              '-DANDROID_ABI=arm64-v8a', '-DANDROID_PLATFORM=android-26',
@@ -304,256 +416,265 @@ def main():
     if args.compile_only:
         print(f'Native ARM64 engine compiled: {library}')
         return
-    # Stage only this invocation's validated resource closure. Reusing the
-    # previous directory packaged stale exports and even a second 756 MiB actor
-    # bank. Keep the published host assets intact until fresh staging succeeds.
-    staged_assets = tempfile.TemporaryDirectory(prefix='assets-stage-', dir=BUILD)
-    assets = Path(staged_assets.name)
-    if not args.ui.is_dir():
-        raise RuntimeError('Original native UI assets are required; run native/tools/export_native_ui.py')
-    shutil.copytree(args.ui, assets / 'ui', dirs_exist_ok=True)
-    weapon_manifest=json.loads((args.weapons.parent/'manifest.json').read_text())
-    weapon_bytes=args.weapons.read_bytes()
-    if weapon_bytes[:4]==b'HWA1':
-        if weapon_manifest['schema']!='hades-native-weapon-initialization-v1' or len(weapon_bytes)<104 or \
-           hashlib.sha256(weapon_bytes).hexdigest()!=weapon_manifest['packet']['sha256'] or \
-           weapon_bytes[4:36].hex()!=weapon_manifest['source']['sha256'] or \
-           weapon_bytes[36:68].hex()!=weapon_manifest['normalization']['sha256'] or \
-           weapon_bytes[68:100].hex()!=weapon_manifest['target_sha256']:
-            raise RuntimeError('Weapon initialization packet/manifest identity mismatch')
-        for entry in ('source','normalization'):
-            item=weapon_manifest[entry]
+    if args.apk_bootstrap:
+        assets=verify_apk_bootstrap(args.apk_bootstrap)
+        player=camera=animation_report=ambient_report=composition_report=weapon_report=None
+    else:
+        # Stage only this invocation's validated resource closure. Reusing the
+        # previous directory packaged stale exports and even a second 756 MiB actor
+        # bank. Keep the published host assets intact until fresh staging succeeds.
+        staged_assets = tempfile.TemporaryDirectory(prefix='assets-stage-', dir=args.content_bundle.parent if args.content_bundle else BUILD)
+        assets = Path(staged_assets.name)
+        if not args.ui.is_dir():
+            raise RuntimeError('Original native UI assets are required; run native/tools/export_native_ui.py')
+        shutil.copytree(args.ui, assets / 'ui', dirs_exist_ok=True, copy_function=clone_file)
+        weapon_manifest=json.loads((args.weapons.parent/'manifest.json').read_text())
+        weapon_bytes=args.weapons.read_bytes()
+        if weapon_bytes[:4]==b'HWA1':
+            if weapon_manifest['schema']!='hades-native-weapon-initialization-v1' or len(weapon_bytes)<104 or \
+               hashlib.sha256(weapon_bytes).hexdigest()!=weapon_manifest['packet']['sha256'] or \
+               weapon_bytes[4:36].hex()!=weapon_manifest['source']['sha256'] or \
+               weapon_bytes[36:68].hex()!=weapon_manifest['normalization']['sha256'] or \
+               weapon_bytes[68:100].hex()!=weapon_manifest['target_sha256']:
+                raise RuntimeError('Weapon initialization packet/manifest identity mismatch')
+            for entry in ('source','normalization'):
+                item=weapon_manifest[entry]
+                if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
+                    raise RuntimeError('Weapon initialization source/provenance changed: '+entry)
+        elif weapon_bytes[:4] in (b'HWA2',b'HWA3'):
+            if weapon_manifest['schema'] not in ('hades-player-weapons-runtime-v2','hades-player-weapons-runtime-v3') or \
+               hashlib.sha256(weapon_bytes).hexdigest()!=weapon_manifest['packet_sha256'] or \
+               hashlib.file_digest((args.weapons.parent/'catalog.json').open('rb'),'sha256').hexdigest()!=weapon_manifest['catalog_sha256'] or \
+               weapon_bytes[68:100].hex()!='d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254':
+                raise RuntimeError('Expanded weapon packet/catalog identity mismatch')
+        else:
+            raise RuntimeError('Unrecognized source weapon packet')
+        clone_file(args.weapons,assets/'weapons.bin')
+        if 'projectile_thing_packet' in weapon_manifest:
+            projectile_meta=weapon_manifest['projectile_thing_packet'];projectile_packet=args.weapons.parent/projectile_meta['path']
+            if hashlib.file_digest(projectile_packet.open('rb'),'sha256').hexdigest()!=projectile_meta['sha256']:
+                raise RuntimeError('Original projectile Thing catalog changed')
+            clone_file(projectile_packet,assets/'projectiles.lua')
+        else:
+            (assets/'projectiles.lua').unlink(missing_ok=True)
+        weapon_report={'path':str(args.weapons.resolve()),'sha256':hashlib.sha256(weapon_bytes).hexdigest(),
+                       'scope':'Native weapon initialization; firing/combat integration in progress'}
+        actor_manifest=json.loads((args.actors.parent/'manifest.json').read_text())
+        if actor_manifest['schema']!='hades-source-actor-catalog-v1' or not actor_manifest.get('native_unit_angles') or \
+           hashlib.file_digest(args.actors.open('rb'),'sha256').hexdigest()!=actor_manifest['packet']['sha256']:
+            raise RuntimeError('Actor packet/manifest identity mismatch')
+        for item in [actor_manifest['creation'],actor_manifest['defaults'],*actor_manifest['source_files']]:
             if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
-                raise RuntimeError('Weapon initialization source/provenance changed: '+entry)
-    elif weapon_bytes[:4] in (b'HWA2',b'HWA3'):
-        if weapon_manifest['schema'] not in ('hades-player-weapons-runtime-v2','hades-player-weapons-runtime-v3') or \
-           hashlib.sha256(weapon_bytes).hexdigest()!=weapon_manifest['packet_sha256'] or \
-           hashlib.file_digest((args.weapons.parent/'catalog.json').open('rb'),'sha256').hexdigest()!=weapon_manifest['catalog_sha256'] or \
-           weapon_bytes[68:100].hex()!='d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254':
-            raise RuntimeError('Expanded weapon packet/catalog identity mismatch')
-    else:
-        raise RuntimeError('Unrecognized source weapon packet')
-    shutil.copyfile(args.weapons,assets/'weapons.bin')
-    if 'projectile_thing_packet' in weapon_manifest:
-        projectile_meta=weapon_manifest['projectile_thing_packet'];projectile_packet=args.weapons.parent/projectile_meta['path']
-        if hashlib.file_digest(projectile_packet.open('rb'),'sha256').hexdigest()!=projectile_meta['sha256']:
-            raise RuntimeError('Original projectile Thing catalog changed')
-        shutil.copyfile(projectile_packet,assets/'projectiles.lua')
-    else:
-        (assets/'projectiles.lua').unlink(missing_ok=True)
-    weapon_report={'path':str(args.weapons.resolve()),'sha256':hashlib.sha256(weapon_bytes).hexdigest(),
-                   'scope':'Native weapon initialization; firing/combat integration in progress'}
-    actor_manifest=json.loads((args.actors.parent/'manifest.json').read_text())
-    if actor_manifest['schema']!='hades-source-actor-catalog-v1' or not actor_manifest.get('native_unit_angles') or \
-       hashlib.file_digest(args.actors.open('rb'),'sha256').hexdigest()!=actor_manifest['packet']['sha256']:
-        raise RuntimeError('Actor packet/manifest identity mismatch')
-    for item in [actor_manifest['creation'],actor_manifest['defaults'],*actor_manifest['source_files']]:
-        if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
-            raise RuntimeError('Actor source/provenance changed: '+item['path'])
-    shutil.copyfile(args.actors,assets/'actors.lua')
-    package_manifest=json.loads((args.packages.parent/'manifest.json').read_text())
-    if package_manifest['schema']!='hades-native-asset-packages-v1' or hashlib.file_digest(args.packages.open('rb'),'sha256').hexdigest()!=package_manifest['packet']['sha256']:
-        raise RuntimeError('Package catalog identity changed')
-    for item in package_manifest['sources']:
-        if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
-            raise RuntimeError('Original package source changed')
-    for texture in (args.packages.parent/'package-textures').glob('*.rgba'):
-        if hashlib.file_digest(texture.open('rb'),'sha256').hexdigest()!=texture.stem:
-            raise RuntimeError('Decoded package texture changed: '+texture.name)
-    shutil.copyfile(args.packages,assets/'packages.lua')
-    shutil.copytree(args.packages.parent/'package-textures',assets/'package-textures',dirs_exist_ok=True)
-    action_manifest=json.loads((args.actor_animations.parent/'manifest.json').read_text())
-    if action_manifest['schema']!='hades-original-actor-animations-v1' or hashlib.file_digest(args.actor_animations.open('rb'),'sha256').hexdigest()!=action_manifest['packet']['sha256']:
-        raise RuntimeError('Original actor action packet identity changed')
-    for item in action_manifest['sources']:
-        if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
-            raise RuntimeError('Original actor animation source changed: '+item['path'])
-    shutil.copyfile(args.actor_animations,assets/'actor-animations.bin')
-    # Source definitions and source-frame event records stay bound to the same
-    # original bank manifest used above. No game script is rewritten.
-    sys.path.insert(0,str(PROJECT/'native/tools'))
-    from export_actor_catalog import literal as source_lua_literal
-    from stage_actor_lights import stage_actor_lights
-    stage_actor_lights(args.actor_lights,assets)
-    from stage_text_resources import stage_text_resources
-    stage_text_resources(args.text_resources,assets)
-    from stage_action_effects import stage_action_effects
-    stage_action_effects(args.action_effects,assets)
-    from stage_screen_animations import stage_screen_animations
-    stage_screen_animations(args.screen_animations,assets)
-    animation_events={'schema':'hades-actor-animation-events-v1','bank_sha256':action_manifest['packet']['sha256'],
-        'clips':{clip['name']:{'definition':clip['definition'],
-            'frames':{str(frame['original_frame']):frame['events'] for frame in clip['source_sequence'] if frame['events']}}
-            for clip in action_manifest['clips']}}
-    (assets/'actor-animation-events.lua').write_text('return '+source_lua_literal(animation_events)+'\n')
-
-    facing_path=args.actor_animations.parent/'actor-facing.bin'
-    facing=facing_path.read_bytes();action_hash=bytes.fromhex(action_manifest['packet']['sha256'])
-    if len(facing)<44 or facing[:4]!=b'HAF1' or facing[4:36]!=action_hash:
-        raise RuntimeError('Actor facing companion differs from exact source bank')
-    shutil.copyfile(facing_path,assets/'actor-facing.bin')
-    (assets/'actor-animations-sha256.bin').write_bytes(action_hash)
-    marker_manifest=json.loads((args.actor_markers.parent/'manifest.json').read_text())
-    marker_bytes=args.actor_markers.read_bytes()
-    if marker_manifest['schema']!='hades-original-actor-markers-v1' or hashlib.sha256(marker_bytes).hexdigest()!=marker_manifest['packet']['sha256'] or marker_bytes[:4]!=b'HMR1' or marker_bytes[4:36]!=action_hash:
-        raise RuntimeError('Original marker bank identity/binding changed')
-    for item in [marker_manifest['bound_actor_bank'],marker_manifest['actor_manifest'],*[d['source']for d in marker_manifest['datasets']]]:
-        if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
-            raise RuntimeError('Original actor marker source changed')
-    shutil.copyfile(args.actor_markers,assets/'actor-markers.bin')
-    properties_manifest=json.loads((args.actor_properties.parent/'manifest.json').read_text())
-    properties=args.actor_properties.read_bytes()
-    properties_schemas={('HAP'+str(version)).encode(): 'hades-primary-animation-properties-v'+str(version) for version in range(1,7)}
-    if properties_manifest['schema']!=properties_schemas.get(properties[:4]) or hashlib.sha256(properties).hexdigest()!=properties_manifest['packet']['sha256'] or properties[4:36]!=action_hash:
-        raise RuntimeError('Primary animation properties do not match original actor bank')
-    if properties[:4] in (b'HAP2',b'HAP3',b'HAP4',b'HAP5',b'HAP6'):
-        for record in properties_manifest['records']:
-            value=record['properties']['AirborneZ']
-            if value['provenance']=='native-compiled-default' and value['value']!=100.0:
-                raise RuntimeError('Primary AirborneZ must retain explicit native constructor default100')
-    for item in [properties_manifest['bank'],properties_manifest['source_manifest']]:
-        path=Path(item['path']);path=path if path.is_absolute() else PROJECT/path
-        if hashlib.file_digest(path.open('rb'),'sha256').hexdigest()!=item['sha256']:
-            raise RuntimeError('Original primary animation property source changed')
-    shutil.copyfile(args.actor_properties,assets/'actor-properties.bin')
-
-    effects_manifest=json.loads((args.effects.parent/'manifest.json').read_text())
-    if effects_manifest['schema'] not in ('hades-laurel-initialization-export-v1','hades-original-room-spawner-assets-v1') or hashlib.file_digest(args.effects.open('rb'),'sha256').hexdigest()!=effects_manifest['lua']['sha256']:
-        raise RuntimeError('Native effect catalog identity changed')
-    effect_sources=list(effects_manifest.get('sources',[]))
-    if effects_manifest['schema']=='hades-original-room-spawner-assets-v1':
-        effect_sources += [effects_manifest[k] for k in ('registry','source_catalog','catalog','packet')]
-        effect_sources += effects_manifest['source_manifests']
-        registry=json.loads(Path(effects_manifest['registry']['path']).read_text())
-        effect_sources += [registry[k] for k in ('creation','scene','hda','haa')]
-        effect_sources += registry['sources']
-        base_manifest=json.loads((Path(effects_manifest['source_catalog']['path']).parent/'manifest.json').read_text())
-        effect_sources += base_manifest['sources']
-    else:
-        (assets/'spawner-frames.bin').unlink(missing_ok=True)
-    for item in effect_sources:
-        if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
-            raise RuntimeError('Original animation effect source changed')
-    if effects_manifest['schema']=='hades-original-room-spawner-assets-v1':
-        shutil.copyfile(Path(effects_manifest['packet']['path']),assets/'spawner-frames.bin')
-    shutil.copyfile(args.effects,assets/'effects.lua')
-    particle_manifest=json.loads((args.particle_frames.parent/'manifest.json').read_text())
-    if particle_manifest['schema']!='hades-original-cinder-frame-bank-v1' or hashlib.file_digest(args.particle_frames.open('rb'),'sha256').hexdigest()!=particle_manifest['packet']['sha256']:
-        raise RuntimeError('Original particle frame bank identity changed')
-    for item in particle_manifest['sources']:
-        if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
-            raise RuntimeError('Original particle frame bank source changed')
-    shutil.copyfile(args.particle_frames,assets/'cinder-frames.bin')
-    # Audio is packaged as original compressed single-sample FSB containers.
-    # The receipt binds both executable Lua and its full provenance manifest.
-    def verified_source_file(item):
-        path=Path(item['path'])
-        if not path.is_absolute():
-            path=PROJECT/path
-        if hashlib.file_digest(path.open('rb'),'sha256').hexdigest()!=item['sha256']:
-            raise RuntimeError('Original audio identity changed: '+str(path))
-        return path
-    bloom=json.loads(args.bloom_settings.read_text())
-    if bloom['schema']!='hades-original-bloom-presets-v1':raise RuntimeError('Unsupported original bloom settings')
-    verified_source_file(bloom['source'])
-    shutil.copyfile(verified_source_file(bloom['packet']),assets/'bloom-settings.bin')
-    grading=json.loads(args.color_grading.read_text())
-    if grading['schema']!='hades-original-color-grading-v1':raise RuntimeError('Unsupported original color grading')
-    for key in ['source','package']:verified_source_file(grading[key])
-    shutil.copyfile(verified_source_file(grading['packet']),assets/'color-grading.bin')
-    audio_receipt=json.loads(args.audio_events.read_text())
-    if audio_receipt['schema']!='hades-native-audio-event-receipt-v1':
-        raise RuntimeError('Unsupported audio receipt')
-    audio_catalog=verified_source_file(audio_receipt['catalog'])
-    audio_manifest=json.loads(verified_source_file(audio_receipt['manifest']).read_text())
-    if audio_manifest['schema']!='hades-native-audio-events-v1':
-        raise RuntimeError('Unsupported audio event catalog')
-    for item in [*audio_manifest['source_banks'].values(),audio_manifest['guids'],audio_manifest['namespace_source']]:
-        verified_source_file(item)
-    for key in ['voice_header','actor_definitions']:
-        if key in audio_manifest:verified_source_file(audio_manifest[key])
-    for subtitle in audio_manifest.get('voice_subtitles',{}).values():
-        # source=None: dialogue voice with no original subtitle row (text '').
-        if subtitle['source'] is not None:verified_source_file(subtitle['source'])
-    stream_roots=[]
-    for item in [audio_manifest['stream_manifest'],*audio_manifest.get('additional_stream_manifests',[])]:
-        stream_roots.append(verified_source_file(item).parent)
-    for sample in audio_manifest['samples'].values():
-        relative=Path(sample['asset'])
-        if relative.is_absolute() or '..' in relative.parts:
-            raise RuntimeError('Unsafe original audio asset path')
-        matches=[root/relative for root in stream_roots if (root/relative).is_file()]
-        if not matches:
-            raise RuntimeError('Original compressed audio asset is absent: '+str(relative))
-        # Assets are content-addressed: catalogs that re-export a sample hold
-        # identical bytes; every copy must match the recorded hash.
-        for match in matches:verified_source_file({'path':str(match),'sha256':sample['sha256']})
-        destination=assets/relative
-        destination.parent.mkdir(parents=True,exist_ok=True)
-        shutil.copyfile(matches[0],destination)
-    shutil.copyfile(audio_catalog,assets/'audio-events.lua')
-
-    leaf_manifest=json.loads((args.room_leaf_frames.parent/'manifest.json').read_text())
-    if leaf_manifest['schema']!='hades-original-room-leaf-frames-v1':
-        raise RuntimeError('Unsupported room leaf bank')
-    for item in [leaf_manifest[k] for k in ('packet','facing','identity','registry')]+leaf_manifest['sources']:
-        verified_source_file(item)
-    leaf_hash=hashlib.file_digest(args.room_leaf_frames.open('rb'),'sha256').digest()
-    leaf_facing=Path(leaf_manifest['facing']['path']).read_bytes()
-    if leaf_facing[:4]!=b'HAF1' or leaf_facing[4:36]!=leaf_hash or Path(leaf_manifest['identity']['path']).read_bytes()!=leaf_hash:
-        raise RuntimeError('Room leaf companion binding changed')
-    for key in ('packet','facing','identity'):
-        original=Path(leaf_manifest[key]['path'])
-        shutil.copyfile(original,assets/original.name)
-
-    primary_manifest=json.loads(args.primaries.read_text())
-    if primary_manifest['schema'] not in ('hades-source-scene-primaries-v1','hades-source-scene-primaries-v2'):
-        raise RuntimeError('Unsupported scene primaries')
-    for key in ('catalog','lua','aux_bank','registry','source'):
-        verified_source_file(primary_manifest[key])
-    for item in primary_manifest['definition_provenance'].values():
-        verified_source_file({'path':item['path'],'sha256':item['file_sha256']})
-    if primary_manifest.get('dynamic_coverage'):
-        verified_source_file(primary_manifest['dynamic_coverage'])
-    for key in ('lua','aux_bank'):
-        original=Path(primary_manifest[key]['path'])
-        shutil.copyfile(original,assets/original.name)
-
-    movie_manifest=json.loads((args.movie_preloads.parent/'manifest.json').read_text())
-    if movie_manifest['schema']!='hades-native-movie-preload-v1' or hashlib.file_digest(args.movie_preloads.open('rb'),'sha256').hexdigest()!=movie_manifest['packet']['sha256']:
-        raise RuntimeError('Original movie preload catalog identity changed')
-    for item in movie_manifest['sources']:
-        if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
-            raise RuntimeError('Original movie preload source changed: '+item['path'])
-    for movie in movie_manifest['movies'].values():
-        for item in (movie['original'],movie['metadata']):
+                raise RuntimeError('Actor source/provenance changed: '+item['path'])
+        clone_file(args.actors,assets/'actors.lua')
+        package_manifest=json.loads((args.packages.parent/'manifest.json').read_text())
+        if package_manifest['schema']!='hades-native-asset-packages-v1' or hashlib.file_digest(args.packages.open('rb'),'sha256').hexdigest()!=package_manifest['packet']['sha256']:
+            raise RuntimeError('Package catalog identity changed')
+        for item in package_manifest['sources']:
             if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
-                raise RuntimeError('Original movie bytes or atlas metadata changed')
-        payload=args.movie_preloads.parent/movie['path']
-        if hashlib.file_digest(payload.open('rb'),'sha256').hexdigest()!=movie['sha256']:
-            raise RuntimeError('Staged original compressed movie changed')
-    shutil.copyfile(args.movie_preloads,assets/'movie-preloads.lua')
-    shutil.copytree(args.movie_preloads.parent/'movie-preloads',assets/'movie-preloads',dirs_exist_ok=True)
+                raise RuntimeError('Original package source changed')
+        for texture in (args.packages.parent/'package-textures').glob('*.rgba'):
+            if hashlib.file_digest(texture.open('rb'),'sha256').hexdigest()!=texture.stem:
+                raise RuntimeError('Decoded package texture changed: '+texture.name)
+        clone_file(args.packages,assets/'packages.lua')
+        shutil.copytree(args.packages.parent/'package-textures',assets/'package-textures',dirs_exist_ok=True,copy_function=clone_file)
+        action_manifest=json.loads((args.actor_animations.parent/'manifest.json').read_text())
+        if action_manifest['schema']!='hades-original-actor-animations-v1' or hashlib.file_digest(args.actor_animations.open('rb'),'sha256').hexdigest()!=action_manifest['packet']['sha256']:
+            raise RuntimeError('Original actor action packet identity changed')
+        for item in action_manifest['sources']:
+            if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
+                raise RuntimeError('Original actor animation source changed: '+item['path'])
+        clone_file(args.actor_animations,assets/'actor-animations.bin')
+        # Source definitions and source-frame event records stay bound to the same
+        # original bank manifest used above. No game script is rewritten.
+        sys.path.insert(0,str(PROJECT/'native/tools'))
+        from export_actor_catalog import literal as source_lua_literal
+        from stage_actor_lights import stage_actor_lights
+        stage_actor_lights(args.actor_lights,assets)
+        from stage_text_resources import stage_text_resources
+        stage_text_resources(args.text_resources,assets)
+        from stage_action_effects import stage_action_effects
+        stage_action_effects(args.action_effects,assets)
+        from stage_screen_animations import stage_screen_animations
+        stage_screen_animations(args.screen_animations,assets)
+        animation_events={'schema':'hades-actor-animation-events-v1','bank_sha256':action_manifest['packet']['sha256'],
+            'clips':{clip['name']:{'definition':clip['definition'],
+                'frames':{str(frame['original_frame']):frame['events'] for frame in clip['source_sequence'] if frame['events']}}
+                for clip in action_manifest['clips']}}
+        (assets/'actor-animation-events.lua').write_text('return '+source_lua_literal(animation_events)+'\n')
 
-    room_report=stage_room_scene(args,assets)
-    player,camera,animation_report,ambient_report,composition_report=(room_report[k] for k in ('player','camera','animations','ambient','composition'))
-    from stage_room_packs import stage_room_pack
-    for room_manifest in args.room_pack:stage_room_pack(room_manifest,assets)
-    published_assets = BUILD / 'assets'
-    retired_assets = Path(tempfile.mkdtemp(prefix='assets-retired-', dir=BUILD))
-    retired_assets.rmdir()
-    if published_assets.exists():published_assets.rename(retired_assets)
-    try:
-        assets.rename(published_assets)
-    except BaseException:
-        if retired_assets.exists():retired_assets.rename(published_assets)
-        raise
-    staged_assets.cleanup()
-    assets = published_assets
-    if retired_assets.exists():shutil.rmtree(retired_assets)
-    if args.assets_only:
-        print(json.dumps({'assets': str(assets), 'player': player, 'camera': camera, 'animations': animation_report,'weapons':weapon_report}, indent=2))
-        return
+        facing_path=args.actor_animations.parent/'actor-facing.bin'
+        facing=facing_path.read_bytes();action_hash=bytes.fromhex(action_manifest['packet']['sha256'])
+        if len(facing)<44 or facing[:4]!=b'HAF1' or facing[4:36]!=action_hash:
+            raise RuntimeError('Actor facing companion differs from exact source bank')
+        clone_file(facing_path,assets/'actor-facing.bin')
+        (assets/'actor-animations-sha256.bin').write_bytes(action_hash)
+        marker_manifest=json.loads((args.actor_markers.parent/'manifest.json').read_text())
+        marker_bytes=args.actor_markers.read_bytes()
+        if marker_manifest['schema']!='hades-original-actor-markers-v1' or hashlib.sha256(marker_bytes).hexdigest()!=marker_manifest['packet']['sha256'] or marker_bytes[:4]!=b'HMR1' or marker_bytes[4:36]!=action_hash:
+            raise RuntimeError('Original marker bank identity/binding changed')
+        for item in [marker_manifest['bound_actor_bank'],marker_manifest['actor_manifest'],*[d['source']for d in marker_manifest['datasets']]]:
+            if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
+                raise RuntimeError('Original actor marker source changed')
+        clone_file(args.actor_markers,assets/'actor-markers.bin')
+        properties_manifest=json.loads((args.actor_properties.parent/'manifest.json').read_text())
+        properties=args.actor_properties.read_bytes()
+        properties_schemas={('HAP'+str(version)).encode(): 'hades-primary-animation-properties-v'+str(version) for version in range(1,7)}
+        if properties_manifest['schema']!=properties_schemas.get(properties[:4]) or hashlib.sha256(properties).hexdigest()!=properties_manifest['packet']['sha256'] or properties[4:36]!=action_hash:
+            raise RuntimeError('Primary animation properties do not match original actor bank')
+        if properties[:4] in (b'HAP2',b'HAP3',b'HAP4',b'HAP5',b'HAP6'):
+            for record in properties_manifest['records']:
+                value=record['properties']['AirborneZ']
+                if value['provenance']=='native-compiled-default' and value['value']!=100.0:
+                    raise RuntimeError('Primary AirborneZ must retain explicit native constructor default100')
+        for item in [properties_manifest['bank'],properties_manifest['source_manifest']]:
+            path=Path(item['path']);path=path if path.is_absolute() else PROJECT/path
+            if hashlib.file_digest(path.open('rb'),'sha256').hexdigest()!=item['sha256']:
+                raise RuntimeError('Original primary animation property source changed')
+        clone_file(args.actor_properties,assets/'actor-properties.bin')
+
+        effects_manifest=json.loads((args.effects.parent/'manifest.json').read_text())
+        if effects_manifest['schema'] not in ('hades-laurel-initialization-export-v1','hades-original-room-spawner-assets-v1') or hashlib.file_digest(args.effects.open('rb'),'sha256').hexdigest()!=effects_manifest['lua']['sha256']:
+            raise RuntimeError('Native effect catalog identity changed')
+        effect_sources=list(effects_manifest.get('sources',[]))
+        if effects_manifest['schema']=='hades-original-room-spawner-assets-v1':
+            effect_sources += [effects_manifest[k] for k in ('registry','source_catalog','catalog','packet')]
+            effect_sources += effects_manifest['source_manifests']
+            registry=json.loads(Path(effects_manifest['registry']['path']).read_text())
+            effect_sources += [registry[k] for k in ('creation','scene','hda','haa')]
+            effect_sources += registry['sources']
+            base_manifest=json.loads((Path(effects_manifest['source_catalog']['path']).parent/'manifest.json').read_text())
+            effect_sources += base_manifest['sources']
+        else:
+            (assets/'spawner-frames.bin').unlink(missing_ok=True)
+        for item in effect_sources:
+            if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
+                raise RuntimeError('Original animation effect source changed')
+        if effects_manifest['schema']=='hades-original-room-spawner-assets-v1':
+            clone_file(Path(effects_manifest['packet']['path']),assets/'spawner-frames.bin')
+        clone_file(args.effects,assets/'effects.lua')
+        particle_manifest=json.loads((args.particle_frames.parent/'manifest.json').read_text())
+        if particle_manifest['schema']!='hades-original-cinder-frame-bank-v1' or hashlib.file_digest(args.particle_frames.open('rb'),'sha256').hexdigest()!=particle_manifest['packet']['sha256']:
+            raise RuntimeError('Original particle frame bank identity changed')
+        for item in particle_manifest['sources']:
+            if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
+                raise RuntimeError('Original particle frame bank source changed')
+        clone_file(args.particle_frames,assets/'cinder-frames.bin')
+        # Audio is packaged as original compressed single-sample FSB containers.
+        # The receipt binds both executable Lua and its full provenance manifest.
+        def verified_source_file(item):
+            path=Path(item['path'])
+            if not path.is_absolute():
+                path=PROJECT/path
+            if hashlib.file_digest(path.open('rb'),'sha256').hexdigest()!=item['sha256']:
+                raise RuntimeError('Original audio identity changed: '+str(path))
+            return path
+        bloom=json.loads(args.bloom_settings.read_text())
+        if bloom['schema']!='hades-original-bloom-presets-v1':raise RuntimeError('Unsupported original bloom settings')
+        verified_source_file(bloom['source'])
+        clone_file(verified_source_file(bloom['packet']),assets/'bloom-settings.bin')
+        grading=json.loads(args.color_grading.read_text())
+        if grading['schema']!='hades-original-color-grading-v1':raise RuntimeError('Unsupported original color grading')
+        for key in ['source','package']:verified_source_file(grading[key])
+        clone_file(verified_source_file(grading['packet']),assets/'color-grading.bin')
+        audio_receipt=json.loads(args.audio_events.read_text())
+        if audio_receipt['schema']!='hades-native-audio-event-receipt-v1':
+            raise RuntimeError('Unsupported audio receipt')
+        audio_catalog=verified_source_file(audio_receipt['catalog'])
+        audio_manifest=json.loads(verified_source_file(audio_receipt['manifest']).read_text())
+        if audio_manifest['schema']!='hades-native-audio-events-v1':
+            raise RuntimeError('Unsupported audio event catalog')
+        for item in [*audio_manifest['source_banks'].values(),audio_manifest['guids'],audio_manifest['namespace_source']]:
+            verified_source_file(item)
+        for key in ['voice_header','actor_definitions']:
+            if key in audio_manifest:verified_source_file(audio_manifest[key])
+        for subtitle in audio_manifest.get('voice_subtitles',{}).values():
+            # source=None: dialogue voice with no original subtitle row (text '').
+            if subtitle['source'] is not None:verified_source_file(subtitle['source'])
+        stream_roots=[]
+        for item in [audio_manifest['stream_manifest'],*audio_manifest.get('additional_stream_manifests',[])]:
+            stream_roots.append(verified_source_file(item).parent)
+        for sample in audio_manifest['samples'].values():
+            relative=Path(sample['asset'])
+            if relative.is_absolute() or '..' in relative.parts:
+                raise RuntimeError('Unsafe original audio asset path')
+            matches=[root/relative for root in stream_roots if (root/relative).is_file()]
+            if not matches:
+                raise RuntimeError('Original compressed audio asset is absent: '+str(relative))
+            # Assets are content-addressed: catalogs that re-export a sample hold
+            # identical bytes; every copy must match the recorded hash.
+            for match in matches:verified_source_file({'path':str(match),'sha256':sample['sha256']})
+            destination=assets/relative
+            destination.parent.mkdir(parents=True,exist_ok=True)
+            clone_file(matches[0],destination)
+        clone_file(audio_catalog,assets/'audio-events.lua')
+
+        leaf_manifest=json.loads((args.room_leaf_frames.parent/'manifest.json').read_text())
+        if leaf_manifest['schema']!='hades-original-room-leaf-frames-v1':
+            raise RuntimeError('Unsupported room leaf bank')
+        for item in [leaf_manifest[k] for k in ('packet','facing','identity','registry')]+leaf_manifest['sources']:
+            verified_source_file(item)
+        leaf_hash=hashlib.file_digest(args.room_leaf_frames.open('rb'),'sha256').digest()
+        leaf_facing=Path(leaf_manifest['facing']['path']).read_bytes()
+        if leaf_facing[:4]!=b'HAF1' or leaf_facing[4:36]!=leaf_hash or Path(leaf_manifest['identity']['path']).read_bytes()!=leaf_hash:
+            raise RuntimeError('Room leaf companion binding changed')
+        for key in ('packet','facing','identity'):
+            original=Path(leaf_manifest[key]['path'])
+            clone_file(original,assets/original.name)
+
+        primary_manifest=json.loads(args.primaries.read_text())
+        if primary_manifest['schema'] not in ('hades-source-scene-primaries-v1','hades-source-scene-primaries-v2'):
+            raise RuntimeError('Unsupported scene primaries')
+        for key in ('catalog','lua','aux_bank','registry','source'):
+            verified_source_file(primary_manifest[key])
+        for item in primary_manifest['definition_provenance'].values():
+            verified_source_file({'path':item['path'],'sha256':item['file_sha256']})
+        if primary_manifest.get('dynamic_coverage'):
+            verified_source_file(primary_manifest['dynamic_coverage'])
+        for key in ('lua','aux_bank'):
+            original=Path(primary_manifest[key]['path'])
+            clone_file(original,assets/original.name)
+
+        movie_manifest=json.loads((args.movie_preloads.parent/'manifest.json').read_text())
+        if movie_manifest['schema']!='hades-native-movie-preload-v1' or hashlib.file_digest(args.movie_preloads.open('rb'),'sha256').hexdigest()!=movie_manifest['packet']['sha256']:
+            raise RuntimeError('Original movie preload catalog identity changed')
+        for item in movie_manifest['sources']:
+            if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
+                raise RuntimeError('Original movie preload source changed: '+item['path'])
+        for movie in movie_manifest['movies'].values():
+            for item in (movie['original'],movie['metadata']):
+                if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
+                    raise RuntimeError('Original movie bytes or atlas metadata changed')
+            payload=args.movie_preloads.parent/movie['path']
+            if hashlib.file_digest(payload.open('rb'),'sha256').hexdigest()!=movie['sha256']:
+                raise RuntimeError('Staged original compressed movie changed')
+        clone_file(args.movie_preloads,assets/'movie-preloads.lua')
+        shutil.copytree(args.movie_preloads.parent/'movie-preloads',assets/'movie-preloads',dirs_exist_ok=True,copy_function=clone_file)
+
+        room_report=stage_room_scene(args,assets)
+        player,camera,animation_report,ambient_report,composition_report=(room_report[k] for k in ('player','camera','animations','ambient','composition'))
+        from stage_room_packs import stage_room_pack
+        for room_manifest in args.room_pack:stage_room_pack(room_manifest,assets)
+        if args.content_bundle:
+            bundle=write_content_bundle(assets,args.content_bundle)
+            staged_assets.cleanup()
+            print(json.dumps({'content_bundle':bundle,'player':player,'camera':camera,'weapons':weapon_report,'room_packs':[str(p) for p in args.room_pack]},indent=2))
+            return
+        published_assets = BUILD / 'assets'
+        retired_assets = Path(tempfile.mkdtemp(prefix='assets-retired-', dir=BUILD))
+        retired_assets.rmdir()
+        if published_assets.exists():published_assets.rename(retired_assets)
+        try:
+            assets.rename(published_assets)
+        except BaseException:
+            if retired_assets.exists():retired_assets.rename(published_assets)
+            raise
+        staged_assets.cleanup()
+        assets = published_assets
+        if retired_assets.exists():shutil.rmtree(retired_assets)
+        if args.assets_only:
+            print(json.dumps({'assets': str(assets), 'player': player, 'camera': camera, 'animations': animation_report,'weapons':weapon_report}, indent=2))
+            return
     unsigned = BUILD / 'unsigned.apk'
     # NativeActivity window lifecycle runs on Android's UI thread. This tiny
     # subclass owns system-bar visibility only; all game/UI rendering is C++.
@@ -575,14 +696,14 @@ def main():
     for density in json.loads(args.app_icon.read_text())['mipmaps'].values():
         target = res / Path(density['path'])
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(icon_root / density['path'], target)
+        clone_file(icon_root / density['path'], target)
     compiled = BUILD / 'res-compiled.zip'
     run([TOOLS / 'aapt2', 'compile', '--dir', res, '-o', compiled])
     run([TOOLS / 'aapt2', 'link', '-I', SDK / 'platforms/android-36/android.jar',
          '--manifest', PROJECT / 'native/app/AndroidManifest.xml', '-A', assets, '-R', compiled, '--auto-add-overlay',
          '-0', 'bin', '-o', unsigned])
     stripped = BUILD / 'libhades_native.so'
-    shutil.copyfile(library, stripped)
+    clone_file(library, stripped)
     run([NDK / 'toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip', '--strip-debug', stripped])
     # APK readers/zipalign require ZIP32. Python conservatively emits ZIP64 at
     # 2GiB, although ZIP32 offsets support up to 4GiB. Original movie packs can
@@ -620,8 +741,9 @@ def main():
         'native_engine': str(library), 'game_engine_runtime': 'Native Android C++/GLES3',
         'android_window_bridge': 'NativeActivity subclass for UI-thread system-bar lifecycle only',
         'network_permission': False, 'compatibility_runtime': False,
-        'scene': str(args.scene.resolve()),
-        'scene_sha256': hashlib.file_digest(args.scene.open('rb'), 'sha256').hexdigest(),
+        'scene': str(args.scene.resolve()) if args.scene else None,
+        'scene_sha256': hashlib.file_digest(args.scene.open('rb'), 'sha256').hexdigest() if args.scene else None,
+        'content_bootstrap': str(args.apk_bootstrap.resolve()) if args.apk_bootstrap else None,
         'camera': camera,
         'player': player,
         'animations': animation_report,

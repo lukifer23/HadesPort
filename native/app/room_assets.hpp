@@ -25,6 +25,16 @@ inline constexpr std::array<std::string_view, 26> kRoomBoundAssets{{
     "primaries.lua", "primary-child-frames.bin",
     "actor-lights.lua", "actor-light-frames.bin", "actor-light-sha256.bin",
 }};
+// Room-bound but legitimately absent for maps without map primary spawners:
+// effects.lua then has no PrimaryRecipes and lua_runtime opens neither the
+// spawner nor the leaf bank. Still never served from the root for another map.
+inline constexpr std::array<std::string_view, 4> kOptionalRoomAssets{{
+    "spawner-frames.bin", "room-leaf-frames.bin", "room-leaf-facing.bin", "room-leaf-sha256.bin",
+}};
+inline bool isOptionalRoomAsset(std::string_view name) {
+    for (const auto optional : kOptionalRoomAssets) if (optional == name) return true;
+    return false;
+}
 inline bool isRoomBoundAsset(std::string_view name) {
     for (const auto bound : kRoomBoundAssets) if (bound == name) return true;
     return false;

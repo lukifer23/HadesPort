@@ -5,6 +5,7 @@ from pathlib import Path
 from hades_assets import Package
 from build_room_scene import identity
 
+from build_room_scene import map_packages
 def f32(v):return struct.unpack('<f',struct.pack('<f',v))[0]
 def normalized(sprite):
  points=sprite['hull'];w,h=sprite['rect'][2:];hx,hy=w//2,h//2
@@ -24,7 +25,8 @@ def export(content,scene_dir,animation_dir,output):
  m=json.loads((scene_dir/'scene-manifest.json').read_text());a=json.loads((animation_dir/'animation-manifest.json').read_text());clips=json.loads((scene_dir/'animation-clips.json').read_text());scene=identity(scene_dir/'scene-affine.bin');animation=identity(animation_dir/'animations.bin')
  if scene['sha256']!=m['scene']['sha256']or a['scene_sha256']!=scene['sha256']:raise ValueError('Source scene binding mismatch')
  index=collections.defaultdict(list);sources=[]
- for package in ['Tartarus','Fx']:
+ # Same derived namespaces as build_graphics_scene: original MapGroups biome package, then Fx, GUI.
+ for package in [*map_packages(content,m['room']),'Fx','GUI']:
   p=content/'Win/Packages'/f'{package}.pkg_manifest';sources.append(identity(p))
   for entry in Package(p).entries():
    for s in entry.get('sprites',[]):index[(entry['name'],s['name'],tuple(s['rect']))].append(s)

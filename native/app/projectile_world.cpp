@@ -723,6 +723,23 @@ bool ProjectileWorld::thingLocation(const ProjectileActor& p,float& x,float& y,s
     float px=0,py=0;if(!p.firingWorld->location(p.attachedTo,px,py,error))return false;
     x=add(px,p.attachOffsetX);y=add(p.attachOffsetY,py);error.clear();return true;
 }
+bool ProjectileWorld::tipLocation(const ProjectileActor& p,float& x,float& y,std::string& error)const{
+    // Projectile::CalcTipLocation VA18006e2d0..6e44a (vslot0x188). The leading
+    // attached GetLocation result is discarded natively. With a live polygon
+    // (+0x1f0) the scan keeps best squared distance from mSpawnLocation(+0x90);
+    // d2>best-1 admits, d2>best+1 restarts the sum, else accumulates; best=d2
+    // on every admitted vertex. Average of the admitted set, (0,0) if empty.
+    // BeamProjectile::CalcTipLocation64ae0 instead returns mEndLocation(+0x528).
+    if(p.descriptor.concreteClass==ProjectileClass::Beam){x=p.beam.endX;y=p.beam.endY;error.clear();return true;}
+    if(p.geometry.empty())return thingLocation(p,x,y,error);
+    float best=0,sx=0,sy=0;int32_t count=0;
+    for(const auto& v:p.geometry){const float dx=sub(p.spawnX,v.x),dy=sub(p.spawnY,v.y),d2=add(mul(dx,dx),mul(dy,dy));
+        if(!(d2>sub(best,1.f)))continue;
+        if(d2>add(best,1.f)){sx=v.x;sy=v.y;count=1;}else{sx=add(sx,v.x);sy=add(sy,v.y);++count;}
+        best=d2;}
+    if(count>0){sx/=float(count);sy/=float(count);}
+    x=sx;y=sy;error.clear();return true;
+}
 bool ProjectileWorld::thingZ(const ProjectileActor& p,float& z,std::string& error)const{
     if(!attachedAlive(p)){z=p.body.z;error.clear();return true;}
     float pz=0;if(!p.firingWorld->zLocation(p.attachedTo,pz,error))return false;z=add(pz,p.attachOffsetZ);error.clear();return true;

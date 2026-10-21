@@ -1,4 +1,5 @@
 #pragma once
+#include <set>
 #include "object_runtime.hpp"
 #include "source_value.hpp"
 #include "primitive_properties.hpp"
@@ -197,6 +198,10 @@ public:
     bool setObstacleProperty(int32_t,const std::string&,const PropertyInput&,PropertyChange,std::string& error);
     bool unitDataValue(int32_t,const std::string&,SourceValue&,std::string& error)const;
     bool setThingProperty(int32_t,const std::string&,const PropertyInput&,PropertyChange,std::string& error);
+    // ObstacleManager ObstacleSet 7 (occluder roots). Thing::SetThingProperty
+    // 0x1802e6d5c CausesOcclusion=true adds GetRoot(Thing+0x644) via AddToSet
+    // 0x1802c7950; membership is never removed by the property (lua_occlusion.cpp).
+    std::set<int32_t> occlusionRootSet;
     bool setLifeProperty(int32_t,const std::string&,const PropertyInput&,PropertyChange,bool data,std::string& error);
     const SourceValue* currentProperty(int32_t,const std::string&)const;
     ActorComponents* actor(int32_t);
