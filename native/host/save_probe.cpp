@@ -44,7 +44,12 @@ for _ in pairs(ta) do count = count + 1 end
 local hasState = type(ta.GameState) == "table" and type(ta.CurrentRun) == "table"
 if not hasState then return false, "GameState/CurrentRun missing from save table", count end
 local resave = luabins.save(ta)
-local ok, why = eq(ta, tb, "_G", {})
+-- ProgressManager::LoadLua overwrites these after Load(data) with the live
+-- world time and ScreenManager::s_ElapsedTime (save-contract.json "load"),
+-- so a fresh runtime legitimately differs; compare everything else.
+local clocks = {_worldTime = true, _screenTime = true}
+local function strip(t) local c = {} for k,v in pairs(t) do if not clocks[k] then c[k] = v end end return c end
+local ok, why = eq(strip(ta), strip(tb), "_G", {})
 return ok, why or "", count, resave == a, resave == b
 )LUA";
 struct Compare {bool equal=false;std::string detail;int keys=0;bool resaveIdentical=false,resaveMatchesRight=false;};
