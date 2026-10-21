@@ -42,6 +42,10 @@ by host or synthetic tests.
 Sparing and deliberate: fast host builds (RelWithDebInfo, `-DHADES_SANITIZE=OFF`) in your
 own temporary build dir, batch fixes, the shortest replay that reaches the change, one
 sanitized (ASan/UBSan) run at the end. Delete temporary build dirs and scratch copies.
+Be a good neighbour on a shared machine: one build/export/replay process at a time per
+worker, run them under `nice -n 15` with `-j 2`, never copy the source tree for a probe
+build, never leave background processes running, and never use broad `pkill -f`
+patterns that can hit another worker's job.
 
 ## Devices
 

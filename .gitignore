@@ -1,6 +1,8 @@
 # Everything local: original game files, exported asset packs, builds, reports,
 # evidence, device captures, private notes. Never commit any of it.
+.local
 .local/
+.local.nosync/
 
 # Build outputs
 build/

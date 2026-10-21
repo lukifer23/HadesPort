@@ -44,6 +44,11 @@ of 2400 frames take ~7 s; sanitized ones take minutes, so keep those for the fin
 | `.local/reports/` | Evidence, replay logs, agent progress logs (ignored) |
 | `.local/private/` | Local-only notes (`LOCAL.md`), retired/intake material (ignored) |
 
+If the checkout sits in a cloud-synced folder (e.g. macOS iCloud "Desktop & Documents"),
+keep the tens of GB under `.local` out of sync: store it as `.local.nosync/` with a
+`.local -> .local.nosync` symlink (iCloud skips `*.nosync`; all paths keep working;
+`.gitignore` covers both). Otherwise the sync daemons rehash every export and build.
+
 ## Commands
 
 ```sh
@@ -122,8 +127,10 @@ The user asked for code work only for now: no device installs or tests. Iteratio
 remains installed and hash-verified. Work proceeds on the host with `--autoplay`,
 which now clears the whole RoomSimple01 encounter; the reached gaps on the reward
 path are listed in STATUS.md "Workstream checkpoint", with their owners. Process
-rules: one build/replay per worker at a time, `-j 4` max, no copied source trees,
-no lingering background processes. Agents edit; main verifies (build + strict
+rules: one build/export/replay per worker at a time, `nice -n 15`, `-j 2`, no copied
+source trees, no lingering background processes, no broad `pkill -f` patterns.
+All agents were stopped at 21:05; their uncommitted work is described in STATUS.md
+"Workstream checkpoint" and backed up in `.local/private/wip-2026-10-20/`. Agents edit; main verifies (build + strict
 firstcombat2950 + autoplay), commits, pushes and keeps these docs current.
 
 Root-cause rules still hold: never clear legitimate requests or skip a missing

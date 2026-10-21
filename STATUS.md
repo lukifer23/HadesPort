@@ -89,8 +89,9 @@ are retained history, not current blockers.
 
 By the user's direction this session is code work only: no device installs or
 device tests. Iteration12 stays the installed build (hash re-verified on the
-device at session start). Builds run one at a time per worker, `-j 4` max, no
-copied source trees, no background processes left running.
+device at session start). Process limits: one build/export/replay per worker,
+`nice -n 15`, `-j 2`, no copied source trees, no background processes left running.
+The machine also hosts other projects; do not starve them.
 
 Host progression now runs without recorded input: `hades-debug ... --autoplay`
 (native/host/autoplay.cpp) drives the original `RequiredKillEnemies` and live
@@ -111,7 +112,34 @@ Interact owners through the same `setLocalInput` path as touch. With
   by real collision weapons), AdjustRadialBlur*/AdjustFrame, then loot Use →
   dialogue → UpgradeChoice, then the door and LoadMap of the original next room.
 
-Active workstreams (one coordinator builds/packages; agents never commit):
+All workstream agents were stopped at 21:05 by the user's request; no build, export or
+replay process is running. Their work is **uncommitted** in the working tree (38 tracked
+files, 12 new) and backed up locally under `.local/private/wip-2026-10-20/`. It has not
+passed the strict regression yet: the last strict firstcombat run stopped at frame 0 on
+`DrawHealthFX` (the vignette-frame work was in progress), so none of it is on `main`.
+Resume by building it once, fixing what is half-finished, then running strict
+firstcombat2950 + autoplay before committing area by area.
+
+Reported state of the uncommitted work when stopped:
+
+- projectiles: Projectile::ImpactFx (6e090) consumer with CalcTipLocation (6e2d0) —
+  GunWeaponImpact gap gone in autoplay; Beam/Lob/Sky subclasses not started in code.
+- combat: FireCollisionWeapon / initiated collision weapons, MoveAI OnFailBehavior,
+  GetClosest StopsProjectiles/StopsUnits, ApplyForce, screen Teleport, non-HAA
+  friction, live ElapsedTimeMultiplier; shared non-projectile TakeHit
+  (life_take_hit.cpp) was mid-wiring into OnObstacleCollision.
+- presentation: per-entity VFX owner time (lua_vfx / effect_animation); fullscreen blur
+  (AdjustRadialBlur*) and AdjustFrame/vignette in progress (source of the DrawHealthFX
+  stop); occlusion ObstacleSet change mid-edit.
+- rooms: reward-chain closure (animation_coverage reward_objects → action-effects-v24),
+  external content store (content_store.cpp, host_assets.hpp), per-map export
+  (export_room_pack.py, 7 maps exported into room-packs-v7), `--start-map` mid-edit.
+- audio: audio-events-v30 bound to action-effects-v24 (2190 events, 3635 samples;
+  autoplay with v30 had no audio gaps), export_audio_release.py one-command recipe
+  (`.local/reports/audio-v30-recipe.md`); full VO table/subtitle rule/playlist mode 1
+  not started.
+
+Workstreams to recreate when work resumes (one coordinator builds/packages; agents never commit):
 
 | Area | Owner | Scope |
 |---|---|---|
