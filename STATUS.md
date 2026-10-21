@@ -113,14 +113,14 @@ Interact owners through the same `setLocalInput` path as touch. With
   dialogue → UpgradeChoice, then the door and LoadMap of the original next room.
 
 All workstream agents were stopped at 21:05 by the user's request; no build, export or
-replay process is running. Their work is **uncommitted** in the working tree (38 tracked
-files, 12 new) and backed up locally under `.local/private/wip-2026-10-20/`. It has not
-passed the strict regression yet: the last strict firstcombat run stopped at frame 0 on
+replay process is running. Their unfinished work is preserved on the branch
+`wip/agents-2026-10-20` (origin), not on `main`. It has not passed the strict regression yet: the last strict firstcombat run stopped at frame 0 on
 `DrawHealthFX` (the vignette-frame work was in progress), so none of it is on `main`.
-Resume by building it once, fixing what is half-finished, then running strict
-firstcombat2950 + autoplay before committing area by area.
+Resume by checking out that branch (or cherry-picking per area), building it once,
+finishing what is half-done, then landing each area on `main` only after strict
+firstcombat2950 + autoplay pass.
 
-Reported state of the uncommitted work when stopped:
+Reported state of the branch work when stopped:
 
 - projectiles: Projectile::ImpactFx (6e090) consumer with CalcTipLocation (6e2d0) —
   GunWeaponImpact gap gone in autoplay; Beam/Lob/Sky subclasses not started in code.

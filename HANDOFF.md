@@ -129,8 +129,8 @@ which now clears the whole RoomSimple01 encounter; the reached gaps on the rewar
 path are listed in STATUS.md "Workstream checkpoint", with their owners. Process
 rules: one build/export/replay per worker at a time, `nice -n 15`, `-j 2`, no copied
 source trees, no lingering background processes, no broad `pkill -f` patterns.
-All agents were stopped at 21:05; their uncommitted work is described in STATUS.md
-"Workstream checkpoint" and backed up in `.local/private/wip-2026-10-20/`. Agents edit; main verifies (build + strict
+All agents were stopped at 21:05; their unverified work is on branch
+`wip/agents-2026-10-20` and described in STATUS.md "Workstream checkpoint". Agents edit; main verifies (build + strict
 firstcombat2950 + autoplay), commits, pushes and keeps these docs current.
 
 Root-cause rules still hold: never clear legitimate requests or skip a missing
