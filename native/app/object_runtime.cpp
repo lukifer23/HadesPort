@@ -90,6 +90,10 @@ std::vector<int32_t> ids(lua_State* state, const char* singular, const char* plu
 }
 std::vector<std::string> names(lua_State* state,const char* singular,const char* plural){
     std::vector<std::string> result;lua_getfield(state,1,plural);
+    // ScriptArgs name lists (see DestinationNames2819d0 in lua_spatial_queries)
+    // accept a single string under the plural key as well as an array;
+    // original scripts use both (e.g. DestinationNames = "SpawnPoints").
+    if(lua_type(state,-1)==LUA_TSTRING){result.emplace_back(lua_tostring(state,-1));lua_pop(state,1);return result;}
     if(!lua_isnil(state,-1)){
         if(!lua_istable(state,-1)||lua_rawlen(state,-1)>10000)throw std::runtime_error("Object names require bounded array");
         for(size_t i=1,n=lua_rawlen(state,-1);i<=n;++i){lua_rawgeti(state,-1,int(i));if(lua_type(state,-1)!=LUA_TSTRING)throw std::runtime_error("Object names require strings");result.emplace_back(lua_tostring(state,-1));lua_pop(state,1);}

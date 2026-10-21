@@ -4,6 +4,7 @@
 #include "../app/scene_renderer.hpp"
 #include "world_capture.hpp"
 #include "save_probe.hpp"
+#include "autoplay.hpp"
 #include "../app/touch_controls.hpp"
 #include <array>
 #include <cmath>
@@ -26,10 +27,11 @@ static void jsonString(std::ostream& out,const std::string& text) {
 }
 
 int main(int argc,char** argv) {
-    bool capture=false,activate=false,probe=false,weaponProbe=false,survey=false,contain=false,validatePresentation=false;int worldFrames=120;std::string inputReplay,saveProbeDirectory,loadSaveDirectory;
+    bool autoplay=false,capture=false,activate=false,probe=false,weaponProbe=false,survey=false,contain=false,validatePresentation=false;int worldFrames=120;std::string inputReplay,saveProbeDirectory,loadSaveDirectory;
     for(int i=3;i<argc;++i){const std::string arg=argv[i];
         if(arg=="--capture-active-room")capture=activate=true;
         else if(arg=="--activate-room")activate=true;
+        else if(arg=="--autoplay")autoplay=true; // diagnostic input source: fight/approach/Use via the touch input path
         else if(arg=="--survey-blockers")survey=true; // diagnostic: list all blockers in one run
         else if(arg=="--contain-faults")contain=survey=true; // device durability mode: skip a failing stage, keep the frame running
         else if(arg=="--validate-live-presentation")validatePresentation=true;
@@ -44,6 +46,7 @@ int main(int argc,char** argv) {
     try {
         if(std::filesystem::exists(argv[2]))throw std::runtime_error("Trace already exists; choose a new output");
         struct ReplayInput {int frame;float x,y;std::vector<std::string> controls;};std::vector<ReplayInput> replay;
+        if(autoplay&&(!activate||!inputReplay.empty()))throw std::runtime_error("Autoplay requires activation and replaces --input-replay");
         if(!inputReplay.empty()){
             if(!activate)throw std::runtime_error("Input replay requires actual room activation");
             std::ifstream source(inputReplay);if(!source)throw std::runtime_error("Cannot open actual input recording");std::string line;
@@ -84,11 +87,14 @@ int main(int argc,char** argv) {
         std::ofstream weaponDump(std::string(argv[2])+".weapons.txt");weaponDump<<scripts.stagedWeaponsDump();
         for(size_t i=0;scripts.assetsPending()&&i<128;++i)if(!scripts.serviceAssets())break;
         bool updateComplete=activationComplete;
+        hades::Autoplay autoplayDriver;std::string autoplayMap;
         std::ostringstream worldTrace;size_t replayAt=0;int worldFramesCompleted=0;uint64_t pcmSamples=0;double pcmSquared=0;float pcmPeak=0;bool firstWorldSample=true;std::string mixerError;
         size_t presentationSamples=0,validatedPresentationFrames=0;std::string presentationError;
         using Clock=std::chrono::steady_clock;std::vector<double> frameMilliseconds;double updateMilliseconds=0,mixMilliseconds=0;
         if(activationComplete)for(int i=0;i<worldFrames;++i){
             const auto frameStart=Clock::now();
+            if(autoplay){const auto view=scripts.autoplayView();const auto input=autoplayDriver.step(i,view);if(!scripts.setLocalInput(input.x,input.y,input.controls,mixerError)){updateComplete=false;break;}
+                if(i%60==0||view.map!=autoplayMap){autoplayMap=view.map;std::cout<<"AUTOPLAY frame="<<i<<" allowed="<<view.inputAllowed<<" hero="<<int(view.x)<<','<<int(view.y)<<' '<<input.summary<<" map="<<view.map<<'\n';}}
             if(replayAt<replay.size()&&replay[replayAt].frame==i){const auto& input=replay[replayAt++];if(!scripts.setLocalInput(input.x,input.y,input.controls,mixerError)){updateComplete=false;break;}}
             if(!scripts.advanceWorld(1.f/60,1./60)){if(survey){scripts.surveyRecordWorldFault();continue;}updateComplete=false;break;}
             if(validatePresentation){

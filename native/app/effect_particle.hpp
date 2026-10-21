@@ -54,6 +54,7 @@ enum class EffectParticlePhase {Rotation,Acceleration,Gravity,Fraction,Heading,U
 class EffectParticleWorld {
     std::function<bool(uint64_t)> externalOwner_;
     std::map<std::string,SourceValue> definitions_;
+    const SourceValue& definition(const std::string& name)const{const auto i=definitions_.find(name);if(i==definitions_.end())throw std::runtime_error("Original particle definition not staged: "+name);return i->second;}
     std::shared_ptr<ActorAnimationBank> bank_;
     std::vector<std::shared_ptr<ActorAnimationBank>> extraBanks_;
     std::shared_ptr<AnimationRegistry> registry_;
