@@ -159,7 +159,15 @@ def export(content,stream_manifest,output,extra_streams=(),mixing_control=False,
     for entry in playlist['playlist']:
      child=meta[entry['guid']]
      if child['kind']!='WAIB' or len(child['instruments'])!=1 or child['properties']:raise ValueError('Unsupported nested playlist waveform')
-     v=child['instruments'][0]['value'];wave=meta[child['value']['waveform_guid']]['value']
+     v=child['instruments'][0]['value']
+     if child['value']['waveform_guid']==ZERO:
+      # The source bank keeps a weighted playlist entry whose waveform is
+      # absent (no audio data exists). Selection still consumes its weight and
+      # shuffle slot; the runtime plays nothing for it. Same admission rules.
+      if v['loop_count']!=0 or v['routable']['bus_guid']!=ZERO or v['timeline_guid']!=ZERO or v['trigger_chance_percent']!=100 or v['trigger_delay_min'] or v['trigger_delay_max'] or v['evaluators']:raise ValueError('Unsupported empty playlist waveform semantics')
+      if time_locked and not locked_instrument_admitted(v):raise ValueError('Unsupported time-locked empty playlist waveform admission')
+      choices.append({'guid':entry['guid'],'waveform_guid':ZERO,'empty_waveform':True,'weight':entry['weight'],'original':v});continue
+     wave=meta[child['value']['waveform_guid']]['value']
      sample=next((k for k,z in streams['samples'].items()if z['original_bank']['sha256']==graph.b.original['sha256']and z['original']['sound_bank_index']==wave['sound_bank_index']and z['original']['subsound_index']==wave['subsound_index']),None)
      if sample is None:raise ValueError('No original playlist compressed sample')
      source=streams['samples'][sample]

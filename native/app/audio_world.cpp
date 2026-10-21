@@ -185,7 +185,11 @@ struct AudioWorld::Impl {
     for(auto& parameter:definition.parameters){const auto i=timeline.parameters().find(parameter.name);if(i!=timeline.parameters().end())parameter.initial=i->second;}
     for(const auto& playlist:playlists){
      const auto& choices=field(playlist,"choices").array();const auto selected=owner->choosePlaylist(name+":"+field(playlist,"guid").text(),choices);
-     const auto& choice=choices.at(selected);Instrument item;item.bus=field(playlist,"bus").text();item.busIndex=buses.at(item.bus).index;
+     const auto& choice=choices.at(selected);
+     // Source playlist entry with no waveform: the selection is consumed and
+     // nothing plays (export_audio_events.py empty_waveform).
+     if(const auto* empty=choice.get("empty_waveform");empty&&empty->boolean()){selectedWaveforms.push_back(field(choice,"waveform_guid").text());continue;}
+     Instrument item;item.bus=field(playlist,"bus").text();item.busIndex=buses.at(item.bus).index;
      item.start=integer(field(playlist,"start"));item.trim=integer(field(choice,"left_trim_tick"));item.gain=dbGain(number(field(choice,"gain_db")));
      if(const auto* fades=playlist.get("fades"))for(const auto& fade:fades->array()){if(integer(field(fade,"property"))!=4)throw std::runtime_error("Unsupported source playlist automation property");Curve curve;curve.load(field(fade,"points").array(),true);item.fades.push_back(std::move(curve));}
      route(item,number(field(choice,"pitch_semitones")));
