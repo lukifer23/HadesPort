@@ -85,22 +85,45 @@ are retained history, not current blockers.
   animations and map namespaces. Fresh validated staging removes stale assets;
   packaging verifies audio bindings to the selected actor/action closure.
 
-### Workstream checkpoint
+### Workstream checkpoint (2026-10-20 evening, code-only session)
 
-All previous repair assignments are complete; no build/install/replay worker is
-running at this checkpoint. Agent sessions and PIDs are not restart dependencies.
-The roles below are useful for assigning new work when evidence warrants it.
+By the user's direction this session is code work only: no device installs or
+device tests. Iteration12 stays the installed build (hash re-verified on the
+device at session start). Builds run one at a time per worker, `-j 4` max, no
+copied source trees, no background processes left running.
 
-| Area | Previous owner | Completed boundary |
+Host progression now runs without recorded input: `hades-debug ... --autoplay`
+(native/host/autoplay.cpp) drives the original `RequiredKillEnemies` and live
+Interact owners through the same `setLocalInput` path as touch. With
+`--contain-faults` it lists every engine gap real play reaches. Current reach:
+
+- RoomOpening → door → RoomSimple01; all four EnemyIntroFight01 waves (SimpleMelee,
+  2× HeavyMelee, 3× LightRanged, HeavyMelee + 3× LightRanged) killed; money pickup.
+- Encounter end reaches the original reward spawn. Fixed so far: cross-world VFX
+  cap victim (particle world threw map::at), string ScriptArgs name lists
+  (`DestinationNames = "SpawnPoints"`), reward-chain resource closure
+  (action-effects-v24: all LootData/consumable reward obstacles), per-entity VFX
+  owner time, live ElapsedTimeMultiplier.
+- Save mid-RoomSimple01 → fresh reload is structurally identical (the native-
+  rewritten `_worldTime`/`_screenTime` excluded per save-contract); `--load-save`
+  Continue resumes the encounter.
+- Next on the reward path: projectile ImpactFx consumer (GunWeaponImpact, reached
+  by real collision weapons), AdjustRadialBlur*/AdjustFrame, then loot Use →
+  dialogue → UpgradeChoice, then the door and LoadMap of the original next room.
+
+Active workstreams (one coordinator builds/packages; agents never commit):
+
+| Area | Owner | Scope |
 |---|---|---|
-| Android deployment, lifecycle/clocks, diagnostics, documentation | main | Iteration12 installed and verified; final sanitizer pass; rollback preserved |
-| AI/firing/markers, movie resources, timed audio | movement_controls | Mixed2950 and next-wave3100 strict integration passed |
-| Asset closure, native Instant and color defaults | progression_coverage | Weapon25/action22/audio29 selected and validated |
-| Pathing/interaction, child lifetime/rendering, text/targetability | door_runtime | Real next-wave child activation and AI/attack passed host integration |
+| Progression driver, interaction, save/Continue, integration, docs | main | autoplay, reward → door → LoadMap, commits |
+| Beam/Lob/Sky projectiles, delayed-fuse Instant, ImpactFx consumer | projectiles | projectile_*, lua_projectiles |
+| Collision weapons, wall-slam TakeHit, MoveAI, LOS notifies, ApplyForce | combat | lua_combat, lua_actor_motion, unit_*, life_take_hit |
+| Boon/dialogue screens, FX branches, blur/frame, PC features (occlusion, timer, indicators) | presentation | action_effect, effect_*, screens, ui |
+| External content store, all-map room packs, reward closure | rooms | packaging, tools, build_native.py |
+| Full-game audio: v30 rebind, all 19,597 VO lines + subtitles, all banks | audio | audio exporters and runtime |
 
-At the documentation review, ADB lists no connected device. Reconnect and rediscover
-its current transport after restart. The detailed restart steps, local identifiers,
-artifact inventory and prioritized next actions are in ignored
+Evidence for this session is private under `.local/reports/session-1020/`
+(autoN/saveN/contN logs). The detailed local restart notes are in ignored
 `.local/private/RESTART_HANDOFF.md`; never commit it.
 
 ## Device (Galaxy Z Fold, `$HADES_DEVICE_SERIAL`)
@@ -193,16 +216,16 @@ artifact inventory and prioritized next actions are in ignored
 
 ## Next milestones
 
-1. Reconnect the device, verify the installed iteration12 package and collect fresh
-   logs during user-driven combat. Confirm mixed attacks/cast/dash, four directions,
-   enemy attacks/death and recovery after repeated actions.
-2. Complete every original forced encounter wave, money pickup and Athena reward:
-   loot → Use → dialogue → boon selection. Reconstruct the first reached native gap.
-3. Let original scripts select the next map. Export its complete validated resource
-   closure and verify the real transition; RoomSimple01 has no fixed third-room link.
-4. Verify actual device save, restart and Continue without overwriting its profile.
-5. Verify original controller/keyboard bindings with a physical controller, then
-   expand later rooms/biomes and the full run/House loop.
+1. Finish the RoomSimple01 reward path on host autoplay: ImpactFx consumer, encounter-end
+   blur/frame, loot Use → Athena dialogue → UpgradeChoice boon selection (touch and
+   controller input through the original screen handlers).
+2. Original exit door → LoadMap of the script-chosen next map, using the external
+   content store and per-map packs (no APK size ceiling, no fallback scene).
+3. Every Tartarus map and encounter on host autoplay (`--start-map=`), then Megaera.
+4. Full-game audio (all banks, all VO with subtitles) and the PC settings features
+   withheld until their behaviour exists (occlusion silhouette, timer, indicators).
+5. When the user asks for device work again: one slim APK + content bundle, install,
+   verify hashes and play the same route on the Fold.
 
 ## Known issues
 

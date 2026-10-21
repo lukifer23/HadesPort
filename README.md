@@ -6,11 +6,11 @@ purchased PC copy** — on a C++/OpenGL ES engine reconstructed from the PC engi
 No emulation, Wine, CPU translation, ads, accounts or network access.
 
 > **Status: prototype; full gameplay remains incomplete** (2026-10-20). Iteration12
-> is installed and hash verified. Device captures prove title and RoomOpening;
-> strict host replays prove enemy damage/death, next-wave AI, cast lifecycle and
-> movement recovery on the recorded routes. Full encounter completion, Athena's
-> reward and subsequent room progression still need device verification. Missing
-> engine behavior is logged as engine gaps. See [`STATUS.md`](STATUS.md).
+> is installed and hash verified on the device. On the host, a new autoplay driver
+> plays the original scripts through the opening room and the whole first encounter
+> (four waves) and reaches the reward spawn; save and Continue round-trip. Athena's
+> boon, the next room and later biomes are in progress. Missing engine behaviour is
+> logged as engine gaps. See [`STATUS.md`](STATUS.md).
 
 **This repository contains no game files.** You must own Hades (e.g. on Steam or the Epic
 Games Store) and supply its files yourself. Read [`DISCLAIMER.md`](DISCLAIMER.md).

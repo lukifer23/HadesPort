@@ -65,6 +65,13 @@ cmake --build .local/native-host-build-X --target hades-debug
 # Blocker survey (host-only diagnostic): records every failure instead of stopping
 .local/native-host-build-X/hades-debug .local/native-build/assets .local/reports/SURVEY.json \
   --activate-room --world-frames=2950 --survey-blockers --input-replay=.local/reports/native-firstcombat-replay-v1.tsv
+# Autoplay (host-only input source): plays the real encounter/reward flow from the
+#   original RequiredKillEnemies + live Interact owners via the touch input path.
+#   --contain-faults = device durability mode, prints SURVEY_SUMMARY of reached gaps.
+.local/native-host-build-X/hades-debug .local/native-build/assets .local/reports/AUTO.json \
+  --activate-room --world-frames=9000 --autoplay --contain-faults
+# Save/Continue: --probe-save=NEW_DIR (checkpoint + fresh reload compare), then
+#   --load-save=COPY_OF_DIR --autoplay to continue from it.
 # Hero motion/camera trace: HADES_TRACE_HERO=1 hades-debug ... (host, every 10 frames);
 #   on device the engine logs HERO_TRACE every ~0.5 s (logcat -s HadesNative)
 # RE helpers
@@ -109,37 +116,19 @@ HERO_TRACE now reports held controls, requests, strafe, effects, timers, velocit
 body/goal/cosmetic facing and animation state. New AI diagnostics preserve actual
 coroutine waits/stacks and dynamic enemy arsenals.
 
-## Immediate iteration
+## Immediate iteration (2026-10-20, code-only)
 
-1. Current candidate passes strict mixed2950 and next-wave3100. Mixed covers
-   real enemy hits50→40→30, sword and special afterward, all four movement/facing
-   directions after melee, post-special recovery and final requests/effects
-   empty with strafe0. Next-wave covers enemy
-   death, money pickup, real child-movie activation, AI/pathing and enemy attack.
-   Device iteration12 (d39fefae) is installed, its full SHA/size verified, and
-   launched. Iteration10a rollback APK remains preserved locally. Launch and live
-   RoomOpening captures plus a12second passive video are retained; screenshot
-   shows84FPS/11.8ms and captured device logs have0 faults. Combat/full encounter
-   verification on device remains pending; do not infer it from a host pass.
-2. Preserve shared root repairs: same-name victim Reapply keeps original identity;
-   native marker fallback separates attach/draw offsets; Action FX preserves the
-   first failure; sound coverage is checked before animation allocation. Never
-   clear legitimate requests or skip a missing native consumer to claim recovery.
-3. INSTANT6 zero-fuse uses original target/RNG placement, base Init then synchronous
-   Detonate while genuinely queued. Actual delayed-fuse/live-target specialized
-   initialization remains explicit. Weapon25 normalizes packed-color defaults
-   per channel and preserves source aliases/precedence. No weapon-name exceptions.
-4. Child Constant→movie Book chains retain parent ownership, release/transfer and
-   actual native Book duration/color/angle behavior over original HAA pixels.
-   Source attachment and authored draw offsets stay separate through CopyState,
-   rendering and VFX. The source closure traverses nonmovie containers as well.
-5. Audio29 admits original time-locked weighted playlists with parent region/fades;
-   836 events and1976 samples,5 explicit unsupported cues remain. No silent
-   replacement. Audio closure binds actor9/action22; stale assets fail packaging.
-6. Finish all forced encounter waves and Athena reward/boon before selecting the
-   next original map. Full encounter/reward/next-room completion, later map/biome
-   coverage and device save/reload remain unverified. RoomSimple01 has no fixed
-   linked third room. Do not fabricate a next-room choice or fallback scene.
+The user asked for code work only for now: no device installs or tests. Iteration12
+remains installed and hash-verified. Work proceeds on the host with `--autoplay`,
+which now clears the whole RoomSimple01 encounter; the reached gaps on the reward
+path are listed in STATUS.md "Workstream checkpoint", with their owners. Process
+rules: one build/replay per worker at a time, `-j 4` max, no copied source trees,
+no lingering background processes. Agents edit; main verifies (build + strict
+firstcombat2950 + autoplay), commits, pushes and keeps these docs current.
+
+Root-cause rules still hold: never clear legitimate requests or skip a missing
+native consumer to claim recovery, no weapon/room/god-name switches, no fallback
+scene, and no invented next room — the original scripts choose it after the reward.
 
 The final host runs sample presentation; they do not validate every rendered
 frame. Read the private restart inventory before assuming any scratch directory
