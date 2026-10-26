@@ -97,6 +97,9 @@ struct EffectEmissionProvider {
     std::function<bool(const EffectSpawnRequest&,uint64_t&,std::string&)> create;
     std::function<bool(uint64_t)> alive;
 };
+// TimeModifierSystem VA180188ae0 computes each animation entity's elapsed from
+// its own TimeModifierFraction and explicit AttachedToTimeMultiplier link.
+using EffectElapsedProvider=std::function<bool(const EffectAnimationEntity&,float,float&,std::string&)>;
 struct EffectPrimaryReplacement {int32_t ownerId=0;uint64_t previous=0,current=0;std::string name;};
 class EffectAnimationWorld {
     std::map<std::string,EffectDefinition> definitions_;
@@ -111,12 +114,15 @@ private:
     uint64_t nextHandle_=1;
     bool inMutation_=false,faulted_=false;
     bool admittingParticleComponent_=false;
+    EffectElapsedProvider elapsed_;
     std::string fault_;
     bool preflightCreate(const std::string&,std::vector<std::string>&,std::string&)const;
     bool initialize(const std::string&,int32_t,const EffectOwnerState&,uint64_t,
         const EffectAnimationRandom&,std::map<uint64_t,EffectAnimationEntity>&,uint64_t&,std::string&,
         AnimationOwnership rootOwnership=AnimationOwnership::ManagerCreate,const EffectTexture* primaryTexture=nullptr);
 public:
+    // Without an adapter only the native default (world elapsed) is supplied.
+    void setElapsedProvider(EffectElapsedProvider provider){elapsed_=std::move(provider);}
     bool setRegistry(std::shared_ptr<AnimationRegistry>,std::string&);
     const std::shared_ptr<AnimationRegistry>& registry()const{return registry_;}
     bool loadCatalog(SourceValue,std::string&);

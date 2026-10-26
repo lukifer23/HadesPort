@@ -3,12 +3,16 @@
 #include "recovered_runtime.hpp"
 #include "input_runtime.hpp"
 #include "platform_log.hpp"
+#include "life_take_hit.hpp"
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <cstdlib>
+#include <locale.h>
 extern "C" {
 #include <lua.h>
+#include <lauxlib.h>
 }
 bool ScriptRuntime::configurationFloat(const char* name,float& result,std::string& error){
     const int top=lua_gettop(state_);lua_getglobal(state_,"GetConfigOptionValue");lua_newtable(state_);lua_pushstring(state_,name);lua_setfield(state_,-2,"Name");
@@ -1014,7 +1018,12 @@ bool ScriptRuntime::unitApplyShift(int32_t id,float nx,float ny,float sx,float s
         if(stops&&prop(o,"CollisionBounce").number()>0)collided=true;
         const auto weapon=prop(id,"InitiatedCollisionWeapon").text();
         if(!weapon.empty()&&a->physics){const float req=float(prop(id,"CollisionWeaponRequiredVelocity").number());
-            if(req*req<=moveShift*moveShift&&a->physics->lastForceSelfApplied)throw std::runtime_error("ApplyShift InitiatedCollisionWeapon Weapon::RequestFire83160 not reconstructed");}
+            // ApplyShift VA1802f81f0..8237: equipped initiated weapon, sufficient
+            // shift speed and self-applied force -> RequestFire(-1,zero,null,true,zero).
+            if(req*req<=moveShift*moveShift&&a->physics->lastForceSelfApplied&&a->arsenal&&a->arsenal->hasWeapon(weapon)){
+                hades::WeaponFireRequest request;request.angle=-1;
+                if(!collisionWeaponRequestFire(id,weapon,request,error))return false;
+                a=actorWorld_.actor(id);if(!a||!a->registered||!a->object){error="InitiatedCollisionWeapon lost actual Unit";return false;}}}
     }
     // ApplyShift VA1802f8247..82d8: each collided Unit, then self once when
     // any Unit collision or stopping/bouncing obstacle occurred. A Unit hit
@@ -1039,6 +1048,66 @@ bool ScriptRuntime::unitApplyShift(int32_t id,float nx,float ny,float sx,float s
     return unitSetLocation(id,tx,ty,error);
     }catch(const std::exception& e){error=e.what();return false;}
 }
+// Weapon::RequestFire VA180083160 from collision consumers, using the same
+// actual owner/configuration inputs as the Unit.OnTouchdown overload.
+// An ordinary gate rejection has no error; unsupported native behavior does.
+bool ScriptRuntime::collisionWeaponRequestFire(int32_t owner,const std::string& weapon,hades::WeaponFireRequest request,std::string& error){
+    bool editing=false;float speed=0;
+    if(!configOptionBool("EditingMode",editing,error)||!configurationFloat("SpeedMultiplier",speed,error))return false;
+    auto* a=actorWorld_.actor(owner);if(!a||!a->registered||!a->object||!a->arsenal){error="Collision RequestFire requires actual Unit arsenal";return false;}
+    hades::WeaponOwnerFrame frame;if(!actorWorld_.weaponOwnerFrame(owner,worldTime_,speed,editing,inputAllowed(),frame,error))return false;
+    if(!a->arsenal->requestFire(weapon,request,frame,error)&&!error.empty())return false;
+    error.clear();return true;
+}
+// WeaponArsenal::FireCollisionWeapon VA1802ff380; matching DLL/PDB instruction
+// evidence: .local/reports/combat-FireCollisionWeapon-static.json.
+// Lookup CollisionWeapon first; absent weapon/Physics returns. A positive
+// RequiredVelocity tests Physics.velocity (not moveShift). The per-weapon copied
+// ProjectileData receives velocity*CollisionDamagePerVelocity*Life's multiplier
+// in DamageLow/High and the supplied velocity in ImpactVelocity, then RequestFire.
+bool ScriptRuntime::fireCollisionWeapon(int32_t owner,float angle,float velocity,std::string& error){
+    try{
+        auto* a=actorWorld_.actor(owner);if(!a||!a->registered||!a->object){error="FireCollisionWeapon requires actual Unit";return false;}
+        const auto property=[&](const char* key)->const hades::SourceValue&{const auto* v=actorWorld_.currentProperty(owner,key);if(!v)throw std::runtime_error(std::string("FireCollisionWeapon original field unavailable: ")+key);return *v;};
+        const auto name=property("CollisionWeapon").text();
+        if(!a->arsenal||!a->arsenal->hasWeapon(name)||!a->physics){error.clear();return true;}
+        const float required=float(property("CollisionWeaponRequiredVelocity").number());
+        const auto v=a->physics->velocity;
+        if(required>0&&v.x*v.x+v.y*v.y<required*required){error.clear();return true;}
+        if(!a->hasLife||!a->life.initialized)throw std::runtime_error("FireCollisionWeapon requires actual Life collision multiplier");
+        const float damage=(velocity*float(property("CollisionDamagePerVelocity").number()))*a->life.collisionDamageMultiplier;
+        if(!std::isfinite(damage)||!std::isfinite(angle)||!std::isfinite(velocity))throw std::runtime_error("FireCollisionWeapon nonfinite input/damage");
+        const auto* weapon=a->arsenal->weaponState(name,error);if(!weapon)return false;
+        if(weapon->validProjectileData&&!a->arsenal->editProjectileData(name,false,[&](hades::ProjectileDefinition& data,std::string& detail){
+            for(const char* key:{"DamageLow","DamageHigh","ImpactVelocity"}){const auto field=data.fields.find(key);if(field==data.fields.end()||!std::holds_alternative<double>(field->second)){detail=std::string("FireCollisionWeapon ProjectileData unavailable: ")+key;return false;}}
+            data.fields["DamageLow"]=double(damage);data.fields["DamageHigh"]=double(damage);data.fields["ImpactVelocity"]=double(velocity);return true;
+        },error))return false;
+        hades::WeaponFireRequest request;request.angle=angle;
+        return collisionWeaponRequestFire(owner,name,request,error);
+    }catch(const std::exception& e){error=e.what();return false;}
+}
+// UnitStatus::ClearOnCollisionEffects VA1802fd730 (retained matching DLL/PDB
+// instruction evidence combat-ClearOnCollisionEffects-static.json). Capture
+// active refs only, Clear selected uncleared effects, then append to deletion
+// even if previously cleared. Pending effects and cleanup belong to later phases.
+bool ScriptRuntime::clearCollisionEffects(int32_t id,std::string& error){
+    auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered){error="Collision effect owner unavailable";return false;}
+    if(!actor->status){error.clear();return true;}
+    const auto lifetime=actor->entityHandle;const auto handles=actor->status->snapshot().active;
+    const auto providers=selfEffectProviders();
+    for(const auto handle:handles){
+        const auto* data=selfEffects_.effectData(handle,error);auto* effect=selfEffects_.instance(handle);
+        if(!data||!effect||!effect->state.status){if(error.empty())error="Collision effect lifetime unavailable";return false;}
+        const auto flag=data->fields.find("ClearOnCollision");
+        if(flag==data->fields.end()||!std::holds_alternative<bool>(flag->second)){error="Original EffectData ClearOnCollision unavailable";return false;}
+        if(!std::get<bool>(flag->second))continue;
+        if(!effect->state.status->cleared&&!selfEffects_.clearEffect(handle,providers,error))return false;
+        actor=actorWorld_.actor(id);
+        if(!actor||!actor->registered||actor->entityHandle!=lifetime||!actor->status){error="Collision effect owner expired during Clear";return false;}
+        if(!actor->status->enqueueEffectRemoval(handle,error))return false;
+    }
+    error.clear();return true;
+}
 // Unit::OnUnitCollision VA1802f7580 and ScriptManager::OnUnitCollision
 // VA18028add0: clear collision effects, collidee arsenal collision weapon,
 // initiator weapon, then thresholded Lua event. Authored weapon/effect branches
@@ -1048,24 +1117,24 @@ bool ScriptRuntime::unitOnUnitCollision(int32_t id,int32_t other,float velocity,
     auto* a=actorWorld_.actor(id);auto* b=actorWorld_.actor(other);
     if(!a||!a->registered||!a->object||!b||!b->registered||!b->object){error="OnUnitCollision requires actual registered Units";return false;}
     const auto prop=[&](int32_t n,const char* k)->const hades::SourceValue&{const auto* v=actorWorld_.currentProperty(n,k);if(!v)throw std::runtime_error(std::string("OnUnitCollision original field unavailable: ")+k);return *v;};
-    if(a->status){const auto st=a->status->snapshot();for(const auto* list:{&st.active,&st.pending})for(auto h:*list){
-        const auto* d=selfEffects_.effectData(h,error);if(!d)return false;const auto f=d->fields.find("ClearOnCollision");
-        if(f==d->fields.end()||!std::holds_alternative<bool>(f->second))throw std::runtime_error("Original EffectData ClearOnCollision unavailable");
-        if(std::get<bool>(f->second))throw std::runtime_error("UnitStatus::ClearOnCollisionEffects2fd730 effect clear not reconstructed");}}
+    if(!clearCollisionEffects(id,error))return false;
+    a=actorWorld_.actor(id);b=actorWorld_.actor(other);
+    if(!a||!a->registered||!a->object||!b||!b->registered||!b->object){error="OnUnitCollision Clear lost actual Units";return false;}
     if(!b->physics||!b->physics->lastForceSelfApplied||prop(other,"AllowSelfCollisions").boolean()){
-        const auto name=prop(other,"CollisionWeapon").text();
-        // FireCollisionWeapon VA1802ff380 looks up this exact equipped weapon;
-        // a missing weapon or Physics returns before damage/request operations.
-        if(!name.empty()&&name!="null"&&b->arsenal&&b->arsenal->scriptMutableWeapon(name)&&b->physics){
-            const float req=float(prop(other,"CollisionWeaponRequiredVelocity").number());
-            const auto& ms=b->physics->moveShift;
-            if(req<=0||req*req<=ms.x*ms.x+ms.y*ms.y)throw std::runtime_error("WeaponArsenal::FireCollisionWeapon2ff380 projectile collision damage/request not reconstructed");
-        }
+        // OnUnitCollision VA1802f75a4..75e4 supplies the initiator's body angle+pi.
+        if(!fireCollisionWeapon(other,a->object->angle+3.1415927410125732f,velocity,error))return false;
+        a=actorWorld_.actor(id);b=actorWorld_.actor(other);
+        if(!a||!a->registered||!a->object||!b||!b->registered||!b->object){error="FireCollisionWeapon lost actual Units";return false;}
     }
     const auto initiated=prop(id,"InitiatedCollisionWeapon").text();
-    if(!initiated.empty()&&initiated!="null"&&a->physics&&a->physics->lastForceSelfApplied&&id!=other){
+    if(!initiated.empty()&&a->physics&&a->physics->lastForceSelfApplied&&id!=other){
         const float req=float(prop(id,"CollisionWeaponRequiredVelocity").number());
-        if(req*req<=velocity*velocity&&a->arsenal&&a->arsenal->scriptMutableWeapon(initiated))throw std::runtime_error("OnUnitCollision InitiatedCollisionWeapon RequestFire83160 target entity link not reconstructed");
+        if(req*req<=velocity*velocity&&a->arsenal&&a->arsenal->hasWeapon(initiated)){
+            // VA1802f75e9..7693 passes the actual collidee as the target link.
+            hades::WeaponFireRequest request;request.angle=a->object->angle;request.targetId=other;request.targetLifetime=b->entityHandle;
+            if(!collisionWeaponRequestFire(id,initiated,request,error))return false;
+            a=actorWorld_.actor(id);b=actorWorld_.actor(other);
+            if(!a||!a->registered||!a->object||!b||!b->registered||!b->object){error="InitiatedCollisionWeapon lost actual Units";return false;}}
     }
     if(float(prop(other,"CollisionTriggerMinSpeed").number())<velocity){
         // ScriptManager VA18028adef skips an owner with a non-null Lua table;
@@ -1078,11 +1147,11 @@ bool ScriptRuntime::unitOnUnitCollision(int32_t id,int32_t other,float velocity,
 }
 // Unit::OnObstacleCollision2f6ce0 (.local/reports/native-shift-on-obstacle-collision-pseudocode.c);
 // ObstacleDataDef offsets from the PDB (native-shift-obstacle-data-def-type.txt). Reconstructed
-// branches: collision-set insert, first-contact cues (fail loudly when authored), StopsUnits gate,
+// branches: collision-set insert, first-contact cues, StopsUnits gate,
 // reaction gate, ScriptManager::OnCollisionReaction28a8b0 / OnObstacleCollision28ab40 Lua dispatch
 // (only when the obstacle has an attached Lua table), UnitStatus::ClearOnCollisionEffects2fd730.
 // APPROXIMATION (labelled): OnCollisionReaction28a8b0 arguments assumed to match OnObstacleCollision28ab40
-// (CollideeTable, Velocity); ClearOnCollisionEffects fails loudly on any ClearOnCollision effect (not decompiled).
+// (CollideeTable, Velocity).
 bool ScriptRuntime::unitOnObstacleCollision(int32_t id,int32_t o,float sx,float sy,float px,float py,float& damage,std::string& error){
     try{
     auto* a=actorWorld_.actor(id);auto* ob=actorWorld_.actor(o);if(!a||!a->object||!ob||!ob->registered){error="OnObstacleCollision requires actual Unit and Obstacle";return false;}
@@ -1094,7 +1163,10 @@ bool ScriptRuntime::unitOnObstacleCollision(int32_t id,int32_t o,float sx,float 
         // ObstacleDataDef ctor 0x1800d43f0 zeroes CollisionSound (def+0xb0: null cue + empty name);
         // the actor catalog lists it as an unresolved compiled field, so absent = that empty default.
         const auto* sound=actorWorld_.currentProperty(o,"CollisionSound");
-        if(sound&&!sound->text().empty())throw std::runtime_error("OnObstacleCollision CollisionSound AudioManager::PlayCue3D4a690 not reconstructed");
+        // VA1802f6dd0..6de5 copies the authored cue to PlayCue3D with this
+        // obstacle as owner; real audio namespace resolution owns validity.
+        if(sound&&!sound->text().empty()){float x=0,y=0,z=0;uint32_t channel=0;
+            if(!actorWorld_.location(o,x,y,error)||!actorWorld_.zLocation(o,z,error)||!playAudioCue(sound->text(),o,{x,y,z},channel,error))return false;}
         // First contact: Thing::SetAnimation 0x2decb0(obstacle, CollisionAnimation, false, true).
         if(const auto anim=prop(o,"CollisionAnimation").text();!anim.empty()&&anim!="null"&&!setActorAnimation(o,anim,error))return false;
         // Unit::OnObstacleCollision 0x2f6ce0: CollisionAlphaOutDuration>0 ->
@@ -1102,15 +1174,14 @@ bool ScriptRuntime::unitOnObstacleCollision(int32_t id,int32_t o,float sx,float 
         if(const float fade=float(prop(o,"CollisionAlphaOutDuration").number());fade>0){
             hades::BodyTransitionOptions alphaOut;alphaOut.duration=fade;
             if(!actorWorld_.adjustColorChannel(o,3,0.f,1.f,alphaOut,error))return false;}
-        if(!prop(o,"CollisionFx").text().empty())throw std::runtime_error("OnObstacleCollision CollisionFx AnimationManager::Create29e410 not reconstructed");
+        // VA1802f6e30..6e8c supplies the obstacle's virtual XY and zero Z.
+        if(const auto fx=prop(o,"CollisionFx").text();!fx.empty()&&fx!="null"){float x=0,y=0;if(!actorWorld_.location(o,x,y,error))return false;
+            uint64_t handle=0;if(!createActionEffect(fx,o,std::array<float,3>{x,y,0},handle,error))return false;}
     }
     const float speed=a->physics?std::sqrt(a->physics->velocity.x*a->physics->velocity.x+a->physics->velocity.y*a->physics->velocity.y):0.f;
     bool stops=false;if(!actorWorld_.obstacleStops(o,false,stops,error))return false;
     if(!stops){error.clear();return true;}
-    const auto clearOnCollision=[&]()->bool{
-        if(a->status){const auto st=a->status->snapshot();for(const auto* list:{&st.active,&st.pending})for(auto h:*list){const auto* d=selfEffects_.effectData(h,error);if(!d)return false;const auto f=d->fields.find("ClearOnCollision");if(f==d->fields.end()||!std::holds_alternative<bool>(f->second))throw std::runtime_error("Original EffectData ClearOnCollision unavailable");if(std::get<bool>(f->second))throw std::runtime_error("UnitStatus::ClearOnCollisionEffects2fd730 effect clear not reconstructed");}}
-        return true;};
-    if(px==0&&py==0){if(!clearOnCollision())return false;error.clear();return true;}
+    if(px==0&&py==0)return clearCollisionEffects(id,error);
     const float pl=1.f/std::sqrt(px*px+py*py),sl=1.f/std::sqrt(sx*sx+sy*sy);
     const float facing=sx*sl*px*pl+sy*sl*py*pl;
     // PhysicsComponent::MultiplyVelocity 0x2bd450: velocity *= f; |v|^2 < 1e-4
@@ -1124,8 +1195,11 @@ bool ScriptRuntime::unitOnObstacleCollision(int32_t id,int32_t o,float sx,float 
         auto& ms=a->physics->moveShift;const float d=(ms.x*px+ms.y*py)/(px*px+py*py);
         a->physics->velocity={ms.x-d*px-d*px,ms.y-d*py-d*py};
         if(!onActorForce(id,true,error))return false;
-        if(bounce>=1)throw std::runtime_error("OnObstacleCollision CollisionBounce>=1 PhysicsComponent::ApplyForce2bd160 not reconstructed");
-        multiplyVelocity(bounce);
+        // VA1802f6fb0..6fe1 uses an external vector force for bounce>=1;
+        // smaller bounces scale the already reflected velocity instead.
+        if(bounce>=1){if(!collisionForce(id,px,py,(bounce-1.f)*speed,float(prop(o,"CollisionKnockbackCap").number()),error))return false;
+            a=actorWorld_.actor(id);if(!a||!a->registered||!a->object){error="Bounce force lost actual Unit";return false;}}
+        else multiplyVelocity(bounce);
     }
     // CollisionVelocityRetention != 1: MultiplyVelocity(|-(n.x*dir.x) - n.y*dir.y| * (r-1) + 1),
     // dir = Thing direction vector (+0xb0/+0xb4 = cos/-sin of the body angle).
@@ -1144,18 +1218,121 @@ bool ScriptRuntime::unitOnObstacleCollision(int32_t id,int32_t o,float sx,float 
     lua_State* L=state_;pushObjectLuaTable(L,o);const bool hasTable=!lua_isnil(L,-1);lua_pop(L,1);
     if(reaction){
         if(facing<-0.3f){
-            if(prop(o,"CollisionDamage").number()>0)throw std::runtime_error("OnObstacleCollision CollisionDamage LifeComponent::TakeHit2b7cd0 not reconstructed");
+            // VA1802f7335..73a0: source obstacle, null weapon/projectile/effect,
+            // zero impact coordinates/angle, and extra multiplier=1. Health
+            // mutation belongs to the original OnHit Lua callback.
+            const auto takeHit=[&](float amount){
+                hades::LifeTakeHitRequest request;request.victim=id;request.source=o;request.damage=amount;
+                hades::NativeDamageResult result;if(!lifeTakeHit(request,result,error))return false;
+                a=actorWorld_.actor(id);ob=actorWorld_.actor(o);
+                if(!a||!a->registered||!a->object||!ob||!ob->registered){error="Wall TakeHit lost actual Unit/Obstacle";return false;}return true;
+            };
+            if(const float fixed=float(prop(o,"CollisionDamage").number());fixed>0){
+                if(!a->hasLife||!a->life.initialized){error="Wall damage requires actual Unit Life";return false;}
+                if(!takeHit(fixed*a->life.collisionDamageMultiplier))return false;
+            }
             const float perVelocity=float(prop(o,"CollisionDamagePerVelocity").number());
-            if(perVelocity>0&&damage<=0)throw std::runtime_error("OnObstacleCollision CollisionDamagePerVelocity LifeComponent::TakeHit2b7cd0 not reconstructed");
-            if(!prop(o,"CollisionReactionFx").text().empty())throw std::runtime_error("OnObstacleCollision CollisionReactionFx CalcIntersectionPoint2ced20/AnimationManager::Create not reconstructed");
+            if(perVelocity>0&&damage<=0){
+                if(!a->hasLife||!a->life.initialized){error="Wall velocity damage requires actual Unit Life";return false;}
+                const float amount=(perVelocity*speed)*a->life.collisionDamageMultiplier;
+                if(amount>0){if(!takeHit(amount))return false;damage+=amount;}
+            }
+            // VA1802f737e..73b6 averages edge intersections of the shifted Unit
+            // polygon and obstacle polygon, then creates the Unit-owned FX.
+            if(const auto fx=prop(o,"CollisionReactionFx").text();!fx.empty()&&fx!="null"){
+                if(!actorWorld_.refreshGeometry(id,error))return false;
+                const auto point=collisionIntersectionPoint(a->geometry,sx,sy,ob->geometry);uint64_t handle=0;
+                if(!createActionEffect(fx,id,std::array<float,3>{point[0],point[1],0},handle,error))return false;
+            }
         }
-        if(a->physics&&prop(o,"CollisionKnockback").number()>0)throw std::runtime_error("OnObstacleCollision CollisionKnockback PhysicsComponent::ApplyForce2bd160 not reconstructed");
-        if(die&&float(prop(id,"Life.DieOnCollisionRequiredVelocityMultiplier").number())*float(prop(o,"Life.DieOnCollisionRequiredVelocity").number())<=speed)throw std::runtime_error("OnObstacleCollision DieOnCollision obstacle vtable+0xc0 not reconstructed");
+        // OnObstacleCollision VA1802f73c0..73ea: external force on the Unit,
+        // along the collision push normal with the obstacle's knockback cap.
+        if(a->physics&&prop(o,"CollisionKnockback").number()>0){
+            if(!collisionForce(id,px,py,float(prop(o,"CollisionKnockback").number()),float(prop(o,"CollisionKnockbackCap").number()),error))return false;
+            a=actorWorld_.actor(id);if(!a||!a->registered||!a->object){error="Collision knockback lost actual Unit";return false;}}
+        // VA1802f73ef..7427 calls obstacle virtual Destroy at sufficient speed;
+        // normal deferred Life/primary/audio disposal remains owned by Destroy.
+        if(die&&float(prop(id,"Life.DieOnCollisionRequiredVelocityMultiplier").number())*float(prop(o,"Life.DieOnCollisionRequiredVelocity").number())<=speed){
+            if(!markThingDead(o,false,error))return false;
+        }
         if(hasTable&&!dispatchCallbacks("OnCollisionReaction",a->object->name.c_str(),id,[o,speed](lua_State* S,std::string&){pushObjectLuaTable(S,o);lua_setfield(S,-2,"CollideeTable");lua_pushnumber(S,speed);lua_setfield(S,-2,"Velocity");return true;})){error=error_;return false;}
+        a=actorWorld_.actor(id);if(!a||!a->registered||!a->object){error="Collision reaction lost actual Unit";return false;}
     }
     if(hasTable&&!dispatchCallbacks("OnObstacleCollision",a->object->name.c_str(),id,[o,speed](lua_State* S,std::string&){pushObjectLuaTable(S,o);lua_setfield(S,-2,"CollideeTable");lua_pushnumber(S,speed);lua_setfield(S,-2,"Velocity");return true;})){error=error_;return false;}
     a=actorWorld_.actor(id);if(!a){error="OnObstacleCollision Lua lost actual Unit";return false;}
-    if(!clearOnCollision())return false;
+    if(!clearCollisionEffects(id,error))return false;
     error.clear();return true;
     }catch(const std::exception& e){error=e.what();return false;}
+}
+// PolygonHelpers::CalcIntersectionPoint VA1802ced20; retained matched
+// combat-CalcIntersectionPoint-static.json. Test all edge pairs; parallel/outside
+// intersections yield zero, nonzero points are averaged. Preserve the shipped
+// asymmetry at VA1802cedeb..2cee15: every current A endpoint is offset; only
+// the closing next endpoint receives that offset.
+// A genuine origin intersection is excluded by the native zero sentinel too.
+std::array<float,2> ScriptRuntime::collisionIntersectionPoint(const std::vector<hades::ActorPoint>& a,float ox,float oy,const std::vector<hades::ActorPoint>& b){
+    float sx=0,sy=0;size_t count=0;
+    for(size_t i=0;i<a.size();++i){const float px=a[i].x+ox,py=a[i].y+oy;const auto& n=a[(i+1)%a.size()];const bool closing=i+1==a.size();const float dx=(closing?n.x+ox:n.x)-px,dy=(closing?n.y+oy:n.y)-py;
+        for(size_t j=0;j<b.size();++j){const auto& u=b[j];const auto& v=b[(j+1)%b.size()];const float ex=v.x-u.x,ey=v.y-u.y;
+            const float denominator=ey*dx-ex*dy;float rx=0,ry=0;
+            if(denominator!=0){const float wy=py-u.y,wx=px-u.x;const float t=(ex*wy-ey*wx)/denominator,r=(dx*wy-wx*dy)/denominator;
+                if(!(t<0)&&!(t>1)&&!(r<0)&&!(r>1)){rx=dx*t+px;ry=dy*t+py;}}
+            if(rx!=0||ry!=0){sx+=rx;sy+=ry;++count;}
+        }
+    }
+    return count?std::array<float,2>{sx/float(count),sy/float(count)}:std::array<float,2>{0,0};
+}
+// PhysicsComponent::ApplyForce VA1802bd160 (vector overload), used by wall
+// bounce/knockback in Unit::OnObstacleCollision VA1802f6ce0. The shared Physics
+// implementation owns immunity, normalization, cap and callback ordering.
+bool ScriptRuntime::collisionForce(int32_t id,float dx,float dy,float force,float cap,std::string& error){
+    auto* a=actorWorld_.actor(id);if(!a||!a->registered||!a->physics){error="Collision force requires actual Physics";return false;}
+    hades::PhysicsForceOwner owner;if(!externalForceOwner(id,owner,error))return false;
+    hades::PhysicsForceCallbacks callbacks;
+    callbacks.addComponent=[this,id](std::string& detail){auto* current=actorWorld_.actor(id);if(!current||!current->registered||!current->physics){detail="Force Physics owner expired";return false;}current->physicsPending=true;detail.clear();return true;};
+    callbacks.onForce=[this,id](float,std::string& detail){return onActorForce(id,true,detail);};
+    return hades::applyPhysicsForce(*a->physics,owner,{dx,dy},force,false,cap,callbacks,error);
+}
+// ScriptAction::ApplyForce VA18025a370, matched instruction evidence in
+// .local/reports/combat-ScriptApplyForce-static.json. Name/Names/Ids are only
+// HasKey probes; selection uses singular numeric Id. No Physics is allocated.
+// UsingRadians=false converts the float Angle to radians through a double;
+// MaxSpeed defaults to Speed. The angle-force overload receives footingLost=0.
+int ScriptRuntime::applyForceAction(lua_State* L){
+    char message[2048]{};bool ok=false;
+    try{
+        if(!lua_istable(L,1))throw std::runtime_error("ApplyForce requires table");
+        auto* self=runtime(L);if(!self)throw std::runtime_error("ApplyForce runtime unavailable");
+        const auto boolean=[&](const char* key){lua_getfield(L,1,key);const bool absent=lua_isnil(L,-1),typed=lua_isboolean(L,-1);const bool result=lua_toboolean(L,-1);lua_pop(L,1);if(!absent&&!typed)throw std::runtime_error(std::string("ApplyForce nonboolean argument not reconstructed: ")+key);return result;};
+        const bool radians=boolean("UsingRadians"),selfApplied=boolean("SelfApplied");
+        lua_getfield(L,1,"Id");int numeric=0;const auto id=lua_tointegerx(L,-1,&numeric);lua_pop(L,1);
+        auto* a=numeric&&id>=INT32_MIN&&id<=INT32_MAX?self->actorWorld_.actor(int32_t(id)):nullptr;
+        if(!a||!a->registered||!a->object||!a->physics)ok=true;
+        else{
+            // LuaTableExtensions::Float247cc0 uses numeric strings, then a
+            // C-locale strtof prefix for other strings (native-delayed-Float evidence).
+            const auto number=[&](const char* key,float fallback){
+                lua_getfield(L,1,key);float result=fallback;
+                if(lua_isnumber(L,-1))result=float(lua_tonumber(L,-1));
+                else if(lua_type(L,-1)==LUA_TSTRING){
+                    locale_t locale=newlocale(LC_NUMERIC_MASK,"C",nullptr);
+                    if(!locale){lua_pop(L,1);throw std::runtime_error("ApplyForce C numeric locale unavailable");}
+                    result=strtof_l(lua_tostring(L,-1),nullptr,locale);freelocale(locale);
+                }
+                lua_pop(L,1);if(!std::isfinite(result))throw std::runtime_error(std::string("Nonfinite ApplyForce argument: ")+key);return result;
+            };
+            float angle=number("Angle",-1000000.f);if(!radians)angle=float(double(angle)*0.017453292519943295);
+            const float speed=number("Speed",0),maxSpeed=number("MaxSpeed",speed);
+            hades::PhysicsForceOwner owner;std::string error;
+            if(self->externalForceOwner(int32_t(id),owner,error)){
+                hades::PhysicsForceCallbacks callbacks;
+                callbacks.addComponent=[self,id](std::string& detail){auto* current=self->actorWorld_.actor(int32_t(id));if(!current||!current->registered||!current->physics){detail="ApplyForce Physics owner expired";return false;}current->physicsPending=true;detail.clear();return true;};
+                callbacks.onForce=[self,id](float,std::string& detail){return self->onActorForce(int32_t(id),true,detail);};
+                ok=hades::applyPhysicsAngleForce(*a->physics,owner,angle,speed,selfApplied,maxSpeed,0,callbacks,error);
+            }
+            if(!ok)std::snprintf(message,sizeof(message),"%s",error.empty()?"Actual ApplyForce consumer failed":error.c_str());
+        }
+    }catch(const std::exception& e){std::snprintf(message,sizeof(message),"%s",e.what());}
+    // Lua longjmp must not cross any live C++ string/provider owners.
+    if(!ok)return luaL_error(L,"%s",message);return 0;
 }

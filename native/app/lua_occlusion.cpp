@@ -93,8 +93,14 @@ bool ScriptRuntime::advanceObstacleOcclusion(std::string& error){
     std::set<int32_t> roots;
     for(const auto id:actorWorld_.registrationOrder()){
         const auto* a=live(id);if(!a||!a->definition||a->definition->kind!="Obstacle"||!causes(id))continue;
-        int32_t root=id;for(int guard=0;guard<64;++guard){const auto* r=actorWorld_.actor(root);if(!r||!r->parentId||!live(r->parentId))break;root=r->parentId;}
-        roots.insert(root);
+        if(!actorWorld_.rememberOcclusionRoot(id,error))return false;
+    }
+    // SetThingProperty only adds set7 membership (2e6d5c); clearing the
+    // property must still visit the root/group for its unoccluded fade path.
+    // Native Add2cc80a also admits initial Thing/map CausesOcclusion. Persistent
+    // membership is keyed by lifetime so disposed roots cannot alias new Things.
+    for(const auto& [lifetime,id]:actorWorld_.occlusionRoots()){
+        const auto* a=live(id);if(a&&a->entityHandle==lifetime)roots.insert(id);
     }
     hades::BodyTransitionOptions linear;
     hades::BodyTransitionOptions smooth;smooth.smoothStep=true; // Interpolate(..., true, -1, -1)

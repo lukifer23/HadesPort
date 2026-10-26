@@ -26,7 +26,7 @@ void axisSetNewTarget(hades::ObstacleMoveAxis&a,float end,float duration){if(a.e
 // Obstacle::UpdateTransitionHelper 0x2c6760: tmf<1 -> dt/=((1-W20)*tmf+W20);
 // remaining-=dt/rate; fraction=minss(maxss(1-remaining/duration,0),1).
 void axisUpdate(hades::ObstacleMoveAxis&a,float dt,float worldModifier){if(a.tmf<1.f)dt/=((1.f-worldModifier)*a.tmf+worldModifier);a.remaining-=dt/a.rate;float f=1.f-a.remaining/a.duration;f=f>0.f?f:0.f;f=f<1.f?f:1.f;a.fraction=f;}
-int32_t motionId(const hades::SourceValue&v){const double n=v.number();if(n<1||n>INT32_MAX||n!=std::trunc(n))throw std::runtime_error("Actual script motion Thing ID bounds");return int32_t(n);}
+int32_t motionId(const hades::SourceValue&v){const double n=v.number();if(!std::isfinite(n)||n<1||n>INT32_MAX||n!=std::trunc(n))throw std::runtime_error("Actual script motion Thing ID bounds");return int32_t(n);}
 }
 void ScriptRuntime::registerActorMotionActions(){const char*names[]{"Teleport","AdjustZLocation","Move","Stop","AngleTowardTarget","SetAngle","SetGoalAngle","Shift","Unattach"};for(int mode=0;mode<9;++mode){lua_pushlightuserdata(state_,this);lua_pushinteger(state_,mode);lua_pushcclosure(state_,actorMotionAction,2);lua_setglobal(state_,names[mode]);}}
 int ScriptRuntime::actorMotionAction(lua_State*L){char message[2048]{};bool ok=false;{auto*self=runtime(L);std::string error;ok=self&&self->actorMotionActionImpl(L,int(lua_tointeger(L,lua_upvalueindex(2))),error);if(!ok)std::snprintf(message,sizeof(message),"%s",error.empty()?"Native actor motion runtime unavailable":error.c_str());}if(!ok){lua_pushstring(L,message);return lua_error(L);}return 0;}
@@ -68,8 +68,38 @@ bool ScriptRuntime::actorMotionActionImpl(lua_State*L,int mode,std::string&error
   }
   error.clear();return true;
  }
- // Screen (UseScreenLocation) obstacles are not ActorWorld actors: Move takes
- // the Obstacle::MoveTo screen branch; other modes fail rather than no-op.
+ // Screen (UseScreenLocation) obstacles are genuine GameUI Things outside
+ // ActorWorld. Ordinary runWithDestination VA18025f6d0..6e0 passes check=false,
+ // propagate=true; Obstacle::TeleportTo VA1802c3af8..3b25 shifts by target minus
+ // raw location through ShiftLocationWithChildren. Screen bodies have no
+ // structural children/grid membership, so that shift changes the raw XY only.
+ if(mode==0){
+  const auto ids=[&](const char* one,const char* many){
+   std::vector<int32_t> out;const auto* value=args.get(many);
+   if(!value)value=args.get(one);
+   if(value){if(const auto* list=std::get_if<hades::SourceValue::Array>(&value->value)){for(const auto& v:*list)out.push_back(motionId(v));}else out.push_back(motionId(*value));}
+   std::sort(out.begin(),out.end());out.erase(std::unique(out.begin(),out.end()),out.end());return out;};
+  std::vector<int32_t> screenSources;bool screen=false,world=false;
+  for(const auto id:ids("Id","Ids")){const auto* body=findObjectSnapshot(L,id);if(!body)continue;
+   if(!body->screenSpace){world=true;continue;}screen=true;
+   const auto* s=screenAnimations_.thing(id);if(s&&!s->dead&&s->body&&s->body->active&&s->body->alive)screenSources.push_back(id);}
+  if(screen){
+   if(world)throw std::runtime_error("Native Teleport mixed screen/world source selection not reconstructed");
+   for(const auto* k:{"Name","Names","DestinationName","DestinationNames","RelativeOffsetId"})if(args.get(k))throw std::runtime_error(std::string("Native screen Teleport argument not reconstructed: ")+k);
+   for(const auto* k:{"DestinationIsScreenRelative","UseCurrentLocation","KeepRelativeOffsets","ShiftThingsByOffset"})if(motionFlag(args,k))throw std::runtime_error(std::string("Uncovered native screen Teleport branch: ")+k);
+   float x=motionNumber(args,"OffsetX"),y=motionNumber(args,"OffsetY"),sumX=0,sumY=0;size_t count=0;
+   for(const auto id:ids("DestinationId","DestinationIds")){const auto* body=findObjectSnapshot(L,id);if(!body||!body->active||!body->alive)continue;
+    if(!body->screenSpace)throw std::runtime_error("Native screen Teleport toward world Thing not reconstructed");
+    const auto* s=screenAnimations_.thing(id);if(!s||s->dead||!s->body)continue;sumX+=s->body->x;sumY+=s->body->y;++count;}
+   // runWithDestination VA18025f0e7..0f5: misspelled original key is intentional.
+   if(!count&&motionFlag(args,"OnlyIfDestinationExits")){error.clear();return true;}
+   if(count){x+=sumX/float(count);y+=sumY/float(count);}
+   if(!std::isfinite(x)||!std::isfinite(y))throw std::runtime_error("Native screen Teleport location outside bounds");
+   for(const auto id:screenSources){auto* s=screenAnimations_.thing(id);if(s->body->x==x&&s->body->y==y)continue;s->body->x=x;s->body->y=y;s->body->graphicsDirty=true;}
+   error.clear();return true;
+  }
+ }
+ // Move takes the Obstacle::MoveTo screen branch; other modes still fail.
  {bool screen=false;if(mode==2){if(!screenMoveImpl(args,screen,error))return false;if(screen){error.clear();return true;}}
   else for(const char*k:{"Id","Ids"})if(const auto*p=args.get(k)){const auto check=[&](const hades::SourceValue&v){const auto*o=findObjectSnapshot(L,int32_t(v.number()));if(o&&o->screenSpace)throw std::runtime_error("Native screen Thing motion action not reconstructed");};if(std::string(k)=="Id")check(*p);else for(const auto&v:p->array())check(v);}}
  const auto select=[&](const char*single,const char*plural){std::vector<int32_t>out;const auto add=[&](const hades::SourceValue&v){const int32_t id=motionId(v);const auto*a=actorWorld_.actor(id);if(a&&a->registered&&a->object)out.push_back(id);};if(const auto*p=args.get(single))add(*p);if(const auto*p=args.get(plural))for(const auto&v:p->array())add(v);std::sort(out.begin(),out.end());out.erase(std::unique(out.begin(),out.end()),out.end());return out;};
@@ -125,7 +155,8 @@ bool ScriptRuntime::actorMotionActionImpl(lua_State*L,int mode,std::string&error
  // Obstacle::MoveTo 0x2c5bf0; the remaining (Unit) sources keep the Unit path.
  if(mode==2){std::vector<int32_t> obstacles,others;for(auto id:sources){const auto*a=actorWorld_.actor(id);(a->definition&&a->definition->kind=="Obstacle"?obstacles:others).push_back(id);}
   if(!obstacles.empty()){if(!obstacleMoveImpl(args,sources,obstacles,targets,error))return false;sources=std::move(others);if(sources.empty()){error.clear();return true;}}}
- if(mode==2||mode==4){if(targets.empty()){error.clear();return true;}for(const auto*k:{"Name","Names","DestinationName","DestinationNames","LiveOffsetFromId","LiveOffsetDistance","LiveOffsetAngle","Duration","EaseIn","EaseOut","SmoothStep","Speed","Distance","Angle","TimeModifierFraction","DestinationIsScreenRelative"})if(args.get(k)&&!(mode==4&&(std::string_view(k)=="Duration"||std::string_view(k)=="EaseIn"||std::string_view(k)=="EaseOut"||std::string_view(k)=="SmoothStep")))throw std::runtime_error(std::string("Uncovered selected native motion argument: ")+k);float x=motionNumber(args,"OffsetX"),y=motionNumber(args,"OffsetY"),sumX=0,sumY=0;for(auto id:targets){float tx=0,ty=0;if(!actorWorld_.location(id,tx,ty,error))return false;sumX+=tx;sumY+=ty;}x+=sumX/targets.size();y+=sumY/targets.size();for(auto id:sources){auto*a=actorWorld_.actor(id);if(mode==4&&!(a->definition&&a->definition->kind=="Unit"))continue;if(a->definition->kind!="Unit"||a->attachedParent)throw std::runtime_error("Script Unit target requires unparented actual Unit");auto&move=localMovement_[a->entityHandle];if(!move.initialized){move.initialized=true;move.goalAngle=move.cosmeticAngle=move.cosmeticAngleTarget=a->object->angle;move.lastMoveStartX=a->object->x;move.lastMoveStartY=a->object->y;}if(mode==2){
+ if(mode==4)for(const auto* k:{"LiveOffsetFromId","LiveOffsetDistance","LiveOffsetAngle"})if(args.get(k))throw std::runtime_error(std::string("Uncovered selected native angle argument: ")+k);
+ if(mode==2||mode==4){if(targets.empty()){error.clear();return true;}for(const auto*k:{"Name","Names","DestinationName","DestinationNames","Duration","EaseIn","EaseOut","SmoothStep","Speed","Distance","Angle","TimeModifierFraction","DestinationIsScreenRelative"})if(args.get(k)&&!(mode==4&&(std::string_view(k)=="Duration"||std::string_view(k)=="EaseIn"||std::string_view(k)=="EaseOut"||std::string_view(k)=="SmoothStep")))throw std::runtime_error(std::string("Uncovered selected native motion argument: ")+k);float x=motionNumber(args,"OffsetX"),y=motionNumber(args,"OffsetY"),sumX=0,sumY=0;for(auto id:targets){float tx=0,ty=0;if(!actorWorld_.location(id,tx,ty,error))return false;sumX+=tx;sumY+=ty;}x+=sumX/targets.size();y+=sumY/targets.size();for(auto id:sources){auto*a=actorWorld_.actor(id);if(mode==4&&!(a->definition&&a->definition->kind=="Unit"))continue;if(a->definition->kind!="Unit"||a->attachedParent)throw std::runtime_error("Script Unit target requires unparented actual Unit");auto&move=localMovement_[a->entityHandle];if(!move.initialized){move.initialized=true;move.goalAngle=move.cosmeticAngle=move.cosmeticAngleTarget=a->object->angle;move.lastMoveStartX=a->object->x;move.lastMoveStartY=a->object->y;}if(mode==2){
  const auto* sourceMode=args.get("Mode");const bool precise=sourceMode&&strcasecmp(sourceMode->text().c_str(),"Precise")==0;
  hades::ActorMoveOrder order{id,a->entityHandle,x,y,precise,{},{}};
  order.path.repathRemaining=actorMotion_.pathRepathDelays[a->entityHandle];
@@ -136,16 +167,37 @@ bool ScriptRuntime::actorMotionActionImpl(lua_State*L,int mode,std::string&error
   const auto num=[&](const char*k,float fallback){return ai?motionNumber(*ai,k,fallback):fallback;};
   const auto flag=[&](const char*k,bool fallback){return ai?motionFlag(*ai,k,fallback):fallback;};
   for(const auto*k:{"StayOnCamera","FinishAtGoal","RequiresLoS"})if(flag(k,false))throw std::runtime_error(std::string("Native default Move data branch not reconstructed: ")+k);
-  if(ai&&ai->get("OnFailBehavior"))throw std::runtime_error("Native authored MoveAI OnFailBehavior parser not reconstructed");
+  if(ai)if(const auto* fail=ai->get("OnFailBehavior")){
+   // SGD_Deserialize MoveAIDataDef VA1800d3a58..3a8e calls stricmp for
+   // GOTO_NEAREST_TO_GOAL (0), then GOTO_LAST_NODE_FILLED (match -> 1).
+   // The native final comparison stores zero for any other text.
+   if(!std::holds_alternative<std::string>(fail->value))throw std::runtime_error("Native MoveAI OnFailBehavior requires source enum text");
+   c.onFailBehavior=strcasecmp(fail->text().c_str(),"GOTO_LAST_NODE_FILLED")==0?1:0;}
   if(ai&&ai->get("Algorithm"))throw std::runtime_error("Native authored MoveAI Algorithm parser not reconstructed");
-  if(num("AlternateNodeDistance",0)!=0||num("NodeSuccessDistanceRequiresLoS",0)!=0||num("TargetHeadingShift",0)!=0)throw std::runtime_error("Native alternate/LOS/heading path state not reconstructed");
+  if(num("AlternateNodeDistance",0)!=0||num("NodeSuccessDistanceRequiresLoS",0)!=0)throw std::runtime_error("Native alternate/LOS path state not reconstructed");
+  order.targetHeadingShift=num("TargetHeadingShift",0);
   c.nodeDistance=num("NodeDistance",c.nodeDistance);c.nodeSuccessDistance=num("NodeSuccessDistance",c.nodeSuccessDistance);c.lookAheadDistance=num("LookAheadDistance",c.lookAheadDistance);c.lookAheadMultiplier=motionNumber(args,"LookAheadMultiplier",1.f);
-  c.successDistance=num("SuccessDistance",c.successDistance);if(motionNumber(args,"SuccessDistance")>0)c.successDistance=motionNumber(args,"SuccessDistance");if(precise)c.successDistance=32.f;
+  c.successDistance=num("SuccessDistance",c.successDistance);
+  if(const float success=motionNumber(args,"SuccessDistance");success>0)actorMotion_.successDistanceOverrides[a->entityHandle]=success;
+  if(const auto saved=actorMotion_.successDistanceOverrides.find(a->entityHandle);saved!=actorMotion_.successDistanceOverrides.end())c.successDistance=saved->second;
+  if(precise)c.successDistance=32.f;
+  // ScriptAction::Move VA180274a1b..a77 rewrites these three AI fields on
+  // every call. LiveOffsetAngle's degrees-to-radians multiply is double.
+  if(const auto* from=args.get("LiveOffsetFromId")){const double n=from->number();if(!std::isfinite(n)||n<INT32_MIN||n>INT32_MAX)throw std::runtime_error("Native Move LiveOffsetFromId signed32 bounds");order.liveOffsetFromId=int32_t(n);}
+  order.liveOffsetDistance=motionNumber(args,"LiveOffsetDistance");order.liveOffsetAngle=float(double(motionNumber(args,"LiveOffsetAngle"))*0.017453292519943295);
   c.moveWithoutPath=flag("MoveWithoutPath",false);c.avoidLocationDistance=num("AvoidLocationDistance",0);
   c.repathDelayMin=num("RepathDelayMin",c.repathDelayMin);c.repathDelayMax=num("RepathDelayMax",c.repathDelayMax);c.repathTargetMoveDistance=num("RepathTargetMoveDistance",c.repathTargetMoveDistance);c.stopToRotate=flag("StopToRotate",c.stopToRotate);c.slowToRotate=flag("SlowToRotate",c.slowToRotate);
   if(ai&&ai->get("NodeCountLimit"))c.nodeCountLimit=int32_t(motionNumber(*ai,"NodeCountLimit"));if(ai&&ai->get("SkippedNodeLimit"))c.skippedNodeLimit=int32_t(motionNumber(*ai,"SkippedNodeLimit"));
   if(c.repathTargetMoveDistance<0||c.repathDelayMin<0||c.repathDelayMax<c.repathDelayMin)throw std::runtime_error("Native default Move repath bounds");
  }
+ // Move VA1802748ac..8b0 supplies its first destination Thing to the first
+ // source; later sources get the computed location with no Thing. Portable
+ // sorted-ID order approximates native pointer-hash order for multi-selection.
+ // SetTarget VA1802e94ac..4b9 retains fallback XY when setting a Thing ID.
+ auto& fallback=actorMotion_.targetLocations[a->entityHandle];
+ if(id==sources.front()&&!targets.empty())order.targetId=targets.front();
+ else if(x!=0||y!=0)fallback={x,y};
+ order.targetFallbackX=fallback[0];order.targetFallbackY=fallback[1];
  if(x!=0||y!=0)actorMotion_.moves[a->entityHandle]=std::move(order);
 }else{constexpr float tau=6.2831854820251465f;const float raw=std::atan2(-(y-a->object->y),x-a->object->x),angle=raw-std::floor(raw/tau)*tau;move.goalAngle=angle;if(motionFlag(args,"CompleteAngle")){move.cosmeticAngle=move.cosmeticAngleTarget=angle;if(!actorWorld_.setAngle(id,angle,error))return false;}}}error.clear();return true;}
  if(mode!=0)throw std::runtime_error("Unknown original script motion action");
@@ -207,6 +259,25 @@ bool ScriptRuntime::advanceActorMotion(float dt,std::string&error){try{
  const auto boolean=[&](int32_t id,const char*k){const auto*p=actorWorld_.currentProperty(id,k);if(!p)throw std::runtime_error(std::string("Script Move actual flag unavailable: ")+k);return p->boolean();};
  for(auto i=actorMotion_.moves.begin();i!=actorMotion_.moves.end();){auto& order=i->second;auto*a=actorWorld_.actor(order.ownerId);if(!a||!a->registered||a->entityHandle!=order.lifetime||!a->object||!a->object->alive){i=actorMotion_.moves.erase(i);continue;}
   float x=0,y=0;if(!actorWorld_.location(a->id,x,y,error))return false;auto& move=localMovement_[a->entityHandle];
+  if(order.targetId){
+   // MoveAI::CalcGoalLocation VA1802e8960: Target::GetLocation2ebc40 uses
+   // current Thing XY while registered, else retained Target XY. It never
+   // caches the last computed goal. Only a present target receives heading
+   // and live-offset adjustments (VA1802e89a7..8b17).
+   const auto* target=actorWorld_.actor(order.targetId);
+   float gx=order.targetFallbackX,gy=order.targetFallbackY;
+   if(target&&target->registered&&target->object){
+    float tx=0,ty=0;if(!actorWorld_.location(order.targetId,tx,ty,error))return false;gx=tx;gy=ty;
+    if(order.targetHeadingShift>0){gx+=std::cos(target->object->angle)*order.targetHeadingShift;gy+=-(std::sin(target->object->angle)*order.targetHeadingShift);}
+    if(order.liveOffsetFromId>0){const auto* from=actorWorld_.actor(order.liveOffsetFromId);
+     if(from&&from->registered&&from->object){float fx=0,fy=0;if(!actorWorld_.location(order.liveOffsetFromId,fx,fy,error))return false;
+      constexpr float tau=6.2831855f;
+      float angle=std::atan2((ty-fy)*-1.f,tx-fx);angle-=std::floor(angle/tau)*tau;angle+=order.liveOffsetAngle;angle-=std::floor(angle/tau)*tau;
+      gx+=std::cos(angle)*order.liveOffsetDistance;gy+=-(std::sin(angle)*order.liveOffsetDistance);}}
+   }
+   if(!std::isfinite(gx)||!std::isfinite(gy))throw std::runtime_error("Native Move goal location outside bounds");
+   order.goalX=gx;order.goalY=gy;
+  }
   // Same strict success check as default Move; precise changes only its
   // radius to 32 (FindPath VA1802e8da0..2e8e27), before CalcPath and RNG.
   const float goalDx=order.goalX-x,goalDy=order.goalY-y;

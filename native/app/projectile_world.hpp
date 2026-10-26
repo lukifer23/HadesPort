@@ -292,6 +292,8 @@ public:
     // AudioManager::PlayCue3D4a8a0(cue, location): parent resolves validity and plays.
     void setDetonateSoundProvider(std::function<bool(const std::string&,float,float,std::string&)> fn){detonateSound_=std::move(fn);}
     bool projectileZ(const ProjectileActor& p,float& z,std::string& e)const{return thingZ(p,z,e);}
+    // Projectile::CalcTipLocation VA18006e2d0, virtual slot0x188.
+    bool tipLocation(const ProjectileActor&,float& x,float& y,std::string&)const;
     void setPrimaryCombatProvider(std::function<bool(int32_t,bool& invulnerable,bool& noCoverage,std::string&)> fn){primaryCombat_=std::move(fn);}
     void setOwnerMarkerProvider(std::function<bool(int32_t,const std::string&,float&,float&,std::string&)> fn){ownerMarker_=std::move(fn);}
     // Unit::SetLocation2f2a40 -> Thing::OnAttachedToMoved2e5960 for each

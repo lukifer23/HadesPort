@@ -117,6 +117,9 @@ class ActorWorld {
     std::map<uint64_t,bool> occluderInitialized_;
     uint64_t nextOccluderRevision_=1;
     std::map<uint64_t,int32_t> drawGridDirty_;
+    // ObstacleManager set7 stores roots beyond a CausesOcclusion=false write.
+    // Lifetime keys prevent stale membership from aliasing a reused public id.
+    std::map<uint64_t,int32_t> occlusionRoots_;
     std::function<bool(int32_t,ActorLocationStage,std::string&)> locationAuxiliary_;
     std::function<bool(int32_t,bool&,std::string&)> primaryUntargetable_;
     std::map<uint64_t,int32_t> obstacleDestroyQueue_;
@@ -197,6 +200,8 @@ public:
     bool setObstacleProperty(int32_t,const std::string&,const PropertyInput&,PropertyChange,std::string& error);
     bool unitDataValue(int32_t,const std::string&,SourceValue&,std::string& error)const;
     bool setThingProperty(int32_t,const std::string&,const PropertyInput&,PropertyChange,std::string& error);
+    bool rememberOcclusionRoot(int32_t,std::string& error);
+    const std::map<uint64_t,int32_t>& occlusionRoots()const{return occlusionRoots_;}
     bool setLifeProperty(int32_t,const std::string&,const PropertyInput&,PropertyChange,bool data,std::string& error);
     const SourceValue* currentProperty(int32_t,const std::string&)const;
     ActorComponents* actor(int32_t);

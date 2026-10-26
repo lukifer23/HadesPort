@@ -9,6 +9,7 @@
 #include "weapon_runtime.hpp"
 #include "actor_runtime.hpp"
 #include "life_runtime.hpp"
+#include "life_take_hit.hpp"
 #include "actor_light_world.hpp"
 #include "self_effect_world.hpp"
 #include "asset_packages.hpp"
@@ -272,6 +273,7 @@ class ScriptRuntime {
     static int fade(lua_State*);
 
     static int applyUpwardForce(lua_State*);
+    static int applyForceAction(lua_State*);
     bool fadeImpl(lua_State*,bool in,std::string&);
     bool setColorImpl(lua_State*,std::string&);
     bool createAnimationImpl(lua_State*,std::string&);
@@ -335,6 +337,13 @@ class ScriptRuntime {
     bool unitApplyShift(int32_t,float nx,float ny,float sx,float sy,bool ignoreNoCollisionAnim,bool& collided,std::string&);
     bool unitOnUnitCollision(int32_t unit,int32_t other,float velocity,std::string&);
     bool unitOnObstacleCollision(int32_t unit,int32_t obstacle,float sx,float sy,float px,float py,float& damage,std::string&);
+    bool collisionWeaponRequestFire(int32_t,const std::string&,hades::WeaponFireRequest,std::string&);
+    bool fireCollisionWeapon(int32_t,float angle,float velocity,std::string&);
+    bool clearCollisionEffects(int32_t,std::string&);
+    bool collisionForce(int32_t,float dx,float dy,float force,float cap,std::string&);
+    static std::array<float,2> collisionIntersectionPoint(const std::vector<hades::ActorPoint>&,float,float,const std::vector<hades::ActorPoint>&);
+    bool lifeTakeHit(const hades::LifeTakeHitRequest&,hades::NativeDamageResult&,std::string&);
+    bool lineOfSightBlocker(float,float,float,float,int32_t,float,float,bool,bool,int32_t&,std::string&);
     struct UnitCollisionSets {std::vector<std::pair<int32_t,uint64_t>> previous,current;float lastTranslationX=0,lastTranslationY=0;};
     std::map<uint64_t,UnitCollisionSets> unitCollisionSets_; // Unit+0x4f8 mPrevColliding, +0x528 mCurrentlyColliding, +0x410 mLastCollisionTranslation
     std::array<uint64_t,1999> polygonAxisCache_{}; // PolygonCollisionOpt2cefd0 DAT_181a095d0 separating-axis cache

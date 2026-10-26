@@ -31,6 +31,17 @@ int main(int argc,char** argv){try{
  EffectMarkerProvider marker=[](int32_t id,const std::string& name,std::array<float,3>& out,std::string&){need(id==42&&name=="head_TRACKING","actual source marker request");out={100,200,30};return true;};
  need(world.update(.1f,owners,marker,random,{},context,error),error);
  const auto beforeEmission=world.dump();need(!world.update(.5f,owners,marker,random,{},context,error),"missing original particle initialization rejected");need(world.dump()==beforeEmission&&draws==2,"emission admission before state/RNG mutation");
+ const float initialRemaining=world.entity(childId)->timeRemaining;size_t elapsedCalls=0;
+ world.setElapsedProvider([&](const EffectAnimationEntity& entity,float,float& elapsed,std::string&){need(entity.handle==childId,"TimeSpawner clock requested another entity");++elapsedCalls;elapsed=0;return true;});
+ need(world.update(.5f,owners,marker,random,{},context,error),error);
+ need(elapsedCalls==1&&world.entity(childId)->timeRemaining==initialRemaining&&draws==2,"Frozen entity used the world clock or consumed RNG");
+ world.setElapsedProvider([](const EffectAnimationEntity&,float,float&,std::string& detail){detail="diagnostic unavailable entity clock";return false;});
+ const auto beforeClockFailure=world.dump();need(!world.update(.1f,owners,marker,random,{},context,error),"unavailable entity clock accepted");
+ need(world.dump()==beforeClockFailure&&draws==2,"Entity clock rejection mutated time or RNG");
+ world.setElapsedProvider([](const EffectAnimationEntity&,float seconds,float& elapsed,std::string&){elapsed=seconds*.25f;return true;});
+ need(world.update(.5f,owners,marker,random,{},context,error),error);
+ need(std::abs(world.entity(childId)->timeRemaining-(initialRemaining-.125f))<.000001f&&draws==2,"TimeSpawner ignored its per-entity elapsed");
+ world.setElapsedProvider({});
  size_t preparations=0;std::vector<EffectSpawnRequest> requests;EffectEmissionProvider emissions;
  emissions.prepare=[&](const EffectSpawnRequest& request,std::string&){++preparations;need(request.animation=="LaurelCindersAmbient"||request.animation=="LaurelCinders","retained original selector");return true;};
  emissions.create=[&](const EffectSpawnRequest& request,uint64_t& handle,std::string&){requests.push_back(request);handle=1000+requests.size();return true;};
@@ -47,6 +58,6 @@ int main(int argc,char** argv){try{
  need(world.destroy(root,error)&&world.size()==0,"recursive child destruction");
  const auto initialDraws=draws;need(!world.create("LaurelCinders",42,owners,random,root,error)&&world.size()==0&&draws==initialDraws,"unsupported selector initialization rejected before RNG");
  need(!world.faulted(),"admission failures do not fault world");
- std::cout<<"{\"source_definitions\":14,\"allocated_components\":2,\"rng_draws\":"<<draws<<",\"diagnostic_emissions\":"<<requests.size()<<",\"read_only_admission_failures\":3,\"original_blank_rgba\":[0,0,0,0],\"game_particle_execution\":false,\"result\":\"passed\"}\n";
+ std::cout<<"{\"source_definitions\":14,\"allocated_components\":2,\"rng_draws\":"<<draws<<",\"diagnostic_emissions\":"<<requests.size()<<",\"read_only_admission_failures\":4,\"per_entity_elapsed\":true,\"original_blank_rgba\":[0,0,0,0],\"game_particle_execution\":false,\"result\":\"passed\"}\n";
  return 0;
  }catch(const std::exception& ex){std::cerr<<ex.what()<<'\n';return 1;}}

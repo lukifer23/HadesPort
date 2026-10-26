@@ -1,4 +1,5 @@
 #include "../app/actor_runtime.hpp"
+#include "../app/actor_light_world.hpp"
 extern "C" {
 #include "lua.h"
 #include "lauxlib.h"
@@ -23,8 +24,45 @@ int main(int argc,char** argv){try{
     require(world.linkStructuralChild(100,101,error),error);
     require(world.linkStructuralChild(101,102,error),error);
     require(world.linkStructuralChild(101,103,error),error);
+    ActorLightWorld lights(world);size_t locationUpdates=0;std::vector<ActorLocationStage> auxiliaryStages;
+    world.setObstacleLocationChanged([&](int32_t id,bool force,std::string& detail){
+        require(id==102&&force,"Occlusion mutation used an unexpected LocationChanged owner/force");
+        ++locationUpdates;return world.obstacleLocationChanged(id,force,detail);
+    });
+    // This fixture has no interaction or attached-animation components. Check
+    // that boundary explicitly; collision/grid, light and occluder updates use
+    // their real consumers, just as the runtime LocationChanged adapter does.
+    world.setLocationAuxiliary([&](int32_t id,ActorLocationStage stage,std::string& detail){
+        require(id==102,"Unexpected location auxiliary owner");auxiliaryStages.push_back(stage);
+        const auto* actor=world.actor(id);require(actor&&actor->registered&&actor->object,"Location auxiliary lost actual actor");
+        if(stage==ActorLocationStage::Interaction){
+            const auto* interact=world.currentProperty(id,"Thing.Interact");
+            require(interact&&std::holds_alternative<std::monostate>(interact->value),"BlankObstacle fixture unexpectedly requires an interaction component");
+        }else if(stage==ActorLocationStage::Light)return lights.locationChanged(id,detail);
+        else if(stage==ActorLocationStage::Occluder)return world.updateOccluder(id,detail);
+        else if(stage==ActorLocationStage::AttachedAnimations){
+            require(!actor->animation.active()&&!actor->primaryAnimationLifetime&&!actor->primaryEffectAnimation&&actor->attachedChildren.empty(),"Fixture unexpectedly requires attached-animation updates");
+            actor->object->graphicsDirty=true;
+        }
+        detail.clear();return true;
+    });
+    const auto rootLifetime=world.actor(100)->entityHandle;
+    require(world.setThingProperty(102,"CausesOcclusion",PropertyInput{true},PropertyChange::Absolute,error),error);
+    require(world.currentProperty(102,"Thing.CausesOcclusion")->boolean()&&world.occlusionRoots().at(rootLifetime)==100,"Occlusion mutation did not retain the structural root lifetime");
+    BodyTransitionOptions immediate;
+    require(world.adjustColorChannel(102,3,.2f,1,immediate,error),error);
+    require(world.setThingProperty(102,"CausesOcclusion",PropertyInput{false},PropertyChange::Absolute,error),error);
+    require(!world.currentProperty(102,"Thing.CausesOcclusion")->boolean()&&world.occlusionRoots().contains(rootLifetime),"Clearing occlusion removed persistent root membership");
+    require(world.advanceBody(102,1,1,error)&&objects[2].alpha==1,"Clearing occlusion did not restore alpha through the native Body transition");
+    const std::vector<ActorLocationStage> expectedStages{ActorLocationStage::Interaction,ActorLocationStage::Light,ActorLocationStage::Occluder,ActorLocationStage::AttachedAnimations};
+    require(locationUpdates==2&&auxiliaryStages.size()==8,"Occlusion mutation skipped LocationChanged consumers");
+    for(size_t i=0;i<auxiliaryStages.size();++i)require(auxiliaryStages[i]==expectedStages[i%4],"LocationChanged auxiliary ordering changed");
+    require(world.takeDrawGridDirty()==std::vector<int32_t>{102},"Occlusion mutation did not refresh the real draw-grid lifetime");
+    std::vector<int32_t> candidates;
+    require(world.spatialObstacleCandidates({-1000,-1000,1000,1000},ObstacleGridCategory::All,candidates,error),error);
+    require(candidates==std::vector<int32_t>{102},"Occlusion mutation did not register actual collision-grid coverage");
     require(world.queueObstacleDestroy(101,error),error);
-    require(world.actor(101)->registered&&!world.actor(101)->isDisposed&&world.actor(101)->isMarkedDead,"Destroy disposed synchronously");
+    require(world.actor(101)->registered&&!world.actor(101)->isDisposed&&world.actor(101)->lifeStatus==1,"Destroy did not defer disposal after marking LifeStatus dead");
     std::vector<int32_t> order;size_t stages=0;
     const auto callback=[&](const ActorDisposalEvent& event,std::string& detail){
         ++stages;const auto* a=world.actor(event.id);
@@ -43,5 +81,6 @@ int main(int argc,char** argv){try{
     require(!world.advanceObstacleDestruction([&](const ActorDisposalEvent& event,std::string& detail){++failures;if(event.stage==ActorDisposalStage::ReleasePrimaryAnimation){detail="test actual provider rejection";return false;}return true;},error),"Provider failure swallowed");
     require(world.disposalFaulted()&&world.actor(100)->registered&&!world.actor(100)->isDisposed,"Failed disposal state lost");
     const auto prior=failures;require(!world.advanceObstacleDestruction(callback,error)&&failures==prior,"Sticky failure retried callbacks");
+    require(world.resetForMap(error)&&world.occlusionRoots().empty(),"Map reset retained old occlusion root lifetimes");
     std::cout<<"{\"result\":\"passed\",\"source_catalog\":true,\"deferred_destroy\":true,\"fifo_descendants\":3,\"stages\":48,\"sticky_failure\":true,\"original_execution_observed\":false}\n";
 }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

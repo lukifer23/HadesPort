@@ -148,9 +148,10 @@ bool ScriptRuntime::checkDistanceNotify(const WorldNotify& pending,bool& done,st
         if((!outside||!numeric)&&!eachId(L,t,"Ids",addSource))return fail(inner);
         if(count<=0){lua_settop(L,top);done=true;error.clear();return true;}
         const float cx=sx/float(count),cy=sy/float(count);
-        float dx=0,dy=0;int dcount=0;
+        float dx=0,dy=0;int dcount=0;int32_t firstDestination=0;
         auto addDestination=[&](int32_t id)->bool{
             if(!available(actorWorld_.actor(id)))return true;P p;if(!place(id,p)){inner=error;return false;}
+            if(!firstDestination)firstDestination=id;
             dx+=p.x;dy+=p.y;if(useZ)dy-=p.z*0.8660254f;++dcount;return true;};
         lua_getfield(L,t,"DestinationId");numeric=0;const lua_Integer did=lua_tointegerx(L,-1,&numeric);lua_pop(L,1);
         if(numeric&&did>=INT32_MIN&&did<=INT32_MAX&&!addDestination(int32_t(did)))return fail(inner);
@@ -164,8 +165,25 @@ bool ScriptRuntime::checkDistanceNotify(const WorldNotify& pending,bool& done,st
         const float distance=tableFloat(L,t,"Distance",0);
         if(outside){done=distance*distance<d2;lua_settop(L,top);error.clear();return true;}
         if(distance*distance<d2){lua_settop(L,top);error.clear();return true;}
-        if(tableBool(L,t,"StopsProjectiles",false)||tableBool(L,t,"StopsUnits",false))
-            return fail("NotifyWithinDistance StopsProjectiles/StopsUnits requires native GridManager::GetLineOfSightBlocker provider");
+        // CheckWithinDistanceAverage VA18027a4d0..a603: LOS goes from source
+        // mean to destination mean, ignores the first actual destination and
+        // uses Z=0. An end buffer strictly beyond the separation completes;
+        // equality shortens to the source and the grid returns clear.
+        const bool stopsProjectiles=tableBool(L,t,"StopsProjectiles",false),stopsUnits=tableBool(L,t,"StopsUnits",false);
+        if(stopsProjectiles||stopsUnits){
+            const float width=tableFloat(L,t,"LineOfSightBuffer",0),endBuffer=tableFloat(L,t,"LineOfSightEndBuffer",0);
+            if(!std::isfinite(width)||!std::isfinite(endBuffer))return fail("Nonfinite native notification LOS buffer");
+            float tx=ax,ty=ay;bool clear=false;
+            if(endBuffer>0&&(ax!=cx||ay!=cy)){
+                const float ex=ax-cx,ey=ay-cy,length2=ex*ex+ey*ey;
+                if(length2<endBuffer*endBuffer)clear=true;
+                else{const float inverse=1.f/std::sqrt(length2);tx=ax-(inverse*ex)*endBuffer;ty=ay-(inverse*ey)*endBuffer;}
+            }
+            if(!clear){int32_t blocker=0;
+                if(!lineOfSightBlocker(cx,cy,tx,ty,firstDestination,0,width,stopsProjectiles,stopsUnits,blocker,error)){lua_settop(L,top);return false;}
+                if(blocker){lua_settop(L,top);error.clear();return true;}
+            }
+        }
         lua_settop(L,top);done=true;error.clear();return true;
     }
     if(!eachId(L,t,"Ids",addSource))return fail(inner);
@@ -408,3 +426,62 @@ bool ScriptRuntime::intersectingIdsImpl(lua_State* L,std::vector<int32_t>& resul
     return true;
 }catch(const std::exception& e){error=e.what();return false;}}
 int ScriptRuntime::intersectingIdsAction(lua_State* L){char message[2048]{};bool ok=false;{std::string error;std::vector<int32_t> ids;ok=runtime(L)->intersectingIdsImpl(L,ids,error);if(!ok)std::snprintf(message,sizeof(message),"%s",error.c_str());else{lua_newtable(L);lua_pushvalue(L,-1);lua_setglobal(L,"IdsTable");for(size_t i=0;i<ids.size();++i){lua_pushinteger(L,ids[i]);lua_rawseti(L,-2,lua_Integer(i+1));}}}if(!ok)return luaL_error(L,"%s",message);return 1;}
+
+// GridManager::GetLineOfSightBlocker VA1803076a0 (matching DLL/PDB evidence
+// combat-GetLineOfSightBlocker-static.json). Equal endpoints return none;
+// FromThickLine62e10 supplies the ±width/2 normal. StopsProjectiles selects
+// that grid list and skips ProjectilesAlwaysPenetrate; StopsUnits additionally
+// tests virtual Obstacle::StopsUnits and excludes Life.DieOnCollision.
+// APPROXIMATIONS (existing portable collision policy): conservative sparse-grid
+// swept AABB replaces the native integer segment-rectangle/cell/hash traversal.
+// It must include thick-line width because this grid also filters float AABBs.
+// Narrowphase uses the existing portable segment/polygon and polygon-overlap
+// predicates, not native floating instruction equivalence. Data Tallness is
+// the existing portable representation of the live Thing+0x78 height query.
+bool ScriptRuntime::lineOfSightBlocker(float x0,float y0,float x1,float y1,int32_t ignore,float z,float width,bool stopsProjectiles,bool stopsUnits,int32_t& blocker,std::string& error){
+    try{
+        blocker=0;
+        for(float value:{x0,y0,x1,y1,z,width})if(!std::isfinite(value))throw std::runtime_error("Nonfinite native LOS input");
+        if(x0==x1&&y0==y1){error.clear();return true;}
+        std::vector<hades::MovementPoint> thick;
+        hades::SpatialBounds bounds{std::min(x0,x1),std::min(y0,y1),std::max(x0,x1),std::max(y0,y1)};
+        if(width!=0){
+            float dx=x1-x0,dy=y1-y0;const float length=std::sqrt(dy*dy+dx*dx);
+            if(!(length>0)||!std::isfinite(length))throw std::runtime_error("Native LOS line length outside finite portable bounds");
+            dx/=length;dy/=length;const float nx=dy*(width*-.5f),ny=dx*(width*.5f);
+            thick={{x0+nx,y0+ny},{x1+nx,y1+ny},{x1-nx,y1-ny},{x0-nx,y0-ny}};
+            for(const auto p:thick){bounds.minX=std::min(bounds.minX,p.x);bounds.minY=std::min(bounds.minY,p.y);bounds.maxX=std::max(bounds.maxX,p.x);bounds.maxY=std::max(bounds.maxY,p.y);}
+        }
+        std::vector<int32_t> candidates;
+        if(!actorWorld_.spatialObstacleCandidates(bounds,stopsProjectiles?hades::ObstacleGridCategory::StopsProjectiles:hades::ObstacleGridCategory::All,candidates,error))return false;
+        const auto property=[&](int32_t id,const char* key)->const hades::SourceValue&{const auto* value=actorWorld_.currentProperty(id,key);if(!value)throw std::runtime_error(std::string("Native LOS source property unavailable: ")+key);return *value;};
+        const auto cross=[](hades::ActorPoint a,hades::ActorPoint b,hades::ActorPoint c){return (b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);};
+        const auto onSegment=[&](hades::ActorPoint a,hades::ActorPoint b,hades::ActorPoint p){return cross(a,b,p)==0&&p.x>=std::min(a.x,b.x)&&p.x<=std::max(a.x,b.x)&&p.y>=std::min(a.y,b.y)&&p.y<=std::max(a.y,b.y);};
+        for(const auto id:candidates){
+            if(id==ignore)continue;const auto* obstacle=actorWorld_.actor(id);
+            if(!obstacle||!obstacle->registered||!obstacle->object||!obstacle->definition||obstacle->definition->kind!="Obstacle")continue;
+            // VA18030785c..78ab: positive Z skips only strictly shorter
+            // obstacles; equality blocks. Both stopping flags can be required.
+            if(z>0&&z>float(property(id,"Thing.Tallness").number()))continue;
+            if(stopsProjectiles&&property(id,"Life.ProjectilesAlwaysPenetrate").boolean())continue;
+            if(stopsUnits){bool stops=false;if(!actorWorld_.obstacleStops(id,false,stops,error))return false;if(!stops||property(id,"Life.DieOnCollision").boolean())continue;}
+            if(!obstacle->geometryAvailable){if(obstacle->geometryRequired)throw std::runtime_error("Native LOS blocker polygon unavailable");continue;}
+            bool hit=false;
+            if(width==0){
+                // Same portable thin-line predicate as projectile collision:
+                // endpoint containment plus proper/collinear/touching edges.
+                const hades::ActorPoint p{x0,y0},q{x1,y1};
+                hit=contains(obstacle->geometry,x0,y0)||contains(obstacle->geometry,x1,y1);
+                if(!obstacle->geometry.empty()){auto a=obstacle->geometry.back();
+                    for(const auto b:obstacle->geometry){const float pa=cross(p,q,a),pb=cross(p,q,b),ap=cross(a,b,p),aq=cross(a,b,q);
+                        if((((pa>0&&pb<0)||(pa<0&&pb>0))&&((ap>0&&aq<0)||(ap<0&&aq>0)))||onSegment(p,q,a)||onSegment(p,q,b)||onSegment(a,b,p)||onSegment(a,b,q)){hit=true;break;}a=b;}
+                }
+            }else{
+                std::vector<hades::MovementPoint> shape;for(const auto point:obstacle->geometry)shape.push_back({point.x,point.y});
+                hit=hades::movementPolygonsOverlap(shape,thick);
+            }
+            if(hit){blocker=id;break;}
+        }
+        error.clear();return true;
+    }catch(const std::exception& e){error=e.what();return false;}
+}

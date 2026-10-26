@@ -4,6 +4,7 @@
 #include <cmath>
 #include <limits>
 #include <sstream>
+#include <set>
 #include <stdexcept>
 
 namespace hades {
@@ -483,6 +484,20 @@ uint8_t parseSortMode(const std::string& name){
     const auto is=[&](const char* v){return strcasecmp(name.c_str(),v)==0;};
     if(is("FromParent"))return 1;if(is("Id"))return 2;if(is("Secondary"))return 3;return 0;
 }
+bool ActorWorld::rememberOcclusionRoot(int32_t n,std::string& error){
+    // ObstacleManager::GetRoot VA1802cc0f0 follows structural parents, not
+    // generic Thing attachments. Set membership is rooted by actual lifetime.
+    auto* a=actor(n);
+    if(!a||!a->registered||!a->definition||a->definition->kind!="Obstacle"){error.clear();return true;}
+    std::set<int32_t> seen;
+    while(a->parentId){
+        if(!seen.insert(a->id).second){error="Native occlusion root structural cycle";return false;}
+        a=actor(a->parentId);
+        if(!a||!a->registered||!a->definition||a->definition->kind!="Obstacle"){error="Native occlusion root parent lifetime unavailable";return false;}
+    }
+    if(!a->entityHandle){error="Native occlusion root lifetime unavailable";return false;}
+    occlusionRoots_[a->entityHandle]=a->id;error.clear();return true;
+}
 bool ActorWorld::setThingProperty(int32_t n,const std::string& key,const PropertyInput& input,PropertyChange change,std::string& error){
     try{
         auto* a=actor(n);if(!a||!a->registered){error.clear();return true;}
@@ -500,7 +515,28 @@ bool ActorWorld::setThingProperty(int32_t n,const std::string& key,const Propert
             return propertiesDirty(n,error);
         }
         const auto type=thingPropertyTypes_.find(key);if(type==thingPropertyTypes_.end()){error="ThingData field/side effect not reconstructed: "+key;return false;}
-        for(const auto* special:{"ParallaxAmount","Graphic","CausesOcclusion","StopsLight","LerpCueParamDistance"})
+        if(key=="CausesOcclusion"){
+            // Thing::SetThingProperty VA1802e6d05..2e6de8: false restores
+            // Body+0x320 alpha; true adds an Obstacle root to manager set7.
+            // ObstacleManager::Add2cc80a..84d already admits initially-causing
+            // Thing/map data. Retain that membership before clearing the value,
+            // even if the first occlusion update has not run yet.
+            const auto* value=currentProperty(n,"Thing.CausesOcclusion");
+            if(!value)throw std::runtime_error("Original ThingData value unavailable: CausesOcclusion");
+            PropertyPrimitive next;if(mutatePrimitiveProperty(PropertyPrimitive{value->boolean()},input,change,next,error)!=PropertyMutation::Applied)return false;
+            const bool on=std::get<bool>(next);
+            const auto* map=seed(a->sourceId);const auto* mapCauses=map?map->map.get("CausesOcclusion"):nullptr;
+            if((on||value->boolean()||(mapCauses&&mapCauses->boolean()))&&!rememberOcclusionRoot(n,error))return false;
+            a->propertyOverrides["Thing.CausesOcclusion"]=propertyPrimitiveToSource(next);
+            if(!on){
+                const auto* opacity=currentProperty(n,"Thing.OcclusionOpacity");
+                const auto* duration=currentProperty(n,"Thing.OcclusionInterpolateDuration");
+                if(!opacity||!duration)throw std::runtime_error("Original occlusion ThingData fields unavailable");
+                if(opacity->number()>=0){BodyTransitionOptions options;options.duration=float(duration->number());if(!adjustColorChannel(n,3,1.f,1.f,options,error))return false;}
+            }
+            return propertiesDirty(n,error);
+        }
+        for(const auto* special:{"ParallaxAmount","Graphic","StopsLight","LerpCueParamDistance"})
             if(key==special){error="ThingData mutation requires native side-effect consumer: "+key;return false;}
         const std::string path="Thing."+key;const auto* value=currentProperty(n,path);if(!value)throw std::runtime_error("Original ThingData value unavailable: "+key);
         PropertyPrimitive current;

@@ -1,5 +1,6 @@
 #include "lua_runtime.hpp"
 #include "recovered_runtime.hpp"
+#include "physics_runtime.hpp"
 #include <cmath>
 #include <stdexcept>
 
@@ -26,8 +27,24 @@ bool ScriptRuntime::advanceVfx(float dt,std::string& error){
         if(life->skipUpdate||life->canceled||e.done)continue;
         const auto* actor=actorWorld_.actor(e.ownerId);
         if(!actor||!actor->registered||actor->entityHandle!=e.ownerLifetime){error="Actual VFX owner lifetime unavailable before world mutation";return false;}
-        if(actor->timeModifierFraction!=1||actor->timeMultiplier!=1){error="Non-default source owner VFX time components require native per-entity adapter";return false;}
     }
+    // Animation.InitData2927a1 adds a TimeModifierFraction only for authored
+    // nonnegative values; TimeModifierSystem188ae0 applies that entity's fraction,
+    // not the Thing's. Attach299fd3 links the owner clock only when requested.
+    // The shared registry also retains explicit primary clock links from effects.
+    effects_.setElapsedProvider([this,registry](const hades::EffectAnimationEntity& e,float world,float& elapsed,std::string& detail){
+        const auto* life=registry->find(e.handle);
+        if(!life||!life->initialized||life->ownerId!=e.ownerId||life->ownerLifetime!=e.ownerLifetime){detail="Actual VFX modified-time lifetime unavailable";return false;}
+        const auto* own=life->sourceDefinition.get("TimeModifierFraction");
+        const float fraction=own?float(own->number()):-1.f;
+        float multiplier=1;
+        if(life->attachedToTimeMultiplier){
+            const auto* actor=actorWorld_.actor(e.ownerId);
+            if(!actor||!actor->registered||actor->entityHandle!=e.ownerLifetime){detail="Actual VFX time-multiplier owner unavailable";return false;}
+            multiplier=actor->timeMultiplier;
+        }
+        return hades::physicsComponentElapsed(world,worldSpeedModifier_,fraction>=0?fraction:1.f,multiplier,elapsed,detail);
+    });
     if(!particles_.refreshOwners(owners,error)||!scenePrimaries_.advance(dt,error)||!actionEffects_.advance(dt,actionEffectProviders(),error))return false;
     // Thing.UpdateAnimation2df5c0: after actual PostUpdate returns done,
     // ChainTo gets SetAnimation; otherwise restore ThingData.Graphic or clear

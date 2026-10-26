@@ -30,18 +30,21 @@ bool planUnitPath(float x,float y,float gx,float gy,const UnitPathConfig& c,cons
  std::map<Key,UnitPathNode> predecessor;predecessor.emplace(key(start),start);
  std::vector<Item> heap;push(heap,{int64_t(initialDistance*11/10),start});
  UnitPathNode end;bool found=false;int32_t tested=0;
+ // CalcPath seeds the closest expanded node with the initial graph node.
+ UnitPathNode nearest=start;int32_t nearestDistance=initialDistance;
  while(!heap.empty()){
   auto n=pop(heap).node;++tested;
   if(key(n)==roundedGoal){end=n;found=true;break;}
   if(n.cost>0){bool blocked=false;if(!validateNode||!validateNode(float(n.x),float(n.y),blocked,error))return false;if(blocked)continue;}
   if(n.distance<=success){end=n;found=true;break;}
-  // Native default partial paths retain the last popped graph node.
   if(n.distance>maxDistance||n.cost>=maxCost||tested>=c.nodeCountLimit){
-   // CalcPath VA1802ea14d..ea4f8: default OnFailBehavior1 selects
-   // the current popped node for partial/bounded failure BuildMoveList.
+   // CalcPath VA1802ea4ec..4f8: OnFailBehavior!=0 selects the current
+   // popped node; zero selects the nearest previously expanded node.
    // FindPath ignores CalcPath's return enum and consumes the actual list.
-   end=n;found=true;break;
+   end=c.onFailBehavior?n:nearest;found=true;break;
   }
+  // VA1802ea16c..181: strictly closer expanded nodes replace the nearest.
+  if(n.distance<nearestDistance){nearest=n;nearestDistance=n.distance;}
   if(tested>1000000)throw std::runtime_error("Native Pathfinder portable work bound exceeded");
   for(const auto [ox,oy]:offsets){const int32_t sx=int32_t(std::round(ox)),sy=int32_t(std::round(oy));const int32_t step=int32_t(std::round(std::sqrt(ox*ox+oy*oy)));
    UnitPathNode next{n.x+sx,n.y+sy,n.cost+step,0,false};

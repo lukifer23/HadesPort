@@ -282,6 +282,7 @@ void ScriptRuntime::initialize() {
     {const char* names[]{"PlaySound","PauseSound","ResumeSound","StopSound","SetVolume","SetSoundCueValue","SwapSound","SetAudioEffectState","GetMixingId","SetSoundSource"};
      for(int mode=0;mode<10;++mode){lua_pushlightuserdata(state_,this);lua_pushinteger(state_,mode);lua_pushcclosure(state_,audioAction,2);lua_setglobal(state_,names[mode]);}}
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,applyUpwardForce,1);lua_setglobal(state_,"ApplyUpwardForce");
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,applyForceAction,1);lua_setglobal(state_,"ApplyForce");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,attach,1);lua_setglobal(state_,"Attach");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,switchActiveUnit,1);lua_setglobal(state_,"SwitchActiveUnit");
     for(int mode=0;mode<2;++mode){lua_pushlightuserdata(state_,this);lua_pushboolean(state_,mode);lua_pushcclosure(state_,inactiveIds,2);lua_setglobal(state_,mode?"GetInactiveIdsByType":"GetInactiveIds");}
@@ -746,18 +747,43 @@ bool ScriptRuntime::setActorPropertyImpl(lua_State* L,int kind,std::string& erro
     lua_getfield(L,1,"DestinationId");const bool singular=readId(-1);lua_pop(L,1);
     if(!singular){lua_getfield(L,1,"DestinationIds");if(lua_istable(L,-1))for(int i=1;i<=100000;++i){lua_rawgeti(L,-1,i);if(lua_isnil(L,-1)){lua_pop(L,1);break;}readId(-1);lua_pop(L,1);if(i==100000){error="Unit property selection exceeds bounds";lua_pop(L,1);return false;}}lua_pop(L,1);}
     if(kind==2||kind==3){ids.clear();if(!resolveObjectTargets(L,true,ids,error))return false;}
-    if(kind==2){
-        lua_getfield(L,1,"AllProjectiles");const bool all=lua_toboolean(L,-1);lua_pop(L,1);if(all){error="SetThingProperty AllProjectiles requires current projectile reflection";return false;}}
+    bool allProjectiles=false;
+    if(kind==2){lua_getfield(L,1,"AllProjectiles");allProjectiles=lua_toboolean(L,-1);lua_pop(L,1);}
     lua_getfield(L,1,"Property");const char* p=lua_tostring(L,-1);const std::string property=p?p:"";lua_pop(L,1);
     lua_getfield(L,1,"ValueChangeType");const char* c=lua_tostring(L,-1);const auto change=hades::parsePropertyChange(c?c:"Absolute");lua_pop(L,1);
     lua_getfield(L,1,"Value");hades::SourceValue source;bool ok=hades::readSourceValue(L,-1,source,error);lua_pop(L,1);if(!ok)return false;
     hades::PropertyInput input;if(!hades::propertyInputFromSource(source,input,error))return false;
     lua_getfield(L,1,"DataValue");const bool data=lua_isnil(L,-1)||lua_toboolean(L,-1);lua_pop(L,1);
+    // ReflectionHelper<Thing> VA1802e6fe2 maps ElapsedTimeMultiplier to the
+    // live float Thing+0x80. SuppressSounds is the existing live bool member.
+    const auto mutateLive=[&](auto& thing){
+        hades::PropertyPrimitive next;
+        if(property=="ElapsedTimeMultiplier"){
+            if(hades::mutatePrimitiveProperty(thing.timeMultiplier,input,change,next,error)!=hades::PropertyMutation::Applied)return false;
+            thing.timeMultiplier=std::get<float>(next);return true;
+        }
+        if(property=="SuppressSounds"){
+            if(hades::mutatePrimitiveProperty(thing.suppressSounds,input,change,next,error)!=hades::PropertyMutation::Applied)return false;
+            thing.suppressSounds=std::get<bool>(next);return true;
+        }
+        error="SetThingProperty live reflection not reconstructed: "+property;return false;
+    };
+    if(allProjectiles){
+        // ScriptAction::SetThingProperty VA180272ade..2b52 selects the actual
+        // ProjectileManager active vector instead of the map-Thing selection;
+        // pending projectiles are not in this vector. Both data/live modes
+        // share this selection, but data-copy mutation is still unreconstructed.
+        for(const auto handle:projectileWorld_.active()){
+            auto* projectile=projectileWorld_.actor(handle);if(!projectile||projectile->disposed){error="SetThingProperty active projectile lifetime unavailable";return false;}
+            if(data){error="SetThingProperty projectile data-copy reflection not reconstructed: "+property;return false;}
+            if(!mutateLive(*projectile))return false;
+        }
+        return true;
+    }
     if(kind==2){hades::log(hades::Severity::Info,tag,"SET_THING_PROPERTY property=%s data=%d targets=%zu",property.c_str(),int(data),ids.size());
         if(!data){
-            if(property!="SuppressSounds"){error="SetThingProperty live reflection not reconstructed: "+property;return false;}
             for(const auto id:ids){auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered||!actor->object||!actor->object->active||!actor->object->alive)continue;
-                hades::PropertyPrimitive next;if(hades::mutatePrimitiveProperty(actor->suppressSounds,input,change,next,error)!=hades::PropertyMutation::Applied)return false;actor->suppressSounds=std::get<bool>(next);}
+                if(!mutateLive(*actor))return false;}
             return true;
         }}
     for(const auto id:ids){const auto* o=findObjectSnapshot(L,id);if(!o||!o->active||!o->alive||o->queryProxy)continue;if(!(kind==1?actorWorld_.setLifeProperty(id,property,input,change,data,error):(kind==2?actorWorld_.setThingProperty(id,property,input,change,error):(kind==3?actorWorld_.setObstacleProperty(id,property,input,change,error):actorWorld_.setUnitProperty(id,property,input,change,error)))))return false;}

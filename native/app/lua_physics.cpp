@@ -69,7 +69,20 @@ bool ScriptRuntime::advancePhysics(float dt,std::string& error){
                     // Matching AnimationData ctor zero template at1800940b5
                     // covers full+0x9a (Def+0x42); later writes do not alter it.
                     friction.animationAppliesFriction=value?value->boolean():false;
-                }else if(actor->primaryAnimationLifetime||actor->primaryEffectAnimation)throw std::runtime_error("Physics friction needs actual non-HAA primary data");
+                }else if(actor->primaryAnimationLifetime||actor->primaryEffectAnimation){
+                    // PhysicsSystem::ApplyFriction VA1802d5430 reads the actual
+                    // primary AnimationData+0x9a regardless of resource backend.
+                    const hades::SourceValue* definition=nullptr;
+                    if(const auto* a=actionEffects_.state(actor->primaryAnimationLifetime);a&&a->primary)definition=&a->definition;
+                    else if(const auto* e=effects_.entity(actor->primaryEffectAnimation))definition=&e->definition->source;
+                    else if(const auto* s=scenePrimaries_.state(actor->primaryAnimationLifetime))definition=&s->definition;
+                    if(!definition)throw std::runtime_error("Physics friction actual non-HAA primary AnimationData unavailable");
+                    const auto* value=definition->get("OwnerApplyGroundFriction");
+                    if(!value)value=nativeAnimationDefaults_.get("OwnerApplyGroundFriction");
+                    // Matching AnimationData ctor zero template1800940b5,
+                    // full+0x9a/Def+0x42; later constructor writes preserve zero.
+                    friction.animationAppliesFriction=value?value->boolean():false;
+                }
             }
             const auto stopCue=[this](int32_t cue,float duration,std::string& detail){return duration>0?audio_.setVolume(uint32_t(cue),0,duration,true,false,detail):audio_.stop(uint32_t(cue),false,detail);};
             if(!hades::applyPhysicsFriction(physics,elapsed,friction,stopCue,error))throw std::runtime_error(error);

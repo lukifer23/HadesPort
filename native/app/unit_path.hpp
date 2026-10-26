@@ -12,6 +12,10 @@ struct UnitPathConfig {
  int32_t nodeCountLimit=INT32_MAX,skippedNodeLimit=4;
  bool stopToRotate=false,slowToRotate=true,moveWithoutPath=false;
  float avoidLocationDistance=0;
+ // MoveAIDataDef+0x4c (MoveAIData+0x9c): ctor VA1800d3388 stores 1.
+ // Reader VA1800d3a58..3a8e uses case-insensitive enum text comparisons;
+ // GOTO_NEAREST_TO_GOAL and unrecognized text -> 0, GOTO_LAST_NODE_FILLED -> 1.
+ uint8_t onFailBehavior=1;
 };
 struct UnitPathNode {int32_t x=0,y=0,cost=0,distance=0;bool alternate=false;};
 struct UnitPathState {

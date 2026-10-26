@@ -521,14 +521,32 @@ bool ScriptRuntime::applyProjectileImpact(uint64_t handle,int32_t victim,const h
             if(op.kind==K::ImpactFx){
                 bool invulnerable=false,noArmor=false,noCoverage=false;if(!primaryCombatFlags(op.victim,invulnerable,noArmor,noCoverage,detail))return false;
                 if((invulnerable||target->invulnerable)&&hitFlag(data->fields,"SilentImpactOnInvulnerable")){detail.clear();return true;}
-                // ImpactFx6e090 selects CriticalFx, then HitVulnerabilityFx for
-                // Units, otherwise actual ImpactFx. Named FX need angle/Z/time
-                // provider; empty lookup genuinely returns no animation.
-                const auto name=hitText(data->fields,target->definition->kind=="Unit"&&op.hit.damage.isCrit?"CriticalFx":target->definition->kind=="Unit"&&op.hit.damage.hitVulnerability?"HitVulnerabilityFx":"ImpactFx");
-                if(!name.empty()&&name!="null"){detail="Native impact animation consumer required: "+name;return false;}
+                // Projectile::ImpactFx VA18006e090..6e2ca. Unit critical and
+                // vulnerability branches set Z/unmodified time and return before
+                // sound. The ordinary branch also adds projectile angle + pi,
+                // then plays ImpactSound even when Create returned no animation.
+                float tipX=0,tipY=0,z=0;if(!projectileWorld_.tipLocation(*projectile,tipX,tipY,detail)||!projectileWorld_.projectileZ(*projectile,z,detail))return false;
+                if(target->definition->kind=="Unit"&&(op.hit.damage.isCrit||op.hit.damage.hitVulnerability)){
+                    const auto name=hitText(data->fields,op.hit.damage.isCrit?"CriticalFx":"HitVulnerabilityFx");
+                    if(name.empty()||name=="null"){detail.clear();return true;}
+                    uint64_t fx=0;if(!createActionEffect(name,op.victim,std::array<float,3>{tipX,tipY,0},fx,detail))return false;
+                    if(fx&&(!actionEffects_.setZLocation(fx,z,detail)||!actionEffects_.preferUnmodifiedTime(fx,detail)))return false;
+                    detail.clear();return true;
+                }
+                const auto name=hitText(data->fields,"ImpactFx");
+                if(!name.empty()&&name!="null"){
+                    uint64_t fx=0;if(!createActionEffect(name,op.victim,std::array<float,3>{tipX,tipY,0},fx,detail))return false;
+                    projectile=projectileWorld_.actor(op.projectile);if(!projectile){detail="ImpactFx lost actual projectile across animation creation";return false;}
+                    if(fx&&(!actionEffects_.setZLocation(fx,z,detail)||!actionEffects_.addAngle(fx,projectile->body.angle+3.14159274f,detail)||!actionEffects_.preferUnmodifiedTime(fx,detail)))return false;
+                }
+                projectile=projectileWorld_.actor(op.projectile);if(!projectile){detail="ImpactSound lost actual projectile";return false;}
+                data=projectile->firingArsenal->projectileData(projectile->request.weaponName,projectile->spawnedDefinition,detail);if(!data)return false;
                 const auto cue=data->cues.find("ImpactSound");if(cue==data->cues.end()){detail="Native ImpactSound default/read semantics unavailable";return false;}
-                if(!cue->second.validityKnown||cue->second.valid){detail="Native ImpactSound requires actual PlayCue3D consumer: "+cue->second.name;return false;}
-                detail.clear();return true;
+                if(cue->second.validityKnown&&!cue->second.valid){detail.clear();return true;}
+                // Android adaptation: shared owner-Thing spatial admission; the
+                // PC flag1/callback vector is not represented separately.
+                std::array<float,3> position{};if(!actorWorld_.location(op.victim,position[0],position[1],detail)||!actorWorld_.zLocation(op.victim,position[2],detail))return false;
+                uint32_t sound=0;return playAudioCue(cue->second.name,op.victim,position,sound,detail);
             }
             if(op.kind==K::InflictedDamageSound){
                 const auto cue=data->cues.find("InflictedDamageSound");if(cue==data->cues.end()){detail="InflictedDamageSound actual source unavailable";return false;}
