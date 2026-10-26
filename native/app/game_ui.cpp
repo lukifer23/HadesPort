@@ -100,8 +100,9 @@ std::vector<UiControl> GameUi::controls(float width)const {
 }
 void GameUi::activate(int id){
     if(id==1)screen_=UiScreen::Paused;
-    else if(id==2||id==4)screen_=roomReady_?UiScreen::Playing:UiScreen::Loading;
-    else if(id==31){continueRequested_=true;roomReady_=false;screen_=UiScreen::Loading;}
+    else if(id==2){newRunRequested_=true;continueRequested_=false;roomReady_=false;screen_=UiScreen::Loading;}
+    else if(id==4)screen_=roomReady_?UiScreen::Playing:UiScreen::Loading;
+    else if(id==31){continueRequested_=true;newRunRequested_=false;roomReady_=false;screen_=UiScreen::Loading;}
     else if(id==3){returnFromSettings_=screen_;screen_=UiScreen::Settings;}
     else if(id==5)screen_=UiScreen::Title;
     else if(id==6)screen_=returnFromSettings_;
@@ -159,6 +160,13 @@ void GameUi::back(){
     else if(screen_==UiScreen::Remap){if(remapCaptureRow>=0)remapCaptureRow=-1;else screen_=UiScreen::Settings;}
     else if(loading()||screen_==UiScreen::LoadFailed)screen_=UiScreen::Title;
     cancel();
+}
+bool GameUi::handleBackControls(const std::vector<std::string>& pressed){
+    const auto has=[&](const char* name){return std::find(pressed.begin(),pressed.end(),name)!=pressed.end();};
+    // One physical input may map to both Pause and Cancel (e.g. Escape).
+    // Decide from the initial screen and perform only one transition.
+    if(((playing()||screen_==UiScreen::Paused)&&has("Pause"))||(!playing()&&has("Cancel"))){back();return true;}
+    return false;
 }
 bool GameUi::pointer(UiPointer action,int id,float px,float py,int width,int height){
     if(width<=0||height<=0)return false;

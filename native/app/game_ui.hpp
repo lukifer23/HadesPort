@@ -45,7 +45,7 @@ class GameUi {
     SettingsTab tab_=SettingsTab::Graphics;
     int pointer_=-1,pressed_=-1;
     bool dirty_=false;
-    bool roomReady_=false,continueRequested_=false,remapReset_=false;
+    bool roomReady_=false,continueRequested_=false,newRunRequested_=false,remapReset_=false;
     void activate(int id);
     void slide(int id,float fraction);
 public:
@@ -61,6 +61,7 @@ public:
     int remapCaptureRow=-1,remapCaptureDevice=0; // device 0 gamepad, 1 keyboard
     bool takeRemapReset(){const bool v=remapReset_;remapReset_=false;return v;} // original Continue rule: Profile1.sav or Profile1_Temp.sav exists
     bool takeContinue(){const bool v=continueRequested_;continueRequested_=false;return v;}
+    bool takeNewRun(){const bool v=newRunRequested_;newRunRequested_=false;return v;}
     float controlsVisibility=1; // eased toward 0 while original scripts block input // exact engine stop reason shown on LoadFailed
     UiScreen screen()const{return screen_;}
     SettingsTab settingsTab()const{return tab_;}
@@ -76,6 +77,7 @@ public:
     bool takeDirty(){const bool value=dirty_;dirty_=false;return value;}
     void cancel(){pointer_=-1;pressed_=-1;}
     void back();
+    bool handleBackControls(const std::vector<std::string>& pressed);
     std::vector<UiControl> controls(float virtualWidth)const;
     // Coordinates in real surface pixels; all UI layout uses a 1080-high canvas.
     bool pointer(UiPointer,int id,float x,float y,int width,int height);

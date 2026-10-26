@@ -86,6 +86,34 @@ bool AudioOutput::start(Render render,std::string& error){
     return true;
 #endif
 }
+bool AudioOutput::service(std::string& error){
+    error.clear();
+    {
+        std::lock_guard lock(impl_->errorMutex);
+        if(!impl_->renderError.empty()){error=impl_->renderError;return false;}
+    }
+    const int device=impl_->deviceError.load(std::memory_order_acquire);
+    if(!device)return true;
+#ifdef __ANDROID__
+    if(device==AAUDIO_ERROR_DISCONNECTED){
+        // NDK AAudio.h error-callback contract: stop/close/reopen on another
+        // thread. The engine owner calls service; the callback only signals.
+        // Copy before start replaces Impl. Closing/joining also ensures a
+        // concurrent mixer failure cannot be erased by stream reconstruction.
+        Render render=impl_->render;
+        stop();
+        {
+            std::lock_guard lock(impl_->errorMutex);
+            if(!impl_->renderError.empty()){error=impl_->renderError;return false;}
+        }
+        // Stream statistics intentionally restart with the new output device;
+        // the renderer captures the retained AudioWorld and its live channels.
+        if(start(std::move(render),error))return true;
+        error="AAudio disconnect recovery failed: "+error;return false;
+    }
+#endif
+    error="AAudio device error: "+std::to_string(device);return false;
+}
 void AudioOutput::stop(){
     impl_->terminate.store(true,std::memory_order_release);impl_->running.store(false,std::memory_order_release);
     if(impl_->worker.joinable())impl_->worker.join();

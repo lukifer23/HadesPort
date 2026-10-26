@@ -6,6 +6,7 @@
 #include <string>
 #include <memory>
 #include <unordered_map>
+#include <set>
 
 namespace hades {
 // Backdrop comes from original room metadata. Exposure is a separate display
@@ -59,7 +60,8 @@ struct RenderStats {
 // context. Mac capture uses desktop GL; Android uses GLES3 and the same shader.
 class SceneRenderer {
     unsigned program_=0,vao_=0,buffer_=0,background_=0,hero_=0,white_=0;
-    size_t skippedVisuals_=0; // visuals skipped by containment (logged once per reason)
+    bool containFaults_=false,containedFaultOverflow_=false;
+    std::set<std::string> containedVisualReasons_;
     unsigned groupTexture_=0,groupFramebuffer_=0;
     int groupWidth_=0,groupHeight_=0;
     int backgroundWidth_=0,backgroundHeight_=0,blendLocation_=-1,addLocation_=-1;
@@ -102,6 +104,7 @@ class SceneRenderer {
     void captureBackground(int width,int height);
     void ensureGroupTarget(int width,int height);
     void drawRange(size_t start,size_t count,const SceneSprite&,int width,int height,bool groupSourceOver=false);
+    void visualFailure(const std::string& reason,const std::string& detail);
 public:
     void initialize(AssetStore&);
     void shutdown();
@@ -111,6 +114,11 @@ public:
     // next call. Never retain HAA1 sample spans across provider calls.
     void renderActors(const SceneView&,int width,int height,size_t count,const ActorVisualProvider&,double seconds=0);
     void clearActorTextures();
+    // Host validation is strict by default. Android explicitly enables
+    // containment; diagnostics count distinct reasons for this map/context
+    // lifetime and reset on shutdown. The policy survives shutdown/reload.
+    void setFaultContainment(bool enabled){containFaults_=enabled;}
+    size_t containedFaults()const{return containedVisualReasons_.size()+size_t(containedFaultOverflow_);}
     void joystick(int width,int height,float x,float y,float dx,float dy);
     void setOptions(const RenderOptions&);
     void setSourceSceneProvider(SceneFrameProvider frames,SceneSubmission submitted,SceneSpriteProvider sprites={}){sourceFrames_=std::move(frames);sourceSubmitted_=std::move(submitted);sourceSprites_=std::move(sprites);}

@@ -15,6 +15,9 @@ public:
     AudioOutput(const AudioOutput&)=delete;
     AudioOutput& operator=(const AudioOutput&)=delete;
     bool start(Render,std::string& error);
+    // Owner-thread maintenance only: reopen a disconnected Android stream once,
+    // preserving the renderer/mixer. Other output failures remain explicit.
+    bool service(std::string& error);
     void stop();
     Stats stats()const;
     std::string error()const;

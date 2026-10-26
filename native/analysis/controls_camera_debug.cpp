@@ -1,4 +1,5 @@
 #include "../app/camera_rig.hpp"
+#include "../app/hardware_input.hpp"
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
@@ -42,6 +43,16 @@ int main(){try{
     settings.leftHanded=true;controls.configure(2184,1968,settings);
     controls.pointer(hades::UiPointer::Down,3,1800,1500);require(controls.active(),"Handed movement zone missing");
     controls.pointer(hades::UiPointer::Cancel,3,1800,1500);require(!controls.active(),"Cancel retained pointer");
+    const auto editButton=controls.actionButtons()[0];
+    require(controls.editPointer(hades::UiPointer::Down,40,editButton.x,editButton.y)&&controls.editingSlot()==0,"Layout drag did not acquire pointer");
+    controls.cancel();
+    require(controls.editingSlot()==-1,"Focus loss retained layout editor pointer");
+    require(controls.editPointer(hades::UiPointer::Down,41,editButton.x,editButton.y)&&controls.editingSlot()==0,"Cancelled layout drag blocked a new pointer");
+    controls.configure(1800,1200,settings);
+    require(controls.editingSlot()==-1,"Surface resize retained layout editor pointer");
+    const auto resizedEditButton=controls.actionButtons()[0];
+    require(controls.editPointer(hades::UiPointer::Down,42,resizedEditButton.x,resizedEditButton.y)&&controls.editingSlot()==0,"Resized layout editor blocked a new pointer");
+    controls.editPointer(hades::UiPointer::Up,42,resizedEditButton.x,resizedEditButton.y);
     hades::CameraRig a,b;a.update(0,0,0,1680);b.update(0,0,0,1680);
     for(int i=0;i<60;++i)a.update(1.f/60,300,200,1200);
     for(int i=0;i<120;++i)b.update(1.f/120,300,200,1200);
@@ -60,6 +71,45 @@ int main(){try{
     require(ui.loading(),"Play skipped loading state");ui.roomReady(true);require(ui.playing(),"Room readiness did not enter movement slice");
     ui.back();require(ui.screen()==hades::UiScreen::Paused,"Back failed to pause");
     ui.roomReady(false);ui.back();require(ui.loading(),"Back resumed before lost surface assets reloaded");
+    auto click=[&](int id){
+        for(const auto& item:ui.controls(1800))if(item.id==id){
+            const float x=item.bounds.x+item.bounds.w/2,y=item.bounds.y+item.bounds.h/2;
+            ui.pointer(hades::UiPointer::Down,1,x,y,1800,1080);ui.pointer(hades::UiPointer::Up,1,x,y,1800,1080);return;
+        }
+        throw std::runtime_error("Missing menu control in lifecycle regression");
+    };
+    require(ui.takeNewRun()&&!ui.takeNewRun(),"Play did not request exactly one fresh world");
+    ui.roomReady(true);ui.back();click(4);
+    require(ui.playing()&&!ui.takeNewRun(),"Resume requested a fresh world");
+    ui.back();click(5);click(2);
+    require(ui.loading()&&ui.takeNewRun(),"New Run reused the previous ready world");
+    ui.roomReady(true);ui.back();click(5);ui.saveAvailable=true;click(31);
+    require(ui.loading()&&ui.takeContinue()&&!ui.takeContinue()&&!ui.takeNewRun(),"Continue lost its separate load request");
+    ui.roomReady(true);
+    require(ui.handleBackControls({"Cancel","Pause"})&&ui.screen()==hades::UiScreen::Paused,"Shared Escape controls did not pause exactly once");
+    require(ui.handleBackControls({"Cancel","Pause"})&&ui.playing(),"Shared Escape controls did not resume exactly once");
+    ui.back();click(3);
+    require(ui.handleBackControls({"Cancel","Pause"})&&ui.screen()==hades::UiScreen::Paused,"Shared Escape controls skipped the settings return screen");
+
+    hades::input::HardwareInput hardware;
+    const hades::input::ControlList attackControls{{"Attack2"},1},leftControls{{"Left"},1};
+    const hades::input::HardwareInput::Source key1{1,0,29},key2{1,0,30},pad{2,0,99},hat{2,1,46};
+    hardware.update(key1,attackControls,true);hardware.update(key2,attackControls,true);
+    hardware.update(key1,attackControls,false);
+    require(hardware.held().contains("Attack2"),"One physical key released another key's control");
+    hardware.update(pad,attackControls,true);hardware.releaseDevice(1);
+    require(hardware.held().contains("Attack2"),"Disconnect released another device's control");
+    hardware.releaseDevice(2);
+    require(hardware.held().empty()&&hardware.takePressed().empty(),"Disconnected controller left held or pending actions");
+    hardware.update(key1,leftControls,true);hardware.update(hat,leftControls,false);
+    require(hardware.held().contains("Left"),"Neutral gamepad hat released keyboard movement");
+    hardware.clear();hardware.update(pad,attackControls,true);hardware.update(pad,attackControls,false);
+    require(hardware.held().empty()&&hardware.takePressed().contains("Attack2")&&hardware.takePressed().empty(),"Hardware quick tap was lost or repeated");
+    hardware.update(key1,attackControls,true);hardware.update(key1,attackControls,false);
+    require(hardware.devices().contains(1),"Queued keyboard tap lost its disconnect owner");
+    hardware.releaseDevice(1);require(hardware.takePressed().empty(),"Disconnected keyboard retained its queued tap");
+    hardware.update(hat,{},true);hardware.clear();
+    require(!hardware.down(hat)&&hardware.update(hat,leftControls,true).size()==1,"Pause retained axis edge state");
     std::cout<<"CONTROLS_CAMERA_DEBUG_OK floating=true deadZone=true independentPinch=true unrelatedReleaseSafe=true resizeCancels=true handedness=true frameIndependent=true loadingGate=true\n";
     return 0;
 }catch(const std::exception& e){std::cerr<<"CONTROLS_CAMERA_DEBUG_FAILURE "<<e.what()<<'\n';return 1;}}

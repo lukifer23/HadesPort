@@ -119,6 +119,7 @@ bool ScriptRuntime::advanceAudio(float elapsed,std::string& error){
     audioFramePlays_=0;return true;
 }
 bool ScriptRuntime::startAudio(){return audioOutput_.start([this](float* buffer,uint32_t count,std::string& error){return audio_.render(buffer,count,error);},error_);}
+bool ScriptRuntime::serviceAudio(){return audioOutput_.service(error_);}
 void ScriptRuntime::stopAudio(){audioOutput_.stop();}
 
 // Source Play3D admission reads the actual owner's HighPrioritySfx and the

@@ -38,6 +38,11 @@ public final class HadesActivity extends NativeActivity {
         return names.toString();
     }
 
+    /** Native input ownership is keyed by device id, including keyboards. */
+    public boolean inputDeviceConnected(int deviceId) {
+        return InputDevice.getDevice(deviceId) != null;
+    }
+
     /** Original rumble on the controller's own motors; false if it has none. */
     public boolean controllerRumble(int deviceId, float intensity, float seconds) {
         InputDevice device = InputDevice.getDevice(deviceId);

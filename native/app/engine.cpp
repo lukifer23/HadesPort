@@ -34,6 +34,7 @@
 #include "camera_rig.hpp"
 #include "input_bindings.hpp"
 #include "control_bindings.hpp"
+#include "hardware_input.hpp"
 #include <set>
 
 #define INFO(...) __android_log_print(ANDROID_LOG_INFO, "HadesNative", __VA_ARGS__)
@@ -112,11 +113,24 @@ class Engine {
     std::string savesDir_;bool continueLoad_=false;float saveProbe_=0;
     // Controllers: detection (Java InputDevice list), last-used input source,
     // original config options applied to scripts when they change.
-    bool usingController_=false;int32_t lastPadDevice_=0;float controllerProbe_=0;jmethodID controllersMethod_=nullptr,padRumbleMethod_=nullptr;
+    bool usingController_=false;int32_t lastPadDevice_=0,stickDevice_=0;float controllerProbe_=0;jmethodID controllersMethod_=nullptr,padRumbleMethod_=nullptr,deviceConnectedMethod_=nullptr;
     std::array<bool,7> appliedConfig_{};bool configApplied_=false;
     bool attachJni(){if(!jni_&&app_->activity->vm->AttachCurrentThread(&jni_,nullptr)!=JNI_OK){jni_=nullptr;return false;}return true;}
     jmethodID javaMethod(jmethodID& cache,const char* name,const char* signature){if(!cache&&attachJni()){jclass type=jni_->GetObjectClass(app_->activity->clazz);cache=jni_->GetMethodID(type,name,signature);jni_->DeleteLocalRef(type);if(!cache)jni_->ExceptionClear();}return cache;}
     void pollControllers(){
+        // A disconnect need not deliver button-up or a centred stick event.
+        // Check ids, not names: two physical pads may have the same name.
+        if(javaMethod(deviceConnectedMethod_,"inputDeviceConnected","(I)Z")){
+            auto devices=hardware_.devices();devices.insert(lastPadDevice_);devices.insert(stickDevice_);
+            for(const auto device:devices){
+                const bool connected=jni_->CallBooleanMethod(app_->activity->clazz,deviceConnectedMethod_,device);
+                if(jni_->ExceptionCheck()){jni_->ExceptionClear();continue;}
+                if(connected)continue;
+                hardware_.releaseDevice(device);
+                if(device==stickDevice_){stickX_=stickY_=0;stickDevice_=0;}
+                if(device==lastPadDevice_){usingController_=false;lastPadDevice_=0;}
+            }
+        }
         if(!javaMethod(controllersMethod_,"connectedControllers","()Ljava/lang/String;"))return;
         auto names=static_cast<jstring>(jni_->CallObjectMethod(app_->activity->clazz,controllersMethod_));
         if(jni_->ExceptionCheck()){jni_->ExceptionClear();return;}
@@ -157,6 +171,7 @@ class Engine {
     std::chrono::steady_clock::time_point interval_ = std::chrono::steady_clock::now();
 public:
     explicit Engine(android_app* app) : app_(app), assets_(app->activity->assetManager) {
+        renderer_.setFaultContainment(true); // Android durability; host rendering stays strict.
         if(app->activity->internalDataPath){
             settingsPath_=std::string(app->activity->internalDataPath)+"/native-ui-settings.cfg";
             savesDir_=std::string(app->activity->internalDataPath)+"/Saves";::mkdir(savesDir_.c_str(),0700);
@@ -166,7 +181,7 @@ public:
     }
     ~Engine() { shutdown(); }
     bool active() const { return focused_ && display_ != EGL_NO_DISPLAY && !failed_; }
-    void releaseMovement(){controls_.cancel();hwHeld_.clear();hwPressed_.clear();stickX_=stickY_=0;}
+    void releaseMovement(){controls_.cancel();hardware_.clear();stickX_=stickY_=0;stickDevice_=0;}
     // Hardware gamepad/keyboard with the original default bindings
     // (native/analysis/default-bindings-contract.json). Gameplay controls merge
     // with touch; one button may drive several controls, as in the original.
@@ -234,22 +249,18 @@ public:
         INFO("BINDING_ASSIGNED control=%s %s=%d",control,pad?"pad":"key",*code);
         ui_.remapCaptureRow=-1;bindingsEdited_=true;ui_.setBindings(bindings_.serialize());return true;
     }
-    std::set<std::string> hwHeld_,hwPressed_;float stickX_=0,stickY_=0;std::array<bool,4> hwAxisButtons_{};
+    hades::input::HardwareInput hardware_;float stickX_=0,stickY_=0;
     static bool gameplayControl(std::string_view n){for(auto c:{"Attack1","Attack2","Attack3","Rush","Use","Shout","Assist"})if(n==c)return true;return false;}
-    void hardwareControl(std::string_view control,bool down){
-        const std::string name(control);
-        if(down){if(!hwHeld_.contains(name)){hwPressed_.insert(name);hwHeld_.insert(name);
-            if(name=="Pause"&&(ui_.playing()||ui_.screen()==hades::UiScreen::Paused)){ui_.back();releaseMovement();}
-            else if(name=="Cancel"&&!ui_.playing()){ui_.back();releaseMovement();}}}
-        else hwHeld_.erase(name);
+    void hardwareControls(hades::input::HardwareInput::Source source,const hades::input::ControlList& list,bool down){
+        if(ui_.handleBackControls(hardware_.update(source,list,down)))releaseMovement();
     }
-    void hardwareControls(const hades::input::ControlList& list,bool down){for(size_t i=0;i<list.count;++i)hardwareControl(list.names[i],down);}
-    float hardwareDx()const{float x=stickX_;if(hwHeld_.contains("Left"))x-=1;if(hwHeld_.contains("Right"))x+=1;return x;}
-    float hardwareDy()const{float y=-stickY_;if(hwHeld_.contains("Up"))y-=1;if(hwHeld_.contains("Down"))y+=1;return y;}
+    float hardwareDx()const{float x=stickX_;if(hardware_.held().contains("Left"))x-=1;if(hardware_.held().contains("Right"))x+=1;return x;}
+    float hardwareDy()const{float y=-stickY_;if(hardware_.held().contains("Up"))y-=1;if(hardware_.held().contains("Down"))y+=1;return y;}
     std::vector<std::string> mergedControls(){
         auto names=controls_.takeControls();
-        for(const auto* set:{&hwHeld_,&hwPressed_})for(const auto& n:*set)if(gameplayControl(n)&&std::find(names.begin(),names.end(),n)==names.end())names.push_back(n);
-        hwPressed_.clear();return names;
+        const auto pressed=hardware_.takePressed();
+        for(const auto* set:{&hardware_.held(),&pressed})for(const auto& n:*set)if(gameplayControl(n)&&std::find(names.begin(),names.end(),n)==names.end())names.push_back(n);
+        return names;
     }
     std::array<float,2> mergedMove()const{
         if(controls_.active())return {controls_.dx(),controls_.dy()};
@@ -270,21 +281,30 @@ public:
             if(!list.count)return 0;
             if(pad){usingController_=true;lastPadDevice_=AInputEvent_getDeviceId(event);}
             if(keyAction==AKEY_EVENT_ACTION_DOWN&&scripts_&&ui_.playing())scripts_->notePlayerInput();
-            hardwareControls(list,keyAction==AKEY_EVENT_ACTION_DOWN);return 1;
+            hardwareControls({AInputEvent_getDeviceId(event),0,key},list,keyAction==AKEY_EVENT_ACTION_DOWN);return 1;
         }
         if(AInputEvent_getType(event)!=AINPUT_EVENT_TYPE_MOTION)return 0;
         if((AInputEvent_getSource(event)&AINPUT_SOURCE_JOYSTICK)==AINPUT_SOURCE_JOYSTICK){
             hades::input::GamepadAxes axes;axes.deadZone=ui_.settings.deadZone;const auto stick=axes.leftStick(AMotionEvent_getAxisValue(event,AMOTION_EVENT_AXIS_X,0),AMotionEvent_getAxisValue(event,AMOTION_EVENT_AXIS_Y,0));
-            stickX_=stick.x;stickY_=stick.y;if(stick.x!=0||stick.y!=0){usingController_=true;lastPadDevice_=AInputEvent_getDeviceId(event);if(scripts_&&ui_.playing())scripts_->notePlayerInput();}
+            const int32_t device=AInputEvent_getDeviceId(event);
+            if(device==stickDevice_||stick.x!=0||stick.y!=0){stickDevice_=device;stickX_=stick.x;stickY_=stick.y;}
+            if(stick.x!=0||stick.y!=0){usingController_=true;lastPadDevice_=device;if(scripts_&&ui_.playing())scripts_->notePlayerInput();}
             const bool l2=axes.triggerPressed(AMotionEvent_getAxisValue(event,AMOTION_EVENT_AXIS_LTRIGGER,0)),r2=axes.triggerPressed(AMotionEvent_getAxisValue(event,AMOTION_EVENT_AXIS_RTRIGGER,0));
-            const auto edge=[&](size_t slot,bool now,hades::input::PadButton button){if(now!=hwAxisButtons_[slot]){hwAxisButtons_[slot]=now;if(now&&captureBinding(true,int32_t(button)))return;hardwareControls(bindings_.padControls(button),now);}};
-            edge(0,l2,hades::input::PadButton::L2);edge(1,r2,hades::input::PadButton::R2);
+            const auto edge=[&](bool now,hades::input::PadButton button){
+                const hades::input::HardwareInput::Source source{device,1,int32_t(button)};
+                if(now==hardware_.down(source))return;
+                if(now){usingController_=true;lastPadDevice_=device;
+                    if(captureBinding(true,int32_t(button))){hardware_.update(source,{},true);return;}
+                    if(scripts_&&ui_.playing())scripts_->notePlayerInput();}
+                hardwareControls(source,bindings_.padControls(button),now);
+            };
+            edge(l2,hades::input::PadButton::L2);edge(r2,hades::input::PadButton::R2);
             const float hx=AMotionEvent_getAxisValue(event,AMOTION_EVENT_AXIS_HAT_X,0),hy=AMotionEvent_getAxisValue(event,AMOTION_EVENT_AXIS_HAT_Y,0);
             // Hat as D-pad: track horizontal/vertical presses independently.
             static constexpr float hat=hades::input::GamepadAxes::kHatPressed;
             const bool left=hx<=-hat,right=hx>=hat,up=hy<=-hat,down=hy>=hat;
-            if(hwAxisButtons_[2]!=(left||right)||hwHeld_.contains("Left")!=left||hwHeld_.contains("Right")!=right){hwAxisButtons_[2]=left||right;hardwareControl("Left",left);hardwareControl("Right",right);}
-            if(hwAxisButtons_[3]!=(up||down)||hwHeld_.contains("Up")!=up||hwHeld_.contains("Down")!=down){hwAxisButtons_[3]=up||down;hardwareControl("Up",up);hardwareControl("Down",down);}
+            edge(left,hades::input::PadButton::Left);edge(right,hades::input::PadButton::Right);
+            edge(up,hades::input::PadButton::Up);edge(down,hades::input::PadButton::Down);
             return 1;
         }
         const int packed=AMotionEvent_getAction(event),action=packed&AMOTION_EVENT_ACTION_MASK;
@@ -334,13 +354,14 @@ public:
         INFO("Surface released");
     }
     void advanceLoading() {
+        if(ui_.takeNewRun()){continueLoad_=false;if(scripts_)scripts_->stopAudio();releaseMovement();loadStage_=LoadStage::Failed;}
         if(ui_.takeContinue()){continueLoad_=true;if(scripts_)scripts_->stopAudio();loadStage_=LoadStage::Failed;} // full teardown, then load
         if(ui_.screen()==hades::UiScreen::Title&&(saveProbe_-=1.f/60)<=0){saveProbe_=1;ui_.saveAvailable=saveExists();}
         if(!ui_.loading())return;
         if(loadStage_==LoadStage::Failed){
             colorGradingRenderer_.shutdown();bloomRenderer_.shutdown();
             renderer_.shutdown();sceneReady_=false;
-            scripts_.reset();loadStage_=LoadStage::Scene;loadError_.clear();
+            scripts_.reset();loadStage_=LoadStage::Scene;loadError_.clear();loadSeconds_=0;worldAccumulator_=0;ui_.loadingProgress=0;
         }
         const auto started=std::chrono::steady_clock::now();
         const int stage=static_cast<int>(loadStage_);
@@ -374,7 +395,7 @@ public:
                     // CONTAINED_FAULT/SURVEY_BLOCKER, counted on screen) instead of
                     // ending the room. Load failures still use the failure screen.
                     scripts_->setFaultContainment(true);{std::string containError;if(!scripts_->enableBlockerSurvey(containError))ERROR("FAULT_CONTAINMENT_UNAVAILABLE %s",containError.c_str());}configApplied_=false;applyConfig();
-                    if(continueLoad_){continueLoad_=false;if(!scripts_->loadSave())throw std::runtime_error("Continue: "+scripts_->lastSaveError());INFO("SAVE_LOADED path=%s",scripts_->loadedSavePath().c_str());}}
+                    if(continueLoad_){if(!scripts_->loadSave())throw std::runtime_error("Continue: "+scripts_->lastSaveError());INFO("SAVE_LOADED path=%s",scripts_->loadedSavePath().c_str());}}
                 if(!scripts_->gameLoaded()||!scripts_->bootRoom()||!scripts_->activateRoom())throw std::runtime_error(scripts_->error());
                 if(scripts_->mapRevision()!=renderedMapRevision_){
                     renderer_.shutdown();renderer_.initialize(scripts_->currentRoomAssets());renderedMapRevision_=scripts_->mapRevision();
@@ -425,6 +446,9 @@ public:
         eglQuerySurface(display_, surface_, EGL_WIDTH, &width_); eglQuerySurface(display_, surface_, EGL_HEIGHT, &height_);
         if(width_<=0||height_<=0)return;
         if(scripts_&&scripts_->roomActivated()){
+            // A failed/stopped output must not block Retry/New Run teardown or
+            // raise the same failure again while the failure screen is shown.
+            if(loadStage_==LoadStage::Done&&!ui_.loading()&&ui_.screen()!=hades::UiScreen::Title&&ui_.screen()!=hades::UiScreen::LoadFailed&&!scripts_->serviceAudio())throw std::runtime_error(scripts_->error());
             std::string detail;const auto rect=sceneRect();const uint32_t logicalWidth=uint32_t(std::lround(1080.*rect[2]/rect[3]));
             if(!scripts_->setCameraViewport(logicalWidth,1080,detail))throw std::runtime_error(detail);
         }
@@ -492,7 +516,7 @@ public:
             if(fpsWindow_>=.5f){char line[96];std::snprintf(line,sizeof(line),"%.0f FPS  %.1f ms  worst %.1f",fpsFrames_/fpsWindow_,1000.f*fpsWindow_/fpsFrames_,fpsWorst_*1000);fpsLine_=line;fpsWarn_=fpsFrames_/fpsWindow_<50;fpsFrames_=0;fpsWindow_=fpsWorst_=0;}
             // Low-rate motion trace for device diagnosis (every ~0.5 s of play).
             if(scripts_&&(++heroTraceFrames_%60)==0)INFO("HERO_TRACE %s",scripts_->heroMotionTrace().c_str());
-            const size_t gaps=scripts_?scripts_->containedFaults():0;
+            const size_t gaps=(scripts_?scripts_->containedFaults():0)+renderer_.containedFaults();
             if(ui_.settings.showFps)uiRenderer_.renderFrameCounter(gaps?fpsLine_+"  "+std::to_string(gaps)+" engine gaps":fpsLine_,width_,height_,fpsWarn_||gaps);
             else if(gaps)uiRenderer_.renderFrameCounter(std::to_string(gaps)+" engine gaps",width_,height_,true);
         }

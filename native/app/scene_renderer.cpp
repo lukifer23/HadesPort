@@ -1,6 +1,5 @@
 #include "scene_renderer.hpp"
 #include "platform_log.hpp"
-#include <set>
 #ifdef __ANDROID__
 #include <GLES3/gl3.h>
 #define SHADER_HEADER "#version 300 es\nprecision highp float;\n"
@@ -190,6 +189,7 @@ void SceneRenderer::initialize(AssetStore& assets){
 }
 void SceneRenderer::shutdown(){
     sourceFrames_={};sourceSubmitted_={};sourceSprites_={};
+    containedVisualReasons_.clear();containedFaultOverflow_=false;
     for(const auto& entry:shadowTextures_)if(entry.texture)glDeleteTextures(1,&entry.texture);shadowTextures_.clear();
     clearActorTextures();
     if(!ownedTextures_.empty())glDeleteTextures(static_cast<GLsizei>(ownedTextures_.size()),ownedTextures_.data());ownedTextures_.clear();textures_.clear();streamTextures_.clear();streamSlots_.clear();
@@ -199,6 +199,16 @@ void SceneRenderer::shutdown(){
     hero_=white_=background_=program_=buffer_=vao_=0;backgroundWidth_=backgroundHeight_=0;uploadedClip_=nullptr;uploadedFrame_=UINT32_MAX;scene_={};animations_.reset();draw_.clear();vertices_.clear();
     groupTexture_=groupFramebuffer_=0;groupWidth_=groupHeight_=0;
     textureRegions_.clear();vertexOffsets_.clear();heroWidth_=heroHeight_=heroActiveWidth_=heroActiveHeight_=0;uploadedActorId_=uploadedActorFrame_=UINT32_MAX;stats_={};
+}
+void SceneRenderer::visualFailure(const std::string& reason,const std::string& detail){
+    if(!containFaults_)throw std::runtime_error("Actual actor visual: "+detail);
+    if(containedVisualReasons_.contains(reason))return;
+    if(containedVisualReasons_.size()>=256){
+        if(!containedFaultOverflow_){containedFaultOverflow_=true;hades::log(hades::Severity::Error,"HadesSurvey","CONTAINED_FAULT stage=actor-visual detail=additional distinct visual faults exceed diagnostic bound256");}
+        return;
+    }
+    containedVisualReasons_.insert(reason);
+    hades::log(hades::Severity::Error,"HadesSurvey","CONTAINED_FAULT stage=actor-visual detail=%s",detail.c_str());
 }
 void SceneRenderer::clearActorTextures(){for(const auto& entry:actorTextures_)if(entry.texture)glDeleteTextures(1,&entry.texture);actorTextures_.clear();actorIndex_.clear();actorTextureBytes_=actorRender_=0;}
 unsigned SceneRenderer::prepareShadow(const ActorVisual& light,const SceneSprite& sprite){
@@ -360,17 +370,14 @@ void SceneRenderer::renderImpl(const SceneView& view,int width,int height,const 
         if(drawOrder.size()!=draw_.size()||!std::is_sorted(drawOrder.begin(),drawOrder.end()))throw std::runtime_error("Source actor merge requires current scene order");
         struct Placement {std::array<float,3> key;SceneSprite sprite;};std::vector<Placement> placements;placements.reserve(actorCount);
         for(size_t i=0;i<actorCount;++i){ActorVisual value;std::string error;if(!actorProvider(i,value,error)){
-            // Durability: an unreconstructable visual is skipped (logged once per
-            // distinct reason) instead of failing the whole room's frame.
-            static std::set<std::string> reported;if(reported.size()<256&&reported.insert(error).second)hades::log(hades::Severity::Error,"HadesSurvey","CONTAINED_FAULT stage=actor-visual detail=%s",error.c_str());
-            ++skippedVisuals_;continue;}
+            if(error.empty())error="Actor visual provider failed without a reason";
+            visualFailure("provider: "+error,error);continue;}
             if(!value.visible)continue;
             const auto& r=value.localRect;
-            // Durability: a visual outside the renderer's validated ranges is
-            // skipped and logged once per reason (with its values) instead of
-            // failing the room.
+            // Strict validation throws. Explicit device containment records the
+            // failed category/material once while retaining diagnostic values.
             const auto reject=[&](const char* why){char line[320];std::snprintf(line,sizeof(line),"%s id=%u scale=%.3f rect=%.1f,%.1f blend=%d psx=%.3f psy=%.3f",why,unsigned(value.id),value.scale,r[2],r[3],int(value.blend),value.postRotateScaleX,value.postRotateScaleY);
-                static std::set<std::string> seen;if(seen.size()<256&&seen.insert(why+std::to_string(int(value.blend))).second)hades::log(hades::Severity::Error,"HadesSurvey","CONTAINED_FAULT stage=actor-visual detail=%s",line);++skippedVisuals_;};
+                visualFailure(std::string(why)+" blend="+std::to_string(value.blend),line);};
             bool finite=true;for(float f:{value.x,value.y,value.z,value.scale,value.angle,r[0],r[1],r[2],r[3]})if(!std::isfinite(f))finite=false;
             if(!finite){reject("Non-finite native actor visual");continue;}
             bool colorOk=true;for(float f:value.color)if(!std::isfinite(f)||f<0||f>1)colorOk=false;for(float f:value.hsv)if(!std::isfinite(f))colorOk=false;

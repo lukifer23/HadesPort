@@ -4,7 +4,7 @@
 #include <iterator>
 
 namespace hades {
-void TouchControls::cancel(){owner_=-1;dx_=dy_=0;free_.clear();zoom_.reset();actionContacts_.clear();held_.fill(false);pressed_.fill(false);}
+void TouchControls::cancel(){owner_=editOwner_=-1;dx_=dy_=0;free_.clear();zoom_.reset();actionContacts_.clear();held_.fill(false);pressed_.fill(false);}
 std::array<TouchControls::ActionButton,TouchControls::ButtonCount> TouchControls::actionButtons()const{
     // Android touch layout: ATTACK anchored in the lower corner, the chained
     // actions (DASH/SPECIAL/CAST) on a tight inner ring and the occasional ones

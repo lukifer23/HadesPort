@@ -517,6 +517,7 @@ public:
     bool serviceAssets(size_t textureBudget=1);
     bool assetsPending()const{return packages_.pending();}
     bool startAudio();
+    bool serviceAudio();
 #ifndef __ANDROID__
     // Host integration replay consumes the genuine mixer output, allowing real
     // cue retirement/waiters without hardware playback or a synthetic timer.

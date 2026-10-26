@@ -18,6 +18,27 @@ int main(int argc,char** argv){
   constexpr int w=1600,h=1000;GLuint tex=0,fbo=0;glGenTextures(1,&tex);glBindTexture(GL_TEXTURE_2D,tex);glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,w,h,0,GL_RGBA,GL_UNSIGNED_BYTE,nullptr);glGenFramebuffers(1,&fbo);glBindFramebuffer(GL_FRAMEBUFFER,fbo);glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,tex,0);if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE)throw std::runtime_error("CGL FBO");
   hades::FileAssets assets(argv[1]),actorAssets(argv[2]);hades::SceneRenderer renderer;renderer.initialize(assets);hades::ActorAnimationBank bank;bank.load(actorAssets);hades::FileAssets cinderAssets(argv[3]);SharedBankAssets sharedBanks(actorAssets,cinderAssets);hades::ActorAnimationBank cinders;cinders.load(sharedBanks,"cinder-frames.bin");if(cinders.originalAngleForFacing(0,0)!=0)throw std::runtime_error("Single original angle bank requires no hero companion");hades::ActorAnimationPlayback playback;
   hades::SceneView view{747.37f,4438.61f,2400,1500};const bool hero=true;
+  // Host presentation validation must fail on missing or invalid actor visuals;
+  // device containment is explicit and counts each distinct reason once.
+  hades::ActorVisualProvider missing=[](size_t,hades::ActorVisual&,std::string& error){error="diagnostic actor provider failure";return false;};
+  hades::ActorVisualProvider invalid=[](size_t,hades::ActorVisual& out,std::string&){out={};out.scale=-1;return true;};
+  auto rejects=[&](const hades::ActorVisualProvider& source,const char* expected){
+    bool rejected=false;try{renderer.renderActors(view,w,h,1,source);}catch(const std::runtime_error& e){rejected=std::string(e.what()).find(expected)!=std::string::npos;}
+    if(!rejected)throw std::runtime_error("Strict renderer did not reject the expected visual failure");
+  };
+  rejects(missing,"diagnostic actor provider failure");rejects(invalid,"Invalid source actor transform/material");
+  if(renderer.containedFaults()!=0)throw std::runtime_error("Strict visual failures were counted as contained");
+  renderer.setFaultContainment(true);
+  for(int i=0;i<2;++i){renderer.renderActors(view,w,h,1,missing);renderer.renderActors(view,w,h,1,invalid);}
+  if(renderer.containedFaults()!=2)throw std::runtime_error("Contained visual failures were lost or counted repeatedly");
+  hades::ActorVisualProvider overflow=[](size_t i,hades::ActorVisual&,std::string& error){error="diagnostic visual failure "+std::to_string(i);return false;};
+  for(int i=0;i<2;++i)renderer.renderActors(view,w,h,300,overflow);
+  if(renderer.containedFaults()!=257)throw std::runtime_error("Visual diagnostic bound did not retain one overflow indication");
+  renderer.shutdown();
+  if(renderer.containedFaults()!=0)throw std::runtime_error("Renderer shutdown retained per-map diagnostics");
+  renderer.initialize(assets);renderer.renderActors(view,w,h,1,missing);
+  if(renderer.containedFaults()!=1)throw std::runtime_error("Renderer reload lost explicit containment or retained suppression");
+  renderer.shutdown();renderer.setFaultContainment(false);renderer.initialize(assets);
   std::array<const char*,6> names{"ZagreusSwordCharge1","ZagreusSwordAttack1","ZagreusDashNoCollide","ZagreusRangedWeapon_Fire","ZagreusHeroLanding_Air","ZagreusRun"};
   hades::ActorVisual visual;visual.id=1;visual.lifetime=1;visual.sourceBank=&bank;visual.x=1947.37f;visual.y=5188.61f;
   auto actor=[&](){const auto* clip=playback.clip();const auto angle=bank.selectedAngleForFacing(playback.clipIndex(),4.782202f);visual.frame=bank.sample(playback.clipIndex(),playback.slideIndex(),angle);visual.localRect=visual.frame.worldRect(*clip);};
