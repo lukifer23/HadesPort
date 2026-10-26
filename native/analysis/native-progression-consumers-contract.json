@@ -1,0 +1,337 @@
+{
+  "schema": "hades-native-progression-consumers-contract-v1",
+  "reviewed": "2026-10-26",
+  "identity": {
+    "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+    "pdb_sha256": "a75edd9c15ebbd4caa7a89ce2e3197cfb96cecb1e5a750f62a950caff48fcace",
+    "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "pdb_age": 1,
+    "image_base": "0x180000000"
+  },
+  "evidence_kind": "Recovered DLL/PDB facts and bounded portable consumer integration; no original Windows execution or Android gameplay observed by this contract pass.",
+  "scope": "Collision weapon requests, non-projectile wall damage, collision effect removal, external force, impact presentation and live Thing reflection. This is not a full game or full generic reflection contract.",
+  "source_evidence": [
+    {
+      "path": ".local/reports/combat-FireCollisionWeapon-static.json",
+      "sha256": "663e784eb9e56c03313c14f34228de7f9e80b60534559410860fe1ec224dbdce",
+      "procedure": "sgg::WeaponArsenal::FireCollisionWeapon",
+      "rva": "0x2ff380",
+      "va": "0x1802ff380"
+    },
+    {
+      "path": ".local/reports/combat-OnUnitCollision-static.json",
+      "sha256": "dc13f64586d52354c644480ec9946d7d814e258803f8a5d5ad37df343736ff37",
+      "procedure": "sgg::Unit::OnUnitCollision",
+      "rva": "0x2f7580",
+      "va": "0x1802f7580"
+    },
+    {
+      "path": ".local/reports/combat-ClearOnCollisionEffects-static.json",
+      "sha256": "8e7b51e9aa181a369ba5e2ddcdb194c6b515f89bdb8b3e55fb366a80ba15626a",
+      "procedure": "sgg::UnitStatus::ClearOnCollisionEffects",
+      "rva": "0x2fd730",
+      "va": "0x1802fd730"
+    },
+    {
+      "path": ".local/reports/combat-ScriptApplyForce-static.json",
+      "sha256": "df1735a4e1cf8cfc09b997e8c0801cd3ae665bcccacc8db6e95e804213dfdc26",
+      "procedure": "sgg::ScriptAction::ApplyForce",
+      "rva": "0x25a370",
+      "va": "0x18025a370"
+    },
+    {
+      "path": ".local/reports/combat-CalcIntersectionPoint-static.json",
+      "sha256": "982cd544807def5ff3d71b91dcd3e7cf634cb05445d3304decf1ab9ff57b7dfe",
+      "procedure": "sgg::PolygonHelpers::CalcIntersectionPoint",
+      "rva": "0x2ced20",
+      "va": "0x1802ced20"
+    },
+    {
+      "path": ".local/reports/native-combat-physics-apply-force-vector-static.json",
+      "sha256": "a8b9b491ddfb1c5462ad1c00defbc77f191c501dd0302c2c61c806c2e5527afa",
+      "procedure": "sgg::PhysicsComponent::ApplyForce",
+      "rva": "0x2bd160",
+      "va": "0x1802bd160"
+    },
+    {
+      "path": ".local/reports/native-combat5-unit-apply-shift-pseudocode.c",
+      "sha256": "8427436f992b7308b5f601ae174b2b5f5c3a8d10d21c0c7bda133237f971eb90"
+    },
+    {
+      "path": ".local/reports/native-shift-on-obstacle-collision-pseudocode.c",
+      "sha256": "6f597b9c2f9b163df9b3fb4546acca17fc49db839677b901c9340d4697a42988"
+    },
+    {
+      "path": ".local/reports/native-projectile-life-take-hit-pseudo.txt",
+      "sha256": "bcf7ca2240d319c0b1d2e8b437c75566c7a1306f25bab489e0364c96d88538f1"
+    },
+    {
+      "path": ".local/reports/native-rea-life-script-on-hit.json",
+      "sha256": "70b577b75a934e4888e3b8635aa8ccd7faf2199ada4dda50b62fd87f0598032a"
+    },
+    {
+      "path": ".local/reports/native-projectile-impactfx-static.json",
+      "sha256": "2cc1ba5ef5c75e7219a692d84836b969f9149285cbe81efc571578ba4fbe5343",
+      "procedure": "sgg::Projectile::ImpactFx",
+      "rva": "0x6e090",
+      "va": "0x18006e090"
+    },
+    {
+      "path": ".local/reports/progression-2026-10-26/projectile-tip-static.json",
+      "sha256": "518cf573f8b15b1bc8cfb868379b10bf6816891af69b893c1e3ca12b5db25f13",
+      "procedure": "sgg::Projectile::CalcTipLocation",
+      "rva": "0x6e2d0",
+      "va": "0x18006e2d0"
+    },
+    {
+      "path": ".local/reports/progression-2026-10-26/setthing-static.json",
+      "sha256": "9c2514904abb9040b81c41c85637193f6b3c387ab96d1714577dea1bc253313a",
+      "procedure": "sgg::ScriptAction::SetThingProperty",
+      "rva": "0x272960",
+      "va": "0x180272960"
+    },
+    {
+      "path": ".local/reports/progression-2026-10-26/setthing-rea.json",
+      "sha256": "19390dff41887e7f8b9bebb21edfe777acd1f73d99bbb4fa4f8c5a7e00647ce8",
+      "evidence_id": "ev_e161b999738f9e93a7f235a77fa3d3b0fceecaf05e3a2ec9662d68753bb2fdae"
+    },
+    {
+      "path": ".local/reports/native-projectile-manager-update-disassembly.txt",
+      "sha256": "444141a58bd3cfd3f3dc363d108316fefd4bf6e299e36988bcc6df98f729d14b"
+    },
+    {
+      "path": ".local/reports/native-delayed-Float-static.json",
+      "sha256": "d454b1af1ddec4ccbc2ace88e33d483e61b1619d2b0d6d1039585720e72b9916",
+      "procedure": "sgg::LuaTableExtensions::Float",
+      "rva": "0x247cc0",
+      "va": "0x180247cc0"
+    },
+    {
+      "path": ".local/reports/progression-2026-10-26/thing-live-reflection-static.json",
+      "sha256": "1fd840afc9764aacaaa603cb72814fc4532a49c0bd078750e5d3a09795a56252",
+      "procedure": "sgg::ReflectionHelper::GetPropertyInfo<sgg::Thing>",
+      "rva": "0x2e6eb0",
+      "va": "0x1802e6eb0"
+    },
+    {
+      "path": ".local/reports/combat-GetLineOfSightBlocker-static.json",
+      "sha256": "7e4a25faaf0073e88576c18157c96b7004578a9f513f6eb26f7fbf0b375cf83c",
+      "procedure": "sgg::GridManager::GetLineOfSightBlocker",
+      "rva": "0x3076a0",
+      "va": "0x1803076a0"
+    },
+    {
+      "path": ".local/reports/combat-GridGetObstacles-static.json",
+      "sha256": "d45af9788dc0d13d4de3c5a483f80457dbfffef2d360ed0215ac6cc030afe286",
+      "procedure": "sgg::GridManager::GetObstacles",
+      "rva": "0x3071b0",
+      "va": "0x1803071b0"
+    },
+    {
+      "path": ".local/reports/native-combat4-polygon-from-thick-line-static.json",
+      "sha256": "955815820d1254576f09b08a26c8adcfd1e63da20d655467bf2bc1cece122aaa",
+      "procedure": "sgg::Polygon::FromThickLine",
+      "rva": "0x62e10",
+      "va": "0x180062e10"
+    },
+    {
+      "path": ".local/reports/notify-distance/check-within-distance-average-rea.json",
+      "sha256": "996cf8941a99e6ae35602aceda92548ea89441f0a4db93fcc1b3373aa9478c57",
+      "evidence_id": "ev_cca1f6f2f990f42266fe6a23c3e81ad95a819465c90cdb34f7222c50cd3fe4b7"
+    }
+  ],
+  "consumers": {
+    "collision_weapon": {
+      "va": "0x1802ff380",
+      "rva": "0x2ff380",
+      "implementation": "native/app/lua_combat.cpp: fireCollisionWeapon",
+      "facts": [
+        "Equipped CollisionWeapon lookup precedes the Physics gate; absent weapon or Physics returns without a request.",
+        "Positive CollisionWeaponRequiredVelocity compares its square to Physics velocity components at +0x70/+0x74; moveShift is a separate field.",
+        "Damage is supplied collision speed times Unit CollisionDamagePerVelocity times Life collisionDamageMultiplier(+0x4c).",
+        "Only valid copied primary ProjectileData receives DamageLow(+0x2e0), DamageHigh(+0x2e4), and ImpactVelocity(+0x618); RequestFire still follows without valid primary projectile data.",
+        "RequestFire VA0x180083160 receives supplied angle, zero locations, null target, and applySelfEffects=true. Ordinary request rejection is not a reconstruction failure."
+      ]
+    },
+    "unit_collision": {
+      "va": "0x1802f7580",
+      "rva": "0x2f7580",
+      "implementation": "native/app/lua_combat.cpp: unitOnUnitCollision",
+      "facts": [
+        "ClearOnCollisionEffects precedes collidee collision-weapon and initiator weapon requests.",
+        "Collidee FireCollisionWeapon is skipped when its last force was self-applied and AllowSelfCollisions is false; supplied angle is initiator body angle plus pi.",
+        "InitiatedCollisionWeapon requires equipped source weapon, Physics, self-applied last force, sufficient supplied speed and a different collidee; RequestFire retains the actual collidee entity link.",
+        "ApplyShift VA0x1802f81f0..0x1802f8237 has a separate initiated-weapon request with angle -1 and no target after obstacle collision."
+      ]
+    },
+    "clear_collision_effects": {
+      "va": "0x1802fd730",
+      "rva": "0x2fd730",
+      "implementation": "native/app/lua_combat.cpp: clearCollisionEffects",
+      "facts": [
+        "Capture the active-effect vector at UnitStatus+0x50..+0x58; pending effects are excluded.",
+        "Each active effect whose source ClearOnCollision is true calls virtual Clear only when not already cleared.",
+        "Append the selected effect to deferred deletion even if already cleared; no immediate cleanup or legitimate weapon-request clearing occurs here."
+      ]
+    },
+    "obstacle_collision": {
+      "va": "0x1802f6ce0",
+      "rva": "0x2f6ce0",
+      "implementation": "native/app/lua_combat.cpp: unitOnObstacleCollision",
+      "facts": [
+        "First-contact presentation copies CollisionSound into owner-Thing PlayCue3D, starts CollisionAnimation, optionally fades alpha, and creates CollisionFx at obstacle virtual XY.",
+        "Bounce>=1 uses external vector force along the push normal with (bounce-1)*speed and CollisionKnockbackCap; smaller bounce scales reflected velocity.",
+        "Reaction-facing gate admits fixed wall damage and then positive per-velocity damage if the shared shift damage accumulator is nonpositive.",
+        "Both wall hits use the obstacle as source Thing and null Weapon, Projectile and Effect; only the per-velocity amount adds to the shared shift accumulator.",
+        "CollisionReactionFx uses CalcIntersectionPoint; CollisionKnockback uses the vector-force consumer; speed-gated DieOnCollision calls the real deferred Destroy path."
+      ]
+    },
+    "non_projectile_take_hit": {
+      "va": "0x1802b7cd0",
+      "rva": "0x2b7cd0",
+      "implementation": "native/app/life_take_hit.cpp",
+      "facts": [
+        "Supported core requires null Weapon, Projectile and Effect; source Thing may be the actual collision obstacle and is not fabricated.",
+        "Player-controlled Life applies DamageTakenMultiplier, then the live Life damage multiplier and native roundf semantics.",
+        "Projectile-only hit presentation, directional projectile block and projectile/weapon bonus bookkeeping are not invoked for this core.",
+        "Life dirty membership and DamagedAnimation occur before post-animation OwnerInvulnerable and NoInvulnerableCoverage reads.",
+        "Original attached victim OnHit receives the recovered hit arguments and owns health mutation; no native health subtraction substitutes for Lua.",
+        "OnHitWeapon uses actual equipped lookup, status gates/CanFireWhileDisarmed and the real RequestFire overload."
+      ]
+    },
+    "collision_intersection": {
+      "va": "0x1802ced20",
+      "rva": "0x2ced20",
+      "implementation": "native/app/lua_combat.cpp: collisionIntersectionPoint",
+      "facts": [
+        "Every edge pair is tested; parallel or out-of-range intersections yield the native zero sentinel; nonzero intersection points are averaged.",
+        "Preserve the shipped asymmetric offset at VA0x1802cedeb..0x1802cee15: every current endpoint of polygon A receives the supplied offset, but its next endpoint receives that offset only for the closing edge.",
+        "VA0x1802cee02/0x1802cee07 add offset to the first vertex for the closing next endpoint; VA0x1802cee0f/0x1802cee15 load ordinary next endpoints without offset.",
+        "An intersection exactly at origin is excluded by the same zero-sentinel test; no accepted intersections returns zero."
+      ]
+    },
+    "apply_force": {
+      "va": "0x18025a370",
+      "rva": "0x25a370",
+      "implementation": "native/app/lua_combat.cpp: applyForceAction, collisionForce",
+      "facts": [
+        "Original Void action ID153: Name, Names and Ids are HasKey probes; actual selection uses singular numeric Id.",
+        "A Thing without Physics returns without allocating Physics.",
+        "UsingRadians defaults false; Angle defaults -1000000, degrees convert from float through double pi/180; Speed defaults zero, MaxSpeed defaults to Speed.",
+        "Angle-force VA0x1802bd070 receives footingLost=0; vector-force VA0x1802bd160 is shared by collision bounce and knockback.",
+        "Existing Physics consumers retain primary immobility, external-force multiplier, immunity, normalization, velocity cap and OnForce/component ordering."
+      ]
+    },
+    "impact_fx": {
+      "va": "0x18006e090",
+      "rva": "0x6e090",
+      "implementation": "native/app/lua_projectiles.cpp: ImpactFx consumer",
+      "facts": [
+        "Primary/Life invulnerability plus SilentImpactOnInvulnerable returns before presentation and sound.",
+        "CalcTipLocation precedes selection. A Unit critical hit selects CriticalFx; otherwise Unit vulnerability selects HitVulnerabilityFx.",
+        "Critical/vulnerability branch sets animation Z and prefers unmodified time, then returns before ImpactSound, including when animation creation returns no object (VA0x18006e16a/0x18006e18b).",
+        "Ordinary ImpactFx sets projectile Z, adds projectile body angle plus pi, and prefers unmodified time.",
+        "Ordinary ImpactSound still executes when ordinary animation creation returns no object (VA0x18006e1c8..0x18006e225), using the victim Thing as audio owner."
+      ]
+    },
+    "projectile_tip": {
+      "va": "0x18006e2d0",
+      "rva": "0x6e2d0",
+      "implementation": "native/app/projectile_world.cpp: tipLocation",
+      "facts": [
+        "Distance reference is Thing spawn location(+0x90/+0x94), distinct from current location.",
+        "Polygon scan admits a vertex only for distanceSquared>best-1; distanceSquared>best+1 replaces the accumulated sum/count, otherwise adds to it.",
+        "Best distance updates for every admitted vertex, not only a strict maximum; accepted vertices are averaged in original traversal order.",
+        "Without the native polygon flag, return Thing::GetLocation; the portable implementation uses geometry presence as that flag representation."
+      ]
+    },
+    "live_thing_reflection": {
+      "va": "0x180272960",
+      "rva": "0x272960",
+      "implementation": "native/app/lua_runtime.cpp: setActorPropertyImpl kind2",
+      "facts": [
+        "Script SetThingProperty ID176 resolves ordinary DestinationIds/DestinationNames selection first, then reads DataValue (default true) and AllProjectiles (default false).",
+        "DataValue=false invokes live ReflectionHelper::SetProperty<Thing> at VA0x180280b40; data-copy assignment is Thing::SetThingProperty at VA0x1802e66d0 and remains distinct.",
+        "Portable supported live destinations are float timeMultiplier (ElapsedTimeMultiplier) and bool suppressSounds (SuppressSounds), using the existing primitive reflection mutation semantics.",
+        "AllProjectiles selects ProjectileManager active vector at native globals 0x181a0dfc0..0x181a0dfc8 instead of ordinary resolved targets; pending projectiles are excluded.",
+        "Both data/live native branches share active selection; portable projectile data-copy reflection remains explicitly unsupported."
+      ],
+      "field_mapping": {
+        "helper_va": "0x1802e6eb0",
+        "helper_rva": "0x2e6eb0",
+        "ElapsedTimeMultiplier": {
+          "offset": "0x80",
+          "native_type_id": 4,
+          "native_type": "float",
+          "assignment_va": "0x1802e6fe2",
+          "property_name_va": "0x1802e6fcb"
+        },
+        "SuppressSounds": {
+          "offset": "0x62",
+          "native_type_id": 1,
+          "native_type": "bool",
+          "assignment_va": "0x1802e7010",
+          "property_name_va": "0x1802e6ff9"
+        }
+      }
+    },
+    "notify_line_of_sight": {
+      "va": "0x1803076a0",
+      "rva": "0x3076a0",
+      "caller_va": "0x180279c70",
+      "caller_rva": "0x279c70",
+      "implementation": "native/app/lua_collision_notify.cpp: checkDistanceNotify, lineOfSightBlocker",
+      "facts": [
+        "CheckWithinDistanceAverage applies the existing distance predicate before optional StopsProjectiles/StopsUnits LOS. It retains source/destination means, UseLocationZ projection, no-destination completion, and no NotifyResultsTable write.",
+        "LOS ignores the first actual resolved destination Thing, uses Z=0 and LineOfSightBuffer; positive LineOfSightEndBuffer shortens the destination toward the source.",
+        "End-buffer square strictly larger than mean separation square completes immediately; equality shortens to the source, and equal endpoints return no blocker.",
+        "GridManager.GetLineOfSightBlocker selects StopsProjectiles grid list when requested, otherwise All; StopsUnits is an additional virtual stopping predicate. No Unit candidate scan substitutes for this obstacle query.",
+        "Positive Z skips only obstacles strictly shorter than it; equality remains eligible. StopsProjectiles excludes Life.ProjectilesAlwaysPenetrate; StopsUnits excludes Life.DieOnCollision.",
+        "Polygon.FromThickLine VA0x180062e10 uses the normalized segment direction and a perpendicular half-width: from+normal, to+normal, to-normal, from-normal.",
+        "Native zero width selects segment PolygonCollision VA0x1802ce630; nonzero width selects PolygonCollisionOpt VA0x1802cefd0. First qualifying obstacle is the blocker."
+      ],
+      "portable_adaptations": [
+        "Existing sparse obstacle grid and transformed original polygons are reused. Conservative swept-line float AABB includes width because this grid also filters obstacle AABBs; native integer segment rectangle/cell/hash traversal is not claimed.",
+        "Thin line uses the existing portable projectile LOS containment/inclusive edge predicate; thick line uses the existing movement polygon-overlap predicate. Native floating instruction/contact-boundary equivalence remains unproven.",
+        "Source Thing+0x78 height is represented by the existing Thing.Tallness data projection. NotifyWithinDistance itself supplies zero Z, so nonzero-height adaptation is not exercised by this caller.",
+        "Portable candidate order replaces native cross-cell hash order; completion depends on presence of any blocker, not which blocker ID wins."
+      ],
+      "validation_status": "Integrated bounded host replays; exact boundary coverage is not exhaustive."
+    }
+  },
+  "portable_adaptations": [
+    "Actual lifetime handles replace native pointer/entity encodings; no generated actor, source weapon or projectile is supplied.",
+    "Collision geometry and broadphase retain previously documented portable ordering/overlap approximations; CalcIntersectionPoint preserves the recovered endpoint asymmetry instead of symmetrically repairing it.",
+    "Impact audio uses existing owner-Thing spatial admission; PC PlayCue3D flag1/callback-vector storage is not represented separately.",
+    "Tip-location polygon flag is represented by existing portable geometry presence; Beam virtual end-location behavior is not replaced by the base tip calculation.",
+    "Lua error wrappers release C++ owners before Lua longjmp; unsupported/missing consumers remain explicit faults."
+  ],
+  "explicit_unsupported": [
+    "Non-projectile TakeHit core does not accept Weapon/Projectile/Effect requests; existing projectile TakeHit remains a separate implementation pending full convergence.",
+    "Nonzero OnDamagedSpin, wall velocity absorption, unsupported effect factories/clear providers and the inherited collision reaction callback-schema approximation remain boundaries.",
+    "ApplyForce nonboolean UsingRadians/SelfApplied arguments are rejected rather than assigned unproven coercion semantics.",
+    "Live Thing reflection beyond ElapsedTimeMultiplier/SuppressSounds, projectile data-copy reflection and unsupported primitive change modes remain explicit.",
+    "BeamProjectile CalcTipLocation requires the actual beam end location.",
+    "AllProjectiles during a synchronous callback inside projectile-manager in-place compaction may see transient disposed or duplicate slots. The native manager also compacts in place (VA0x180079275..0x1800792e7). Portable disposed active entries produce an explicit lifecycle fault; no unproven deduplication/order rewrite is claimed.",
+    "No per-device correctness, later-biome completeness or full game stability follows from source integration."
+  ],
+  "validation": {
+    "status": "bounded_host_verified_with_open_presentation_blocker",
+    "host_build": "RelWithDebInfo passes; native ARM64 API26 NDK29 shared library builds.",
+    "strict_mixed": "2950 frames, live presentation sampled every frame, zero faults.",
+    "strict_autoplay": "9000 frames, zero faults, final presentation snapshot only; three enemies remain and encounter is not accepted.",
+    "traced_containment": "6000 frames, zero gaps; consumed normal movement with empty effects/requests and no strafe lock; collision-limited displacement remains unresolved.",
+    "sanitizers": "ASan/UBSan actual-resource frame transfer and strict2950 live presentation/structural save-reload pass without findings.",
+    "open_validation_failure": "Autoplay every-frame presentation stops2529 with Action FX owner draw group unavailable, status2; no reported sanitizer finding.",
+    "reached_non_projectile_hit": "Original OnHit wall damage records health130 to111 from nativeDamage19.",
+    "evidence_root": ".local/reports/progression-2026-10-26/",
+    "original_execution_observed": false,
+    "android_gameplay_observed": false
+  },
+  "related_contracts": [
+    "native/analysis/projectile-impact-takehit-contract.json",
+    "native/analysis/property-mutation-contract.json",
+    "native/analysis/physics-vertical-phase-contract.json",
+    "native/analysis/blink-weapon-contract.json"
+  ]
+}

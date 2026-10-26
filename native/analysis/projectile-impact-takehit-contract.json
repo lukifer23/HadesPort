@@ -61,14 +61,13 @@
   ],
   "explicit_barriers": [
     "Positive source healing/life-steal, spawns, impact forces and charm",
-    "Nonempty native ImpactFx resource angle/Z/time consumer",
     "Valid InvincibleImpactSound branch",
     "Partial armor/directional invulnerability branches",
     "Actual victim factories other than Speed0/UNKNOWN12Tag; cross-source duplicate Reapply identity replacement",
-    "Valid native ImpactSound manager-aware audio and nonempty native impact animation resources (root consumers pending)",
     "Actual positive source spawns/heal/life-steal/impactforce/charm/TriggerEffect/RemoveEffects closure beyond proven empty"
   ],
   "validation": {
+    "historical_scope": "The host/ARM64/ASan entries below describe their original integration checkpoint. They do not validate the later 2026-10-26 progression consumers.",
     "host": "clang++ C++20 -Wall -Wextra -Werror compiles new hit/Life/Lua modules",
     "arm64": "Latest new Life/hit/collision/effect/status/Lua modules compiled with NDK29 C++20 -Wall -Wextra -Werror (compile-only, no Android gameplay claim).",
     "asan_replay": {
@@ -76,6 +75,27 @@
       "sha256": "a35e2515add3d7cfc11e201f10e15849066db1eeb4731d18eadea48a1d549472",
       "scope": "Original v16 catalog initialization, actual ARC state/defense/Polygon query over5frames/removal plus Life timer crossing/keep-before-reset debug; no fake hit callbacks, original OnHit not yet dispatched."
     }
+  },
+  "progression_consumer_update": {
+    "reviewed": "2026-10-26",
+    "contract": "native/analysis/native-progression-consumers-contract.json",
+    "status": "bounded_host_verified_with_open_presentation_blocker",
+    "superseded_barriers": [
+      "Nonempty native ImpactFx resource angle/Z/time consumer",
+      "Valid native ImpactSound manager-aware audio and nonempty native impact animation resources"
+    ],
+    "recovered_facts": [
+      "ImpactFx VA0x18006e090 selects Unit CriticalFx before HitVulnerabilityFx. These branches set Z/prefer unmodified time and return before ImpactSound, including when Create returns no animation.",
+      "Ordinary ImpactFx sets Z, adds projectile body angle plus pi and prefers unmodified time; ImpactSound still runs if ordinary Create returns no animation.",
+      "CalcTipLocation VA0x18006e2d0 uses Thing spawn location and the recovered distanceSquared>best-1/best+1 accumulation rules; Beam virtual end location remains unsupported.",
+      "Non-projectile wall TakeHit is a separately bounded null Weapon/Projectile/Effect path with the actual obstacle source Thing and original Lua OnHit health mutation. It does not establish full convergence with projectile/effect damage."
+    ],
+    "limits": [
+      "Resource closure and exact lifecycle consumers must still exist for each reached animation/cue; source integration is not whole-game coverage.",
+      "Impact audio uses the documented portable owner-Thing admission adapter; the PC flag1/callback-vector representation remains a separate limitation.",
+      "Historical validation entries and catalog identity are retained unchanged; coordinator records new verification separately."
+    ],
+    "validation_contract": "native/analysis/native-progression-consumers-contract.json"
   },
   "catalog": {
     "path": ".local/native-assets/player-weapons-v16/weapons.bin",

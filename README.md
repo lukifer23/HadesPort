@@ -6,11 +6,12 @@ purchased PC copy** — on a C++/OpenGL ES engine reconstructed from the PC engi
 No emulation, Wine, CPU translation, ads, accounts or network access.
 
 > **Status: prototype; full gameplay remains incomplete** (2026-10-26). Iteration12
-> is installed and hash verified on the device. On the host, a new autoplay driver
-> plays the original scripts through the opening room and the whole first encounter
-> (four waves) and reaches the reward spawn; save and Continue round-trip. Athena's
-> boon, the next room and later biomes are in progress. Missing engine behaviour is
-> logged as engine gaps. The code audit and current priorities are in
+> is the latest installed and hash-verified device build. A strict 2,950-frame host
+> combat route and structural save/reload checks pass. Strict autoplay runs 9,000
+> frames without engine faults but stalls before clearing the encounter; this is
+> not complete gameplay. A stronger transient-presentation check still fails on an
+> action-FX owner draw group. Reward interaction, boon selection, later rooms and biomes remain
+> incomplete. The code audit and current priorities are in
 > [`AUDIT.md`](AUDIT.md); verification boundaries are in [`STATUS.md`](STATUS.md).
 
 **This repository contains no game files.** You must own Hades (e.g. on Steam or the Epic
@@ -73,6 +74,9 @@ adb -s "$HADES_DEVICE_SERIAL" install --no-incremental -r --user 0 .local/build/
 
 The asset pipeline is still evolving; `HANDOFF.md` lists the exact commands and current
 asset-pack versions. The resulting APK contains game assets — keep it for yourself.
+Build defaults now select action-effects-v24/audio-events-v30; the existing canonical
+stage and installed APK remain older checkpoints. Storage preservation, cleanup and
+restart guidance are in [`HANDOFF.md`](HANDOFF.md#storage-and-process-hygiene).
 
 ## Contributing
 

@@ -15,11 +15,65 @@ batch fixes before rerunning, use the shortest replay that reaches the changed
 path, and do one sanitized (ASan/UBSan) run at the end. Device installs only for
 meaningful milestones.
 
-## Code audit checkpoint (2026-10-26, code-only)
+## Host progression checkpoint (2026-10-26, code-only)
+
+This batch integrates native collision weapon/force/wall-hit/effect-clear consumers,
+per-entity VFX clocks, non-HAA friction, persistent occluder roots, MoveAI failure
+selection/live offsets, stopping filters/LOS notifications, ordinary screen Teleport,
+projectile impact/tip location, live Thing reflection, and Book/Constant frame
+transfer. Atlas geometry now uses the same clamped display frame as the pixels.
+[AUDIT.md](AUDIT.md) records the scope and remaining native branches.
+
+Reward coverage derives loot/store/consumable references with field provenance,
+preserving combat arsenal scope. Build defaults select action-effects-v24
+(1,913 definitions/13,615 frames) and audio-events-v30 (2,190 events/3,635 samples).
+The isolated candidate validates original source hashes and animation/audio binding;
+its reward roots, banks, packages and arsenal reproduce the immutable v24 coverage.
+Canonical assets still contain v22/v29. No APK was published or device accessed;
+iteration12 remains installed. Temporary validation assets/builds are removed at
+checkpoint cleanup; versioned source packs and evidence are retained.
+
+Verification:
+
+- Host and native ARM64 library builds pass. Effect-clock, movement, occlusion
+  lifecycle and actual-resource Book/Constant frame-transfer probes pass.
+- Strict mixed combat passes 2,950 frames, samples presentation every frame, and
+  records zero faults. Actual original OnHit dispatch reduces wall-hit health
+  from 130 to 111 using 19 native damage.
+- Strict autoplay completes 9,000 world frames with zero faults, but stalls with
+  three enemies remaining. It is not encounter acceptance. A 6,000-frame contained
+  trace records zero gaps and shows consumed movement/normal speed, no effects,
+  strafe or request lock, and collision-limited displacement. A detour/navigation
+  repro remains next work; no movement gate was forcibly cleared.
+- Final ASan/UBSan frame-transfer and strict 2,950-frame combat/presentation/save
+  checks pass without findings; structural save/reload comparison passes.
+  The stronger autoplay every-frame presentation check stops at frame 2,529 with
+  `Action FX owner draw group unavailable` (status 2, 2,529 frames sampled).
+  It has no reported sanitizer finding, but is a failed presentation route.
+  The 9,000-frame result samples presentation at the final snapshot only.
+
+Current blockers: repair transient action-FX owner draw-group/lifetime resolution;
+diagnose the longer route's collision/navigation stall; reconstruct
+fullscreen AdjustFrame/radial blur, reward ShiftSpeed ECS behavior and remaining
+subtitle consumers; then validate reward Use, dialogue, boon choice and next-room
+flow. ShiftSpeed layout/copy/RNG evidence remains incomplete, so its barrier stays
+explicit. Historical/intermediate survey counts are not comparable across different
+reached routes. Evidence is private under `.local/reports/progression-2026-10-26/`.
+
+Cleanup removed completed host/Android/CMake builds, scratch validation assets,
+generated report binaries/objects/debug symbols, bytecode/Finder caches, the redundant
+`.local 2` alias and four empty numbered asset folders. Estimated allocated storage
+released: 5.4 GiB, accounting for hardlinks; filesystem snapshots/compression can
+affect actual free space. No exact duplicate tracked files were found. Original
+data, immutable exports, decoder dependencies, signing key, saves/evidence, canonical
+assets and both current/rollback APKs are preserved. See HANDOFF.md for restart policy.
+
+## First code audit checkpoint (2026-10-26, code-only)
 
 The source audit and prioritized acceptance work are in [AUDIT.md](AUDIT.md).
-No device use, APK publication, or asset staging occurred; iteration12 remains the
-installed build. The preserved `wip/agents-2026-10-20` branch remains separate.
+This first pass used no device, APK publication, or asset staging; iteration12 stayed
+installed. The preserved `wip/agents-2026-10-20` branch was reviewed separately;
+subsequent selected integration is recorded above.
 
 The repair batch addresses fresh New Run state, physical input ownership and
 disconnect cleanup, touch-editor cancellation, owner-thread AAudio disconnect
@@ -67,7 +121,7 @@ This remains a prototype. The current repair focuses on shared combat, controls,
 animation recovery, cast, enemy AI/death and progression. Main coordinates builds
 and installs; the user drives manual device play. Do not inject device input.
 
-Current selected packs: opening-actors-v13, actor-simple-v4 via room-packs-v6,
+Installed checkpoint packs (historical): opening-actors-v13, actor-simple-v4 via room-packs-v6,
 actor-actions-v9, actor-markers-v9, actor-properties-v14 (HAP6),
 player-weapons-v25, action-effects-v22, screen-opening-v12, original-text-v7,
 audio-events-v29. RoomOpening and RoomSimple01 are packaged; later rooms need

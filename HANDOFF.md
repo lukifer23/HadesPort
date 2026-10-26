@@ -9,8 +9,54 @@ Both are ignored local files and must never be committed.
 The [2026-10-26 code audit](AUDIT.md) maps current implementation, repaired defects,
 remaining gaps and acceptance priorities. Read the latest code-only section in
 `STATUS.md` before the historical October 20 checkpoint below. Work remains on `main`;
-the preserved workstream branch has not been integrated. Device work remains deferred
-until the user connects a test device; iteration12 remains installed.
+selected consumers from the preserved workstream branch are integrated and verified
+on bounded host routes; its remaining changes stay separate. Device work remains deferred until the
+user connects a test device; iteration12 remains installed.
+
+## Host progression integration (2026-10-26)
+
+The second code-only pass integrates collision/force/wall-hit/effect-clear,
+VFX timing/friction/occlusion, AI/live-offset/query/LOS/screen-Teleport,
+projectile impact/reflection, Book/Constant frame transfer and derived reward
+resources. Read [AUDIT.md](AUDIT.md) for exact boundaries and [STATUS.md](STATUS.md)
+for final validation. Build defaults select action-effects-v24/audio-events-v30;
+canonical staged assets remain v22/v29 and the installed APK is unchanged.
+
+Host/native ARM64 builds and focused probes pass. Strict mixed combat passes
+2,950 frames with every-frame presentation sampling. Strict autoplay runs 9,000
+frames with zero engine faults but stalls with three enemies alive. Its 6,000-frame
+trace shows movement consumed without an effect, request or strafe lock; collision
+navigation still needs diagnosis. Do not equate frame completion with encounter
+completion. Fullscreen frame/blur and reward ShiftSpeed remain explicit gaps.
+ASan/UBSan frame-transfer and strict mixed/presentation/save probes pass without
+findings. Stronger autoplay every-frame presentation stops at frame 2,529 with
+`Action FX owner draw group unavailable`; repair that transient owner resolution
+before claiming a longer render-safe route. The 9,000-frame result sampled only its
+final presentation snapshot. Exact results are recorded in STATUS.md.
+
+The temporary candidate/build directories are removed after verification. Recreate
+an isolated host stage using the selected versioned manifests before continuing;
+do not confuse the older canonical stage with the tested v24/v30 combination.
+Private receipts, replay inputs, source evidence and save probes remain under
+`.local/reports/progression-2026-10-26/`. Existing historical rosters below are
+context, not active assignments. Device testing remains deferred.
+
+## Storage and process hygiene
+
+Keep original game data, immutable versioned exports/manifests, pinned decoder
+libraries, signing keys, real saves, evidence and the installed/rollback APKs.
+Remove completed CMake scratch trees, generated probe binaries/objects/debug symbols,
+Python bytecode caches and empty duplicate folders after retaining result receipts.
+`.local` is the sole alias to `.local.nosync`; a duplicate alias is unnecessary.
+Hardlinked pack/stage files share storage and are not independent wasted copies.
+
+Do not delete versioned packs merely because their names look old: receipts and
+rollback builds can reference them. Rebuildable CMake/Java/resource intermediates
+may be removed while keeping canonical `assets/` and `debug.keystore`. Recreate
+host builds from `native/host`, and use the normal build script for Android.
+Inspect exact process IDs and stop project-owned jobs; never use broad kill patterns
+that could affect unrelated workers. Only HadesPort is maintained by this task;
+the parent workspace and sibling REA checkout are outside the cleanup scope.
 
 ## Scope and end goal
 
@@ -34,8 +80,8 @@ The original scripts drive the game. The engine fails loudly at the first unreco
 engine behaviour (`SCRIPT_STAGE_BLOCKED stage=… detail=<missing piece>`), and the device
 shows that reason on its "unable to enter" screen. Each fix reconstructs that behaviour
 from the binary and moves the stop later. The Mac host replays the same scripts with a
-recorded input file, so most stops are found without the device. Unsanitized host replays
-of 2400 frames take ~7 s; sanitized ones take minutes, so keep those for the final check.
+recorded input file, so many stops are found without the device. Use bounded
+unsanitized replays while iterating and reserve sanitizers for the final check.
 
 ## Layout
 
@@ -69,17 +115,17 @@ adb -s "$HADES_DEVICE_SERIAL" logcat -d -v threadtime -s HadesNative HadesLua Ha
 # Save complete logs before filtering; retained faults can precede the visible symptom.
 adb -s "$HADES_DEVICE_SERIAL" exec-out screencap -d "$HADES_DISPLAY_ID" -p > .local/reports/shot.png
 # Fast host replay (own build dir), first-combat input file
-cmake -S native/host -B .local/native-host-build-X -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DHADES_SANITIZE=OFF
-cmake --build .local/native-host-build-X --target hades-debug
-.local/native-host-build-X/hades-debug .local/native-build/assets .local/reports/NEW.json \
+nice -n 15 cmake -S native/host -B .local/native-host-build-X -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DHADES_SANITIZE=OFF
+nice -n 15 cmake --build .local/native-host-build-X --target hades-debug -j 2
+nice -n 15 .local/native-host-build-X/hades-debug .local/native-build/assets .local/reports/NEW.json \
   --activate-room --world-frames=2950 --input-replay=.local/reports/native-firstcombat-replay-v1.tsv
 # Blocker survey (host-only diagnostic): records every failure instead of stopping
-.local/native-host-build-X/hades-debug .local/native-build/assets .local/reports/SURVEY.json \
+nice -n 15 .local/native-host-build-X/hades-debug .local/native-build/assets .local/reports/SURVEY.json \
   --activate-room --world-frames=2950 --survey-blockers --input-replay=.local/reports/native-firstcombat-replay-v1.tsv
 # Autoplay (host-only input source): plays the real encounter/reward flow from the
 #   original RequiredKillEnemies + live Interact owners via the touch input path.
 #   --contain-faults = device durability mode, prints SURVEY_SUMMARY of reached gaps.
-.local/native-host-build-X/hades-debug .local/native-build/assets .local/reports/AUTO.json \
+nice -n 15 .local/native-host-build-X/hades-debug .local/native-build/assets .local/reports/AUTO.json \
   --activate-room --world-frames=9000 --autoplay --contain-faults
 # Save/Continue: --probe-save=NEW_DIR (checkpoint + fresh reload compare), then
 #   --load-save=COPY_OF_DIR --autoplay to continue from it.
@@ -94,7 +140,7 @@ Script action ids: `.local/reports/native-action-enum.json` is decoded from the 
 action-name switch (regenerate it from the DLL if missing). Android SDK pieces:
 `ndk;29.0.14206865`, `build-tools;37.0.0`, `platforms;android-36`.
 
-## Current checkpoint (reviewed 2026-10-20)
+## Historical checkpoint (reviewed 2026-10-20)
 
 Read STATUS.md for the current installed APK and verification boundaries.
 Previous repair workstreams are complete; agent processes do not survive a host
