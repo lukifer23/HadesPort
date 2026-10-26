@@ -6,8 +6,8 @@ the native runtime runs now, with provenance per name, instead of hand lists:
 
   scope   = fresh-save opening room (RoomOpening), its forced first encounter
             room (RoomSimple01), and the Tartarus combat rooms
-            (A_Combat*), the first-boon flow (AthenaUpgrade loot, boon choice,
-            door reward previews and door icons), the hero sword arsenal and the
+            (A_Combat*), original spawnable reward objects and their boon-choice,
+            drop and door presentation, the hero sword arsenal and the
             Tartarus enemy/trap sets (EnemySets.EnemiesBiome1 / TrapsBiome1).
 
   sources = (1) string literals in every Lua function reachable (static call
@@ -44,7 +44,7 @@ dropped silently. Read-only: no Lua or game code is executed.
 """
 import argparse, copy, hashlib, json, re
 from animation_postread import normalize_animation_postread
-from collections import defaultdict
+from collections import defaultdict, deque
 from pathlib import Path
 from build_room_scene import Sjson, merge
 from hades_assets import Package, map_objects
@@ -57,7 +57,7 @@ TARGET = 'd98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254'
 # LoadPackages{Name=lootName}, Combat.lua:3742 EquipWeapon LoadPackages).
 BASE_PACKAGES = ['Fx', 'GUI', 'RoomManager', 'Dev', 'Tartarus']
 ROOMS = re.compile(r'^(RoomOpening|RoomSimple01|A_Combat\d+[AB]?)$')
-LOOT = ['AthenaUpgrade']
+LOOT = ['AthenaUpgrade']                    # Combat arsenal scope; reward resources are derived separately.
 HERO_SET = 'SwordWeapon'                      # WeaponSets.lua HeroWeaponSets (fresh save)
 HERO_EXTRA_WEAPONS = ['RushWeapon', 'RangedWeapon']  # PlayerUnits _PlayerUnit dash / cast
 ENEMY_SETS = ['EnemiesBiome1', 'TrapsBiome1']
@@ -175,6 +175,48 @@ class Coverage:
 
     def lua_table(self, name):
         return self.data[name][0]
+
+    def reward_objects(self, loot_data, consumable_data):
+        """Follow original reward stores/consumable aliases to spawnable obstacles.
+
+        CreateLoot (RoomManager.lua) passes lootData.Name to SpawnObstacle;
+        ProcessData's record name is the LootData key. Reward-store entries can
+        name a consumable alias whose resolved data names another consumable or
+        native obstacle. Traverse that data to a fixed point, retaining every
+        source field edge; resource admission does not expand combat arsenals.
+        """
+        obstacles = self.things['Obstacles']
+        loot = sorted(k for k, v in loot_data.items() if isinstance(v, dict) and k in obstacles)
+        provenance = defaultdict(set)
+        for name in loot:
+            provenance[name].add(f'LootData.{name} (CreateLoot SpawnObstacle Name=lootData.Name)')
+
+        def references(value, origin):
+            if isinstance(value, dict):
+                for key, item in value.items():
+                    if key != '__line__':
+                        yield from references(item, f'{origin}.{key}')
+            elif isinstance(value, list):
+                for index, item in enumerate(value, 1):
+                    yield from references(item, f'{origin}[{index}]')
+            elif isinstance(value, str) and (value in obstacles or value in consumable_data):
+                yield value, origin
+
+        store = self.lua_table('RewardStoreData') if 'RewardStoreData' in self.data else {}
+        pending = deque(references(store, 'RewardStoreData'))
+        visited, drops = set(), set()
+        while pending:
+            name, origin = pending.popleft()
+            if name in obstacles:
+                provenance[name].add(origin)
+                if name not in loot:
+                    drops.add(name)
+            if name in visited or name not in consumable_data:
+                continue
+            visited.add(name)
+            pending.extend(references(self.lua_record(consumable_data, name), f'ConsumableData.{name}'))
+        self.reward_object_provenance = {name: sorted(origins) for name, origins in sorted(provenance.items())}
+        return loot, sorted(drops)
 
     def lua_record(self, table, key, stack=()):
         """Lua ProcessDataInheritance: InheritFrom list, later parents override."""
@@ -303,6 +345,20 @@ class Coverage:
             touchdown_roots.append({'obstacle':obstacle,'weapon':weapon,'field':'OnTouchdown.Weapon'})
         scope['obstacle_touchdown_weapon_roots']=touchdown_roots
         loot_data = self.lua_table('LootData'); trait_data = self.lua_table('TraitData'); consumable_data = self.lua_table('ConsumableData')
+        reward_loot, reward_drops = self.reward_objects(loot_data, consumable_data)
+        scope['reward_loot'] = reward_loot; scope['reward_drops'] = reward_drops
+        scope['reward_object_provenance'] = self.reward_object_provenance
+        for name in reward_loot + reward_drops:
+            origin = '; '.join(self.reward_object_provenance[name])
+            obstacles.add(name); self.entity_origin.setdefault(name, origin)
+            reward = self.thing('Obstacles', name)
+            # A dynamic reward needs its own resources even if this graphic is
+            # also map-placed; a scene-owned primary cannot supply a new Thing.
+            for animation, source in self.walk_values(reward, f'reward object Obstacles.{name}', keyed=True):
+                add(animation, source)
+            graphic = reward.get('Thing', {}).get('Graphic')
+            if isinstance(graphic, str) and graphic and graphic not in self.anims and graphic != 'null':
+                self.obstacle_graphics.setdefault(graphic, []).append(f'reward object Obstacles.{name}.Thing.Graphic')
         rooms_lua = self.lua_table('RoomSetData.Tartarus'); rooms_base = self.lua_table('RoomSetData.Base')
         function_seeds = set(SEED_FUNCTIONS)
         lua_scope = []
@@ -324,12 +380,15 @@ class Coverage:
             for o in sorted(obstacles):
                 if o in self.things['Obstacles']: records.append(('Obstacles', o, self.thing('Obstacles', o)))
                 if o in obstacle_data: records.append(('ObstacleData', o, self.lua_record(obstacle_data, o)))
-            for key in LOOT:
+            for key in reward_loot:
                 loot = self.lua_record(loot_data, key)
                 records.append(('LootData', key, loot))
                 # Boons this god offers (UpgradeChoice.lua boon screen icons).
                 for trait in sorted(set(self.strings(loot)) & set(trait_data)):
                     records.append(('TraitData', trait, self.lua_record(trait_data, trait)))
+            for key in reward_drops:
+                if key in consumable_data:
+                    records.append(('ConsumableData', key, self.lua_record(consumable_data, key)))
             for room in scope['rooms']:
                 table = rooms_lua if room in rooms_lua else rooms_base
                 if room in table: records.append(('RoomData', room, self.lua_record({**rooms_base, **rooms_lua}, room)))
@@ -664,7 +723,7 @@ def main():
         for n, o in extra:
             roots.setdefault(n, None); cov.note(n, o)
         names, edges = cov.closure(sorted(roots))
-    packages = BASE_PACKAGES + sorted({n for n in scope['weapons'] + LOOT if (a.content / 'Win/Packages' / (n + '.pkg_manifest')).exists()})
+    packages = BASE_PACKAGES + sorted({n for n in scope['weapons'] + LOOT + scope['reward_loot'] if (a.content / 'Win/Packages' / (n + '.pkg_manifest')).exists()})
     index = cov.sprites(packages)
     all_packages = sorted(x.stem for x in (a.content / 'Win/Packages').glob('*.pkg_manifest'))
     all_index = cov.sprites([x for x in all_packages if x not in packages]) | index
