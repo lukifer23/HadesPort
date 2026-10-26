@@ -10,6 +10,9 @@ namespace hades {namespace {
 float n(const SourceValue&d,const char*k,float fallback=0){auto*p=d.get(k);const double v=p?p->number():fallback;if(!std::isfinite(v)||std::abs(v)>100000)throw std::runtime_error(std::string("Action FX source scalar bound: ")+k);return float(v);}
 std::string t(const SourceValue&d,const char*k){auto*p=d.get(k);return p&&!std::holds_alternative<std::monostate>(p->value)?p->text():"";}
 bool b(const SourceValue&d,const char*k){auto*p=d.get(k);return p&&p->boolean();}
+// Frame consumers store a signed native integer alongside the float. Reject
+// malformed live values rather than inventing CVTTSS2SI's indefinite result.
+bool transferableFrame(float frame){return std::isfinite(frame)&&std::trunc(frame)>=-2147483648.f&&std::trunc(frame)<2147483648.f;}
 // Animation.GetLocation296c90 is distinct from GetDrawLocation297d60:
 // the former adds raw attachment offset, never source draw OffsetX/Y.
 // A null marker provider selects the already resolved marker anchor for draw;
@@ -77,14 +80,14 @@ const std::set<std::string>& handledFields(){static const std::set<std::string> 
  "RandomDurationMin","RandomFlipHorizontal","RandomOffsetX","RandomOffsetY","RandomPlaySpeedMax","RandomPlaySpeedMin",
  "RandomRotation","RotateWithGravity","RandomRotationSpeedMax","RandomRotationSpeedMin","Scale","ScaleFromOwner","ScaleMax","ScaleMin",
  "ScaleX","ScaleY","Sound","SoundAllowedAfterFrame","SoundManagerCap","StartAlpha","StartBlue","StartFrame","StartGreen",
- "StartRed","StartScale","TimeModifierFraction","TransferCopyBody","TransferDrawLayer","UseAttachedMarkerLocation",
+ "StartRed","StartScale","TimeModifierFraction","TransferCopyBody","TransferDrawLayer","TransferFrameFromThis","TransferFrameToThis","UseAttachedMarkerLocation",
  "UseOwnAngle","UseVelocityAngleFromOwner","VelocityMax","VelocityMin","VisualFx","VisualFxCap","VisualFxCapMin","VisualFxCapMax","VisualFxIntervalMax","VisualFxIntervalMin",
  "VisualFxManagerCap","GroupName","UseAttachedGroup","MaintainAlphaOnly","ScaleRadius","GammaCorrection","NonHighColorChannelMultiplier","Red","Green","Blue","Alpha","DurationFrames","LoopFramesOnly","PlayBackwards","StartOffsetX","EndOffsetX","StartOffsetY","EndOffsetY","StartOffsetZ","EndOffsetZ","PingPongShiftOverDuration","PhaseOffsetShiftOverDuration","RandomFlipVertical","StartScaleX","EndScaleX","StartScaleY","EndScaleY","PingPongScale",
  // Multi-angle atlas selection (BookAnimation::GetAngleNum 0x1802b0630),
  // angle transition, Hue/Saturation/Value (InitData 0x180292459), upward
  // velocity (0x180292a58), StopCue on Dispose/OnLoop, attached clock link
- // (UseAttachedToTimeMultiplier 0x180299d40; the elapsed adapter rejects any
- // non-default owner clock), ActiveVisualFxCap (UpdateVfxTimeInterval 0x1802952cd).
+ // (UseAttachedToTimeMultiplier 0x180299d40; per-entity elapsed adapters
+ // validate actual clock links), ActiveVisualFxCap (UpdateVfxTimeInterval 0x1802952cd).
  "NumAngles","AngleNumOffset","StartAngle","EndAngle","PingPongAngle","PhaseOffsetAngle","Hue","Saturation","Value",
  "RandomStartFrame","VisualFxAngleOffset","VisualFxInheritAngle","VisualFxDistanceMin","VisualFxDistanceMax","VisualFxDistanceMinChange","VisualFxFrameCap","UpwardVelocity","UpwardVelocityMin","UpwardVelocityMax","RadialOffsetMin","RadialOffsetMax","RadialOffsetScaleY","AlphaMin","AlphaMax","StopSoundOnFinishFade","UseAttachedTimeMultiplier","ActiveVisualFxCap"};return v;}
 // Presentation hints with no native consumer yet in the shared renderer/draw
@@ -92,7 +95,7 @@ const std::set<std::string>& handledFields(){static const std::set<std::string> 
 // Admitted as explicit approximations and reported per definition.
 const std::set<std::string>& pendingFieldsSet(){static const std::set<std::string> v{
  "Material","Ambient","SortMode","SortFromOwner","UseBoundsForSortArea","DrawBehindOwner","OverlayVfx",
- "KeepVisualFxAttached","TransferAngle","TransferChildren","TransferFrameToThis"};return v;}
+ "KeepVisualFxAttached","TransferAngle","TransferChildren"};return v;}
 }
 bool ActionEffectWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimationBank> bank,std::shared_ptr<AnimationRegistry> registry,std::string&error,std::shared_ptr<ActorAnimationBank> movieBank){try{
  if(!states_.empty()||!bank||!registry||t(catalog,"Schema")!="HadesActionEffectResources1"||t(catalog,"Target")!="d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254")throw std::runtime_error("Source action FX catalog/bank/registry mismatch");
@@ -279,11 +282,14 @@ bool ActionEffectWorld::createStandalone(const std::string&name,std::array<float
  }catch(const std::exception&e){const bool mutated=mutating_;mutating_=false;error=e.what();if(mutated)retainFault(error);return false;}}
 // Animation.CopyState295bb0 normal source with no mCopyBody(+0xa8): location,
 // Z/offset/parallax, Rotation, radius, PSM, attach offset, draw scale/vector/group,
-// flip; optional frame/child transfers retain explicit gates.
+// flip; Book frame transfer is the virtual consumer, child ownership remains gated.
 bool ActionEffectWorld::copyState(uint64_t target,uint64_t source,const ActionEffectProviders&p,std::string&error){try{
  if(!source)return true;auto* dst=state(target);const auto* src=state(source);if(!dst||!src)throw std::runtime_error("Animation.CopyState source/target lifetime unavailable");
  const auto copied=*src;const auto& from=copied.definition;const auto& to=dst->definition;
- if(b(to,"TransferChildren")||b(from,"TransferChildren")||b(to,"TransferFrameToThis")||b(from,"TransferFrameFromThis"))throw std::runtime_error("Animation.CopyState child/frame ownership transfer not reconstructed");
+ if(b(to,"TransferChildren")||b(from,"TransferChildren"))throw std::runtime_error("Animation.CopyState child ownership transfer not reconstructed");
+ const bool transferFrame=b(to,"TransferFrameToThis")||b(from,"TransferFrameFromThis");
+ if(transferFrame&&!transferableFrame(copied.frame))throw std::runtime_error("Animation.CopyState frame outside finite int32 range: "+copied.name+" -> "+dst->name);
+ if(transferFrame&&dst->type!=NativeAnimationType::Book&&dst->type!=NativeAnimationType::Constant)throw std::runtime_error("Animation.CopyState frame transfer not reconstructed: "+copied.name+" ("+t(from,"Type")+") -> "+dst->name+" ("+t(to,"Type")+")");
  EffectOwnerState owner=copied.ownerSnapshot;if(!copied.detached&&(!p.owner||!p.owner(copied.ownerId,owner,error)))return false;
  std::array<float,3> position;if(!sourceLocation(copied,owner,&p.marker,position,error))return false;
  forChain(target,[&](ActionEffectState&s,bool first){s.position[0]=position[0];s.position[1]=position[1];s.parallax=copied.parallax;s.attachOffset=std::array<float,2>{copied.attachOffset?(*copied.attachOffset)[0]:copied.randomX,copied.attachOffset?(*copied.attachOffset)[1]:copied.randomY};if(first){s.ownZ=copied.ownZ;s.position[2]=copied.ownZ;s.addedOffsetZ=copied.addedOffsetZ;if(copied.rotationComponent){s.rotation=copied.rotation;s.rotationComponent=true;}s.playSpeedMultiplier=copied.playSpeedMultiplier;s.flipX=copied.flipX;s.flipY=copied.flipY;}});
@@ -294,9 +300,37 @@ bool ActionEffectWorld::copyState(uint64_t target,uint64_t source,const ActionEf
  // +0x158/+0x170 (CopyState295dbc..5deb). TransferScale is data+0x7d.
  if(transfer(to,"TransferScale",true)||transfer(from,"TransferScale",true)){actual.ownScale=copied.ownScale;actual.scaleVector=copied.scaleVector;}
  if(transfer(to,"TransferDrawLayer",true)||transfer(from,"TransferDrawLayer",true))actual.runtimeGroup=copied.runtimeGroup;
+ if(transferFrame&&!this->transferFrame(target,copied,error))return false;
  if(b(to,"TransferAngle")||b(from,"TransferAngle")){actual.heading=copied.heading;if(actual.child&&!addAngle(actual.child,copied.heading,error))return false;}
  return true;
  }catch(const std::exception&e){error=e.what();return false;}}
+bool ActionEffectWorld::transferFrame(uint64_t target,const ActionEffectState&source,std::string&error){
+ auto&actual=states_.at(target);
+ // CopyState295e66..e83: destination ToThis OR source FromThis invokes
+ // destination vfunc+50, self only. Book.TransferFrame2b014f..21b writes
+ // source mFractionalFrame(+78) verbatim and AnimFrame{destination Start,
+ // End, frame};2b021c..24c clamps only the displayed integer mFrame(+80).
+ // visual already selects clamp(trunc(frame),Start,End). Preserve raw frame,
+ // destination duration/fraction/frame driver, attachment and RNG stream.
+ if(!b(actual.definition,"TransferFrameToThis")&&!b(source.definition,"TransferFrameFromThis"))return true;
+ if(!transferableFrame(source.frame)){error="Animation.CopyState frame outside finite int32 range: "+source.name+" -> "+actual.name;return false;}
+ if(actual.type==NativeAnimationType::Book){actual.frame=source.frame;return true;}
+ if(actual.type==NativeAnimationType::Constant){
+  // Constant vtable1805f8220 slot+50 -> Animation.TransferFrame2913b0:
+  // source integer mFrame(+80), converted to float, then SetFractionalFrame.
+  // Book mFrame is the clamped display integer; Constant stores the integer
+  // written by SetFractionalFrame even when its single wrap stays out of range.
+  float frame=std::trunc(source.frame);
+  if(source.type==NativeAnimationType::Book)frame=std::clamp(frame,n(source.definition,"StartFrame",1),n(source.definition,"EndFrame",n(source.definition,"NumFrames",1)));
+  // SetFractionalFrame295ff0..604d wraps once using End-Start (no +1),
+  // writes raw fractional +78 and truncation to integer +80. Constant's
+  // single image does not depend on either frame value. No duration reset.
+  const float start=n(actual.definition,"StartFrame",1),end=n(actual.definition,"EndFrame",n(actual.definition,"NumFrames",1));
+  if(frame<start)frame=end-(start-frame);else if(frame>end)frame=(frame-end)+start;
+  actual.frame=frame;return true;
+ }
+ error="Animation.CopyState frame transfer not reconstructed: "+source.name+" ("+t(source.definition,"Type")+") -> "+actual.name+" ("+t(actual.definition,"Type")+")";return false;
+}
 bool ActionEffectWorld::slideFx(uint64_t handle,const ActionEffectProviders&p,std::string&error){auto&source=states_.at(handle);const auto&clip=bank_->clips().at(source.imageClip);const auto&step=source.definition.get("Slides")->array().at(clip.slides.at(source.slide).originalFrame-1);const auto fx=t(step,"VisualFx");if(fx.empty())return true;EffectOwnerState owner;if(!p.owner(source.ownerId,owner,error))return false;uint64_t h;if(!initialize(fx,source.ownerId,owner,source.position,0,false,p,h,error))return false;if(!h)return true;auto&spawned=states_.at(h);spawned.heading+=-1.5707963705062866f+source.heading;if(t(spawned.definition,"ScaleFromOwner")!="Ignore")spawned.ownScale*=source.ownScale*owner.scale;source.created.push_back(h);return true;}
 bool ActionEffectWorld::advance(float dt,const ActionEffectProviders&p,std::string&error){try{
  if(faulted_){error=fault_;return false;}if(mutating_||!std::isfinite(dt)||dt<0||dt>1){error="Invalid/faulted original action FX world";return false;}const auto snapshot=handles(true);std::vector<uint64_t>dead;
@@ -394,7 +428,7 @@ bool ActionEffectWorld::advance(float dt,const ActionEffectProviders&p,std::stri
    }else{owner.baseColor=std::array<uint8_t,4>{255,255,255,255};owner.baseHsv=std::array<float,4>{0,0,0,0};owner.group=std::string{};}
    location[2]=0;uint64_t spawned;if(!initialize(onEnd,old.detached?0:old.ownerId,owner,location,0,false,p,spawned,error))return false;
   }
-  const auto chain=t(old.definition,"ChainTo");if(!chain.empty()&&chain!="null"&&!old.preventChain){EffectOwnerState owner=old.ownerSnapshot;if(!old.detached&&!p.owner(old.ownerId,owner,error))return false;uint64_t next;if(!initialize(chain,old.ownerId,owner,old.position,0,false,p,next,error))return false;if(next){auto&replacement=states_.at(next);replacement.detached=old.detached;replacement.ownerSnapshot=owner;replacement.preferUnmodified=old.preferUnmodified;replacement.position=old.position;replacement.ownZ=old.ownZ;replacement.rotation=old.rotation;if(b(old.definition,"TransferCopyBody")||b(replacement.definition,"TransferCopyBody")||(!old.definition.get("TransferCopyBody")&&!replacement.definition.get("TransferCopyBody"))){replacement.heading=old.heading;replacement.ownScale=old.ownScale;replacement.baseColor=old.baseColor;replacement.hsv=old.hsv;replacement.flipX=old.flipX;replacement.flipY=old.flipY;}const auto transferLayer=[](const SourceValue&v){const auto*p=v.get("TransferDrawLayer");return !p||p->boolean();};if(transferLayer(old.definition)||transferLayer(replacement.definition))replacement.runtimeGroup=old.runtimeGroup;}}if(!destroy(h,error))return false;}
+  const auto chain=t(old.definition,"ChainTo");if(!chain.empty()&&chain!="null"&&!old.preventChain){EffectOwnerState owner=old.ownerSnapshot;if(!old.detached&&!p.owner(old.ownerId,owner,error))return false;uint64_t next;if(!initialize(chain,old.ownerId,owner,old.position,0,false,p,next,error))return false;if(next){/* AnimationManager.Update29d614 invokes CopyState after Init. */if(!transferFrame(next,old,error))return false;auto&replacement=states_.at(next);replacement.detached=old.detached;replacement.ownerSnapshot=owner;replacement.preferUnmodified=old.preferUnmodified;replacement.position=old.position;replacement.ownZ=old.ownZ;replacement.rotation=old.rotation;if(b(old.definition,"TransferCopyBody")||b(replacement.definition,"TransferCopyBody")||(!old.definition.get("TransferCopyBody")&&!replacement.definition.get("TransferCopyBody"))){replacement.heading=old.heading;replacement.ownScale=old.ownScale;replacement.baseColor=old.baseColor;replacement.hsv=old.hsv;replacement.flipX=old.flipX;replacement.flipY=old.flipY;}const auto transferLayer=[](const SourceValue&v){const auto*p=v.get("TransferDrawLayer");return !p||p->boolean();};if(transferLayer(old.definition)||transferLayer(replacement.definition))replacement.runtimeGroup=old.runtimeGroup;}}if(!destroy(h,error))return false;}
  return true;
  }catch(const std::exception&e){error=e.what();retainFault(error);return false;}}
 bool ActionEffectWorld::updateTime(float dt,const ActionEffectProviders&p,uint32_t& spawnedThisFrame,std::string&error){try{
@@ -507,7 +541,10 @@ bool ActionEffectWorld::visual(uint64_t h,const EffectOwnerState&owner,const std
  out.x+=(shift(d,"StartOffsetX","EndOffsetX",s->fraction)+ox)*offsetScale;out.y+=(shift(d,"StartOffsetY","EndOffsetY",s->fraction)+oy)*offsetScale;
  out.screenSpace=s->useScreenLocation;out.parallax=s->parallax;out.flipX=s->flipX;out.flipY=s->flipY;out.postRotateScaleX=isometric?1.f:n(d,"PostRotateScaleX",1);out.postRotateScaleY=isometric?1.f:n(d,"PostRotateScaleY",1);
  if(!s->movie){
- const auto* resource=catalog_.get("Clips");const auto&ratios=resource->array().at(s->imageClip).get("atlas_ratio_by_frame")->array().at(size_t(angleIndex)*size_t(n(d,"NumFrames",1))+size_t(s->frame)-1).array();const float rx=float(ratios[0].number()),ry=float(ratios[1].number());for(size_t k=0;k<4;++k)out.localRect[k]*=k%2?ry:rx;
+ // Book.PrepDraw2af9a6 selects atlas/texture using displayed integer mFrame,
+ // not raw fractional +78. TransferFrame may retain raw values beyond this
+ // destination's range, so geometry must use the same clamped frame as pixels.
+ const auto* resource=catalog_.get("Clips");const auto&ratios=resource->array().at(s->imageClip).get("atlas_ratio_by_frame")->array().at(size_t(angleIndex)*size_t(n(d,"NumFrames",1))+size_t(originalFrame)-1).array();const float rx=float(ratios[0].number()),ry=float(ratios[1].number());for(size_t k=0;k<4;++k)out.localRect[k]*=k%2?ry:rx;
  // Explicit source origin replaces native input origin before trim/flip math.
  const auto* metadata=catalog_.get("FrameMetadata");if(!metadata){error="Original action atlas pivot metadata companion unavailable";return false;}const auto& atlas=*metadata->array().at(out.frame.packetFrameIndex).get("sprite");
  const auto&original=atlas.get("original")->array();const auto&trim=atlas.get("trim")->array();const float ratiosXY[]{rx,ry};const bool flips[]{s->flipX,s->flipY};const float sizes[]{float(out.frame.width),float(out.frame.height)};

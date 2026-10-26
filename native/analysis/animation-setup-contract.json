@@ -25,7 +25,7 @@
   "flips": "InitData 0x180292e8b..0x180292f3f FlipHorizontal else RandomFlipHorizontal pcg32_bounded(2)==1; FlipVertical else RandomFlipVertical likewise.",
   "GetTimeRemaining vfunc+0xe0": "Animation 0x1802914b0 mTimeRemaining; Book 0x1802b0780 (EndFrame-mFrame)/(DataPlaySpeed x PSM).",
   "limits": [
-    "Pending presentation hints admitted and logged by name (NATIVE_ACTION_FX_PENDING_PRESENTATION): Material, Ambient, SortMode, SortFromOwner, UseBoundsForSortArea, DrawBehindOwner, OverlayVfx, KeepVisualFxAttached, TransferAngle/Children/FrameToThis, UseAttachedFlasher/UseAttachedAddColor=true (owner flasher/AddColor).",
+    "Pending presentation hints admitted and logged by name (NATIVE_ACTION_FX_PENDING_PRESENTATION): Material, Ambient, SortMode, SortFromOwner, UseBoundsForSortArea, DrawBehindOwner, OverlayVfx, KeepVisualFxAttached, TransferAngle/Children (Book FrameToThis/FromThis reconstructed; see animation-frame-transfer-contract.json), UseAttachedFlasher/UseAttachedAddColor=true (owner flasher/AddColor).",
     "Every other unhandled source field fails at instantiation naming the field.",
     "ActiveVisualFxCap (UpdateActiveVfxCount 0x1802940b0) not reconstructed.",
     "One-tick ECS ordering lag of Loop/ResetTimeRemaining not modelled.",

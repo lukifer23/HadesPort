@@ -92,6 +92,7 @@ class ActionEffectWorld {
  uint32_t activeVfxCount(uint64_t);
  uint32_t angleNum(const ActionEffectState&,const EffectOwnerState&)const;
  void forChain(uint64_t,const std::function<void(ActionEffectState&,bool)>&);
+ bool transferFrame(uint64_t,const ActionEffectState&,std::string&);
  bool loopAnimation(uint64_t,bool force,const ActionEffectProviders&,std::string&);
  bool initialize(const std::string&,int32_t,const EffectOwnerState&,std::array<float,3>,
    uint64_t,bool,const ActionEffectProviders&,uint64_t&,std::string&);

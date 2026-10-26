@@ -1,0 +1,73 @@
+{
+  "schema": "hades-animation-frame-transfer-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "Matching PDB function/vtable identities joined to bounded native disassembly; no original execution",
+  "gate": {
+    "native": "Animation::CopyState VA180295e66..180295e83",
+    "condition": "destination AnimationData.TransferFrameToThis (+0x7a) OR source AnimationData.TransferFrameFromThis (+0x79)",
+    "consumer": "destination virtual slot +0x50, self only, source Animation pointer"
+  },
+  "Book_consumer": {
+    "native": "BookAnimation::TransferFrame VA1802b0140, length291; Book vtable VA1805f7f80 slot+0x50",
+    "fractional_state": "source Animation.mFractionalFrame +0x78 copied verbatim to destination +0x78",
+    "component": "AnimFrame created/updated with destination StartFrame/EndFrame and copied raw fractional frame",
+    "display": "truncate raw frame toward zero, clamp integer to destination StartFrame..EndFrame, update mFrame +0x80 and mark texture dirty when integer changes",
+    "frame_consumer_does_not_modify": [
+      "duration",
+      "time remaining",
+      "animation fraction",
+      "frame driver policy",
+      "attachment",
+      "owner lifetime",
+      "RNG stream"
+    ],
+    "display_adapter": "ActionEffectWorld::visual selects clamp(trunc(state.frame), StartFrame, EndFrame) for both actual image packet and atlas_ratio_by_frame geometry. Raw retained source frame must not index destination atlas geometry."
+  },
+  "call_sites": {
+    "Thing_primary": "Thing::UpdateAnimation selects new primary then CopyState; action primary and projectile primary callers already route through ActionEffectWorld::copyState",
+    "manager_ChainTo": "AnimationManager::Update VA18029d614 calls CopyState after replacement Init; shared frame consumer applied in existing action manager chain path",
+    "child_ChainTo": "Existing native OnChildFinished/AddChild replacement is separate from CopyState; no frame transfer added there"
+  },
+  "limits": [
+    "Book and Constant destinations reconstructed. Active transfer to ConstantNoUpdate or Slide fails explicitly with source/destination names/types before CopyState mutation; manager chain allocates replacement before this check.",
+    "Action-to-HAA cross-backend transfer remains explicitly unsupported; lua_vfx guard retained.",
+    "TransferChildren remains explicitly unsupported by CopyState; this does not broaden child ownership coverage.",
+    "Other existing CopyState body/manager approximations are unchanged.",
+    "ShiftSpeed component reconstruction is a separate unsupported gap.",
+    "Malformed live source frames that are nonfinite or whose truncation cannot fit signed int32 are rejected explicitly before CopyState mutation; native CVTTSS2SI indefinite-result behavior is not emulated for malformed data."
+  ],
+  "retained_evidence": [
+    ".local/reports/native-action-copy-state-static.json",
+    ".local/reports/native-registry-manager-update.json",
+    ".local/reports/takeover-animation-manager-update-static.json",
+    ".local/reports/anim-setup/vtables-Constant-Book.txt",
+    ".local/reports/progression-2026-10-26/frame-transfer-0.json",
+    ".local/reports/progression-2026-10-26/frame-transfer-1.json",
+    ".local/reports/progression-2026-10-26/frame-transfer-2.json",
+    ".local/reports/progression-2026-10-26/frame-transfer-base-vtables.json",
+    ".local/reports/anim-setup/Animation_SetFractionalFrame.s"
+  ],
+  "regression": {
+    "source": "native/analysis/animation_frame_transfer_smoke.cpp",
+    "argument": "ACTUAL_STAGED_ASSETS containing v24 action catalog/frame bank and matching actor/movie bank",
+    "coverage": [
+      "actual EnemyProjectileIn -> EnemyProjectile raw fractional frame",
+      "unflagged source and destination retain destination frame",
+      "raw frame beyond EndFrame retained with clamped source image selection",
+      "independent destination TransferFrameToThis with actual seven-frame AxeCrackDissipate",
+      "CopyState consumes zero RNG",
+      "destination duration/fraction/frame driver/owner identity preserved",
+      "actual manager Book ChainTo invokes frame consumer",
+      "actual RubbleFallImpactDecalA -> RubbleFallImpactDecalA-Fade Constant manager chain",
+      "actual Constant Fade requests TransferChildren: direct CopyState barrier preserves frame/clock/RNG while real manager chain still executes its frame consumer"
+    ],
+    "status": "Actual staged-assets probe passes in RelWithDebInfo and ASan/UBSan, including seven-frame displayed atlas geometry and Book/Constant manager chains. Diagnostic audio only; no Android observation.",
+    "open_route_boundary": "Independent every-frame autoplay presentation stops2529 with Action FX owner draw group unavailable; this probe does not establish general owner resolution."
+  },
+  "base_Constant_consumer": {
+    "native": "ConstantAnimation vtable VA1805f8220 slot+0x50 -> Animation::TransferFrame VA1802913b0 (16 bytes) -> Animation::SetFractionalFrame VA180295ff0 (237 bytes)",
+    "source_state": "Integer mFrame +0x80, converted to float. For Book source this is clamp(trunc(raw fractional frame), source StartFrame, source EndFrame); for Constant, preserve the integer stored by prior base transfer rather than clamping to its sole drawn frame.",
+    "destination_state": "If below Start: End-(Start-frame); else if above End: (frame-End)+Start; otherwise unchanged. One wrap only, range End-Start without +1. Store raw fractional +0x78 and its truncation in integer +0x80. Existing AnimFrame updated when present; no clock or RNG operations. Constant presentation retains its fixed source image.",
+    "mapping_boundary": "Constant proven directly from matching PDB vtable and DLL slot bytes. ConstantNoUpdate and Slide destination transfer remain explicit unsupported here."
+  }
+}
