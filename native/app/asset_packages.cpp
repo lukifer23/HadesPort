@@ -45,18 +45,26 @@ bool AssetPackages::pump(size_t budget,std::string& error){
         while(budget&&!pending_.empty()){
             auto& p=packages_.at(pending_.front());
             if(p.nextTexture==p.textures.size()){p.cpuReady=true;pending_.pop_front();continue;}
-            auto& t=p.textures[p.nextTexture];auto asset=assets_->open(t.path);
+            auto& t=p.textures[p.nextTexture];
             const auto size=size_t(t.width)*t.height*4;
-            if(!asset||asset->size()!=size)throw std::runtime_error("Missing/truncated original atlas: "+t.name);
-            std::vector<uint8_t> bytes(size);size_t at=0;
-            while(at<size){const auto got=asset->read(bytes.data()+at,size-at);if(!got)throw std::runtime_error("Original atlas read failed: "+t.name);at+=got;}
-            t.rgba=std::move(bytes);++p.nextTexture;--budget;
+            if(const auto cached=resident_.find(t.path);cached!=resident_.end()){
+                if(cached->second->size()!=size)throw std::runtime_error("Shared original atlas extent mismatch: "+t.name);
+                t.rgba=cached->second;
+            }else{
+                auto asset=assets_->open(t.path);
+                if(!asset||asset->size()!=size)throw std::runtime_error("Missing/truncated original atlas: "+t.name);
+                auto bytes=std::make_shared<std::vector<uint8_t>>(size);size_t at=0;
+                while(at<size){const auto got=asset->read(bytes->data()+at,size-at);if(!got)throw std::runtime_error("Original atlas read failed: "+t.name);at+=got;}
+                t.rgba=std::move(bytes);resident_.emplace(t.path,t.rgba);
+            }
+            ++p.nextTexture;--budget;
             if(p.nextTexture==p.textures.size()){p.cpuReady=true;pending_.pop_front();}
         }
         error.clear();return true;
     }catch(const std::exception& e){fault_=e.what();error=fault_;return false;}
 }
 const PackageState* AssetPackages::package(const std::string& n)const{const auto i=packages_.find(n);return i==packages_.end()?nullptr:&i->second;}
-const PackageTexture* AssetPackages::texture(const std::string& n)const{for(const auto& [name,p]:packages_)for(const auto& t:p.textures)if(t.name==n&&!t.rgba.empty())return &t;return nullptr;}
-std::string AssetPackages::dump()const{std::ostringstream out;out<<"ASSET_PACKAGES count="<<packages_.size()<<" pending="<<pending_.size()<<" fault="<<fault_<<'\n';for(const auto& [name,p]:packages_){size_t bytes=0;for(const auto& t:p.textures)bytes+=t.rgba.size();out<<"PACKAGE "<<name<<" requested="<<p.requested<<" cpuReady="<<p.cpuReady<<" textures="<<p.nextTexture<<'/'<<p.textures.size()<<" residentBytes="<<bytes<<" gpuResidency=renderer_owned\n";}return out.str();}
+const PackageTexture* AssetPackages::texture(const std::string& n)const{for(const auto& [name,p]:packages_)for(const auto& t:p.textures)if(t.name==n&&t.rgba&&!t.rgba->empty())return &t;return nullptr;}
+AssetPackages::Residency AssetPackages::residency()const{Residency out;out.uniqueTextures=resident_.size();for(const auto& [path,bytes]:resident_)out.residentBytes+=bytes->size();for(const auto& [name,p]:packages_)for(const auto& t:p.textures)if(t.rgba)out.logicalResidentBytes+=t.rgba->size();return out;}
+std::string AssetPackages::dump()const{const auto memory=residency();std::ostringstream out;out<<"ASSET_PACKAGES count="<<packages_.size()<<" pending="<<pending_.size()<<" fault="<<fault_<<" residentBytes="<<memory.residentBytes<<" logicalResidentBytes="<<memory.logicalResidentBytes<<" uniqueTextures="<<memory.uniqueTextures<<'\n';for(const auto& [name,p]:packages_){size_t bytes=0;for(const auto& t:p.textures)if(t.rgba)bytes+=t.rgba->size();out<<"PACKAGE "<<name<<" requested="<<p.requested<<" cpuReady="<<p.cpuReady<<" textures="<<p.nextTexture<<'/'<<p.textures.size()<<" residentBytes="<<bytes<<" residency=shared_logical gpuResidency=renderer_owned\n";}return out.str();}
 }

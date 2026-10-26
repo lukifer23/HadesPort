@@ -11,7 +11,7 @@ struct PackageTexture {
     std::string name,path,sha256;
     uint32_t width=0,height=0;
     SourceValue sprites;
-    std::vector<uint8_t> rgba;
+    std::shared_ptr<const std::vector<uint8_t>> rgba;
 };
 struct PackageState {
     std::string name,manifestHash,packageHash;
@@ -26,8 +26,12 @@ class AssetPackages {
     AssetStore* assets_;
     std::map<std::string,PackageState> packages_;
     std::deque<std::string> pending_;
+    // Platform storage deduplication: exported paths contain the content hash.
+    // Package-local metadata and asynchronous completion remain independent.
+    std::map<std::string,std::shared_ptr<const std::vector<uint8_t>>> resident_;
     std::string fault_;
 public:
+    struct Residency {size_t residentBytes=0,logicalResidentBytes=0,uniqueTextures=0;};
     explicit AssetPackages(AssetStore* a):assets_(a){}
     bool loadCatalog(SourceValue,std::string& error);
     bool request(const std::string&,std::string& error);
@@ -35,6 +39,7 @@ public:
     const PackageState* package(const std::string&)const;
     const PackageTexture* texture(const std::string&)const;
     bool pending()const{return !pending_.empty();}
+    Residency residency()const;
     std::string dump()const;
 };
 }
