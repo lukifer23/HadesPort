@@ -105,7 +105,10 @@ hades::WeaponSelfEffectProviders ScriptRuntime::selfEffectProviders(){
 }
 bool ScriptRuntime::advanceUnitEffects(float dt,std::string& error){
     const auto providers=selfEffectProviders();
-    for(auto id:actorWorld_.registrationOrder()){
+    const auto order=actorWorld_.registrationOrder();
+    // OnEffectApply/OnEffectCleared can register new actors synchronously.
+    const std::vector<int32_t> units(order.begin(),order.end());
+    for(auto id:units){
         auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered||!actor->status)continue;
         const auto* stun=actorWorld_.currentProperty(id,"StunBreakModifier");if(!stun){error="Unit status requires actual StunBreakModifier";return false;}
         // Unit.UpdateSelf2f1497 captures manager elapsed x live Thing+80

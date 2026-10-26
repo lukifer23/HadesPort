@@ -953,19 +953,30 @@ bool ScriptRuntime::loadEffectDefinitions(){
         leafBank_=std::make_shared<hades::ActorAnimationBank>();leafBank_->load(*assets_,"room-leaf-frames.bin","room-leaf-facing.bin","room-leaf-sha256.bin");
         if(!particles_.addImageBank(leafBank_,error_))return false;
         if(const auto* recipes=value.get("PrimaryRecipes")){
+            const auto field=[](const hades::SourceValue& record,const char* key)->const hades::SourceValue&{
+                const auto* result=record.get(key);
+                if(!result)throw std::runtime_error(std::string("Original primary spawner metadata missing: ")+key);
+                return *result;
+            };
+            const auto integer=[](const hades::SourceValue& source,double minimum,double maximum,const char* key){
+                const double n=source.number();
+                if(!std::isfinite(n)||n<minimum||n>maximum||n!=std::trunc(n))throw std::runtime_error(std::string("Original primary spawner integer outside bounds: ")+key);
+                return n;
+            };
             spawnerBank_=std::make_shared<hades::ActorAnimationBank>();spawnerBank_->load(*assets_,"spawner-frames.bin");
             for(const auto& recipe:recipes->array()){
-                const auto id=int32_t(recipe.get("owner_map_id")->number());
-                if(!primarySpawnerRecipes_.emplace(id,recipe.get("graphic")->text()).second)throw std::runtime_error("Duplicate original primary spawner owner");
+                const auto id=int32_t(integer(field(recipe,"owner_map_id"),1,INT32_MAX,"owner_map_id"));
+                if(!primarySpawnerRecipes_.emplace(id,field(recipe,"graphic").text()).second)throw std::runtime_error("Duplicate original primary spawner owner");
             }
             const auto* graphics=value.get("PrimaryGraphics");if(!graphics)throw std::runtime_error("Original primary spawner graphics metadata missing");
             for(const auto& graphic:graphics->array()){
-                hades::EffectTexture texture;texture.name=graphic.get("graphic")->text();texture.atlas=graphic.get("atlas")->text();
-                const auto frame=spawnerBank_->sample(size_t(graphic.get("clip_index")->number()),0,0,false);
+                hades::EffectTexture texture;texture.name=field(graphic,"graphic").text();texture.atlas=field(graphic,"atlas").text();
+                const auto clip=size_t(integer(field(graphic,"clip_index"),0,double(spawnerBank_->clips().size())-1,"clip_index"));
+                const auto frame=spawnerBank_->sample(clip,0,0,false);
                 texture.width=frame.width;texture.height=frame.height;{const auto px=frame.pixels();texture.pixels.assign(px.begin(),px.end());}
-                auto integers=[&](const char* key,auto& out){const auto& a=graphic.get(key)->array();if(a.size()!=out.size())throw std::runtime_error("Original primary graphic metadata shape");for(size_t i=0;i<a.size();++i)out[i]=int32_t(a[i].number());};
+                auto integers=[&](const char* key,auto& out){const auto& a=field(graphic,key).array();if(a.size()!=out.size())throw std::runtime_error("Original primary graphic metadata shape");for(size_t i=0;i<a.size();++i)out[i]=int32_t(integer(a[i],INT32_MIN,INT32_MAX,key));};
                 integers("rect",texture.atlasRect);integers("trim",texture.trim);integers("original",texture.originalSize);
-                if(!primarySpawnerGraphics_.emplace(graphic.get("animation")->text(),std::move(texture)).second)throw std::runtime_error("Duplicate primary spawner graphic");
+                if(!primarySpawnerGraphics_.emplace(field(graphic,"animation").text(),std::move(texture)).second)throw std::runtime_error("Duplicate primary spawner graphic");
             }
         }
         return true;
@@ -1011,7 +1022,13 @@ int ScriptRuntime::rumbleAction(lua_State* L){
     auto* self=runtime(L);if(!self||!lua_istable(L,1))return luaL_error(L,"Rumble requires table");
     auto field=[&](const char* k){lua_getfield(L,1,k);int ok=0;const double v=lua_tonumberx(L,-1,&ok);lua_pop(L,1);return ok&&std::isfinite(v)?float(v):0.f;};
     const float fraction=std::max({field("Fraction"),field("LeftFraction"),field("RightFraction")}),duration=field("Duration");
-    if(fraction>0&&duration>0&&self->physicsRumble_){std::string error;if(!self->physicsRumble_(0,std::min(fraction,1.f),duration,error))return luaL_error(L,"%s",error.c_str());}
+    char message[2048]{};bool ok=true;
+    if(fraction>0&&duration>0&&self->physicsRumble_){
+        try{std::string error;ok=self->physicsRumble_(0,std::min(fraction,1.f),duration,error);if(!ok)std::snprintf(message,sizeof(message),"%s",error.empty()?"Native rumble provider failed":error.c_str());}
+        catch(const std::exception& e){ok=false;std::snprintf(message,sizeof(message),"%s",e.what());}
+    }
+    // Lua uses longjmp: release C++ owners before raising into the script VM.
+    if(!ok)return luaL_error(L,"%s",message);
     return 0;
 }
 int ScriptRuntime::createAnimation(lua_State* L){

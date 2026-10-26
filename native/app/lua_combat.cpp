@@ -188,8 +188,8 @@ bool ScriptRuntime::weaponAimLine(const hades::WeaponOutput& op,bool execute,std
     const auto* thing=projectileWorld_.thingDefinition(weapon->projectileData.name);if(!thing)throw std::runtime_error("AimLine original projectile Thing definition unavailable");
     const auto required=[&](const char* key)->const hades::SourceValue&{const auto* v=thing->get(key);if(!v)throw std::runtime_error(std::string("AimLine projectile Thing field unavailable: ")+key);return *v;};
     const auto& points=required("Points").array();if(points.empty())throw std::runtime_error("AimLine requires original nonempty projectile polygon");
-    float minY=std::numeric_limits<float>::max(),maxY=std::numeric_limits<float>::min(),maxX=0;
-    for(const auto& p:points){const float x=float(p.get("X")->number()),y=float(p.get("Y")->number());minY=std::min(minY,y);maxY=std::max(maxY,y);maxX=std::max(maxX,x);}
+    float minY=std::numeric_limits<float>::max(),maxY=std::numeric_limits<float>::lowest(),maxX=0;
+    for(const auto& p:points){const auto* px=p.get("X");const auto* py=p.get("Y");if(!px||!py)throw std::runtime_error("AimLine projectile polygon requires XY coordinates");const float x=float(px->number()),y=float(py->number());minY=std::min(minY,y);maxY=std::max(maxY,y);maxX=std::max(maxX,x);}
     const float width=std::abs(minY-maxY)*float(required("Scale").number());
     float x=0,y=0;if(!actorWorld_.location(op.ownerId,x,y,error))return false;
     const auto movement=localMovement_.find(actor->entityHandle);const float angle=movement!=localMovement_.end()&&movement->second.initialized?movement->second.cosmeticAngle:actor->object->angle;
@@ -439,7 +439,10 @@ bool ScriptRuntime::advanceWeapons(float dt,std::string& error){
         float speed=0;if(!configurationFloat("SpeedMultiplier",speed,error))return false;
         // The Android sequential manager uses actual actor registration order.
         // Source per-arsenal creation/priority order is owned by its cursor.
-        for(auto id:actorWorld_.registrationOrder()){
+        const auto order=actorWorld_.registrationOrder();
+        // Weapon/effect callbacks can grow the manager while an arsenal runs.
+        const std::vector<int32_t> units(order.begin(),order.end());
+        for(auto id:units){
             auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered||!actor->arsenal||actor->arsenal->empty())continue;
             // Unit.UpdateSelf2f1497..14a7 multiplies its incoming elapsed by
             // live Thing+80, then passes that value to Arsenal.Update2f15e5.

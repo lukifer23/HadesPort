@@ -46,7 +46,9 @@ bool ScriptRuntime::advanceLocalPlayerInput(float dt,std::string&error){try{
    if(canMove&&a->animation.active()){
      const auto definition=actorAnimationDefinitions_.find(a->animation.clip()->name);
      if(definition==actorAnimationDefinitions_.end())throw std::runtime_error("Movement animation source unavailable");
-     const auto* native=definition->second.get("definition")->get("NativeMoveSpeed");
+     const auto* source=definition->second.get("definition");
+     if(!source)throw std::runtime_error("Movement animation source definition unavailable");
+     const auto* native=source->get("NativeMoveSpeed");
      if(native&&native->number()>0)a->animation.setPlaySpeedMultiplier(std::hypot(a->physics->velocity.x,a->physics->velocity.y)/float(native->number()));
    }
  }
@@ -92,7 +94,9 @@ bool ScriptRuntime::advanceUnitMovement(float dt,std::string&error){try{
  float speedConfig=0;if(!configurationFloat("SpeedMultiplier",speedConfig,error))return false;if(!std::isfinite(dt)||dt<0||dt>1)throw std::runtime_error("Invalid actual Unit.UpdateMovement clock");
  // Unit::UpdateMovement2f65e0 and UpdateAngle2f8810 are Unit phases,
  // including Lua MoveAI-driven enemies. Local-player input is a separate phase.
- const auto units=actorWorld_.registrationOrder();
+ const auto order=actorWorld_.registrationOrder();
+ // Collision/movement callbacks can spawn actors; retain this phase's members.
+ const std::vector<int32_t> units(order.begin(),order.end());
  for(const auto id:units){auto*a=actorWorld_.actor(id);if(!a||!a->registered||!a->definition||a->definition->kind!="Unit"||!a->object||!a->physics||!a->status)continue;auto&body=*a->object;auto&physics=*a->physics;auto&move=localMovement_[a->entityHandle];if(!move.initialized){move.initialized=true;move.goalAngle=move.cosmeticAngle=move.cosmeticAngleTarget=body.angle;move.lastMoveStartX=body.x;move.lastMoveStartY=body.y;}
   float elapsed=0;if(!hades::physicsComponentElapsed(dt,worldSpeedModifier_,a->timeModifierFraction,a->timeMultiplier,elapsed,error))return false;
   // Unit::UpdateAngle VA1802f883d..8a00 updates cosmetic facing BEFORE

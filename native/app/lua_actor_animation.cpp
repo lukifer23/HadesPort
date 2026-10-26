@@ -182,7 +182,9 @@ bool ScriptRuntime::advanceUnitActivations(std::string& error){
         // Unit.UpdateSelf2f14af..1597: activation is before IsAlive and all
         // movement/arsenal/status work. The native manager captures its initial
         // unit count, so units created by a callback wait until the next tick.
-        const auto units=actorWorld_.registrationOrder();
+        const auto order=actorWorld_.registrationOrder();
+        // OnActivationFinished may spawn actors and reallocate manager storage.
+        const std::vector<int32_t> units(order.begin(),order.end());
         for(const auto id:units){
             auto* actor=actorWorld_.actor(id);
             if(!actor||!actor->registered||!actor->definition||actor->definition->kind!="Unit"||actor->hasActivated)continue;
