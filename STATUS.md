@@ -15,7 +15,45 @@ batch fixes before rerunning, use the shortest replay that reaches the changed
 path, and do one sanitized (ASan/UBSan) run at the end. Device installs only for
 meaningful milestones.
 
-## Current checkpoint (reviewed 2026-10-20)
+## Code audit checkpoint (2026-10-26, code-only)
+
+The source audit and prioritized acceptance work are in [AUDIT.md](AUDIT.md).
+No device use, APK publication, or asset staging occurred; iteration12 remains the
+installed build. The preserved `wip/agents-2026-10-20` branch remains separate.
+
+The repair batch addresses fresh New Run state, physical input ownership and
+disconnect cleanup, touch-editor cancellation, owner-thread AAudio disconnect
+recovery, strict renderer errors and visible contained visual gaps, callback-safe
+actor iteration, malformed metadata/null checks, package CPU atlas sharing, truthful
+host replay status, and verified atomic APK publication. Builds use two low-priority
+jobs. These source repairs do not establish device behavior or full engine parity.
+
+Verification:
+
+- Baseline strict mixed route: 2,950 frames passed. Initial repaired strict route:
+  2,950 frames passed with live presentation sampling on every frame and zero
+  recorded faults. Presentation sampling is not full per-frame GPU rendering.
+- Host/native ARM64 builds and Java compilation passed. Controls/menu and
+  package-sharing smoke probes passed; six injected APK publication cases passed.
+- Selected package atlas payload: 12 references, 10 unique textures;
+  131,201,536 logical bytes versus 103,741,952 unique bytes, saving 26.2 MiB.
+  This is CPU payload accounting, not a measured RSS/GPU reduction.
+- Fresh 9,000-frame autoplay containment survey reached the encounter reward with
+  16 distinct faults and returned status 2. It is not a passing acceptance route.
+- Final strict mixed replay passes 2,950 frames, samples presentation every frame,
+  records zero contained faults and passes structural save/reload comparison.
+  The GPU diagnostic passes strict rejection, contained reason deduplication/bounds
+  and reload behavior. Missing/invalid spawner metadata and invalid CLI arguments
+  fail explicitly. Final ASan/UBSan controls, package-sharing and strict
+  2,950-frame combat/presentation checks pass without findings.
+
+Evidence remains private under `.local/reports/audit-2026-10-26/`. Priorities are
+the reached collision/AI/filter/force, occlusion/reflection, screen/fullscreen,
+subtitle and reward consumers, then original boon/dialogue/next-room progression.
+Controller menu/mouse/action coverage, save interruption recovery, measured
+performance, later game content and device validation remain open.
+
+## Installed checkpoint (reviewed 2026-10-20)
 
 Iteration12 is the latest installed build: SHA-256
 `d39fefae60155eafbce5806dcb4502403c04b2a7d65f3358813041248aabb351`,

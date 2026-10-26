@@ -6,6 +6,12 @@ The detailed machine/session restart checkpoint, when present, is
 `.local/private/RESTART_HANDOFF.md`; read it together with `.local/private/LOCAL.md`.
 Both are ignored local files and must never be committed.
 
+The [2026-10-26 code audit](AUDIT.md) maps current implementation, repaired defects,
+remaining gaps and acceptance priorities. Read the latest code-only section in
+`STATUS.md` before the historical October 20 checkpoint below. Work remains on `main`;
+the preserved workstream branch has not been integrated. Device work remains deferred
+until the user connects a test device; iteration12 remains installed.
+
 ## Scope and end goal
 
 A playable, offline, native Hades on Android: the full run loop (rooms, combat, boons,

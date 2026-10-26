@@ -5,12 +5,13 @@ An unofficial, work-in-progress **native ARM64 Android engine** for **Hades (Sup
 purchased PC copy** — on a C++/OpenGL ES engine reconstructed from the PC engine binary.
 No emulation, Wine, CPU translation, ads, accounts or network access.
 
-> **Status: prototype; full gameplay remains incomplete** (2026-10-20). Iteration12
+> **Status: prototype; full gameplay remains incomplete** (2026-10-26). Iteration12
 > is installed and hash verified on the device. On the host, a new autoplay driver
 > plays the original scripts through the opening room and the whole first encounter
 > (four waves) and reaches the reward spawn; save and Continue round-trip. Athena's
 > boon, the next room and later biomes are in progress. Missing engine behaviour is
-> logged as engine gaps. See [`STATUS.md`](STATUS.md).
+> logged as engine gaps. The code audit and current priorities are in
+> [`AUDIT.md`](AUDIT.md); verification boundaries are in [`STATUS.md`](STATUS.md).
 
 **This repository contains no game files.** You must own Hades (e.g. on Steam or the Epic
 Games Store) and supply its files yourself. Read [`DISCLAIMER.md`](DISCLAIMER.md).
@@ -40,7 +41,7 @@ Games Store) and supply its files yourself. Read [`DISCLAIMER.md`](DISCLAIMER.md
 | `native/tools/` | Asset exporters and stagers (write fresh, versioned output dirs under `.local/`) |
 | `native/analysis/` | Recovered contracts (`*-contract.json`), engine identity, RE helper scripts |
 | `scripts/` | `build_native.py` (stage assets + build APK), dependency fetcher, REA launcher |
-| `STATUS.md` · `HANDOFF.md` · `AGENTS.md` | Live progress tracker, resume guide, contributor/agent rules |
+| `AUDIT.md` · `STATUS.md` · `HANDOFF.md` · `AGENTS.md` | Code audit/priorities, live progress, resume guide, contributor rules |
 
 ## Requirements
 
