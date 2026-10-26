@@ -15,6 +15,7 @@
 #include <limits>
 #include <chrono>
 #include <algorithm>
+#include <charconv>
 
 static void jsonString(std::ostream& out,const std::string& text) {
     out<<'"';constexpr char hex[]="0123456789abcdef";
@@ -39,19 +40,22 @@ int main(int argc,char** argv) {
         else if(arg=="--probe-staged-weapons")weaponProbe=true;
         else if(arg.starts_with("--probe-save="))saveProbeDirectory=arg.substr(13);
         else if(arg.starts_with("--load-save="))loadSaveDirectory=arg.substr(12);
-        else if(arg.starts_with("--world-frames=")){try{worldFrames=std::stoi(arg.substr(15));}catch(...){worldFrames=0;}}
+        else if(arg.starts_with("--world-frames=")){const auto value=std::string_view(arg).substr(15);const auto result=std::from_chars(value.data(),value.data()+value.size(),worldFrames);if(result.ec!=std::errc{}||result.ptr!=value.data()+value.size())worldFrames=0;}
         else if(arg.starts_with("--input-replay="))inputReplay=arg.substr(15);
         else{std::cerr<<"Unknown debug argument: "<<arg<<'\n';return 64;}}
     if(argc<3||worldFrames<1||worldFrames>36000){std::cerr<<"Usage: hades-debug ASSET_ROOT NEW_TRACE.json [--capture-active-room|--activate-room] [--world-frames=1..36000] [--input-replay=TSV]\n";return 64;}
     try {
         if(std::filesystem::exists(argv[2]))throw std::runtime_error("Trace already exists; choose a new output");
+        if(validatePresentation&&!activate)throw std::runtime_error("Live presentation validation requires activation");
+        for(int i=3;i<argc;++i)for(const auto prefix:{"--probe-save=","--load-save=","--input-replay="})
+            if(std::string_view(argv[i])==prefix)throw std::runtime_error("Empty debug path: "+std::string(prefix));
         struct ReplayInput {int frame;float x,y;std::vector<std::string> controls;};std::vector<ReplayInput> replay;
         if(autoplay&&(!activate||!inputReplay.empty()))throw std::runtime_error("Autoplay requires activation and replaces --input-replay");
         if(!inputReplay.empty()){
             if(!activate)throw std::runtime_error("Input replay requires actual room activation");
             std::ifstream source(inputReplay);if(!source)throw std::runtime_error("Cannot open actual input recording");std::string line;
             while(std::getline(source,line)){if(line.empty()||line.front()=='#')continue;std::istringstream row(line);ReplayInput input{};std::string controls;
-                if(!(row>>input.frame>>input.x>>input.y>>controls)||input.frame<0||input.frame>=worldFrames||(!replay.empty()&&input.frame<=replay.back().frame))throw std::runtime_error("Invalid ordered debug input recording");
+                if(!(row>>input.frame>>input.x>>input.y>>controls)||!std::isfinite(input.x)||!std::isfinite(input.y)||input.frame<0||input.frame>=worldFrames||(!replay.empty()&&input.frame<=replay.back().frame))throw std::runtime_error("Invalid ordered debug input recording");
                 if(controls!="-"){std::istringstream names(controls);std::string name;while(std::getline(names,name,','))input.controls.push_back(name);}replay.push_back(std::move(input));if(replay.size()>36000)throw std::runtime_error("Input recording bound");}
         }
         hades::FileAssets assets(argv[1]);
@@ -132,6 +136,10 @@ int main(int argc,char** argv) {
         // Drive the actual shared native movement/collision/animation component.
         constexpr std::array<Point,9> input{{{0,0},{1,0},{0,-1},{1,-1},{0,1},{-1,0},{-1,1},{0,0},{1,0}}};
         std::ofstream trace(argv[2]);if(!trace)throw std::runtime_error("Cannot create trace");
+        // Surveys deliberately continue past faults; their completion must not
+        // be mistaken for strict acceptance. Presentation is an acceptance
+        // boundary even when sampled only at the end of the replay.
+        const bool replayComplete=activationComplete&&updateComplete&&worldFramesCompleted==worldFrames&&scripts.error().empty()&&mixerError.empty()&&presentationError.empty()&&scripts.containedFaults()==0;
         trace<<"{\"lua_main_loaded\":"<<(scripts.mainLoaded()?"true":"false")
              <<",\"game_scripts_loaded\":"<<(scripts.gameLoaded()?"true":"false")
              <<",\"room_pre_creation_complete\":"<<(roomBooted?"true":"false")
@@ -139,7 +147,7 @@ int main(int argc,char** argv) {
              <<",\"diagnostic_load_callbacks_complete\":"<<(probeComplete?"true":"false")
              <<",\"diagnostic_staged_weapon_probe\":"<<(weaponProbe?"true":"false")
              <<",\"diagnostic_staged_weapon_complete\":"<<(weaponProbeComplete?"true":"false")<<",\"native_map_begin_complete\":"<<(activationComplete?"true":"false")
-             <<",\"native_world_phase_coverage_complete\":false,\"native_world_updates_complete\":false,\"native_supported_world_replay_complete\":"<<(updateComplete?"true":"false")<<",\"initialization_error\":";
+             <<",\"native_world_phase_coverage_complete\":false,\"native_world_updates_complete\":false,\"native_supported_world_replay_complete\":"<<(replayComplete?"true":"false")<<",\"diagnostic_fault_survey\":"<<(survey?"true":"false")<<",\"contained_faults\":"<<scripts.containedFaults()<<",\"initialization_error\":";
         jsonString(trace,scripts.error());trace<<",\"world_frames_completed\":"<<worldFramesCompleted<<",\"source_pcm_samples\":"<<pcmSamples<<",\"source_pcm_rms\":"<<(pcmSamples?std::sqrt(pcmSquared/pcmSamples):0)<<",\"source_pcm_peak\":"<<pcmPeak<<",\"mixer_or_input_error\":";jsonString(trace,mixerError);
         const auto& nativeCamera=scripts.cameraState();trace<<",\"source_camera\":{\"initialized\":"<<(nativeCamera.initialized?"true":"false")<<",\"x\":"<<nativeCamera.x<<",\"y\":"<<nativeCamera.y<<",\"zoom\":"<<nativeCamera.zoom<<",\"goal_zoom\":"<<nativeCamera.goalZoom<<",\"viewport_width\":"<<nativeCamera.viewportWidth<<",\"viewport_height\":"<<nativeCamera.viewportHeight<<",\"target_count\":"<<nativeCamera.targets.size()<<",\"clamp_count\":"<<nativeCamera.clampTargets.size()<<'}';
         std::sort(frameMilliseconds.begin(),frameMilliseconds.end());const auto percentile=[&](double fraction){return frameMilliseconds.empty()?0:frameMilliseconds[size_t(std::ceil(fraction*frameMilliseconds.size()))-1];};
@@ -164,8 +172,9 @@ int main(int argc,char** argv) {
                      <<" frame="<<player.frame()<<'\n';
         }
         trace<<"]}\n";
+        trace.close();if(!trace)throw std::runtime_error("Cannot finish trace");
         if(survey)std::cout<<scripts.blockerSurveyReport();
         std::cout<<"HOST_DEBUG_COMPLETE main="<<scripts.mainLoaded()<<" game_scripts="<<scripts.gameLoaded()<<'\n';
-        return roomBooted&&(!activate||(activationComplete&&updateComplete))&&(!probe||probeComplete)&&(!weaponProbe||weaponProbeComplete)&&(saveProbeDirectory.empty()||saveProbeComplete)?0:2;
+        return roomBooted&&scripts.error().empty()&&(!activate||replayComplete)&&(!probe||probeComplete)&&(!weaponProbe||weaponProbeComplete)&&(saveProbeDirectory.empty()||saveProbeComplete)?0:2;
     }catch(const std::exception& error){std::cerr<<"HOST_DEBUG_FAILURE "<<error.what()<<'\n';return 1;}
 }

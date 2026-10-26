@@ -29,6 +29,24 @@ def run(command):
                    env=dict(os.environ, JAVA_HOME=str(JAVA)))
 
 
+def sign_and_publish_apk(aligned, key, output):
+    """Publish a verified candidate without modifying an APK being installed."""
+    output.parent.mkdir(parents=True, exist_ok=True)
+    # Same filesystem permits an atomic replacement. Readers of the old APK
+    # retain its inode, and signing/validation failures leave it untouched.
+    # apksigner sidecars (including .idsig) stay inside this owned directory.
+    with tempfile.TemporaryDirectory(prefix='apk-publish-', dir=output.parent) as temporary:
+        candidate = Path(temporary) / output.name
+        run([TOOLS / 'apksigner', 'sign', '--ks', key, '--ks-pass', 'pass:android',
+             '--key-pass', 'pass:android', '--out', candidate, aligned])
+        run([TOOLS / 'apksigner', 'verify', '--verbose', candidate])
+        permissions = subprocess.check_output(
+            [str(TOOLS / 'aapt2'), 'dump', 'permissions', str(candidate)], text=True)
+        if 'android.permission.INTERNET' in permissions:
+            raise RuntimeError('Native Hades must have no INTERNET permission')
+        os.replace(candidate, output)
+
+
 def stage_room_scene(args, assets, include_shared=True):
     """Validate and stage one actual scene/map/collision bundle; shared boot assets are optional."""
     shutil.copyfile(args.scene, assets / 'scene.bin')
@@ -299,7 +317,7 @@ def main():
              f'-DCMAKE_TOOLCHAIN_FILE={NDK}/build/cmake/android.toolchain.cmake',
              '-DANDROID_ABI=arm64-v8a', '-DANDROID_PLATFORM=android-26',
              '-DANDROID_STL=c++_static', '-DCMAKE_BUILD_TYPE=RelWithDebInfo'])
-        run(['cmake', '--build', BUILD / 'cmake', '--parallel', '4'])
+        run(['nice', '-n', '15', 'cmake', '--build', BUILD / 'cmake', '--parallel', '2'])
     library = BUILD / 'cmake/libhades_native.so'
     if args.compile_only:
         print(f'Native ARM64 engine compiled: {library}')
@@ -606,13 +624,7 @@ def main():
              '-alias', 'androiddebugkey', '-keypass', 'android', '-keyalg', 'RSA', '-keysize', '2048',
              '-validity', '10000', '-dname', 'CN=Hades Native Development'])
     output = PROJECT / '.local/build/native/hades-native-engine-preview.apk'
-    output.parent.mkdir(parents=True, exist_ok=True)
-    run([TOOLS / 'apksigner', 'sign', '--ks', key, '--ks-pass', 'pass:android',
-         '--key-pass', 'pass:android', '--out', output, aligned])
-    run([TOOLS / 'apksigner', 'verify', '--verbose', output])
-    permissions = subprocess.check_output([str(TOOLS / 'aapt2'), 'dump', 'permissions', str(output)], text=True)
-    if 'android.permission.INTERNET' in permissions:
-        raise RuntimeError('Native Hades must have no INTERNET permission')
+    sign_and_publish_apk(aligned, key, output)
     report = {
         'apk': str(output), 'bytes': output.stat().st_size,
         'sha256': hashlib.file_digest(output.open('rb'), 'sha256').hexdigest(),
