@@ -69,6 +69,8 @@ bool ScriptRuntime::beginRequestedMap(bool restoreAssetsOnly){try{
  primarySpawnerRecipes_.clear();primarySpawnerGraphics_.clear();sceneCorners_.reset();occlusionBaseAnims_.clear();unitCollisionSets_.clear();polygonAxisCache_.fill(0);lastLocationBlocker_=0;
  inactiveMap_.clear();mapMetadata_.clear();creationPlan_={};stagedUnitArsenals_.clear();roomBooted_=roomActivated_=activationStarted_=mapProbeInstalled_=false;physicsFaulted_=false;physicsFault_.clear();
  const auto viewport=camera_.state();camera_={};if(!camera_.setViewport(viewport.viewportWidth,viewport.viewportHeight,error_))return false;cameraFade_={};if(!bloom_.resetOff(error_))return false;
+ // World::Reset calls Camera::Reset (0x18031672c); its 0x180301519..564 tail resets the vignette frame. App-owned BlurComponent persists.
+ vignetteFrame_={};
  // World::Begin 0x318b4f saves before LoadNextMap changes the active map name;
  // SaveInfo retains the preceding map and StartNextMap names the new room.
  // 0x318b4f calls ProgressManager::Save and does not branch on its result.

@@ -257,6 +257,7 @@ void ScriptRuntime::initialize() {
     try{colorGrading_.load(*assets_);loadBloomDefinitions(*assets_);}catch(const std::exception&e){error_=e.what();reportError("color-grading-resources");return;}
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,bloomAction,1);lua_setglobal(state_,"AdjustFullscreenBloom");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,colorGradingAction,1);lua_setglobal(state_,"AdjustColorGrading");
+    registerFullscreenBlurActions();
     if(!loadActorDefinitions()){reportError("actor-definitions");return;}
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,spawnObstacle,1);lua_setglobal(state_,"SpawnObstacle");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,spawnUnit,1);lua_setglobal(state_,"SpawnUnit");
@@ -655,6 +656,9 @@ bool ScriptRuntime::advanceWorld(float dt,double screenDt){
     if(!advanceScriptScheduler(state_,worldTime_,screenTime_,error_)){if(!containStage("world-update"))return false;}
     if(!colorGrading_.advance(worldTime_,float(screenTime_),error_)){if(!containStage("color-grading-update"))return false;}
     if(!advanceBloom(error_)){if(!containStage("bloom-update"))return false;}
+    // App::Update 0x18003712e steps BlurComponent after ScreenManager::Update
+    // with the same unscaled App elapsed (World speed scaling happens inside).
+    if(!advanceRadialBlur(realElapsed,error_)){if(!containStage("radial-blur-update"))return false;}
     return true;
 }
 

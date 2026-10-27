@@ -56,6 +56,8 @@ bool ScriptRuntime::cameraShakeOption(bool& option,std::string& error){
  const int top=lua_gettop(state_);lua_getglobal(state_,"GetConfigOptionValue");lua_newtable(state_);lua_pushliteral(state_,"CameraShake");lua_setfield(state_,-2,"Name");
  if(lua_pcall(state_,1,1,0)!=LUA_OK){error=lua_tostring(state_,-1);lua_settop(state_,top);return false;}option=lua_toboolean(state_,-1);lua_settop(state_,top);return true;}
 bool ScriptRuntime::advanceCamera(float elapsed,std::string&error){
+ // Camera::Update 0x1803025d1..626 steps the vignette frame helper (+0x140) first.
+ if(!vignetteFrame_.advance(elapsed,error))return false;
  if(!camera_.advance(elapsed,cameraTargets(),error))return false;
  bool option=true;if(!cameraShakeOption(option,error))return false;
  camera_.advanceShake(elapsed,option,[this]{double v=0;nextRecoveredEngineRandom(state_,v);return v;});return true;}

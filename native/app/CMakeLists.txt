@@ -67,6 +67,7 @@ target_sources(hades_native PRIVATE color_grading.cpp lua_color_grading.cpp)
 target_sources(hades_native PRIVATE color_grading_renderer.cpp)
 
 target_sources(hades_native PRIVATE bloom_state.cpp lua_bloom.cpp bloom_renderer.cpp)
+target_sources(hades_native PRIVATE fullscreen_blur.cpp lua_fullscreen_blur.cpp fullscreen_blur_renderer.cpp)
 
 # Original save pipeline (save agent): pinned Luabins 0.3 serializer and LZ4 1.9.4
 # block codec from scripts/prepare_native_dependencies.py.

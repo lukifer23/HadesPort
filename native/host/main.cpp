@@ -94,6 +94,9 @@ int main(int argc,char** argv) {
         hades::Autoplay autoplayDriver;std::string autoplayMap;
         std::ostringstream worldTrace;size_t replayAt=0;int worldFramesCompleted=0;uint64_t pcmSamples=0;double pcmSquared=0;float pcmPeak=0;bool firstWorldSample=true;std::string mixerError;
         size_t presentationSamples=0,validatedPresentationFrames=0;std::string presentationError;
+        // Fullscreen BlurComponent/vignette state sampled every validated frame;
+        // an active radial blur is rendered and checked on an offscreen GL target.
+        FullscreenEffectValidator fullscreenValidator;size_t fullscreenSamples=0,radialBlurGpuFrames=0;int radialBlurMaxError=0;bool radialBlurWasActive=false;
         using Clock=std::chrono::steady_clock;std::vector<double> frameMilliseconds;double updateMilliseconds=0,mixMilliseconds=0;
         if(activationComplete)for(int i=0;i<worldFrames;++i){
             const auto frameStart=Clock::now();
@@ -105,6 +108,13 @@ int main(int argc,char** argv) {
                 // Sample transient visuals while their owners are actually
                 // alive/retiring; a final-frame snapshot misses lifetime bugs.
                 for(const auto&key:scripts.presentationVisuals()){hades::ActorVisual visual;if(!scripts.samplePresentation(key,visual,presentationError))break;++presentationSamples;}
+                if(presentationError.empty()){hades::VignetteFrameDraw frame;
+                    if(scripts.fullscreenFramePresentation(frame,presentationError)){
+                        if(frame.visible)presentationError="Camera::DrawVignetteFrame visible Shroud frame not reconstructed";
+                        const auto& blur=scripts.radialBlur();const bool active=blur.shouldDraw();
+                        if(active!=radialBlurWasActive){std::cout<<"RADIAL_BLUR "<<(active?"active":"inactive")<<" frame="<<i<<" strength="<<blur.sampleStrength()<<" dist="<<blur.sampleDist()<<'\n';radialBlurWasActive=active;}
+                        int error=0;if(presentationError.empty()&&active&&fullscreenValidator.validateRadialBlur(blur,error,presentationError)){++radialBlurGpuFrames;radialBlurMaxError=std::max(radialBlurMaxError,error);}
+                        ++fullscreenSamples;}}
                 if(!presentationError.empty()){std::cerr<<"LIVE_PRESENTATION_BLOCKED frame="<<i<<" detail="<<presentationError<<'\n';updateComplete=false;break;}
                 ++validatedPresentationFrames;
             }
@@ -117,6 +127,7 @@ int main(int argc,char** argv) {
             if(std::getenv("HADES_TRACE_HERO")&&i%10==0)std::cout<<"HERO_TRACE frame="<<i<<" "<<scripts.heroMotionTrace()<<'\n';
             if(i%600==0)std::cout<<"LIVE_WORLD_REPLAY frame="<<i<<" source_pcm_samples="<<pcmSamples<<" input_allowed="<<scripts.inputAllowed()<<'\n'<<std::flush;
         }
+        if(validatePresentation)std::cout<<"FULLSCREEN_FX samples="<<fullscreenSamples<<" radial_blur_gpu_frames="<<radialBlurGpuFrames<<" radial_blur_max_channel_error="<<radialBlurMaxError<<'\n';
         // Save/load diagnostic: direct SaveCheckpoint, fresh-runtime reload, state comparison.
         const bool saveProbeComplete=!saveProbeDirectory.empty()&&roomBooted?runSaveProbe(assets,scripts,saveProbeDirectory,std::string(argv[2])+".save.json"):false;
         if(activationComplete&&presentationError.empty()){

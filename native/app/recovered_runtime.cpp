@@ -152,6 +152,7 @@ int getConfigDefault(lua_State* state) {
         {"FlipMapThings", false}, // RVA0x11330
         {"UseOcclusion", true}, // initializer RVA0xba30: movb $1 at 0x18000baa0 -> 0x181a0ed01
         {"CameraShake", true}, // initializer RVA0xd040 movb $1 -> 0x181a0f2d9 (.local/reports/config-defaults)
+        {"DrawHealthFX", true}, // initializer RVA0xea80 movb $1 at 0x18000eaf0 -> 0x181a0f035 (GameplayScreen::Draw 0x1801b0da2 vignette gate)
     };
     for (const auto& option : options) {
         if (strcasecmp(name, option.name) == 0) { lua_pushboolean(state, option.value); return 1; }

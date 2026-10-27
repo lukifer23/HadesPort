@@ -23,6 +23,7 @@
 #include "camera_fade.hpp"
 #include "color_grading.hpp"
 #include "bloom_state.hpp"
+#include "fullscreen_blur.hpp"
 #include "native_camera.hpp"
 #include "actor_motion.hpp"
 #include "interaction_runtime.hpp"
@@ -164,6 +165,12 @@ class ScriptRuntime {
     bool bloomActionImpl(lua_State*,std::string&);
     void loadBloomDefinitions(hades::AssetStore&);
     bool advanceBloom(std::string&);
+    // BlurComponent radial blur + Camera vignette frame (lua_fullscreen_blur.cpp).
+    hades::RadialBlurState radialBlur_;hades::VignetteFrameState vignetteFrame_;
+    void registerFullscreenBlurActions();
+    static int fullscreenBlurAction(lua_State*);
+    bool fullscreenBlurActionImpl(lua_State*,int,std::string&);
+    bool advanceRadialBlur(float appElapsed,std::string&);
     static int colorGradingAction(lua_State*);
     bool colorGradingActionImpl(lua_State*,std::string&);
     hades::NativeCamera camera_;
@@ -539,6 +546,8 @@ public:
     bool roomActivated()const{return roomActivated_;}
     bool fullscreenPresentation(uint32_t&group,bool&drawColor,bool&drawBloom,std::string&error)const;
     const hades::FullscreenBloom& bloom()const{return bloom_;}
+    const hades::RadialBlurState& radialBlur()const{return radialBlur_;}
+    bool fullscreenFramePresentation(hades::VignetteFrameDraw&,std::string&)const;
     const hades::ColorGrading& colorGrading()const{return colorGrading_;}
     const std::array<float,4>& cameraFadeColor()const{return cameraFade_.color();}
     void registerCameraActions();

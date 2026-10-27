@@ -86,6 +86,8 @@ std::array<uint8_t,4> actionColor(lua_State*L,const char*key){
   for(int i=0;i<4;++i)out[i]=uint8_t(unit?int(std::clamp(c[i],0.,1.)*255.):int(std::clamp(c[i],0.,255.)));}
  lua_pop(L,1);return out;}
 }
+// Shared LuaTableExtensions::GetColor reader (also ScriptArgs::GetColor 0x180281f00 Color key).
+std::array<uint8_t,4> luaTableColor(lua_State*L,const char*key){return actionColor(L,key);}
 bool ScriptRuntime::createAnimationImpl(lua_State* L,std::string& error){
     // ScriptAction::CreateAnimation 0x180261ff0 then SetupAnimation 0x180262c50
     // (.local/reports/anim-setup/). Delay keys are consumed by the generic

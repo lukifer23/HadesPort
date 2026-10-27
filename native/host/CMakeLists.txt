@@ -107,6 +107,7 @@ target_sources(hades-debug PRIVATE ../app/color_grading_renderer.cpp)
 endif()
 
 target_sources(hades-debug PRIVATE ../app/bloom_state.cpp ../app/lua_bloom.cpp ../app/bloom_renderer.cpp)
+target_sources(hades-debug PRIVATE ../app/fullscreen_blur.cpp ../app/lua_fullscreen_blur.cpp ../app/fullscreen_blur_renderer.cpp)
 
 # Original save pipeline (save agent): pinned Luabins 0.3 serializer and LZ4 1.9.4
 # block codec from scripts/prepare_native_dependencies.py.
