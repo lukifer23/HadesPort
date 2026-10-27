@@ -545,7 +545,14 @@ bool ActionEffectWorld::visual(uint64_t h,const EffectOwnerState&owner,const std
  const float ox=n(d,"OffsetX"),oy=n(d,"OffsetY");
  // GetDrawLocation 0x180297d60: (Shift + offset) x attached body scale.
  out.x+=(shift(d,"StartOffsetX","EndOffsetX",s->fraction)+ox)*offsetScale;out.y+=(shift(d,"StartOffsetY","EndOffsetY",s->fraction)+oy)*offsetScale;
- out.screenSpace=s->useScreenLocation;out.parallax=s->parallax;out.flipX=s->flipX;out.flipY=s->flipY;out.postRotateScaleX=isometric?1.f:n(d,"PostRotateScaleX",1);out.postRotateScaleY=isometric?1.f:n(d,"PostRotateScaleY",1);
+ // Constant/Book/Dataless PrepDraw (2b2256/2afb97/2b3439) and manager
+ // gathering (29d85d) select the attached Thing's screen flag. DrawScreenRelative
+ // only changes that Thing flag; it never writes this animation's own flag.
+ // GUIComponentAnimation creates with null Thing (16aa12/16ab51); its
+ // portable ownerId only associates the line with its player UI component.
+ out.screenSpace=!s->detached&&!s->guiLine?owner.screenSpace:s->useScreenLocation;
+ // The distinct own Animation flag still bypasses GetParallaxAmount in PrepDraw.
+ out.parallax=s->useScreenLocation?1.f:s->parallax;out.flipX=s->flipX;out.flipY=s->flipY;out.postRotateScaleX=isometric?1.f:n(d,"PostRotateScaleX",1);out.postRotateScaleY=isometric?1.f:n(d,"PostRotateScaleY",1);
  if(!s->movie){
  // Book.PrepDraw2af9a6 selects atlas/texture using displayed integer mFrame,
  // not raw fractional +78. TransferFrame may retain raw values beyond this
@@ -596,6 +603,21 @@ bool ActionEffectWorld::cancelAttached(int32_t owner,const std::string& name,boo
   if(b(d,"DisableOwnerInput")){error="StopAnimation DisableOwnerInput owner-input release (+0xc0 -> +0x3b8) not reconstructed: "+s.name;return false;}
   if(!life->canceled&&!registry_->cancel(h,error))return false;if(preventChain)s.preventChain=true;++matched;
  }
+ error.clear();return true;
+}
+bool ActionEffectWorld::cancelAllAttachedForAttach(int32_t owner,uint64_t lifetime,uint64_t currentPrimary,std::string&error){
+ if(!lifetime){error="CancelAllAttached requires actual Thing lifetime";return false;}
+ std::vector<uint64_t> selected;
+ for(const auto&[h,s]:states_){
+  if(s.ownerId!=owner||s.ownerLifetime!=lifetime||s.detached||s.guiLine||s.isLight||h==currentPrimary)continue;
+  const auto*life=registry_->find(h);if(!life||!life->initialized)continue;
+  if(life->ownerId!=owner||life->ownerLifetime!=lifetime){error="CancelAllAttached actual attachment lifetime mismatch";return false;}
+  // Attach299f1c..299f3c marks the owner-input component's +3b8 when the
+  // animation's +c0 pointer exists and data.DisableOwnerInput(+83) is true.
+  if(b(s.definition,"DisableOwnerInput")){error="CancelAllAttached DisableOwnerInput release not reconstructed: "+s.name;return false;}
+  selected.push_back(h);
+ }
+ for(auto h:selected)if(!registry_->cancel(h,error))return false;
  error.clear();return true;
 }
 bool ActionEffectWorld::addAngle(uint64_t h,float radians,std::string&error){if(!state(h)||!std::isfinite(radians)){error="Animation AddAngle target unavailable";return false;}if(radians==0)return true;forChain(h,[&](ActionEffectState&s,bool){s.heading=wrapAngle(s.heading+radians);});return true;}

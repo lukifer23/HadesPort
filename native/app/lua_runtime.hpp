@@ -197,9 +197,10 @@ class ScriptRuntime {
     static int surveyRecord(lua_State*);
     float localMoveX_=0,localMoveY_=0;
     std::vector<std::string> localActionDown_,previousLocalActionDown_;
+    std::vector<std::string> previousPhysicalControlsDown_;
     struct WorldNotify {
         int arguments=0;
-        bool control=false,released=false,playerInput=false;
+        bool control=false,released=false,playerInput=false,interact=false;
         bool allDead=false; // ScriptAction::CheckOnAllDead27ce60.
         bool stopped=false; // ScriptAction::CheckStopped 0x2797f0 (NotifyOnStopped, action 244).
         uint8_t unitState=0; // CheckCanAttack27e960 / CheckRotationComplete279a40.
@@ -232,9 +233,16 @@ class ScriptRuntime {
     bool thingQueryImpl(lua_State*,int mode,double&,std::string&);
     std::vector<std::string> rawControlsDown_,rawControlsPressed_,rawControlsReleased_;
     void snapshotControlFrame();
+    static int controlDownAction(lua_State*);
     static int controlNotifyAction(lua_State*);
     bool controlNotifyImpl(lua_State*,bool,std::string&);
     bool checkControlNotify(const WorldNotify&,bool&,std::string&,std::string&);
+    static int interactNotifyAction(lua_State*);
+    static int setInteractPropertyAction(lua_State*);
+    static int drawScreenRelative(lua_State*);
+    bool drawScreenRelativeImpl(lua_State*,std::string&);
+    bool thingLocationAndParallax(int32_t,float&,float&,float&,std::string&) const;
+    bool checkInteractNotify(WorldNotify&,bool&,int32_t&,std::string&);
     static int spatialQueryAction(lua_State*);
     bool spatialQueryImpl(lua_State*,int mode,double&,std::string&);
     std::shared_ptr<hades::TextFontBank> textFonts_;
@@ -495,7 +503,9 @@ public:
     // the original RequiredKillEnemies table and live interaction owners. Not compiled
     // into the Android engine.
     struct AutoplayTarget {int32_t id=0;float x=0,y=0;std::string name;};
-    struct AutoplayView {bool hero=false;float x=0,y=0;bool inputAllowed=false;std::vector<AutoplayTarget> enemies,usables;std::string map;};
+    // Read-only input affordance from actual queued NotifyOnControlPressed requests.
+    std::vector<std::string> pendingControlPresses() const;
+    struct AutoplayView {bool hero=false;float x=0,y=0;bool inputAllowed=false;std::vector<AutoplayTarget> enemies,usables;std::vector<std::string> pendingControls;std::string map;};
     AutoplayView autoplayView();
     // Host autoplay navigation: native A* from the hero with its own node
     // validator, shortened to the furthest node with clear line of movement.

@@ -1,0 +1,69 @@
+{
+  "schema": "hades-animation-cancel-all-attached-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "evidence_kind": "Matching PE/PDB static instruction evidence; no original-engine execution.",
+  "sources": [
+    {
+      "path": ".local/reports/screen-portrait-exit-2026-10-26/pdb-cancel-all-fields.json",
+      "sha256": "8ae9b4c62e280b26e1f0e9570afd3a0d33ab3c117d28c97c0fd4a32ab0a53a9a"
+    },
+    {
+      "path": ".local/reports/screen-portrait-exit-2026-10-26/animation-init.json",
+      "sha256": "54f37e5371c73084d8d427cbe3c03be0ecda080bb6c90999bcd6c2415c4d18a0"
+    },
+    {
+      "path": ".local/reports/screen-portrait-exit-2026-10-26/animation-add-child.json",
+      "sha256": "7e0455fc09d6d0dcddd51592e9e81766e5da0cb09d3b9b61252def06a42f3e82"
+    },
+    {
+      "path": ".local/reports/draw-screen-relative-2026-10-26/animation-attach.json",
+      "sha256": "3277bf9dcd5390329e582d0c6d376b90532ad7625feee43df9611b7862c61c09"
+    },
+    {
+      "path": ".local/reports/draw-screen-relative-2026-10-26/thing-set-animation-name.json",
+      "sha256": "c3516baed206ffd6e2279653b278153f109ad0c0e73eca89d038cc505860c967"
+    },
+    {
+      "path": ".local/reports/screen-created-fx-2026-10-26/animation-vtable-defaults-proof.json",
+      "sha256": "fce162f9b2a8a63e75747dcc9d0bf55b5d55152cd9c35ff5374517db5117f643"
+    },
+    {
+      "path": ".local/reports/screen-created-fx-2026-10-26/constant-init.json",
+      "sha256": "f0161ae221654e93f99a98456a5380f073222763939ce36f8faadc863f188d08"
+    }
+  ],
+  "field": {
+    "name": "CancelAllAttached",
+    "definition_offset": "0x47",
+    "full_data_offset": "0x9f"
+  },
+  "consumer": {
+    "procedure_va": "0x180299ea0",
+    "test_va": "0x180299ebc",
+    "container": "Thing.mAttachedAnimations at+0x370",
+    "exception": "Skip animation pointer equal Thing.mAnimation(+0x138), at0x180299f13",
+    "effect": "Set every other existing attached Animation.mCanceled(+0x63)=true at0x180299f23",
+    "filters_absent": [
+      "CanCancelAsAttached",
+      "data or instance name",
+      "manager membership"
+    ],
+    "prevent_chain": "Not read or changed",
+    "owner_input_side_effect": "When canceled animation+0xc0 exists and its data.DisableOwnerInput(+0x83) is true, set pointed component+0x3b8=true at0x180299f3c",
+    "registration_order": "After cancellation, Attach assigns owner/body and invokes Thing virtual+0xd8 at0x180299fbb to insert this animation. Newly attaching animation is not part of the cancellation pass."
+  },
+  "initialization_order": {
+    "animation_init_attach": "Animation.Init0x180291870 invokes Defaults (virtual+0xe8, PDB), assigns data/location, then Attach at0x1802918b7. Constant.Init0x1802b1ae0 likewise calls Defaults at0x1802b1b05, assigns data/location, Attach at0x1802b1b27, then base Init0x180291b80 calls actual InitData at0x180291bf7. Parent Attach therefore precedes InitData/AddChild, while child initialization finishes before parent initialization returns.",
+    "primary_replacement": "Thing.SetAnimation0x1802df130 invokes CreateAndInit at0x1802df358 while Thing.mAnimation still refers to old primary; old primary released0x1802df437, new primary assigned0x1802df44b.",
+    "same_name_restart": "Same active name restarts and does not reattach; CancelAllAttached is not reapplied."
+  },
+  "portable_boundary": {
+    "screen": "ScreenAnimationWorld marks own old child allocations canceled, preserves old primary through this pass, invokes required cross-manager provider before assigning the new primary.",
+    "action": "ActionEffectWorld.cancelAllAttachedForAttach matches actual attached owner/lifetime, skips current primary, detached, GUI null-Thing associations and LightControllers, preflights unsupported DisableOwnerInput release, marks registry cancellation without changing PreventChain.",
+    "unsupported": "Admission remains bounded: CancelAllAttached with new ChildAnimation is rejected; a screen child using CancelAllAttached is also rejected because it can cancel its still-initializing parent before Thing.mAnimation is assigned."
+  }
+}

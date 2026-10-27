@@ -15,5 +15,5 @@ bool ScriptRuntime::consumeSpeechText(const std::vector<hades::SpeechPresentatio
 std::vector<hades::TextVisual> ScriptRuntime::textVisuals()const{auto out=snapshotTextVisuals(state_);
  // GUIComponent.GetLocation169a70 resolves the live Thing parent link. TextBox
  // Draw176368..381 subtracts owner GetZLocation only with data+cb=true.
- for(auto& v:out)if(!v.screenSpace){const auto* a=actorWorld_.actor(v.ownerId);if(!a||!a->registered)continue;std::string error;if(!actorWorld_.location(v.ownerId,v.ownerX,v.ownerY,error))throw std::runtime_error(error);if(v.locationZWithOwner&&!actorWorld_.zLocation(v.ownerId,v.ownerZ,error))throw std::runtime_error(error);}
+ for(auto& v:out)if(const auto* owner=findObjectSnapshot(state_,v.ownerId);owner&&owner->backend==ObjectBackend::Actor){const auto* a=actorWorld_.actor(v.ownerId);if(!a||!a->registered)continue;std::string error;if(!actorWorld_.location(v.ownerId,v.ownerX,v.ownerY,error))throw std::runtime_error(error);if(v.locationZWithOwner&&!actorWorld_.zLocation(v.ownerId,v.ownerZ,error))throw std::runtime_error(error);}
  auto captions=captionText_.visuals();out.insert(out.end(),captions.begin(),captions.end());return out;}

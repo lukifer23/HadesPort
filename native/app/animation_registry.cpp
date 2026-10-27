@@ -37,3 +37,11 @@ std::span<const uint64_t> AnimationRegistry::managed(uint32_t manager)const{auto
 size_t AnimationRegistry::managerCount(uint32_t manager)const{return managed(manager).size();}
 bool AnimationRegistry::allAllocationsInitialized()const{for(const auto& [id,a]:live_){(void)id;if(!a.initialized)return false;}return true;}
 }
+
+namespace hades {
+std::vector<uint64_t> AnimationRegistry::ownerAllocations(int32_t id,uint64_t lifetime)const {
+    std::vector<uint64_t> handles;
+    for(const auto& [handle,allocation]:live_)if(allocation.ownerId==id&&allocation.ownerLifetime==lifetime)handles.push_back(handle);
+    return handles;
+}
+}

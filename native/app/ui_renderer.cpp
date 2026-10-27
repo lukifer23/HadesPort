@@ -265,13 +265,17 @@ void UiRenderer::render(const GameUi& ui,int width,int height,double seconds,flo
         quad({left,r.y+105,panel,1},{.18f,.22f,.20f,.55f});
     }
     if(ui.playing()||editing){
+        const bool continuing=touch&&touch->continueTextRequested()&&!editing;
         auto s=ui.settings;if(!editing)s.touchOpacity*=std::clamp(ui.controlsVisibility,0.f,1.f);const float px=1080.f/height,radius=touch?touch->stickRadius()*px:86*s.touchScale;
         const float x=touch?touch->x()*px:(stickActive&&stickX>=0?stickX:(s.leftHanded?width_-190:190)),y=touch?touch->y()*px:(stickActive&&stickY>=0?stickY:864);
         const float a=s.touchOpacity*(stickActive?1.f:.7f);
-        quad({x-radius,y-radius,radius*2,radius*2},{.055f,.07f,.064f,a*.65f},0,{0,0,1,1},1);
-        quad({x-radius,y-radius,radius*2,radius*2},{.76f,.67f,.43f,a},0,{0,0,1,1},2);
-        const float knob=radius*.43f;quad({x+dx*radius*.57f-knob,y+dy*radius*.57f-knob,knob*2,knob*2},{.85f,.78f,.56f,a},0,{0,0,1,1},1);
+        if(!continuing){
+            quad({x-radius,y-radius,radius*2,radius*2},{.055f,.07f,.064f,a*.65f},0,{0,0,1,1},1);
+            quad({x-radius,y-radius,radius*2,radius*2},{.76f,.67f,.43f,a},0,{0,0,1,1},2);
+            const float knob=radius*.43f;quad({x+dx*radius*.57f-knob,y+dy*radius*.57f-knob,knob*2,knob*2},{.85f,.78f,.56f,a},0,{0,0,1,1},1);
+        }
         if(touch)for(const auto& button:touch->actionButtons()){
+            if(continuing&&std::strcmp(button.control,"ContinueText")!=0)continue;
             const float scale=1080.f/height,cx=button.x*scale,cy=button.y*scale,r=button.radius*scale;
             const float opacity=s.touchOpacity*(button.held?1.f:.75f);
             const UiRect box{cx-r,cy-r,2*r,2*r};

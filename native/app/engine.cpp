@@ -183,7 +183,17 @@ public:
     }
     ~Engine() { shutdown(); }
     bool active() const { return focused_ && display_ != EGL_NO_DISPLAY && !failed_; }
-    void releaseMovement(){controls_.cancel();hardware_.clear();stickX_=stickY_=0;stickDevice_=0;}
+    void releaseMovement(){controls_.setContinueTextRequested(false);controls_.cancel();hardware_.clear();stickX_=stickY_=0;stickDevice_=0;}
+    void syncTouchContext(){
+        bool requested=false;
+        if(ui_.playing()&&scripts_&&scripts_->roomActivated()){
+            // Read the original live NotifyOnControlPressed request, rather
+            // than inferring dialogue from a generic gameplay input block.
+            const auto pending=scripts_->pendingControlPresses();
+            requested=std::find(pending.begin(),pending.end(),"ContinueText")!=pending.end();
+        }
+        controls_.setContinueTextRequested(requested);
+    }
     // Hardware gamepad/keyboard with the original default bindings
     // (native/analysis/default-bindings-contract.json). Gameplay controls merge
     // with touch; one button may drive several controls, as in the original.
@@ -326,6 +336,7 @@ public:
             const bool consumed=ui_.pointer(phase,id,x,y,width_,height_);
             if(consumed){if(!ui_.playing())releaseMovement();return;}
             if(!ui_.playing()||!sceneReady_)return;
+            syncTouchContext();
             controls_.configure(width_,height_,ui_.settings,dpi_);
             if(phase==hades::UiPointer::Down){if(scripts_)scripts_->notePlayerInput();usingController_=false;}
             if(ui_.settings.touchMode==2)return; // touch controls hidden by setting
@@ -386,7 +397,10 @@ public:
                     scripts_->setControlLabelProvider([this](const std::string&name,std::string&label,std::string&error){
                         // Android adaptation of native ParseControlSymbol: show
                         // the label of the actual visible touch/hardware input.
-                        if(!usingController_&&touchVisible())for(const auto&button:controls_.actionButtons())if(name==button.control){label="["+std::string(button.label)+"]";error.clear();return true;}
+                        if(!usingController_&&touchVisible()){
+                            std::string touchLabel;
+                            if(controls_.controlLabel(name,touchLabel)){label="["+touchLabel+"]";error.clear();return true;}
+                        }
                         const auto*binding=bindings_.find(name);
                         if(binding){std::string key;
                             if(usingController_&&binding->gamepadButton>=0)key=hades::input::padButtonName(binding->gamepadButton);
@@ -464,6 +478,7 @@ public:
             // cannot trigger an unbounded simulation catch-up loop.
             for(unsigned step=0;worldAccumulator_>=1./60&&step<8;++step){
                 std::string inputError;
+                syncTouchContext();
                 const auto move=mergedMove();
                 if(!scripts_->setLocalInput(move[0],move[1],mergedControls(),inputError))throw std::runtime_error(inputError);
                 if(!scripts_->advanceWorld(1.f/60,1./60)){
@@ -487,7 +502,8 @@ public:
         if(scripts_&&scripts_->gameLoaded())applyConfig();
         if(scripts_&&scripts_->roomActivated()){const auto& s=ui_.settings;const std::array<float,4> v{s.masterVolume,s.musicVolume,s.effectsVolume,s.voiceVolume};
             if(v!=appliedVolumes_){if(!scripts_->setAudioVolumes(v[0],v[1],v[2],v[3]))throw std::runtime_error(scripts_->error());appliedVolumes_=v;}}
-        {const float target=!touchVisible()?0.f:((scripts_&&scripts_->roomActivated()&&!scripts_->inputAllowed())?.15f:1.f);
+        syncTouchContext();
+        {const float target=!touchVisible()?0.f:((scripts_&&scripts_->roomActivated()&&!scripts_->inputAllowed()&&!controls_.continueTextRequested())?.15f:1.f);
             ui_.controlsVisibility+=(target-ui_.controlsVisibility)*(1.f-std::exp(-std::clamp(dt,0.f,.25f)/.25f));}
         const auto updateDone=std::chrono::steady_clock::now();
         controls_.configure(width_,height_,ui_.settings,dpi_);

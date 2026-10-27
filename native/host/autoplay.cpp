@@ -14,7 +14,7 @@ extern "C" {
 }
 
 ScriptRuntime::AutoplayView ScriptRuntime::autoplayView(){
-    AutoplayView view;view.map=mapName_;view.inputAllowed=inputAllowed();
+    AutoplayView view;view.map=mapName_;view.inputAllowed=inputAllowed();view.pendingControls=pendingControlPresses();
     if(const auto hero=localPlayerBody()){view.hero=true;view.x=hero->x;view.y=hero->y;}
     if(!state_)return view;
     lua_getglobal(state_,"RequiredKillEnemies"); // original encounter kill set (excludes breakables)
@@ -53,7 +53,15 @@ namespace hades {
 // Stalled progress triggers a sideways Rush. Tried usables are skipped for a
 // while so doors that refuse (locked) do not trap the driver.
 AutoplayInput Autoplay::step(int frame,const ScriptRuntime::AutoplayView& view,const Waypoint& waypoint){
-    AutoplayInput input;if(!view.hero||!view.inputAllowed){stall_=0;return input;}
+    AutoplayInput input;
+    // A real queued control notification requests dialogue input even while
+    // PlayerUnit gameplay input is blocked. Supply release/repress pulses;
+    // the original waiters, callbacks and scripts own all progression.
+    if(std::binary_search(view.pendingControls.begin(),view.pendingControls.end(),"ContinueText")) {
+        if(frame%60==0)input.controls.push_back("ContinueText");
+        input.summary="queued ContinueText";stall_=0;return input;
+    }
+    if(!view.hero||!view.inputAllowed){stall_=0;return input;}
     if(view.map!=map_){map_=view.map;tried_.clear();}
     const ScriptRuntime::AutoplayTarget* target=nullptr;float best=1e30f;bool enemy=false;
     for(const auto& e:view.enemies){const auto t=tried_.find(e.id);if(t!=tried_.end()&&frame-t->second<1800)continue;const float d=std::hypot(e.x-view.x,e.y-view.y);if(d<best){best=d;target=&e;enemy=true;}}

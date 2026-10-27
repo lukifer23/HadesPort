@@ -1,5 +1,6 @@
 #pragma once
 #include "source_value.hpp"
+#include "primitive_properties.hpp"
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -92,6 +93,7 @@ public:
     // Call only after actual Thing/Interact construction; query metadata proxies
     // are not interaction owners. AddUseable queues non-global entries.
     bool add(InteractionKey,const SourceValue& original,InteractionClock,std::string&);
+    bool contains(InteractionKey key) const{return records_.contains(key);}
     bool remove(InteractionKey,std::string&);
     bool markForUpdate(InteractionKey,std::string&);
     // Actual UseableManager phase, after ScriptManager. Refresh is atomic on
@@ -100,6 +102,11 @@ public:
     bool update(const InteractionProviders&,std::string&);
     bool setEnabled(InteractionKey,bool,std::string&);
     bool replaceDefinition(InteractionKey,const SourceValue& original,std::string&);
+    // ScriptAction::SetInteractProperty 0x180273550 mutates owned InteractData,
+    // creating a default Interact first if absent. Constructor-copied runtime
+    // state (remainingUses/enabled/cooldown) is not reset by later data writes.
+    bool setProperty(InteractionKey,const std::string&,const PropertyInput&,
+        PropertyChange,InteractionClock,std::string&);
     bool isUseable(InteractionKey,const InteractionOwnerFrame&,InteractionClock,bool&,std::string&)const;
     static bool userCanUse(const InteractionUserFrame&);
     bool isUseableBy(InteractionKey,const InteractionOwnerFrame&,const InteractionUserFrame&,

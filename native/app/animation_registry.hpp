@@ -51,5 +51,6 @@ public:
     size_t managerCount(uint32_t)const;
     size_t allocationCount()const{return live_.size();}
     bool allAllocationsInitialized()const;
+    std::vector<uint64_t> ownerAllocations(int32_t ownerId,uint64_t ownerLifetime)const;
 };
 }

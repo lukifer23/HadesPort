@@ -1,0 +1,105 @@
+{
+  "schema": "hades-draw-screen-relative-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "evidence_kind": "Matching PE/PDB static instructions and jump tables; no original-engine execution.",
+  "sources": [
+    {
+      "path": ".local/reports/draw-screen-relative-2026-10-26/run-action.json",
+      "sha256": "736029d4279059a5c6faed62b88a9360e429a9b8cdce63e9015c0728a7886d19"
+    },
+    {
+      "path": ".local/reports/draw-screen-relative-2026-10-26/thing-location.json",
+      "sha256": "454840a0364648ffcf74e5e3120029d32e8329633a34bb2bba9a3e9111703285"
+    },
+    {
+      "path": ".local/reports/draw-screen-relative-2026-10-26/thing-parallax.json",
+      "sha256": "91f285f8039e7b6cffb70d9e8844a3670556cfb963bb8d584795f2d27e70dc5c"
+    },
+    {
+      "path": ".local/reports/draw-screen-relative-2026-10-26/thing-ctor.json",
+      "sha256": "c4207ec7051227b77329b0fecd1763efc0929d75767e43cf939f6981d287104a"
+    },
+    {
+      "path": ".local/reports/draw-screen-relative-2026-10-26/thing-run-action.json",
+      "sha256": "8e0902dd1d9cff5c20fc92041ef3be234ac7170c698b5c8b45271b6b47a832d2"
+    },
+    {
+      "path": ".local/reports/draw-screen-relative-2026-10-26/obstacle-run-action.json",
+      "sha256": "dcbeb8ae99c114bc54800b994dc98bc3b2455a325e0f917edeff2dd1bc314e4d"
+    },
+    {
+      "path": ".local/reports/draw-screen-relative-2026-10-26/animation-screen.json",
+      "sha256": "16d6b625149ec55b033846f6b36d31b4cb40ae2db29aea0c1a45bc9a30978170"
+    },
+    {
+      "path": ".local/reports/draw-screen-relative-2026-10-26/animation-parallax.json",
+      "sha256": "58a3bd421e16c905cef6bea3d4ffb3c76289726ad74fe26fa6045ddf983e4bcd"
+    },
+    {
+      "path": ".local/reports/draw-screen-relative-2026-10-26/animation-get-parallax.json",
+      "sha256": "2d58112d95c04d25070bcb5dc1d371c5f432dde8a456fb838d35840fd227e3b9"
+    },
+    {
+      "path": ".local/reports/draw-screen-relative-2026-10-26/gui-animation-set-animation.json",
+      "sha256": "9ed1af289ffc00d62df0fcf9432e9481f005cb8bd151fbe8a403f3b84152fb72"
+    },
+    {
+      "path": ".local/reports/draw-screen-relative-2026-10-26/render-owner-excerpts.json",
+      "sha256": "ce2da902ba4162b1eeac8357f95ff625968c00f7b6baea1625647ce05c2f20d9"
+    }
+  ],
+  "dispatch": {
+    "action": 79,
+    "name": "DrawScreenRelative",
+    "execute_case_va": "0x180251f5a",
+    "run_action_on_things_va": "0x18027f4e0",
+    "thing_virtual_slot": "0xe8",
+    "obstacle_case_va": "0x1802c5b29",
+    "obstacle_order": [
+      "DrawGridManager.Remove at0x1802c5b4e",
+      "ObstacleManager.AddToSet(existing obstacle handle,3) at0x1802c5b88",
+      "Thing.RunScriptAction at0x1802c5b96"
+    ],
+    "thing_case_va": "0x1802e42f2",
+    "thing_write": "Thing+0x220=true only; no animation own flag or child-chain mutation"
+  },
+  "location": {
+    "procedure_va": "0x1802e0b70",
+    "attached": "Valid attached Thing reference -> recursive parent location + attachOffset(+0x200/+0x204)",
+    "unattached": "Thing own location(+0x88/+0x8c), for screen and world Things alike"
+  },
+  "thing_parallax": {
+    "procedure_va": "0x1802e62a0",
+    "formula": "Thing own(+0x22c) multiplied by MapThing(+0xf0) when optional map pointer(+0x240) exists",
+    "dynamic_defaults": "Thing constructor0x1802daac6 stores own=1;0x1802daadd stores map pointer=null, so map factor=1"
+  },
+  "render_ownership": {
+    "constant_anchor": "0x1802b2256",
+    "book_anchor": "0x1802afb97",
+    "dataless_anchor": "0x1802b3439",
+    "gather_anchor": "0x18029d85d",
+    "effective_screen_flag": "Attached Thing+0x220 when attachment pointer exists; otherwise Animation own+0x64",
+    "own_flag_independent": "Animation own+0x64, not effective screen flag, bypasses GetParallaxAmount in PrepDraw. DrawScreenRelative does not change it.",
+    "gui_line_exception": "GUIComponentAnimation.SetAnimation creates with null Thing (0x18016aa12 and0x18016ab51) and calls SetUseScreenLocation at0x18016ab91; portable player owner association is not an actual Thing attachment.",
+    "detachment": "OnAttachedToPreDispose0x18029a280 clears attached pointer and does not copy Thing screen flag into Animation own flag"
+  },
+  "portable_implementation": {
+    "backend": "ObjectBackend records portable component ownership; ObjectSnapshot.screenSpace records actual Thing rendering flag. DrawScreenRelative does not migrate actors into ScreenAnimationWorld.",
+    "screen_set": "Portable presentation explicitly enumerates all registered actor primaries and all action animations, independently of world draw-grid admission; removal followed by the owner flag supplies the native screen set3 rendering route.",
+    "admitted_primary_backends": [
+      "ActionEffectWorld actual ThingPrimary",
+      "No primary",
+      "Existing ScreenAnimationWorld Thing"
+    ],
+    "explicit_unimplemented": [
+      "HAA primary screen projection",
+      "ScenePrimary static and auxiliary screen projection",
+      "EffectAnimationWorld primary screen projection"
+    ],
+    "screen_destination": "ScreenAnimationWorld stores actual Thing own/map parallax independently of screen flag; current producer admits unattached dynamic screen Things only."
+  }
+}

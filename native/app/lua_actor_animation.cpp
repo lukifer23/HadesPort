@@ -111,7 +111,7 @@ bool ScriptRuntime::actorSlideEvent(int32_t id,const hades::ActorAnimationClip& 
 }
 bool ScriptRuntime::setActorAnimation(int32_t id,const std::string& name,std::string& error){
     try{
-        if(auto* screen=findObjectSnapshot(state_,id);screen&&screen->screenSpace)return setScreenAnimation(id,name,error);
+        if(auto* screen=findObjectSnapshot(state_,id);screen&&screen->backend==ObjectBackend::Screen)return setScreenAnimation(id,name,error);
         auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered||!actor->object){error="SetAnimation requires actual registered Thing";return false;}
         // Source data spells "no animation" as the literal "null" (e.g. weapon
         // owner animations); it has no AnimationData definition, as with "".

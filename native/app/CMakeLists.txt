@@ -88,3 +88,7 @@ target_sources(hades_native PRIVATE config_file.cpp)
 target_sources(hades_native PRIVATE native_flash.cpp lua_flash.cpp)
 
 target_sources(hades_native PRIVATE native_shake.cpp lua_shake.cpp lua_clock.cpp)
+
+target_sources(hades_native PRIVATE lua_interact_notify.cpp)
+
+target_sources(hades_native PRIVATE lua_screen_relative.cpp)

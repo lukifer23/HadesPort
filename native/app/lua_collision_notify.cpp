@@ -49,13 +49,14 @@ bool ScriptRuntime::advanceNativeNotifies(float dt,std::string& error){
     for(size_t i=0;i<count;++i){
         auto& pending=worldNotifies_[i];if(!pending.arguments)continue;
         bool overlap=false,controlMatched=false;int32_t hit=0;std::string controlName;
+        bool interactMatched=false;if(pending.interact&&!checkInteractNotify(pending,interactMatched,hit,error))return false;
         if(pending.control&&!checkControlNotify(pending,controlMatched,controlName,error))return false;
         bool allDeadDone=false;if(pending.allDead&&!checkAllDeadNotify(pending,allDeadDone,error))return false;
         bool distanceDone=false;if(pending.distance&&!checkDistanceNotify(pending,distanceDone,error))return false;
         bool stoppedDone=false;if(pending.stopped&&!checkStoppedNotify(pending,stoppedDone,error))return false;
         bool unitStateDone=false;if(pending.unitState&&!checkUnitStateNotify(pending,unitStateDone,error))return false;
         if(pending.playerInput){overlap=playerInputThisFrame_;}
-        else if(!pending.control&&!pending.distance&&!pending.stopped&&!pending.allDead&&!pending.unitState)for(int32_t sourceId:pending.sources){auto* source=actorWorld_.actor(sourceId);if(!available(source))continue;
+        else if(!pending.interact&&!pending.control&&!pending.distance&&!pending.stopped&&!pending.allDead&&!pending.unitState)for(int32_t sourceId:pending.sources){auto* source=actorWorld_.actor(sourceId);if(!available(source))continue;
             if(!actorWorld_.refreshGeometry(sourceId,error))return false;
             for(int32_t destinationId:pending.destinations){auto* destination=actorWorld_.actor(destinationId);if(!available(destination))continue;
                 bool collided=false;
@@ -71,15 +72,15 @@ bool ScriptRuntime::advanceNativeNotifies(float dt,std::string& error){
                 if(collided){overlap=true;hit=destinationId;break;}
             }if(overlap)break;
         }
-        const bool satisfied=pending.unitState?unitStateDone:pending.allDead?allDeadDone:pending.stopped?stoppedDone:pending.distance?distanceDone:pending.control?controlMatched:(pending.whenSeparated?!overlap:overlap);
+        const bool satisfied=pending.interact?interactMatched:pending.unitState?unitStateDone:pending.allDead?allDeadDone:pending.stopped?stoppedDone:pending.distance?distanceDone:pending.control?controlMatched:(pending.whenSeparated?!overlap:overlap);
         if(!satisfied)pending.timeout-=dt;
         const bool timeout=!satisfied&&pending.timeout<0;if(!satisfied&&!timeout)continue;
         const int top=lua_gettop(state_);lua_rawgeti(state_,LUA_REGISTRYINDEX,pending.arguments);lua_getfield(state_,-1,"Notify");
         const char* value=lua_tostring(state_,-1);const std::string name=value?value:"";lua_settop(state_,top);
         if(satisfied&&!pending.playerInput&&pending.control){lua_getglobal(state_,"NotifyResultsTable");if(lua_istable(state_,-1)){lua_pushlstring(state_,controlName.data(),controlName.size());lua_setfield(state_,-2,name.c_str());}lua_settop(state_,top);}
-        // CheckOnCollide calls Lua::NewTable("NotifyResultsTable") like the
-        // distance checks: a fresh global table holding only this result.
-        else if(satisfied&&!pending.playerInput&&overlap&&!pending.whenSeparated){lua_newtable(state_);lua_pushvalue(state_,-1);lua_setglobal(state_,"NotifyResultsTable");lua_pushinteger(state_,hit);lua_setfield(state_,-2,name.c_str());lua_settop(state_,top);}
+        // CheckOnCollide and CheckInteract27e030 call Lua::NewTable:
+        // a fresh global NotifyResultsTable holding the actual matched ID.
+        else if(satisfied&&!pending.playerInput&&(pending.interact||(overlap&&!pending.whenSeparated))){lua_newtable(state_);lua_pushvalue(state_,-1);lua_setglobal(state_,"NotifyResultsTable");lua_pushinteger(state_,hit);lua_setfield(state_,-2,name.c_str());lua_settop(state_,top);}
         const int ref=pending.arguments;pending.arguments=0;luaL_unref(state_,LUA_REGISTRYINDEX,ref);
         if(!name.empty()&&!notifyScriptEvent(state_,name,true,timeout,error,!timeout))return false;
     }

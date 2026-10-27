@@ -23,7 +23,7 @@ bool ScriptRuntime::stopAnimationImpl(lua_State* L,std::string& error){
     std::vector<int32_t> targets;if(!resolveObjectTargets(L,true,targets,error))return false;
     for(const auto id:targets){
         const auto* o=findObjectSnapshot(L,id);if(!o||!o->active||!o->alive)continue;
-        if(o->screenSpace){error="StopAnimation on a screen Thing not reconstructed";return false;}
+        if(o->backend==ObjectBackend::Screen){error="StopAnimation on a screen Thing not reconstructed";return false;}
         size_t matched=0;
         if(names.empty()){
             if(!actionEffects_.cancelAttached(id,"",false,matched,error))return false;

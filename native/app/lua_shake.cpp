@@ -21,7 +21,7 @@ bool ScriptRuntime::shakeActionImpl(lua_State*L,std::string&error){
     const float speed=number("Speed"),distance=number("Distance"),duration=args.get("Duration")?number("Duration"):number("DurationSeconds"),degrees=number("Angle",-1000000.f);
     const auto random=[&](){double value=0;if(!nextRecoveredEngineRandom(state_,value))throw std::runtime_error("Thing Shake source RNG unavailable");return value;};
     for(auto id:ids){const auto*body=findObjectSnapshot(state_,id);if(!body||!body->active||!body->alive||body->queryProxy||!body->entityHandle)continue;
-        const auto*actor=actorWorld_.actor(id);const bool obstacle=body->screenSpace||(actor&&actor->definition->kind=="Obstacle");
+        const auto*actor=actorWorld_.actor(id);const bool obstacle=body->backend==ObjectBackend::Screen||(actor&&actor->definition->kind=="Obstacle");
         // Obstacle override2c57d2 has a separate structural-child traversal;
         // Unit/Thing case7b does not read ApplyToChildren at all.
         if(obstacle)if(const auto*p=args.get("ApplyToChildren");p&&p->boolean())throw std::runtime_error("Obstacle Shake ApplyToChildren requires native location-graph traversal");

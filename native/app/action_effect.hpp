@@ -148,6 +148,9 @@ public:
  bool setBaseAlpha(uint64_t h,uint8_t a,std::string& error){auto i=states_.find(h);if(i==states_.end()){error="Actual action FX alpha handle unavailable";return false;}i->second.baseColor[3]=a;return true;}
  // AnimationManager::Cancel 0x29e520 for one owner: empty name = all; returns matches.
  bool cancelAttached(int32_t owner,const std::string& name,bool preventChain,size_t& matched,std::string&);
+ // Animation.Attach299ebc CancelAllAttached: actual attachments except the
+ // Thing's current primary; ignores CanCancelAsAttached/PreventChain.
+ bool cancelAllAttachedForAttach(int32_t owner,uint64_t lifetime,uint64_t currentPrimary,std::string&);
  bool configureCreated(uint64_t,float rawZ,const std::string& actualFirstGroup,bool preferUnmodified,std::string&);
  bool preDisposeOwner(int32_t,const ActionEffectProviders&,std::string&);
  bool preDisposeOwner(int32_t,const EffectOwnerState&,std::string&);

@@ -194,6 +194,9 @@ bool bindRecoveredPlayerUnit(lua_State* state,uint32_t index,int32_t id,uint64_t
 bool isRecoveredUnitMoveEnabled(lua_State* state,uint64_t unitLifetime){
     const auto* input=lookup(state);if(!input)return false;const auto at=input->unitMoveEnabled.find(unitLifetime);return at==input->unitMoveEnabled.end()||at->second;
 }
+bool isRecoveredControlKnown(lua_State* state,const std::string& name){
+    const auto* input=lookup(state);return input&&input->controls.contains(name);
+}
 bool isRecoveredControlEnabled(lua_State* state,const std::string& name){
     const auto* input=lookup(state);if(!input)return false;const auto at=input->controls.find(name);return at!=input->controls.end()&&at->second;
 }

@@ -221,6 +221,11 @@ void ScriptRuntime::initialize() {
     if (!configureRecoveredLanguage(state_, "en")) { error_="English locale setup failed"; reportError("locale"); return; }
     registerSceneRuntime(state_);
     registerObjectRuntime(state_);
+    setObjectMembership(state_,[this](int32_t id){
+        const auto* body=findObjectSnapshot(state_,id);if(!body||body->queryProxy||!body->entityHandle)return false;
+        if(body->backend==ObjectBackend::Screen){const auto* screen=screenAnimations_.thing(id);return screen&&screen->body==body&&screen->body->entityHandle==body->entityHandle;}
+        const auto* actor=actorWorld_.actor(id);return actor&&actor->registered&&actor->object==body&&actor->entityHandle==body->entityHandle;
+    });
     setObjectDestroy(state_,[this](int32_t id,bool noSound,std::string& error){return markThingDead(id,noSound,error);});
     setObjectAnimationSet(state_,[this](int32_t id,const std::string& name,std::string& error){return setActorAnimation(id,name,error);});
     setObjectGeometryChanged(state_,[this](int32_t id,std::string& error){return actorWorld_.refreshGeometry(id,error);});
@@ -274,6 +279,10 @@ void ScriptRuntime::initialize() {
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,createAnimation,1);lua_setglobal(state_,"CreateAnimation");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,rumbleAction,1);lua_setglobal(state_,"Rumble");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,playerInputNotifyAction,1);lua_setglobal(state_,"NotifyOnPlayerInput");
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,controlDownAction,1);lua_setglobal(state_,"IsControlDown");
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,interactNotifyAction,1);lua_setglobal(state_,"NotifyOnInteract");
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,setInteractPropertyAction,1);lua_setglobal(state_,"SetInteractProperty");
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,drawScreenRelative,1);lua_setglobal(state_,"DrawScreenRelative");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,stoppedNotifyAction,1);lua_setglobal(state_,"NotifyOnStopped");
     {const char* names[]{"CanAttack","IsCharmed"};for(int mode=0;mode<2;++mode){lua_pushlightuserdata(state_,this);lua_pushinteger(state_,mode);lua_pushcclosure(state_,unitAIQueryAction,2);lua_setglobal(state_,names[mode]);}}
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,distanceQueryAction,1);lua_setglobal(state_,"GetDistance");
@@ -852,7 +861,7 @@ bool ScriptRuntime::spawnObstacleImpl(lua_State* L,int32_t& created,std::string&
     }else{lua_pop(L,1);lua_getfield(L,1,"DestinationId");if(!lua_isnil(L,-1))readId(-1);lua_pop(L,1);}
     float x=number("LocationX"),y=number("LocationY"),parallax=1;int32_t attachParent=0;
     if(!destinationIds.empty()){
-        x=y=parallax=0;for(const auto id:destinationIds){const auto* o=findObjectSnapshot(L,id);if(o&&o->active&&o->alive){float ox=0,oy=0;if(!actorWorld_.location(id,ox,oy,error))throw std::runtime_error(error);x+=ox;y+=oy;const auto* a=actorWorld_.actor(id);if(!a)throw std::runtime_error("Destination parallax requires actual actor components");parallax+=a->ownParallax*a->mapParallax;if(!attachParent)attachParent=id;}}
+        x=y=parallax=0;for(const auto id:destinationIds){const auto* o=findObjectSnapshot(L,id);if(o&&o->active&&o->alive){float ox=0,oy=0,amount=0;if(!thingLocationAndParallax(id,ox,oy,amount,error))throw std::runtime_error(error);x+=ox;y+=oy;parallax+=amount;if(!attachParent)attachParent=id;}}
         x/=destinationIds.size();y/=destinationIds.size();parallax/=destinationIds.size();
     }
     const float offsetX=number("OffsetX"),offsetY=number("OffsetY");x+=offsetX;y+=offsetY;const float z=number("OffsetZ");
@@ -1016,7 +1025,7 @@ bool ScriptRuntime::effectOwner(int32_t id,hades::EffectOwnerState& state,std::s
     if(id<0)return projectileEffectOwner(id,state,error);
     const auto* actor=actorWorld_.actor(id);const auto* object=findObjectSnapshot(state_,id);
     if(!actor||!actor->registered||!object||object->queryProxy||!object->active||!object->alive||!actor->entityHandle){error="Effect owner requires actual live actor components";return false;}
-    state.lifetime=actor->entityHandle;
+    state.lifetime=actor->entityHandle;state.screenSpace=object->screenSpace;
     if(!actorWorld_.location(id,state.x,state.y,error)||!actorWorld_.zLocation(id,state.z,error))return false;
     state.scale=object->scale*object->scaleFraction;state.angle=object->angle;
     state.bookOwnerAngle=actorAnimationFacing(*actor);
@@ -1091,7 +1100,7 @@ bool ScriptRuntime::setColorImpl(lua_State* L,std::string& error){
     }
     lua_pop(L,1);
     for(const auto id:selected){auto* o=findObjectSnapshot(L,id);auto* a=actorWorld_.actor(id);
-        if(o&&o->screenSpace&&o->active&&o->alive){
+        if(o&&o->backend==ObjectBackend::Screen&&o->active&&o->alive){
             const bool timed=options.duration!=0||options.easeIn!=0||options.easeOut!=0;
             if(multiply||(base&&timed)){error="Native screen MultiplyBase/timed SetBase color not reconstructed";return false;}
             if(timed){for(size_t i=0;i<4;++i)if(!screenAnimations_.adjustChannel(id,i,rgba[i],options,error))return false;continue;}

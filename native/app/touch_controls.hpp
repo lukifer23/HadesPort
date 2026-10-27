@@ -13,7 +13,7 @@ struct ZoomGesture {float ratio=1,fromX=0,fromY=0,toX=0,toY=0;};
 class TouchControls {
     struct Contact {float x=0,y=0;};
     int width_=0,height_=0,owner_=-1;
-    bool leftHanded_=false,floating_=true;
+    bool leftHanded_=false,floating_=true,continueTextRequested_=false;
     float scale_=1,dpi_=0,anchorX_=0,anchorY_=0,visualX_=0,visualY_=0,dx_=0,dy_=0;
     std::map<int,Contact> free_;
     std::optional<ZoomGesture> zoom_;
@@ -32,12 +32,20 @@ class TouchControls {
 public:
     struct ActionButton {const char* control;const char* label;float x,y,radius;bool held;};
     std::array<ActionButton,ButtonCount> actionButtons()const;
+    // Binding labels remain available when a context hides their buttons,
+    // matching native disabled controls retaining their configured bindings.
+    bool controlLabel(const std::string& control,std::string& label)const;
     // Layout editor (Android adaptation): drag a button or the stick rest.
     bool editPointer(UiPointer,int id,float x,float y);
     bool takeLayout(std::array<float,LayoutSlots*2>& out){if(!layoutDirty_)return false;out=layout_;layoutDirty_=false;return true;}
     int editingSlot()const{return editOwner_>=0?int(editSlot_):-1;}
     std::vector<std::string> heldControls()const;
     std::vector<std::string> takeControls();
+    // Android adaptation: the existing Use slot supplies the original
+    // ContinueText control only while a live control notification requests it.
+    // A context change releases ownership and pending taps before relabelling.
+    void setContinueTextRequested(bool requested);
+    bool continueTextRequested()const{return continueTextRequested_;}
     void configure(int width,int height,const UiSettings&,float dpi=0);
     float stickRadius()const{return mm(11.5f)*scale_;}
     void cancel();

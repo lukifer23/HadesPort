@@ -121,7 +121,7 @@ bool ScriptRuntime::createAnimationImpl(lua_State* L,std::string& error){
     if(const float a=actionNumber(L,"Angle",-999999.f);a!=-999999.f)setup.angleDegrees=a;
     if(actionHas(L,"Color"))setup.color=actionColor(L,"Color");
     if(actionHas(L,"Group")){lua_getfield(L,1,"Group");const char*g=lua_tostring(L,-1);setup.group=g?g:"";lua_pop(L,1);}
-    lua_getfield(L,1,"UseScreenLocation");setup.useScreenLocation=lua_isboolean(L,-1)&&lua_toboolean(L,-1);lua_pop(L,1);setup.useScreenLocation=setup.useScreenLocation||(o&&o->screenSpace);
+    lua_getfield(L,1,"UseScreenLocation");setup.useScreenLocation=lua_isboolean(L,-1)&&lua_toboolean(L,-1);lua_pop(L,1);// Native owner draw flag is resolved at PrepDraw; it must not mutate the distinct animation own flag.
     const auto* actor=actorWorld_.actor(id);
     if(actor)setup.parallax=actor->ownParallax*actor->mapParallax;
     // OffsetX is negated when the destination primary ShouldMirror()

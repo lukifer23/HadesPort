@@ -29,13 +29,12 @@ bool ScriptRuntime::closestNonBlockedLocation(float x,float y,float& outX,float&
 bool ScriptRuntime::locationAuxiliary(int32_t id,hades::ActorLocationStage stage,std::string& error){
  try{
     auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered||!actor->object)throw std::runtime_error("Location auxiliary owner unavailable");
-    const auto property=[&](const char* key)->const hades::SourceValue&{const auto* value=actorWorld_.currentProperty(id,key);if(!value)throw std::runtime_error(std::string("Location source property unavailable: ")+key);return *value;};
     switch(stage){
     case hades::ActorLocationStage::Interaction:
-        if(!std::holds_alternative<std::monostate>(property("Thing.Interact").value)){
-            // UseableManager::MarkForUpdate: re-index the moved Thing's Interact bounds.
-            for(const auto& s:interactions_.snapshots())if(s.key.id==id&&s.key.lifetime==actor->entityHandle)return interactions_.markForUpdate(s.key,error);
-        }
+        // SetInteractProperty can construct the live component even when
+        // authored ThingData.Interact is absent. Use actual component ownership
+        // for UseableManager::MarkForUpdate, not the source-data pointer.
+        if(interactions_.contains({id,actor->entityHandle}))return interactions_.markForUpdate({id,actor->entityHandle},error);
         break;
     case hades::ActorLocationStage::Light:
         return actorLights_.locationChanged(id,error);
@@ -51,4 +50,26 @@ bool ScriptRuntime::locationAuxiliary(int32_t id,hades::ActorLocationStage stage
     }
     error.clear();return true;
  }catch(const std::exception& e){error=e.what();return false;}
+}
+
+// SpawnObstacle0x18026f4a0 dispatches Thing.GetLocation0x1802e0b70 and
+// GetParallaxAmount0x1802e62a0 for each destination, irrespective of renderer
+// backend. A screen draw flag is not proof of ActorWorld membership.
+bool ScriptRuntime::thingLocationAndParallax(int32_t id,float& x,float& y,float& parallax,std::string& error) const {
+    const auto* body=findObjectSnapshot(state_,id);
+    if(!body||!body->entityHandle){error="Thing location/parallax requires actual owner lifetime";return false;}
+    if(body->backend==ObjectBackend::Screen){
+        const auto* screen=screenAnimations_.thing(id);
+        if(!screen||screen->body!=body||screen->dead){error="Screen Thing location/parallax lifetime unavailable";return false;}
+        // Supported screen bodies have no attachment adapter; actual raw XY
+        // and constructor/default parallax remain owned by ScreenAnimationWorld.
+        x=body->x;y=body->y;parallax=screen->ownParallax*screen->mapParallax;
+    } else {
+        const auto* actor=actorWorld_.actor(id);
+        if(!actor||!actor->registered||actor->entityHandle!=body->entityHandle){error="Actor Thing location/parallax lifetime unavailable";return false;}
+        if(!actorWorld_.location(id,x,y,error))return false;
+        parallax=actor->ownParallax*actor->mapParallax;
+    }
+    if(!std::isfinite(x)||!std::isfinite(y)||!std::isfinite(parallax)){error="Thing location/parallax nonfinite";return false;}
+    error.clear();return true;
 }

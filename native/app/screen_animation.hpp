@@ -28,6 +28,9 @@ struct ScreenLayer {
 struct ScreenMoveAxis {bool active=false;float start=0,end=0,duration=0,remaining=0,fraction=0;};
 struct ScreenThing {
  ObjectSnapshot* body=nullptr;
+ // Thing ctor 2daac6: own +22c=1, optional MapThing +240=null. These
+ // factors describe destination parallax independently of render ownership.
+ float ownParallax=1,mapParallax=1;
  std::array<float,4> baseColor{1,1,1,1},fractionColor{1,1,1,1};
  // Body transitions: 0 Scale, 1 Alpha, 2 ScaleX, 3 ScaleY (BodyComponent
  // +0xe0/+0x320/+0x140/+0x1a0). Inactive/uninitialized modifiers are 1.
@@ -51,16 +54,20 @@ class ScreenAnimationWorld {
  std::map<std::string,SourceValue> definitions_;
  std::map<int32_t,ScreenThing> things_;
  std::function<bool(int32_t,std::array<float,2>&,std::string&)> textDimensions_;
+ std::function<bool(int32_t,uint64_t,uint64_t,std::string&)> cancelAllAttached_;
  bool releasePrimary(ScreenThing&,const ScreenAnimationSound&,std::string&);
  bool allocateLayers(int32_t,ScreenThing&,const std::string&,std::vector<ScreenLayer>&,std::string&);
  bool layerVisual(const ScreenThing&,const ScreenLayer&,ActorVisual&,std::string&)const;
 public:
  static bool legacyClip(const std::string&);
  void setTextDimensionsProvider(std::function<bool(int32_t,std::array<float,2>&,std::string&)> provider){textDimensions_=std::move(provider);}
+ // Animation.Attach299ea0 cancels other actual attachments before inserting
+ // this animation; the old Thing primary is expressly excluded.
+ void setCancelAllAttachedProvider(std::function<bool(int32_t,uint64_t,uint64_t,std::string&)> provider){cancelAllAttached_=std::move(provider);}
  bool load(SourceValue,std::shared_ptr<ActorAnimationBank>,std::shared_ptr<AnimationRegistry>,std::string&);
  bool admits(const std::string& name)const{return definitions_.contains(name);}
  const SourceValue* definition(const std::string& name)const{const auto it=definitions_.find(name);return it==definitions_.end()?nullptr:&it->second;}
- bool create(ObjectSnapshot&,std::array<float,4>,const ScreenAnimationSound&,std::string&);
+ bool create(ObjectSnapshot&,std::array<float,4>,const ScreenAnimationSound&,std::string&,float ownParallax=1,float mapParallax=1);
  bool setAnimation(int32_t,const std::string&,const ScreenAnimationSound&,std::string&);
  bool setAnimation(int32_t,const std::string&,const ScreenAnimationRequest&,const ScreenAnimationSound&,std::string&);
  // ScriptAction::SetAnimationFrameTarget 0x263770: matching attached animations.

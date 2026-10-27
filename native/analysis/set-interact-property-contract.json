@@ -1,0 +1,57 @@
+{
+  "schema": "hades-set-interact-property-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "evidence_kind": "Matching PE/PDB instruction evidence; no original-engine execution.",
+  "sources": [
+    {
+      "path": ".local/reports/gui-interact/set-interact-property-static-2026-10-26.json",
+      "sha256": "45fe677d77cb70052ca15d569f47cd2f024f7c0e4ab071756e06976a5b4231eb"
+    },
+    {
+      "path": ".local/reports/gui-interact/set-interact-reflection-static-2026-10-26.json",
+      "sha256": "21ee57b4be15982f1593f62f199a935b986a3ba156a6ea377de8989bc2a536ee"
+    },
+    {
+      "path": ".local/reports/gui-interact/interact-reflection-fields-static-2026-10-26.json",
+      "sha256": "6a0726daae22ad4ebafeb86255781d6a20cea24d1783e393036261600e38c814"
+    },
+    {
+      "path": ".local/reports/gui-interact/interact-constructor-static-2026-10-26.json",
+      "sha256": "04caa34cd325dd32633b7a424340a1a455ee0dbfd559a522c26bea5288a43e24"
+    },
+    {
+      "path": ".local/reports/gui-interact/active-map-things-static-2026-10-26.json",
+      "sha256": "e16f7d3081af425572a37980d97032285da1eaa068b97ba415f7d09a81f7a897"
+    }
+  ],
+  "action": {
+    "va": "0x180273550",
+    "arguments": "Property string defaults empty; Value is boxed by LuaTableExtensions.GetValue250930; ValueChangeType string defaults Absolute and uses NumericOperation parsing203030. DestinationIds281ae0 and DestinationNames2819d0 resolve current World map members.",
+    "construction": "At2736ee..27373a an absent owner Interact is allocated with default data and registered with UseableManager.AddUseable2da850 BEFORE reflection.",
+    "mutation": "At273758 ReflectionHelper.SetProperty<InteractDataDef>2e7540 writes owned Interact data; at27375d..273770 owner is inserted in World dirty-useable-owner set.",
+    "runtime_state": "Interact constructor2bf780 copies NumUses at2bf7d5..db and StartsUseable at2bf7de..e2. Subsequent data changes do not reset remaining uses, enabled gate, last-use timestamps, or repeat timer."
+  },
+  "reflection": {
+    "va": "0x1800c7300",
+    "case_sensitive": true,
+    "scalar_types": "Compiled scalar member types come from matching InteractDataDef reflection and constructor recovery. NumUses and PlayerIndex are signed int32; other numeric fields in compiledDefaults are float32. Bool and string retain exact declared types.",
+    "example": "TooltipOffsetX is float32 at InteractDataDef+0x90, TooltipOffsetY at+0x94. Native setter has no special tooltip side effects beyond owned-data mutation and dirty-owner insertion."
+  },
+  "implementation": [
+    "native/app/interaction_runtime.hpp",
+    "native/app/interaction_runtime.cpp",
+    "native/app/lua_interaction.cpp"
+  ],
+  "boundaries": [
+    "Numeric scalar/dense sequential DestinationId/DestinationIds only; group/name and other IntList forms fail explicitly.",
+    "Scalar mutation uses shared recovered primitive reflection rules. MultiplyBase fails without its native additive base-data result.",
+    "SpawnType enum and UseSound/DisabledUseSound SoundCue typed reflection remain explicit failures.",
+    "Current actual world actor lifetimes can receive a newly constructed default Interact; query metadata proxies are not owners.",
+    "Screen owners without a real registered Interact fail at the geometry/lifecycle provider boundary; this change does not register screen interactions or implement cursor selection.",
+    "No host replay or device verification in this contract."
+  ]
+}

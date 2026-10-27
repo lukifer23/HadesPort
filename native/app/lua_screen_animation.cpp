@@ -13,6 +13,23 @@ bool ScriptRuntime::loadScreenAnimationDefinitions(){try{
  auto file=assets_->open("screen-animations.lua");if(!file||file->size()>1024*1024)throw std::runtime_error("Original screen animation catalog unavailable");std::vector<char>bytes(file->size());size_t at=0;while(at<bytes.size()){auto n=file->read(bytes.data()+at,bytes.size()-at);if(!n)throw std::runtime_error("Original screen catalog truncated");at+=n;}
  const int top=lua_gettop(state_);int status=luaL_loadbufferx(state_,bytes.data(),bytes.size(),"@screen-animations.lua","t");if(status==LUA_OK)status=lua_pcall(state_,0,1,0);if(status!=LUA_OK){error_=lua_tostring(state_,-1);lua_settop(state_,top);return false;}hades::SourceValue data;const bool ok=hades::readSourceValue(state_,-1,data,error_);lua_settop(state_,top);if(!ok)return false;
  screenAnimationBank_=std::make_shared<hades::ActorAnimationBank>();screenAnimationBank_->load(*assets_,"screen-animation-frames.bin");if(!screenAnimations_.load(std::move(data),screenAnimationBank_,effects_.registry(),error_))return false;
+ // Animation.Attach CancelAllAttached needs actual attachment owners across
+ // managers. Screen layers are handled locally; foreign domains must be
+ // recognized before cancellation rather than silently dropping their work.
+ screenAnimations_.setCancelAllAttachedProvider([this](int32_t id,uint64_t lifetime,uint64_t primary,std::string& error){
+  const auto* screen=screenAnimations_.thing(id);if(!screen||!screen->body||screen->body->entityHandle!=lifetime){error="CancelAllAttached screen owner lifetime unavailable";return false;}
+  const auto registry=effects_.registry();
+  for(const auto handle:registry->ownerAllocations(id,lifetime)){
+   const auto* life=registry->find(handle);if(!life||!life->initialized||handle==primary)continue;
+   if(std::any_of(screen->layers.begin(),screen->layers.end(),[&](const auto&layer){return layer.handle==handle;}))continue;
+   if(const auto* action=actionEffects_.state(handle)){
+    if(action->detached||action->guiLine)continue; // Native attachment pointer is null.
+    if(life->ownership!=hades::AnimationOwnership::LightController)continue;
+   }
+   error="CancelAllAttached foreign animation attachment consumer not reconstructed: "+life->name;return false;
+  }
+  return actionEffects_.cancelAllAttachedForAttach(id,lifetime,primary,error);
+ });
  screenAnimations_.setTextDimensionsProvider([this](int32_t id,std::array<float,2>&size,std::string&e){return attachedTextDimensions(state_,id,size,e);});
  ObjectScreenHooks hooks;hooks.animation=[this](int32_t id,const std::string&n,std::string&e){return setScreenAnimation(id,n,e);};hooks.fraction=[this](int32_t id,bool scale,float target,const hades::BodyTransitionOptions&o,std::string&e){return screenFraction(id,scale,target,o,e);};hooks.location=[this](int32_t id,float&x,float&y,std::string&e){const auto*s=screenAnimations_.thing(id);if(!s||s->dead){e="Actual screen location unavailable";return false;}x=s->body->x;y=s->body->y;return true;};hooks.destroy=[this](int32_t id,bool,std::string&e){return screenDestroy(id,e);};hooks.animationArgs=[this](int32_t id,const std::string&n,lua_State*L,std::string&e){return screenAnimationArgs(id,n,L,e);};setObjectScreenHooks(state_,std::move(hooks));
  // Registered before installDelayedActions so source Delay wrapping applies.
@@ -106,7 +123,7 @@ bool ScriptRuntime::screenActionImpl(lua_State*L,int mode,std::string&e){
  }
  hades::SourceValue v;if(!lua_istable(L,1)){e="Screen action requires argument table";return false;}if(!hades::readSourceValue(L,1,v,e))return false;
  const auto live=[&](int32_t id){const auto*s=screenAnimations_.thing(id);return s&&!s->dead&&s->body&&s->body->alive;};
- const auto worldThing=[&](int32_t id){const auto*o=findObjectSnapshot(L,id);return o&&o->active&&o->alive&&!o->screenSpace;};
+ const auto worldThing=[&](int32_t id){const auto*o=findObjectSnapshot(L,id);return o&&o->active&&o->alive&&o->backend!=ObjectBackend::Screen;};
  if(mode==0){
   // SetAnimationFrameTarget 0x263770: single integer DestinationId, Name, Fraction, Instant.
   const auto*d=v.get("DestinationId");if(!d)return true;const double n=d->number();if(n<1||n>INT32_MAX||n!=std::trunc(n))return true;const int32_t id=int32_t(n);

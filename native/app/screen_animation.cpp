@@ -23,7 +23,7 @@ const std::set<std::string> guiKeys{"Name","InheritFrom","FilePath","Type","Star
  // GetXShift/GetYShift 0x180297b40/0x180297a50, Animation::Loop 0x180296310).
  "StartRed","StartGreen","StartBlue","EndRed","EndGreen","EndBlue","EaseIn","EaseOut","PingPongColor",
  "StartOffsetX","EndOffsetX","StartOffsetY","EndOffsetY","PingPongShiftOverDuration","PhaseOffsetShiftOverDuration",
- "StartScale","EndScale","PingPongScale"};
+ "StartScale","EndScale","PingPongScale","CancelAllAttached"};
 // Keys whose transition fraction is the Constant duration fraction
 // (AnimationFractionFromDurationSystem 0x180152ce0). Book/Slide frame
 // fractions for these helpers are not reviewed for screen records.
@@ -60,6 +60,7 @@ bool ScreenAnimationWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimati
   if(!legacyClip(name)){
    // Reviewed original GUI closure: only reconstructed properties/types.
    for(const auto&[key,value]:definition->object()){(void)value;if(!guiKeys.contains(key))throw std::runtime_error("Unreviewed native screen animation property "+name+"."+key);}
+   if(flag(*definition,"CancelAllAttached")&&!text(*definition,"ChildAnimation").empty()&&text(*definition,"ChildAnimation")!="null")throw std::runtime_error("Native screen CancelAllAttached with new ChildAnimation not reconstructed: "+name);
    const auto t=text(*definition,"Type");if(t!="Constant"&&t!="ConstantNoUpdate"&&t!="Book"&&t!="Dataless"&&t!="Slide")throw std::runtime_error("Unreviewed native screen animation type "+name);
    // SlideAnimation (SetupSlideIndex 0x1802b5010 / NextSlide 0x1802b46d0 /
    // SlideStart 0x1802b4080): timing is the bank's per-slide DurationFrames/60
@@ -74,8 +75,8 @@ bool ScreenAnimationWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimati
  for(const auto&[name,d]:definitions_){for(const auto*field:{"ChildAnimation","ChainTo"}){const auto child=text(d,field);if(!child.empty()&&child!="null"&&!definitions_.contains(child))throw std::runtime_error(std::string("Original screen ")+field+" closure missing: "+child);}}
  bank_=std::move(bank);registry_=std::move(registry);return true;
  }catch(const std::exception&x){e=x.what();return false;}}
-bool ScreenAnimationWorld::create(ObjectSnapshot&body,std::array<float,4>color,const ScreenAnimationSound&sound,std::string&e){
- if(!body.entityHandle||!body.screenSpace||things_.contains(body.id)){e="Actual selected screen Thing allocation unavailable";return false;}ScreenThing s;s.body=&body;s.baseColor=color;things_.emplace(body.id,std::move(s));return body.animation.empty()?true:setAnimation(body.id,body.animation,sound,e);
+bool ScreenAnimationWorld::create(ObjectSnapshot&body,std::array<float,4>color,const ScreenAnimationSound&sound,std::string&e,float ownParallax,float mapParallax){
+ if(!body.entityHandle||!body.screenSpace||things_.contains(body.id)||!std::isfinite(ownParallax)||!std::isfinite(mapParallax)){e="Actual selected screen Thing allocation unavailable";return false;}ScreenThing s;s.body=&body;s.baseColor=color;s.ownParallax=ownParallax;s.mapParallax=mapParallax;body.backend=ObjectBackend::Screen;things_.emplace(body.id,std::move(s));return body.animation.empty()?true:setAnimation(body.id,body.animation,sound,e);
 }
 bool ScreenAnimationWorld::releasePrimary(ScreenThing&s,const ScreenAnimationSound&sound,std::string&e){
  if(!s.primary)return true;const auto&d=definitions_.at(s.body->animation);const float fade=num(d,"StopSoundOnFinishFade");if(s.sound&&fade>0&&(!sound.stop||!sound.stop(s.sound,fade,e)))return false;
@@ -85,12 +86,26 @@ bool ScreenAnimationWorld::releasePrimary(ScreenThing&s,const ScreenAnimationSou
 bool ScreenAnimationWorld::allocateLayers(int32_t id,ScreenThing&s,const std::string&name,std::vector<ScreenLayer>&out,std::string&e){
  // Animation.InitData creates ChildAnimation before the parent is committed
  // (AddChild 0x293ae0): one separate animation per chained data record.
+ // Validate cancellation ownership before allocating any new layer. Actual
+ // manager attachments live outside this screen-primary component store.
+ {size_t depth=0;for(std::string next=name;!next.empty()&&next!="null";next=text(definitions_.at(next),"ChildAnimation")){
+  if(++depth>9){e="Original screen ChildAnimation chain bound";return false;}
+  const auto&d=definitions_.at(next);
+  if(depth>1&&flag(d,"CancelAllAttached")){e="Native screen child CancelAllAttached parent cancellation not reconstructed: "+next;return false;}
+  if(flag(d,"CancelAllAttached")&&!cancelAllAttached_){e="Actual CancelAllAttached cross-manager provider unavailable: "+next;return false;}
+ }}
  std::string next=name;uint64_t parent=0;
  while(!next.empty()&&next!="null"){
   if(out.size()>8){e="Original screen ChildAnimation chain bound";return false;}
   const auto&d=definitions_.at(next);ScreenLayer l;l.name=next;l.clip=*bank_->find(next);
   AnimationAllocation a;a.name=next;a.sourceDefinition=d;a.ownerId=id;a.ownerLifetime=s.body->entityHandle;a.ownership=parent?AnimationOwnership::Child:AnimationOwnership::ThingPrimary;a.parent=parent;a.type=typeOf(d);a.onlyWhenVisible=flag(d,"OnlyWhenVisible");a.loop=(bank_->clips().at(l.clip).flags&ActorLoop)!=0;
   if(!registry_->allocate(a,l.handle,e))return false;
+  // Defaults is virtual+e8, not InitData. Constant.Init2b1b27 attaches
+  // before base Init291bf7 calls InitData: cancellation precedes children.
+  if(flag(d,"CancelAllAttached")){
+   if(!cancelAllAttached_(id,s.body->entityHandle,s.primary,e))return false;
+   for(const auto&old:s.layers)if(old.handle!=s.primary&&!registry_->cancel(old.handle,e))return false;
+  }
   if(a.type==NativeAnimationType::Book){
    // BookAnimation::SetupFrameUpdateMode 0x2b1040: speed=PlaySpeed, else 60.
    l.speed=num(d,"PlaySpeed",0);if(l.speed==0)l.speed=60;l.target=0;l.multiplier=1;l.frac=float(startFrame(d));l.frame=startFrame(d);
@@ -106,7 +121,11 @@ bool ScreenAnimationWorld::allocateLayers(int32_t id,ScreenThing&s,const std::st
   }
   parent=l.handle;out.push_back(std::move(l));next=text(d,"ChildAnimation");
  }
- for(const auto&l:out)if(!registry_->commitInitialization(l.handle,false,e))return false;
+ // InitData/AddChild completes the child before the parent's initialization
+ // returns. The earlier Attach/cancellation pass is distinct from completion.
+ for(auto i=out.rbegin();i!=out.rend();++i){const auto&l=*i;
+  if(!registry_->commitInitialization(l.handle,false,e))return false;
+ }
  return true;
 }
 bool ScreenAnimationWorld::setAnimation(int32_t id,const std::string&name,const ScreenAnimationSound&sound,std::string&e){return setAnimation(id,name,ScreenAnimationRequest{},sound,e);}
@@ -247,7 +266,7 @@ bool ScreenAnimationWorld::advance(float dt,const ScreenAnimationSound&sound,std
  }++i;}return true;
  }catch(const std::exception&x){e=x.what();return false;}}
 bool ScreenAnimationWorld::layerVisual(const ScreenThing&s,const ScreenLayer&l,ActorVisual&out,std::string&e)const{
- out={};out.id=uint32_t(s.body->id);out.lifetime=l.handle;out.screenSpace=true;out.sourceBank=bank_.get();out.flipX=s.body->flipHorizontal;
+ out={};out.id=uint32_t(s.body->id);out.lifetime=l.handle;out.screenSpace=s.body->screenSpace;out.sourceBank=bank_.get();out.flipX=s.body->flipHorizontal;
  if(l.legacy){out.frame=bank_->sample(s.playback.clipIndex(),s.playback.slideIndex(),0);out.localRect=out.frame.worldRect(*s.playback.clip());out.x=s.body->x;out.y=s.body->y;out.scale=s.body->scale*s.body->scaleFraction;for(size_t k=0;k<3;++k)out.color[k]=s.baseColor[k]*s.fractionColor[k];out.color[3]=s.baseColor[3]*s.body->alpha;return true;}
  const auto&d=definitions_.at(l.name);const auto&clip=bank_->clips().at(l.clip);const bool book=typeOf(d)==NativeAnimationType::Book;
  const size_t slide=book?size_t(l.frame-startFrame(d)):(typeOf(d)==NativeAnimationType::Slide?l.playback.slideIndex():0);if(slide>=clip.slides.size()){e="Actual screen frame outside original resource: "+l.name;return false;}

@@ -28,6 +28,9 @@ struct EffectOwnerState {
     // Portable snapshot of the owning Thing's draw group. Attached FX keep
     // this with position/color at preDisposeOwner, before the Thing retires.
     std::optional<std::string> group;
+    // Thing+0x220, independent of Animation's own +0x64 coordinate flag.
+    // PrepDraw/GatherAnimsToDraw use the attached Thing's flag when present.
+    bool screenSpace=false;
 };
 using EffectOwnerProvider=std::function<bool(int32_t,EffectOwnerState&,std::string&)>;
 using EffectAnimationRandom=std::function<bool(double&,std::string&)>;

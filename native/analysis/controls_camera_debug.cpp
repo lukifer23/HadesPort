@@ -24,6 +24,34 @@ int main(){try{
     const auto use=controls.actionButtons()[4];require(std::string(use.control)=="Use","Use button lost source control identity");
     controls.pointer(hades::UiPointer::Down,19,use.x,use.y);controls.pointer(hades::UiPointer::Up,19,use.x,use.y);
     require(controls.takeControls()==std::vector<std::string>{"Use"}&&controls.takeControls().empty()&&controls.active(),"Use quick tap lost or repeated/stole movement");
+    // Context is supplied by actual native control waits in Engine. Switching
+    // labels must never reinterpret a contact or queued tap from the old mode.
+    controls.pointer(hades::UiPointer::Down,19,use.x,use.y);
+    controls.setContinueTextRequested(true);
+    const auto next=controls.actionButtons()[4];std::string label;
+    require(std::string(next.control)=="ContinueText"&&std::string(next.label)=="NEXT"&&next.x==use.x&&next.y==use.y&&next.radius==use.radius,"Dialogue control changed the saved Use hitbox");
+    require(!controls.active()&&controls.heldControls().empty()&&controls.takeControls().empty(),"Use/movement leaked into dialogue context");
+    require(controls.controlLabel("Use",label)&&label=="USE"&&controls.controlLabel("ContinueText",label)&&label=="NEXT","Context discarded canonical binding labels");
+    controls.pointer(hades::UiPointer::Move,19,next.x,next.y);controls.pointer(hades::UiPointer::Up,19,next.x,next.y);
+    require(controls.takeControls().empty(),"Old Use contact became a dialogue press");
+    controls.pointer(hades::UiPointer::Down,10,250,900);controls.pointer(hades::UiPointer::Move,10,350,900);
+    controls.pointer(hades::UiPointer::Down,11,attack.x,attack.y);
+    require(!controls.active()&&controls.takeControls().empty()&&!controls.takeZoom(),"Hidden dialogue controls still accepted movement/combat/pinch");
+    controls.pointer(hades::UiPointer::Up,10,350,900);controls.pointer(hades::UiPointer::Up,11,attack.x,attack.y);
+    controls.pointer(hades::UiPointer::Down,19,next.x,next.y);controls.pointer(hades::UiPointer::Up,19,next.x,next.y);
+    require(controls.takeControls()==std::vector<std::string>{"ContinueText"}&&controls.takeControls().empty(),"NEXT quick tap lost or repeated");
+    controls.pointer(hades::UiPointer::Down,19,next.x,next.y);controls.pointer(hades::UiPointer::Down,20,next.x,next.y);
+    controls.setContinueTextRequested(true);controls.pointer(hades::UiPointer::Up,19,next.x,next.y);
+    require(controls.heldControls()==std::vector<std::string>{"ContinueText"},"Unchanged context or one release lost the remaining NEXT owner");
+    controls.setContinueTextRequested(false);
+    require(controls.heldControls().empty()&&controls.takeControls().empty()&&std::string(controls.actionButtons()[4].control)=="Use"&&!controls.controlLabel("ContinueText",label),"NEXT leaked back into gameplay context");
+    controls.pointer(hades::UiPointer::Up,20,use.x,use.y);require(controls.takeControls().empty(),"Old NEXT release became Use");
+    controls.pointer(hades::UiPointer::Down,19,use.x,use.y);controls.pointer(hades::UiPointer::Up,19,use.x,use.y);
+    controls.setContinueTextRequested(true);require(controls.takeControls().empty(),"Queued Use tap became NEXT");
+    controls.pointer(hades::UiPointer::Down,19,next.x,next.y);controls.pointer(hades::UiPointer::Up,19,next.x,next.y);
+    controls.setContinueTextRequested(false);require(controls.takeControls().empty(),"Queued NEXT tap became Use");
+    controls.pointer(hades::UiPointer::Down,10,250,900);controls.pointer(hades::UiPointer::Move,10,250+controls.stickRadius()*.8f,900);
+    require(controls.active()&&controls.dx()==movement,"Dialogue context changed ordinary movement after release");
     controls.pointer(hades::UiPointer::Down,2,600,150);
     controls.pointer(hades::UiPointer::Down,7,1000,150);
     controls.pointer(hades::UiPointer::Move,7,1200,150);

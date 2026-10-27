@@ -81,7 +81,7 @@ bool ScriptRuntime::actorMotionActionImpl(lua_State*L,int mode,std::string&error
    std::sort(out.begin(),out.end());out.erase(std::unique(out.begin(),out.end()),out.end());return out;};
   std::vector<int32_t> screenSources;bool screen=false,world=false;
   for(const auto id:ids("Id","Ids")){const auto* body=findObjectSnapshot(L,id);if(!body)continue;
-   if(!body->screenSpace){world=true;continue;}screen=true;
+   if(body->backend!=ObjectBackend::Screen){world=true;continue;}screen=true;
    const auto* s=screenAnimations_.thing(id);if(s&&!s->dead&&s->body&&s->body->active&&s->body->alive)screenSources.push_back(id);}
   if(screen){
    if(world)throw std::runtime_error("Native Teleport mixed screen/world source selection not reconstructed");
@@ -89,7 +89,7 @@ bool ScriptRuntime::actorMotionActionImpl(lua_State*L,int mode,std::string&error
    for(const auto* k:{"DestinationIsScreenRelative","UseCurrentLocation","KeepRelativeOffsets","ShiftThingsByOffset"})if(motionFlag(args,k))throw std::runtime_error(std::string("Uncovered native screen Teleport branch: ")+k);
    float x=motionNumber(args,"OffsetX"),y=motionNumber(args,"OffsetY"),sumX=0,sumY=0;size_t count=0;
    for(const auto id:ids("DestinationId","DestinationIds")){const auto* body=findObjectSnapshot(L,id);if(!body||!body->active||!body->alive)continue;
-    if(!body->screenSpace)throw std::runtime_error("Native screen Teleport toward world Thing not reconstructed");
+    if(body->backend!=ObjectBackend::Screen)throw std::runtime_error("Native screen Teleport toward world Thing not reconstructed");
     const auto* s=screenAnimations_.thing(id);if(!s||s->dead||!s->body)continue;sumX+=s->body->x;sumY+=s->body->y;++count;}
    // runWithDestination VA18025f0e7..0f5: misspelled original key is intentional.
    if(!count&&motionFlag(args,"OnlyIfDestinationExits")){error.clear();return true;}
@@ -101,7 +101,7 @@ bool ScriptRuntime::actorMotionActionImpl(lua_State*L,int mode,std::string&error
  }
  // Move takes the Obstacle::MoveTo screen branch; other modes still fail.
  {bool screen=false;if(mode==2){if(!screenMoveImpl(args,screen,error))return false;if(screen){error.clear();return true;}}
-  else for(const char*k:{"Id","Ids"})if(const auto*p=args.get(k)){const auto check=[&](const hades::SourceValue&v){const auto*o=findObjectSnapshot(L,int32_t(v.number()));if(o&&o->screenSpace)throw std::runtime_error("Native screen Thing motion action not reconstructed");};if(std::string(k)=="Id")check(*p);else for(const auto&v:p->array())check(v);}}
+  else for(const char*k:{"Id","Ids"})if(const auto*p=args.get(k)){const auto check=[&](const hades::SourceValue&v){const auto*o=findObjectSnapshot(L,int32_t(v.number()));if(o&&o->backend==ObjectBackend::Screen)throw std::runtime_error("Native screen Thing motion action not reconstructed");};if(std::string(k)=="Id")check(*p);else for(const auto&v:p->array())check(v);}}
  const auto select=[&](const char*single,const char*plural){std::vector<int32_t>out;const auto add=[&](const hades::SourceValue&v){const int32_t id=motionId(v);const auto*a=actorWorld_.actor(id);if(a&&a->registered&&a->object)out.push_back(id);};if(const auto*p=args.get(single))add(*p);if(const auto*p=args.get(plural))for(const auto&v:p->array())add(v);std::sort(out.begin(),out.end());out.erase(std::unique(out.begin(),out.end()),out.end());return out;};
  auto sources=select("Id","Ids");const auto targets=select("DestinationId","DestinationIds");
  if(mode==1){const float distance=motionNumber(args,"Distance"),duration=motionNumber(args,"Duration");if(duration<0)throw std::runtime_error("Negative native Z transition duration");for(auto id:sources){auto*a=actorWorld_.actor(id);if(duration==0){if(!shiftActorZ(id,distance,error))return false;}else{hades::ActorZTransition z;z.ownerId=id;z.lifetime=a->entityHandle;hades::BodyTransitionOptions options;options.duration=duration;bool changed=false;if(!z.transition.adjust(a->object->z+distance,a->object->z,options,changed,error))return false;actorMotion_.heights[z.lifetime]=std::move(z);}}error.clear();return true;}

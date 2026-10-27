@@ -31,6 +31,7 @@ struct ObjectState {
     ObjectAnimationSet animationSet;
     ObjectAnimationArgs worldAnimationArgs;
     ObjectDestroy destroy;
+    ObjectMembership member;
     ObjectLocation location;
     ObjectFractionChanged fractionChanged;
     ObjectScreenHooks screen;
@@ -115,7 +116,7 @@ std::vector<std::string> scriptNames(lua_State* state) {
 }
 ObjectSnapshot& active(ObjectState& state, int32_t id) {
     const auto at = state.objects.find(id);
-    if (at == state.objects.end() || !at->second.active || !at->second.alive) throw std::runtime_error("Object ID is not active: " + std::to_string(id));
+    if (at == state.objects.end() || (state.member?!state.member(id):(!at->second.active||!at->second.alive))) throw std::runtime_error("Object ID is not active: " + std::to_string(id));
     return at->second;
 }
 std::vector<int32_t> targets(lua_State* state, ObjectState& registry, bool destination = false) {
@@ -129,6 +130,10 @@ std::vector<int32_t> targets(lua_State* state, ObjectState& registry, bool desti
             (object.groups.empty()?object.group==name:std::find(object.groups.begin(),object.groups.end(),name)!=object.groups.end()))result.push_back(id);
     }
     std::sort(result.begin(), result.end()); result.erase(std::unique(result.begin(), result.end()), result.end());
+    // World.GetActiveMapThings314740..3147a1 resolves IDs in the actual
+    // manager map and skips absent owners. Retained disposal snapshots are
+    // diagnostic state, not action targets (e.g. a finished dialogue arrow).
+    std::erase_if(result,[&](int32_t id){const auto at=registry.objects.find(id);return at==registry.objects.end()||(registry.member?!registry.member(id):(!at->second.active||!at->second.alive));});
     return result;
 }
 void requireSupportedFields(lua_State* state, const std::set<std::string>& allowed) {
@@ -234,7 +239,7 @@ int destroy(lua_State* state) {
         // ScriptAction.Execute251910 Destroy branch selects GetActiveMapThings before virtual Destroy;
         // portable tombstones must not be mistaken for live manager entries.
         if (at != registry.objects.end() && at->second.active && at->second.entityHandle) {
-            const auto& handler=at->second.screenSpace?registry.screen.destroy:registry.destroy;
+            const auto& handler=at->second.backend==ObjectBackend::Screen?registry.screen.destroy:registry.destroy;
             if(!handler||!at->second.entityHandle)throw std::runtime_error("Destroy requires actual Thing lifecycle provider");
             std::string error;if(!handler(id,noSound,error))throw std::runtime_error(error);
         }
@@ -341,7 +346,7 @@ int flipHorizontal(lua_State* state) {
     // XOR byte+0x69, invalidate owner's graphics, refresh body geometry.
     // Dirty state is retained; live render/physics consumers remain unfinished.
     for(const auto id:targets(state,registry)){auto& object=active(registry,id);object.flipHorizontal=!object.flipHorizontal;object.graphicsDirty=true;object.geometryDirty=true;
-        if(registry.geometryChanged&&!object.screenSpace){std::string detail;if(!registry.geometryChanged(id,detail))throw std::runtime_error(detail);}}
+        if(registry.geometryChanged&&object.backend!=ObjectBackend::Screen){std::string detail;if(!registry.geometryChanged(id,detail))throw std::runtime_error(detail);}}
     return 0;
 }
 int getLocation(lua_State* state) {
@@ -360,7 +365,7 @@ int getLocation(lua_State* state) {
         const auto& object = at->second;
         if (inactive ? !object.fromMap : !object.active) continue;
         float ox=object.x,oy=object.y;
-        if((object.screenSpace?registry.screen.location:registry.location)&&object.entityHandle){std::string detail;if(!(object.screenSpace?registry.screen.location:registry.location)(id,ox,oy,detail))throw std::runtime_error(detail);}
+        if((object.backend==ObjectBackend::Screen?registry.screen.location:registry.location)&&object.entityHandle){std::string detail;if(!(object.backend==ObjectBackend::Screen?registry.screen.location:registry.location)(id,ox,oy,detail))throw std::runtime_error(detail);}
         x += ox; y += oy; ++count;
     }
     // Native GetLocation returns a genuine empty table when no targets resolve.
@@ -394,11 +399,11 @@ int setAnimation(lua_State* state) {
     bool extended=false;for(const char* key:{"FrameTarget","Instant","Color","PlaySpeed","StartFrameFraction","Scale","Duration","MinDuration","MaxDuration","OffsetX","OffsetY","SoundId","SuppressSounds","SuppressSoundsIfInvisible"})if(has(state,key))extended=true;
     for (int32_t id : targets(state,registry,true)){
         auto& object=active(registry,id);
-        if(extended&&object.screenSpace){
+        if(extended&&object.backend==ObjectBackend::Screen){
             if(!registry.screen.animationArgs||!object.entityHandle)throw std::runtime_error("SetAnimation optional arguments require the screen animation consumer");
             std::string error;if(!registry.screen.animationArgs(id,animation,state,error))throw std::runtime_error(error);continue;
         }
-        const auto& handler=object.screenSpace?registry.screen.animation:registry.animationSet;
+        const auto& handler=object.backend==ObjectBackend::Screen?registry.screen.animation:registry.animationSet;
         if(handler&&object.entityHandle){std::string error;if(!handler(id,animation,error))throw std::runtime_error(error);
             if(extended){if(!registry.worldAnimationArgs)throw std::runtime_error("SetAnimation optional arguments require the world animation consumer");if(!registry.worldAnimationArgs(id,animation,state,error))throw std::runtime_error(error);}}
         else{if(extended)throw std::runtime_error("SetAnimation optional arguments on metadata-only Thing: "+animation);applyAnimation(registry,object,animation);}
@@ -413,12 +418,12 @@ template<bool Scale> int setFraction(lua_State* state) {
     const float fraction = number(state,"Fraction");
     if (fraction < 0 || (!Scale && fraction > 1)) throw std::runtime_error("Object transform Fraction outside supported range");
     for (int32_t id : targets(state,registry)) { auto& object = active(registry,id);
-        const auto& handler=object.screenSpace?registry.screen.fraction:registry.fractionChanged;
+        const auto& handler=object.backend==ObjectBackend::Screen?registry.screen.fraction:registry.fractionChanged;
         if(handler&&object.entityHandle){std::string detail;if(!handler(id,Scale,fraction,options,detail))throw std::runtime_error(detail);continue;}
         if(options.duration!=0||options.easeIn!=0||options.easeOut!=0)throw std::runtime_error("Timed object transform requires actual Body component");
         if constexpr (Scale){object.scaleFraction=fraction;object.geometryDirty=true;}
         else object.alpha=fraction;object.graphicsDirty=true;
-        if constexpr(Scale)if(registry.geometryChanged&&!object.screenSpace){std::string detail;if(!registry.geometryChanged(id,detail))throw std::runtime_error(detail);} }
+        if constexpr(Scale)if(registry.geometryChanged&&object.backend!=ObjectBackend::Screen){std::string detail;if(!registry.geometryChanged(id,detail))throw std::runtime_error(detail);} }
     return 0;
 }
 template<int (*Function)(lua_State*)> int guarded(lua_State* state) {
@@ -571,3 +576,5 @@ bool setObjectAnimationMetadata(lua_State* L,int32_t id,const std::string& name,
 void setObjectDestroy(lua_State* L,ObjectDestroy handler){if(auto* r=lookup(L))r->destroy=std::move(handler);}
 
 void setObjectScreenHooks(lua_State*L,ObjectScreenHooks hooks){if(auto*r=lookup(L))r->screen=std::move(hooks);}
+
+void setObjectMembership(lua_State* state,ObjectMembership member){auto* registry=lookup(state);if(!registry)throw std::runtime_error("Object membership requires registered runtime");registry->member=std::move(member);}

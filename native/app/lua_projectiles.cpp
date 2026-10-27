@@ -153,7 +153,7 @@ bool ScriptRuntime::projectileEffectOwner(int32_t id,hades::EffectOwnerState& st
     // The mapping is released synchronously inside the projectile's Thing.Dispose consumer
     // (body still valid there), so a mapped projectile is the live owner.
     if(!p||!p->bodyPending){error="Effect owner requires actual initialized projectile body";return false;}
-    state=hades::EffectOwnerState{};state.lifetime=p->request.lifetimeHandle;
+    state=hades::EffectOwnerState{};state.lifetime=p->request.lifetimeHandle;state.screenSpace=p->body.screenSpace;
     state.group=p->body.group;
     if(!projectileWorld_.projectileLocation(*p,state.x,state.y,error)||!projectileWorld_.projectileZ(*p,state.z,error))return false;
     state.scale=p->body.scale*p->body.scaleFraction;state.angle=p->body.angle;state.baseColor=p->baseColor;state.baseHsv=std::array<float,4>{p->hsv[0],p->hsv[1],p->hsv[2],0};

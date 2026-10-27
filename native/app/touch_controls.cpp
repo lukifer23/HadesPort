@@ -4,25 +4,46 @@
 #include <iterator>
 
 namespace hades {
+namespace {
+struct ActionDefinition {const char* control;const char* label;float degrees,distanceMm,radiusMm;};
+constexpr ActionDefinition actionDefinitions[]{
+    {"Attack2","ATTACK",0,0,8.5f},{"Rush","DASH",185,20,7.5f},{"Attack3","SPECIAL",130,20,6.5f},
+    {"Attack1","CAST",80,20,6.5f},{"Use","USE",152,37,6.f},{"Assist","ASSIST",121,37,5.5f},{"Shout","CALL",90,37,5.5f}
+};
+constexpr size_t useSlot=4;
+constexpr const char* continueControl="ContinueText";
+constexpr const char* continueLabel="NEXT";
+}
 void TouchControls::cancel(){owner_=editOwner_=-1;dx_=dy_=0;free_.clear();zoom_.reset();actionContacts_.clear();held_.fill(false);pressed_.fill(false);}
+void TouchControls::setContinueTextRequested(bool requested){
+    if(requested==continueTextRequested_)return;
+    // Never reinterpret a held Use/NEXT contact or a tap queued before the
+    // script changed its requested controls. Existing fingers must lift and
+    // press again; stale Move/Up events cannot reacquire cancelled ownership.
+    cancel();continueTextRequested_=requested;
+}
 std::array<TouchControls::ActionButton,TouchControls::ButtonCount> TouchControls::actionButtons()const{
     // Android touch layout: ATTACK anchored in the lower corner, the chained
     // actions (DASH/SPECIAL/CAST) on a tight inner ring and the occasional ones
     // (USE/ASSIST/CALL) on an outer ring; millimetres from display density.
     // Control names feed the original control map; the Unit/Arsenal owns what
     // each source control does with held input. User offsets apply on top.
-    const float k=scale_,ring=mm(20)*k,outer=mm(37)*k;
+    const float k=scale_;
     const float ax=leftHanded_?mm(19)*k:width_-mm(19)*k,ay=height_-mm(19)*k;
-    struct Slot{const char* control;const char* label;float degrees,distance,radius;};
-    const Slot slots[ButtonCount]{{"Attack2","ATTACK",0,0,8.5f},{"Rush","DASH",185,ring,7.5f},{"Attack3","SPECIAL",130,ring,6.5f},
-        {"Attack1","CAST",80,ring,6.5f},{"Use","USE",152,outer,6.f},{"Assist","ASSIST",121,outer,5.5f},{"Shout","CALL",90,outer,5.5f}};
     std::array<ActionButton,ButtonCount> out{};
-    for(size_t i=0;i<ButtonCount;++i){const auto& d=slots[i];const float r=d.degrees*0.017453292f,radius=mm(d.radius)*k;
-        float x=ax+(leftHanded_?-1.f:1.f)*std::cos(r)*d.distance,y=ay-std::sin(r)*d.distance;
+    static_assert(std::size(actionDefinitions)==ButtonCount);
+    for(size_t i=0;i<ButtonCount;++i){const auto& d=actionDefinitions[i];const float r=d.degrees*0.017453292f,radius=mm(d.radiusMm)*k,distance=mm(d.distanceMm)*k;
+        float x=ax+(leftHanded_?-1.f:1.f)*std::cos(r)*distance,y=ay-std::sin(r)*distance;
         x+=(leftHanded_?-1.f:1.f)*mm(layout_[2*i]);y+=mm(layout_[2*i+1]);
         x=std::clamp(x,radius,std::max(radius,width_-radius));y=std::clamp(y,radius,std::max(radius,height_-radius));
-        out[i]={d.control,d.label,x,y,radius,held_[i]};}
+        const bool next=continueTextRequested_&&i==useSlot;
+        out[i]={next?continueControl:d.control,next?continueLabel:d.label,x,y,radius,held_[i]};}
     return out;
+}
+bool TouchControls::controlLabel(const std::string& control,std::string& label)const{
+    if(continueTextRequested_&&control==continueControl){label=continueLabel;return true;}
+    for(const auto& definition:actionDefinitions)if(control==definition.control){label=definition.label;return true;}
+    return false;
 }
 std::array<float,2> TouchControls::defaultStick()const{
     // Rest above the original HUD's bottom health/ammo band (drawn ~20% from
@@ -87,8 +108,10 @@ bool TouchControls::pointer(UiPointer phase,int id,float x,float y){
         // never resolves an edge press to the wrong neighbour.
         const auto buttons=actionButtons();size_t best=buttons.size();float bestDistance=0;
         for(size_t i=0;i<buttons.size();++i){const auto& b=buttons[i];const float d=std::hypot(x-b.x,y-b.y)/(b.radius+mm(2.5f));
+            if(continueTextRequested_&&i!=useSlot)continue;
             if(d<=1&&(best==buttons.size()||d<bestDistance)){best=i;bestDistance=d;}}
         if(best<buttons.size()){actionContacts_[id]=best;pressed_[best]=held_[best]=true;return true;}
+        if(continueTextRequested_)return false; // no movement/pinch behind dialogue
         const bool movementSide=leftHanded_?x>width_*.55f:x<width_*.45f;
         const bool eligible=floating_?(movementSide&&y>height_*.45f):std::hypot(x-visualX_,y-visualY_)<radius*1.65f;
         if(owner_<0&&eligible){

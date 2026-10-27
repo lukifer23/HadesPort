@@ -95,7 +95,7 @@ bool ScriptRuntime::disposeThingStage(const hades::ActorDisposalEvent& event,std
         switch(event.stage){
         case Stage::AttachedAnimationsPreDispose:{
             hades::EffectOwnerState owner;
-            owner.lifetime=event.lifetime;owner.scale=actor->object->scale*actor->object->scaleFraction;owner.angle=actor->object->angle;
+            owner.lifetime=event.lifetime;owner.screenSpace=actor->object->screenSpace;owner.scale=actor->object->scale*actor->object->scaleFraction;owner.angle=actor->object->angle;
             owner.baseColor=actor->baseColorBytes;owner.baseHsv=std::array<float,4>{actor->hsv[0],actor->hsv[1],actor->hsv[2],0};
             // Surviving attached FX keep drawing in the retired Thing's group
             // (effectOwner snapshots it for live owners). Velocity stays absent:

@@ -6,6 +6,10 @@
 #include "body_transition.hpp"
 struct lua_State;
 
+// Portable component ownership is independent of native Thing.UseScreenLocation.
+// DrawScreenRelative changes rendering coordinates without migrating managers.
+enum class ObjectBackend : uint8_t { Actor, Screen };
+
 struct ObjectSnapshot {
     int32_t id = 0;
     std::string name, animation, animationPath, group;
@@ -22,6 +26,7 @@ struct ObjectSnapshot {
     bool flipHorizontal = false, graphicsDirty = false, geometryDirty = false;
     float animationScale = 1, animationOffsetX = 0, animationOffsetY = 0;
     uint32_t frame = 1, numFrames = 1;
+    ObjectBackend backend=ObjectBackend::Actor;
 };
 struct ObjectDefinition {
     std::string name, graphic;
@@ -79,6 +84,9 @@ void setObjectWorldAnimationArgs(lua_State*,ObjectAnimationArgs);
 
 using ObjectDestroy=std::function<bool(int32_t,bool,std::string&)>;
 void setObjectDestroy(lua_State*,ObjectDestroy);
+// Actual manager membership, separate from retained snapshots and render flags.
+using ObjectMembership=std::function<bool(int32_t)>;
+void setObjectMembership(lua_State*,ObjectMembership);
 
 // Separate native GameUI body consumers: screen Things never enter world physics.
 struct ObjectScreenHooks {

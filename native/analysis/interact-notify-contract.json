@@ -1,0 +1,63 @@
+{
+  "schema": "hades-interact-notify-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "evidence_kind": "Matching PE/PDB instruction evidence and retained REA pseudocode; no original-engine execution.",
+  "sources": [
+    {
+      "path": ".local/reports/gui-interact/check-interact-static-2026-10-26.json",
+      "sha256": "c9de00c8f0a1b6b7cb1acfec36795ece51013c34ff25a130ef7695e039108fda"
+    },
+    {
+      "path": ".local/reports/gui-interact/dec-0x18027de30.json",
+      "sha256": "aa82f27c2fea092caafd0b475e87a56c171dd03e1dc2c3cd110f25cb339da43d"
+    },
+    {
+      "path": ".local/reports/gui-interact/script-ids-static-2026-10-26.json",
+      "sha256": "fea9efeaa0b4ae130425400fc304273411b608d73af178c59634e8b06265d339"
+    },
+    {
+      "path": ".local/reports/gui-interact/script-names-static-2026-10-26.json",
+      "sha256": "dd07b8359549fc35742c0df0869d04b98cee76927383734985e6dee2b302144d"
+    },
+    {
+      "path": ".local/reports/gui-interact/int-list-static-2026-10-26.json",
+      "sha256": "4508a2aa33e8a3a919232bed8334efd0a42f2ec5ab0149b503e488f8ccbcf8c0"
+    },
+    {
+      "path": ".local/reports/gui-interact/active-map-things-static-2026-10-26.json",
+      "sha256": "e16f7d3081af425572a37980d97032285da1eaa068b97ba415f7d09a81f7a897"
+    },
+    {
+      "path": ".local/reports/review-2026-10-26/hades-script-execute-audit.json",
+      "sha256": "21b05d7e3dca59cd9b8ad4945d49fabeba05242729cf297fa1c2aad3455c0b12"
+    }
+  ],
+  "action": {
+    "id": 257,
+    "execute_selector": 162,
+    "dispatch_va": "0x1802538b2",
+    "registration": "Copy ScriptArgs, register CheckInteract0x18027de30 via shared event path0x18025344e. Timeout Float defaults to FLT_MAX; native World.AddScriptUpdateGameEvent0x1803158c0 handles lifecycle.",
+    "selectors": "ScriptArgs.Ids2818f0 and Names2817f0 prefer plural field when supplied, cache nonempty parsed lists, and resolve current world objects each check."
+  },
+  "check": {
+    "va": "0x18027de30",
+    "editing_mode": "At0x18027de68..73 EditingMode returns false.",
+    "selection": "World.GetActiveMapThings3146c0 forms a pointer hash set from current map ID lookups and named-group members. Numeric lookup does not inspect life/active flags beyond map membership.",
+    "predicate": "Owner Interact pointer at Thing+0x130 must exist, and signed World.Frame(+0xc) <= signed32(Interact.lastUseFrame(+0x8)+1). Match does not require hasBeenUsed or OnUsed.",
+    "result": "First qualifying owner in native pointer-hash traversal: fresh global NotifyResultsTable, Notify key receives signed owner ID (Thing+0x6c), then true. Otherwise false."
+  },
+  "implementation": [
+    "native/app/lua_interact_notify.cpp",
+    "native/app/lua_collision_notify.cpp"
+  ],
+  "boundaries": [
+    "Numeric scalar/dense sequential ID-array forms only; string/named/sparse IntList and Name/Names selection fail explicitly.",
+    "Multiple simultaneous qualifying owners fail explicitly because native pointer-hash selection order is not reconstructed.",
+    "Screen cursor hit-testing and Interact.Use remain independent actual input consumers; this event does not fabricate OnUsed, click, or original Lua callback.",
+    "No host replay or device execution verification in this contract."
+  ]
+}

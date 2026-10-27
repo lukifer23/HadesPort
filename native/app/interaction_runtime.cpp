@@ -128,6 +128,36 @@ bool InteractionWorld::update(const InteractionProviders& p,std::string& error){
 }
 bool InteractionWorld::setEnabled(InteractionKey key,bool enabled,std::string& error){auto it=records_.find(key);if(it==records_.end())return fail(error,"Unknown Interact lifetime");it->second->state.enabled=enabled;error.clear();return true;}
 bool InteractionWorld::replaceDefinition(InteractionKey key,const SourceValue& original,std::string& error){auto it=records_.find(key);if(it==records_.end())return fail(error,"Unknown Interact lifetime");SourceValue def;if(!resolveDefinition(original,def,error))return false;it->second->state.definition=std::move(def);it->second->state.dirty=true;error.clear();return true;}
+bool InteractionWorld::setProperty(InteractionKey key,const std::string& property,const PropertyInput& input,PropertyChange change,InteractionClock clock,std::string& error){
+    const auto existing=records_.find(key);
+    SourceValue definition=existing==records_.end()?compiledDefaults():existing->second->state.definition;
+    const auto* current=definition.get(property);
+    if(!current)return fail(error,"Unrecovered reflected Interact property: "+property);
+    // GetPropertyInfo<InteractDataDef>0x1800c7300 identifies the scalar types.
+    // SoundCue and SpawnType require their native typed handlers, not strings
+    // or an integer masquerading as the original enum mutation.
+    if(property=="SpawnType"||property=="UseSound"||property=="DisabledUseSound")
+        return fail(error,"Interact typed reflection not reconstructed: "+property);
+    PropertyPrimitive before;
+    if(const auto* value=std::get_if<bool>(&current->value))before=*value;
+    else if(const auto* value=std::get_if<std::string>(&current->value))before=*value;
+    else if(const auto* value=std::get_if<double>(&current->value)){
+        if(property=="NumUses"||property=="PlayerIndex")before=int32_t(*value);
+        else before=float(*value);
+    }else return fail(error,"Interact complex reflection not reconstructed: "+property);
+    PropertyPrimitive after;
+    if(mutatePrimitiveProperty(before,input,change,after,error)!=PropertyMutation::Applied)return false;
+    std::get<SourceValue::Object>(definition.value).at(property)=propertyPrimitiveToSource(after);
+    if(existing==records_.end()){
+        // SetInteractProperty2736ee..27373a creates the default component and
+        // AddUseable before reflection. In particular, writing NumUses or
+        // StartsUseable must not change the ctor-copied live counter/gate.
+        if(!add(key,SourceValue{SourceValue::Object{}},clock,error))return false;
+    }
+    auto& state=records_.at(key)->state;state.definition=std::move(definition);
+    state.dirty=true; // World dirty-owner insertion27375d..273770.
+    error.clear();return true;
+}
 bool InteractionWorld::isUseable(InteractionKey key,const InteractionOwnerFrame& owner,InteractionClock clock,bool& result,std::string& error)const{
     result=false;const auto it=records_.find(key);if(it==records_.end())return fail(error,"Unknown Interact lifetime");if(!validClock(clock))return fail(error,"Invalid actual Interact world clock");
     const auto& s=it->second->state;if(!s.enabled||s.remainingUses<=0){error.clear();return true;}

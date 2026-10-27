@@ -32,8 +32,11 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <cstdio>
+#include <stdexcept>
 extern "C" {
 #include <lua.h>
+#include <lauxlib.h>
 }
 
 namespace {
@@ -41,6 +44,83 @@ constexpr const char* tag="HadesLua";
 std::string interactText(const hades::SourceValue& def,const char* key){const auto* v=def.get(key);return v&&std::holds_alternative<std::string>(v->value)?v->text():std::string();}
 bool interactBool(const hades::SourceValue& def,const char* key){const auto* v=def.get(key);return v&&std::holds_alternative<bool>(v->value)&&v->boolean();}
 float interactNumber(const hades::SourceValue& def,const char* key){const auto* v=def.get(key);return v&&std::holds_alternative<double>(v->value)?float(v->number()):0.f;}
+
+// DestinationIds281ae0 / DestinationNames2819d0 feed the same current World
+// ID-map lookup as NotifyOnInteract. Keep unsupported IntList/name forms
+// explicit; the general object query helper adds life/active filters absent
+// from the native numeric lookup314740..3147a1.
+std::vector<int32_t> interactPropertyTargets(lua_State* L){
+    for(const auto* key:{"DestinationName","DestinationNames"}){
+        lua_getfield(L,1,key);const bool supplied=!lua_isnil(L,-1);lua_pop(L,1);
+        if(supplied)throw std::runtime_error("SetInteractProperty named/group selection not reconstructed");
+    }
+    std::vector<int32_t> ids;
+    const auto append=[&](int index){
+        if(lua_type(L,index)!=LUA_TNUMBER)throw std::runtime_error("SetInteractProperty nonnumeric IntList form not reconstructed");
+        const double value=std::trunc(lua_tonumber(L,index));
+        if(!std::isfinite(value)||value<INT32_MIN||value>INT32_MAX)throw std::runtime_error("SetInteractProperty ID outside signed32 domain");
+        ids.push_back(int32_t(value));
+    };
+    lua_getfield(L,1,"DestinationIds");
+    if(lua_isnil(L,-1)){lua_pop(L,1);lua_getfield(L,1,"DestinationId");}
+    if(lua_istable(L,-1)){
+        const int list=lua_absindex(L,-1);
+        for(int i=1;;++i){
+            if(i>100000)throw std::runtime_error("SetInteractProperty ID count bound");
+            lua_pushinteger(L,i);lua_gettable(L,list);
+            if(lua_isnil(L,-1)){lua_pop(L,1);break;}
+            append(-1);lua_pop(L,1);
+        }
+        lua_pushnil(L);
+        while(lua_next(L,list)){
+            if(lua_type(L,-2)!=LUA_TNUMBER||lua_tonumber(L,-2)<1||lua_tonumber(L,-2)>double(ids.size())||lua_tonumber(L,-2)!=std::trunc(lua_tonumber(L,-2)))
+                throw std::runtime_error("SetInteractProperty named/sparse IntList form not reconstructed");
+            lua_pop(L,1);
+        }
+    }else if(!lua_isnil(L,-1))append(-1);
+    lua_pop(L,1);std::sort(ids.begin(),ids.end());ids.erase(std::unique(ids.begin(),ids.end()),ids.end());return ids;
+}
+}
+
+int ScriptRuntime::setInteractPropertyAction(lua_State* L){
+    char message[2048]{};
+    try{
+        auto* self=runtime(L);
+        if(!self||!lua_istable(L,1))throw std::runtime_error("SetInteractProperty requires source argument table");
+        const auto ids=interactPropertyTargets(L);
+        const auto string=[&](const char* key,const char* fallback){
+            lua_getfield(L,1,key);
+            if(lua_isnil(L,-1)){lua_pop(L,1);return std::string(fallback);}
+            if(lua_type(L,-1)!=LUA_TSTRING)throw std::runtime_error(std::string("SetInteractProperty ")+key+" requires string");
+            size_t size=0;const auto* value=lua_tolstring(L,-1,&size);std::string result(value,size);lua_pop(L,1);
+            if(result.find('\0')!=std::string::npos)throw std::runtime_error("SetInteractProperty embedded NUL string not reconstructed");
+            return result;
+        };
+        const auto property=string("Property","");
+        const auto change=hades::parsePropertyChange(string("ValueChangeType","Absolute"));
+        std::string error;hades::SourceValue value;
+        lua_getfield(L,1,"Value");const bool read=hades::readSourceValue(L,-1,value,error);lua_pop(L,1);
+        if(!read)throw std::runtime_error(error);
+        hades::PropertyInput input;if(!hades::propertyInputFromSource(value,input,error))throw std::runtime_error(error);
+        for(const auto id:ids){
+            const auto* object=findObjectSnapshot(L,id);
+            if(!object||object->queryProxy||!object->entityHandle)continue;
+            if(object->backend==ObjectBackend::Screen){
+                const auto* screen=self->screenAnimations_.thing(id);
+                if(!screen||!screen->body||screen->body->entityHandle!=object->entityHandle)continue;
+                hades::InteractionSnapshot snapshot;
+                if(!self->interactions_.snapshot({id,object->entityHandle},snapshot,error))
+                    throw std::runtime_error("SetInteractProperty screen Interact creation requires actual screen geometry/lifecycle providers: "+object->name);
+            }else{
+                const auto* actor=self->actorWorld_.actor(id);
+                if(!actor||!actor->registered||actor->entityHandle!=object->entityHandle)continue;
+            }
+            if(!self->interactionGridReady_){self->interactions_.configureSparseGrid();self->interactionGridReady_=true;}
+            if(!self->interactions_.setProperty({id,object->entityHandle},property,input,change,{self->worldTime_,int32_t(self->worldFrame_)},error))throw std::runtime_error(error);
+        }
+        return 0;
+    }catch(const std::exception& error){std::snprintf(message,sizeof(message),"%s",error.what());}
+    return luaL_error(L,"%s",message);
 }
 
 bool ScriptRuntime::sourceTokenMatches(const std::string& token,const char* sourceName,int32_t actorId,std::string& error){
