@@ -64,8 +64,10 @@ bool ScriptRuntime::projectileOwnerMarker(int32_t owner,const std::string& marke
     try{
         const auto* a=actorWorld_.actor(owner);if(!a||!a->registered||!a->object)throw std::runtime_error("Projectile owner marker owner unavailable");
         if(!a->animation.active()){
-            if(a->primaryEffectAnimation||a->primaryAnimationLifetime)throw std::runtime_error("Projectile owner marker for non-Book primary not reconstructed");
-            return actorWorld_.location(owner,x,y,error);
+            // Same pAnim vslot0xd8 dispatch as effectMarker: base Animation::
+            // GetMarkerLocation299b70 for Animation/Constant/Dataless primaries,
+            // owner Thing::GetLocation when pAnim is null.
+            std::array<float,3> r{};if(!effectMarker(owner,marker,r,error))return false;x=r[0];y=r[1];return true;
         }
         const auto clip=a->animation.clipIndex();
         if(markers_.hasMarker(clip,marker)){std::array<float,3> r{};if(!effectMarker(owner,marker,r,error))return false;x=r[0];y=r[1];return true;}

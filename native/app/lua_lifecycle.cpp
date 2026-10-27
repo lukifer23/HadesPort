@@ -97,6 +97,10 @@ bool ScriptRuntime::disposeThingStage(const hades::ActorDisposalEvent& event,std
             hades::EffectOwnerState owner;
             owner.lifetime=event.lifetime;owner.scale=actor->object->scale*actor->object->scaleFraction;owner.angle=actor->object->angle;
             owner.baseColor=actor->baseColorBytes;owner.baseHsv=std::array<float,4>{actor->hsv[0],actor->hsv[1],actor->hsv[2],0};
+            // Surviving attached FX keep drawing in the retired Thing's group
+            // (effectOwner snapshots it for live owners). Velocity stays absent:
+            // 29a4ef clears the attachment, so no owner physics remains.
+            owner.group=actor->object->group;
             if(!actorWorld_.location(event.id,owner.x,owner.y,detail)||!actorWorld_.zLocation(event.id,owner.z,detail))return false;
             owner.hasPrimaryAnimation=event.primaryAnimationLifetime||event.primaryEffectAnimation;owner.isUnit=bool(actor->arsenal);
             return actionEffects_.preDisposeOwner(event.id,owner,detail);
