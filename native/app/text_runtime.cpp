@@ -412,6 +412,16 @@ int modifySubtitles(lua_State*state){auto*registry=static_cast<TextState*>(lua_t
     if(!lua_istable(state,1))throw std::runtime_error("ModifySubtitles requires argument table");
     registry->suppressLyrics=hades::luaArgumentBool(state,1,"SuppressLyrics");return 0;}
 int guardedModifySubtitles(lua_State*s){char m[1024]{};try{return modifySubtitles(s);}catch(const std::exception&e){std::snprintf(m,sizeof m,"%s",e.what());}return luaL_error(s,"%s",m);}
+// ExecuteBool action312, selector18 -> 0x1802552c5..0x1802552e9:
+// String(args,"Text","") -> GetTextData(0x1800b6970) != nullptr. This
+// deliberately tests record presence, not DisplayName's length/content.
+int hasDisplayName(lua_State*state){
+    if(!lua_istable(state,1))throw std::runtime_error("HasDisplayName requires argument table");
+    auto*registry=static_cast<TextState*>(lua_touserdata(state,lua_upvalueindex(1)));
+    if(!registry||!registry->fonts)throw std::runtime_error("HasDisplayName requires original TextData catalog");
+    const bool present=registry->fonts->hasTextData(argText(state,1,"Text"));lua_pushboolean(state,present);return 1;
+}
+int guardedHasDisplayName(lua_State*s){char m[1024]{};try{return hasDisplayName(s);}catch(const std::exception&e){std::snprintf(m,sizeof m,"%s",e.what());}return luaL_error(s,"%s",m);}
 int finalize(lua_State* state) {static_cast<TextState*>(lua_touserdata(state,1))->~TextState();return 0;}
 }
 void registerTextRuntime(lua_State* state) {
@@ -425,6 +435,7 @@ void registerTextRuntime(lua_State* state) {
     lua_pushvalue(state,owner);lua_pushcclosure(state,guardedModify,1);lua_setglobal(state,"ModifyTextBox");
     lua_pushvalue(state,owner);lua_pushcclosure(state,guardedDestroy,1);lua_setglobal(state,"DestroyTextBox");
     lua_pushvalue(state,owner);lua_pushcclosure(state,guardedModifySubtitles,1);lua_setglobal(state,"ModifySubtitles");
+    lua_pushvalue(state,owner);lua_pushcclosure(state,guardedHasDisplayName,1);lua_setglobal(state,"HasDisplayName");
     lua_settop(state,top);
 }
 void configureTextControlLabels(lua_State*state,TextControlLabelProvider provider){auto*registry=lookup(state);if(!registry)throw std::runtime_error("Text input-label registry unavailable");registry->controlLabel=std::move(provider);for(auto&[id,body]:registry->bodies)body.dirty=true;}

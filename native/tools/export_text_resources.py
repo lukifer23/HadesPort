@@ -19,22 +19,26 @@ def load_text_records(content):
  # TextData fields inherit independently; an explicit empty string overrides
  # its parent. Keep duplicate source rows until each field is resolved, so
  # differing descriptions cannot discard an otherwise identical DisplayName.
- records={};sources=[]
+ records={};text_data_ids={};sources=[]
  def admit(node,path):
   if isinstance(node,dict):
-   if isinstance(node.get('Id'),str)and any(isinstance(node.get(k),str)for k in('DisplayName','Description','AdditionalDescription','InheritFrom')):
-    records.setdefault(node['Id'],[]).append({'source':str(path.resolve()),'record':node})
+   # GetTextData presence is independent of field readability/ambiguity.
+   # TextData's constructor supplies empty strings for absent fields; retain
+   # all records, including Id-only and unsupported numeric field carriers.
+   if isinstance(node.get('Id'),str):
+    row={'source':str(path.resolve()),'record':node}
+    text_data_ids.setdefault(node['Id'],[]).append(row)
+    records.setdefault(node['Id'],[]).append(row)
    for value in node.values():admit(value,path)
   elif isinstance(node,list):
    for value in node:admit(value,path)
  for path in sorted((content/'Game/Text/en').glob('*.sjson')):
-  if path.name=='MacroText.sjson':continue
   admit(TextSjson(path.read_text()).value(),path);sources.append(identity(path))
  aliases=content/'Game/Text/Aliases.sjson';alias_data=TextSjson(aliases.read_text()).value();sources.append(identity(aliases))
  en=[block for block in alias_data['HelpTexts'] if block.get('lang')=='en']
  if len(en)!=1:raise ValueError('Original English alias block identity')
  admit(en[0]['Texts'],aliases)
- ambiguous=object();cache={};field_sources={}
+ ambiguous=object();unsupported=object();cache={};field_sources={}
  def field(key,name,stack=()):
   if key in stack or len(stack)>32:raise ValueError('Original text InheritFrom cycle: '+key)
   if (key,name)in cache:return cache[key,name]
@@ -43,25 +47,26 @@ def load_text_records(content):
   for row in records[key]:
    own=row['record']
    if name in own:
-    if not isinstance(own[name],str):raise ValueError('Original text field requires string: '+key+'.'+name)
-    value=own[name];origins.append({'source':row['source'],'id':key,'field':name})
+    value=own[name]if isinstance(own[name],str)else unsupported
+    origins.append({'source':row['source'],'id':key,'field':name})
    elif own.get('InheritFrom')not in(None,'null',''):
     parent=own['InheritFrom'];value=field(parent,name,stack+(key,));origins.extend(field_sources[parent,name])
-   else:value=None if name=='DisplayName' else ''
+   else:value='' # TextData ctor 0x1800e95ec..0x1800e9627: empty string defaults.
    values.append(value)
-  value=values[0]if all(v==values[0]for v in values)else ambiguous
+  value=unsupported if any(v is unsupported for v in values)else(values[0]if all(v==values[0]for v in values)else ambiguous)
   cache[key,name]=value;field_sources[key,name]=origins;return value
- localization={};descriptions={};excluded={name:[]for name in('DisplayName','Description','AdditionalDescription')}
+ localization={};descriptions={};excluded={name:[]for name in('DisplayName','Description','AdditionalDescription')};unknown={name:[]for name in excluded}
  for key in sorted(records):
   resolved={name:field(key,name)for name in excluded}
   for name,value in resolved.items():
    if value is ambiguous:excluded[name].append(key)
+   elif value is unsupported:unknown[name].append(key)
   if isinstance(resolved['DisplayName'],str):localization[key]=resolved['DisplayName']
   # GameDataManager::GetDescription 0x1800b6a30 concatenates TextData+0x70
   # (Description) and +0x88 (AdditionalDescription), without substitution.
-  if all(resolved[name]is not ambiguous for name in('Description','AdditionalDescription')):
+  if all(isinstance(resolved[name],str)for name in('Description','AdditionalDescription')):
    descriptions[key]=resolved['Description']+resolved['AdditionalDescription']
- return localization,descriptions,records,excluded,field_sources,sources
+ return localization,descriptions,records,excluded,field_sources,sources,text_data_ids,unknown
 
 def export(content,out):
  if out.exists():raise ValueError('Fresh output required')
@@ -102,7 +107,7 @@ def export(content,out):
   metrics=out/'text-fonts'/f'{name}.bin';raw=bytearray(b'UFN1'+struct.pack('<IifI',len(meta['glyphs']),meta['line_height'],meta['spacing'],meta['default_codepoint']))
   for g in meta['glyphs']:raw+=struct.pack('<I8i3f',g['codepoint'],*g['atlas_rect'],*g['cropping'],*g['kerning'])
   metrics.write_bytes(raw);fonts[name]={'NativeSize':meta['font_size'],'RemapSize':sizes[name],'Image':f'text-fonts/{name}.rgba','Metrics':f'text-fonts/{name}.bin'};details[name]=meta
- localization,descriptions,records,excluded,field_sources,text_sources=load_text_records(content);sources.extend(text_sources)
+ localization,descriptions,records,excluded,field_sources,text_sources,text_data_ids,unknown=load_text_records(content);sources.extend(text_sources)
  # Original IconData is the bounded source class used by UIScripts to construct
  # Icons. Admit the complete literal texture class, including dynamically chosen
  # keys; collect literal markup references as evidence, not a name allowlist.
@@ -155,9 +160,9 @@ def export(content,out):
   symbol_rejections[texture]='Original IconData texture absent from GUI package manifest'
  gui=content/'Game/GUI/InGameUI.sjson';ui=Sjson(gui.read_text()).value()['InGameUI'];sources.append(identity(gui))
  style={**ui['SubtitlesA'],**ui['SubtitlesB']};style.pop('InheritFrom',None);style['X']=ui['SubtitlesBBacking']['X'];style['Y']=ui['SubtitlesBBacking']['Y'];style['AX']=ui['SubtitlesABacking']['X'];style['AY']=ui['SubtitlesABacking']['Y']
- catalog={'Schema':'HadesOriginalText1','Fonts':fonts,'Localization':localization,'Descriptions':descriptions,'SubtitleStyle':style,'Symbols':symbols}
+ catalog={'Schema':'HadesOriginalText1','Fonts':fonts,'Localization':localization,'Descriptions':descriptions,'TextDataIds':{k:True for k in sorted(text_data_ids)},'SubtitleStyle':style,'Symbols':symbols}
  lua=out/'text-fonts.lua';lua.write_text('return '+literal(catalog)+'\n')
- report={'schema':'hades-original-text-v1','target_sha256':'d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254','catalog':identity(lua),'files':[identity(p)for p in sorted((out/'text-fonts').iterdir())],'sources':sources,'fonts':details,'font_class':{'policy':'Script-literal *Font names plus one exact native emphasis-map target per authored name, with original remap entries and English XNBs; no recursive remapping','references':{n:v[:8] for n,v in sorted(font_refs.items())},'emphasis_contract':emphasis_identity,'emphasis_edges':font_edges,'rejections':font_rejections},'ambiguous_localization_keys_excluded':excluded['DisplayName'],'ambiguous_text_fields_excluded':excluded,'localization_count':len(localization),'description_count':len(descriptions),'localization_records':{k:records[k]for k in localization},'description_records':{k:{'records':records[k],'fields':{name:field_sources[k,name]for name in('Description','AdditionalDescription')}}for k in descriptions},'symbols':symbol_details,'symbol_class':{'source':str(icon_path.resolve()),'record_count':len(icons),'literal_textures':len(texture_icons),'policy':'All original IconData literal TexturePath records, independent of selected room or icon key'},'symbol_rejections':symbol_rejections,'subtitle_style':style,'limits':['Original glyphs/metrics and English DisplayName/Description/AdditionalDescription strings preserved; macros and rich text substitutions require actual format consumers.','Script-referenced original fonts admitted (font_class); no system font substitution.','Text fields inherit independently, parent-then-own including explicit empty strings; ambiguous fields are excluded independently; only English.','Symbol textures derive from the complete original IconData literal texture class; absent GUI-package resources and unsupported transform flags are reported and remain unavailable.','Speech text and lifetime come from original audio SpeechPresentation events; no copied subtitle timing.']}
+ report={'schema':'hades-original-text-v1','target_sha256':'d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254','catalog':identity(lua),'files':[identity(p)for p in sorted((out/'text-fonts').iterdir())],'sources':sources,'fonts':details,'font_class':{'policy':'Script-literal *Font names plus one exact native emphasis-map target per authored name, with original remap entries and English XNBs; no recursive remapping','references':{n:v[:8] for n,v in sorted(font_refs.items())},'emphasis_contract':emphasis_identity,'emphasis_edges':font_edges,'rejections':font_rejections},'ambiguous_localization_keys_excluded':excluded['DisplayName'],'ambiguous_text_fields_excluded':excluded,'unsupported_text_fields_excluded':unknown,'localization_count':len(localization),'description_count':len(descriptions),'text_data_id_count':len(text_data_ids),'text_data_id_records':text_data_ids,'localization_records':{k:records[k]for k in localization},'description_records':{k:{'records':records[k],'fields':{name:field_sources[k,name]for name in('Description','AdditionalDescription')}}for k in descriptions},'symbols':symbol_details,'symbol_class':{'source':str(icon_path.resolve()),'record_count':len(icons),'literal_textures':len(texture_icons),'policy':'All original IconData literal TexturePath records, independent of selected room or icon key'},'symbol_rejections':symbol_rejections,'subtitle_style':style,'limits':['Original glyphs/metrics and English DisplayName/Description/AdditionalDescription strings preserved; macros and rich text substitutions require actual format consumers.','Script-referenced original fonts admitted (font_class); no system font substitution.','Text fields inherit independently, parent-then-own including explicit empty strings; ambiguous fields are excluded independently; only English.','TextDataIds preserves complete English source record membership independently of field admission, including MacroText, numeric DisplayName and ambiguous records.','Absent TextData string fields retain the native empty default; unsupported numeric fields remain explicit unknowns rather than fabricated strings.','Symbol textures derive from the complete original IconData literal texture class; absent GUI-package resources and unsupported transform flags are reported and remain unavailable.','Speech text and lifetime come from original audio SpeechPresentation events; no copied subtitle timing.']}
  (out/'manifest.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps({'fonts':len(fonts),'localized_keys':len(localization),'font_bytes':sum(x['bytes']for x in report['files']),'catalog_bytes':report['catalog']['bytes']}))
 if __name__=='__main__':
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--content',type=Path,required=True);p.add_argument('--output',type=Path,required=True);a=p.parse_args();export(a.content,a.output)

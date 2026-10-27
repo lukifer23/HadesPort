@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 namespace hades {
@@ -59,6 +60,7 @@ class TextFontBank {
  std::map<std::string,TextFont> fonts_;std::map<std::string,std::string> localized_;
  // Optional catalog table "Descriptions": TextData Description per Id.
  std::map<std::string,std::string> descriptions_;bool descriptionsExported_=false;
+ std::set<std::string> textDataIds_;bool textDataIdsExported_=false;
  std::map<std::string,TextSymbol> symbols_;
  SourceValue subtitleStyle_;
 public:
@@ -67,8 +69,12 @@ public:
  const std::map<std::string,TextFont>& fonts()const{return fonts_;}
  const SourceValue& subtitleStyle()const{return subtitleStyle_;}
  std::string resolve(const std::string&)const;
- // GameDataManager::GetTextData(key)->DisplayName, or nullptr when no record.
+ // Exported DisplayName, including native empty defaults. With TextDataIds,
+ // nullptr means no record; a known record with an unexported field fails.
  const std::string* displayName(const std::string&)const;
+ // HasDisplayName (ExecuteBool 0x1802552c5) tests GetTextData record presence,
+ // including records with empty/unadmitted DisplayName fields.
+ bool hasTextData(const std::string&)const;
  // GameDataManager::GetDescription 0x1800b6a30: TextData(key) found ->
  // Description (+0x70) followed by the record's +0x88 string; nullptr when no
  // record. Callers must fail when !descriptionsExported() (catalog lacks it).

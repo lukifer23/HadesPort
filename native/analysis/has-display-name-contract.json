@@ -1,0 +1,74 @@
+{
+  "schema": "hades-has-display-name-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "evidence_kind": "Matching PE/PDB static instruction and jump-table evidence; no original-engine execution.",
+  "sources": [
+    {
+      "path": ".local/reports/boon-text-2026-10-26/execute-bool.json",
+      "sha256": "e04a28c98bc003b4926cb8f4bbfd0c4e6decaf0c637c66dfa186930ba276ddf0"
+    },
+    {
+      "path": ".local/reports/boon-text-2026-10-26/lua-string.json",
+      "sha256": "a45afa95a3c85b933e7c7bf64710d81d231d07e12b0c20150ba31324cb004ae9"
+    },
+    {
+      "path": ".local/reports/boon-text-2026-10-26/get-text-data.json",
+      "sha256": "2669abb8d8ed69f060c0e522a28a54614265a19fdb484e187c90f63db89825ed"
+    },
+    {
+      "path": ".local/reports/boon-text-2026-10-26/read-text-data-language.json",
+      "sha256": "0e7d3d4db31f91cf8aabc383265cb336f413d2acf2a134e5310af3c0714bcf49"
+    },
+    {
+      "path": ".local/reports/boon-text-2026-10-26/read-text-data-files.json",
+      "sha256": "996475c08e707d058826ce0674f31cb5043f1d0ff49564b3ca965347a4dbb718"
+    },
+    {
+      "path": ".local/reports/boon-text-2026-10-26/text-data-ctor.json",
+      "sha256": "d26ae695663f6362153ef84b3570cd4aa73aed9f3e11e7768b3942040ab84712"
+    }
+  ],
+  "dispatch": {
+    "action_id": 312,
+    "execute_bool_va": "0x180254e10",
+    "selector_table_va": "0x1802555b8",
+    "selector_index": "312-81",
+    "selector": 18,
+    "jump_table_va": "0x180255548",
+    "case_va": "0x1802552c5",
+    "case_end_va": "0x1802552e9"
+  },
+  "arguments": {
+    "key": "Text",
+    "default": "empty string",
+    "string_helper_va": "0x1802482c0",
+    "conversion": "lua_isstring/lua_tolstring accepts actual strings and numeric carriers; absent/wrong types use default."
+  },
+  "return": {
+    "get_text_data_va": "0x1800b6970",
+    "behavior": "Return GetTextData(Text) != nullptr. No DisplayName field or string-length test occurs. Known records with empty, ambiguous or unadmitted DisplayName still return true.",
+    "lookup": "GetTextData immediately returns null for null/empty key; source byte-wise hash and strcmp-equivalent lookup are case-sensitive."
+  },
+  "representation": {
+    "catalog_field": "TextDataIds",
+    "policy": "All Id records from original English TextData files, including MacroText, and English aliases, independent of field admission/ambiguity. Numeric field carriers remain unsupported rather than guessed strings.",
+    "old_catalog": "HasDisplayName fails explicitly when complete membership is unavailable; no field-map inference.",
+    "loader": "ReadTextData0x1800b5690 enumerates sorted *.sjson language files (0xb5787..0xb57a7), calls the same per-file TextData loader at0xb5944. There is no MacroText filename exclusion.",
+    "field_defaults": "TextData ctor0x1800e95ec..0x1800e9627 initializes DisplayName+0x58, Description+0x70, AdditionalDescription+0x88 as empty strings. Absent fields export empty strings; ambiguous/unsupported fields remain explicit unknowns."
+  },
+  "implementation": [
+    "native/app/text_runtime.cpp",
+    "native/app/text_layout.hpp",
+    "native/app/text_layout.cpp",
+    "native/tools/export_text_resources.py"
+  ],
+  "verification_limits": [
+    "No runtime build/replay/device check in this static evidence record.",
+    "Existing English localization scope retained; no inference about other languages.",
+    "Numeric string-field conversion remains unrecovered; only record membership and other admitted fields are known for those rows."
+  ]
+}
