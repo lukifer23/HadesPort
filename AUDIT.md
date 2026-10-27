@@ -30,16 +30,17 @@ device evidence. They are not the active roadmap.
   death audio/subtitle resources, followed by `DeathArea/scene.bin` unavailable.
   The player cannot complete a normal death/House loop yet. Later faults may be
   cascades; preserve the first fault and diagnose each producer before patching.
-- Pending dialogue resources contain the required background, portraits, bubble,
+- At review intake, pending dialogue resources contained the required background, portraits, bubble,
   arrow and CaesarDressing font, but the text exporter omitted Description data
   required by the new runtime. Existing survey logs contain six gaps; they are
   not acceptance. The combined corrected packs require a fresh strict replay.
 - Camera frame state is reconstructed, but visible vignette/Shroud drawing still
   throws (`fullscreen_blur_renderer.cpp:62`). The radial sampler is an explicit
   approximation. Do not call either complete visual parity.
-- Autoplay handles combat and world Use; it stops supplying input when gameplay
-  input is blocked (`autoplay.cpp:56`). Completed idle frames during dialogue
-  cannot prove dialogue advancement or boon selection.
+- The former autoplay route stopped supplying input when gameplay input was blocked.
+  Its idle dialogue frames proved entry only. The current driver supplies actual
+  ContinueText press/release pulses when a live original notification requests it;
+  it does not call dialogue callbacks or alter script progression state.
 
 
 Dialogue integration at source `f04cd02` reconstructs original description lookup, lexer escapes,
@@ -52,6 +53,26 @@ an entry milestone, not a completed conversation or boon selection. Mapped Andro
 hardware controls now reach raw notification handling; touch dialogue advancement
 and physical device interaction still require their own acceptance.
 
+Dialogue continuation at source `f6339d9` now uses the complete recovered control
+registry, disabled-control frame caching, a contextual touch NEXT button and the
+original control notification path. Screen rendering coordinates are independent of
+component-manager ownership; screen destinations resolve their actual location and
+parallax, and disposed numeric action targets are skipped by actual manager membership.
+Portrait exit cancellation follows native Attach order and retains cross-manager
+ownership checks. The original first ContinueText advances through Zagreus's exit
+and the reward presentation. Recovered HasDisplayName, NotifyOnInteract and scalar
+SetInteractProperty consumers are present; this is not boon-selection acceptance.
+
+The current strict boundary is Athena's portrait graph: initialization creates FX,
+looping/random-timed slide children and an attached ray emitter. Those consumers
+remain explicit gaps. Do not admit CreateAnimation fields while dropping their
+work. Rebuild the complete graph with real screen-owner location/fraction/lifetime,
+attachment, FX and audio consumers, then derive a fresh resource closure. After
+that, boon interaction needs actual screen geometry, per-text-component rectangles,
+cursor selection and floating-highlight FX before Select can drive the real Interact
+and original notification/callback. Static evidence and the ordered producer plan
+are retained privately; no arbitrary button bounds or direct callback shortcut.
+
 Death follow-up is now bounded by actual producer calls: low-health screen-owner
 pulse FX; native disabled-email gates; camera clamp clearing, live AllowAnyFire,
 ambient stop/Halt, Graphic/reset side effects; death movies/audio/VO and DeathArea.
@@ -61,8 +82,8 @@ any submission; reconstruct that disabled branch rather than inventing a result.
 Preserved Tartarus room exports do not include DeathArea. The generic room exporter
 and MapGroups package selection need review before deriving the real House bundle.
 
-Iteration15 is now built from source `f04cd02`, installed non-incrementally and
-verified against actual on-device SHA/size (2,564,954,077 bytes). The source/selected-pack
+Iteration16 is now built from source `f6339d9`, installed non-incrementally and
+verified against actual on-device SHA/size (2,571,651,037 bytes). The source/selected-pack
 receipt is immutable by APK hash. Launch evidence is separate from still-pending
 manual gameplay. Exact device/build details and final checks are in STATUS.
 
@@ -73,12 +94,13 @@ No game files, captures, decompilation or personal identifiers belong in git.
 
 | Order | Deliverable | Required evidence |
 |---|---|---|
-| 1 | Integrate original text descriptions, dialogue resources and recovered movement gating; repair pending producer/lexer defects. | Fresh versioned packs, source provenance, strict mixed 2,950 replay with unchanged five-hit sequence, strict reward/dialogue entry and every-frame presentation sampling; final ASan/UBSan. |
-| 2 | Real dialogue controls and boon selection, including touch/controller navigation. | Original callbacks and selection state; explicit dialogue/choice milestones. Manual designated-device play, complete logs and guarded captures. No idle-frame or containment acceptance. |
-| 3 | Death/House recovery and original script-selected next room. | Reproduce death and transition faults, reconstruct consumers from matching DLL/PDB, derive actual requested room/resource closure, strict transition and device confirmation. No fallback scene or forced progression. |
-| 4 | Save/restart/Continue and interruption durability. | Preserve real saves; original-format round trip across maps on device. Decide/document Android atomic-save adaptation, injected truncation/write failures and checkpoint recovery. |
-| 5 | Android lifecycle, physical controls, audio routes and sustained performance. | Pause/resume/surface/resize, controller disconnect/remap, audio recovery, frame time/memory/load/thermal measurements on device. Host checks cannot establish these. |
-| 6 | Expand full runs, biomes/bosses, House and feature parity. | Resource-derived closure and strict feature routes plus device acceptance per milestone. Track unsupported branches and labelled adaptations separately. |
+| 1 | Dialogue entry and first native continuation (implemented; device acceptance pending). | Text12/screen14 preserve prior payloads; strict held combat 2,950 has unchanged five-hit sequence; strict continuation and final ASan/UBSan pass 4,748 with every-frame presentation and zero faults. Longer strict route retains Athena failure at frame 4,748. |
+| 2 | Complete Athena portrait initialization graph. | Reconstruct Attach/Child/Create/Sound ordering, looping/random slide timing, screen-owned FX/emitter projection and lifetime; derive full resource closure. Strict original dialogue advances past current failure; no dropped fields or substitute art. |
+| 3 | Real boon selection with touch/controller navigation. | Actual screen geometry, individual text areas, cursor target, floating-highlight animation/FX/audio, Interact.Use and original callback. Strict choice milestone and manual designated-device play with complete logs. |
+| 4 | Death/House recovery and original script-selected next room. | Reproduce first transition faults, reconstruct consumers from matching DLL/PDB, derive actual requested room/resource closure, strict transition and device confirmation. No fallback scene or forced progression. |
+| 5 | Save/restart/Continue and interruption durability. | Preserve real saves; original-format round trip across maps on device. Decide/document Android atomic-save adaptation, injected truncation/write failures and checkpoint recovery. |
+| 6 | Android lifecycle, physical controls, audio routes and sustained performance. | Pause/resume/surface/resize, controller disconnect/remap, audio recovery, frame time/memory/load/thermal measurements on device. Host checks cannot establish these. |
+| 7 | Expand full runs, biomes/bosses, House and feature parity. | Resource-derived closure and strict feature routes plus device acceptance per milestone. Track unsupported branches and labelled adaptations separately. |
 
 Build discipline: one coordinator publishes/install; preserve rollback APKs, use full
 non-incremental user0 installation, verify installed hash/size, and record source and

@@ -15,7 +15,55 @@ batch fixes before rerunning, use the shortest replay that reaches the changed
 path, and do one sanitized (ASan/UBSan) run at the end. Device installs only for
 meaningful milestones.
 
-## Review and iteration15 (2026-10-26 evening)
+## Dialogue continuation and iteration16 (2026-10-26)
+
+**Iteration16 installed** — source `f6339d9`, full non-incremental user0 replacement.
+SHA-256 `b1bdc3a03969d45bd03d333a8558607fc9d6aa4d1f78ad366cbedf135c93ff19`,
+2,571,651,037 bytes. Actual installed hash/size match. Launch/process observed;
+manual gameplay16 remains unverified. Iteration15 is preserved as
+`baseline-iteration15-891116b5.apk`; fresh app-files backup retained without reset.
+The immutable build receipt binds 313 code files and 30 selected manifests. Code
+bytes match the final host verification; no INTERNET permission was added.
+
+The original ContinueText notification now drives host press/release pulses and an
+Android touch NEXT button. The full recovered control registry admits dialogue
+controls independently of weapon controls. Context changes clear held/queued touch
+contacts. Disabled controls retain physical history and expose native cached flags.
+Screen coordinate flags no longer select the component-manager backend. Screen
+spawn destinations use actual location/parallax; late numeric actions skip disposed
+manager entries. Portrait exits perform actual cross-manager attachment cancellation
+in recovered Attach order, preserving the current primary during that pass.
+
+Text12 exports all 4,340 TextData identities, 4,328 DisplayNames and 4,340 descriptions;
+all prior 4,029 names, 4,098 descriptions and 177 font/symbol payloads are preserved.
+Ten numeric and two ambiguous DisplayName fields stay explicit unknowns. HasDisplayName
+checks record membership. Screen14 preserves all 775 old clips and their 1,930
+compressed frames, and adds 12 original portrait exits. The bounded cancellation contract rejects unsupported
+child/owner-input/foreign-domain branches. Original NotifyOnInteract and scalar
+SetInteractProperty consumers are reconstructed, with remaining selectors explicit.
+
+Final strict host continuation and ASan/UBSan pass 4,748 frames, zero faults and
+presentation sampling every frame; no sanitizer findings (leak detection disabled).
+This advances the original first dialogue through Zagreus's exit and reward FX.
+The exact held-combat 2,950 replay retains the same five-hit sequence. Touch transition
+checks and a portable Interact runtime-state mutation probe pass. These are not full
+GPU rendering or physical-device interaction proof.
+
+The longer strict route stops at frame 4,748 on `Portrait_Athena_Default_01`.
+Its created FX, looping/random slide children and attached ray-emitter graph remain
+unsupported. The shorter frame count versus iteration15's idle 5,600 is a changed
+input route: the current driver advances dialogue rather than waiting. No Athena
+conversation completion or boon choice is claimed. Next: complete that animation
+ownership graph, then real screen geometry/text areas/cursor/floating highlights
+and original Select/Interact callbacks; death/House/save acceptance remains separate.
+No partial CreateAnimation field admission or placeholder callbacks were integrated.
+
+Canonical packs now select text12/screen14 with action24/audio30/actor9/weapons25.
+Evidence and install/build receipts: `.local/reports/dialogue-continue-2026-10-26/`,
+plus immutable build receipt by APK hash. Owned host/ASan/candidate scratch and the
+probe executable were removed; all packs, evidence, saves and rollback APKs retained.
+
+## Review and iteration15 (2026-10-26 evening; superseded by16)
 
 The full review and ordered acceptance plan are in [AUDIT.md](AUDIT.md). This entry
 supersedes historical host-only/no-device checkpoints below.

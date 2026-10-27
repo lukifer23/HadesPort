@@ -8,7 +8,7 @@ Both are ignored local files and must never be committed.
 
 The [2026-10-26 review](AUDIT.md) maps current implementation, verified repairs,
 remaining gaps and ordered acceptance milestones. The Fold is connected again;
-iteration15 (source `f04cd02`) is installed and hash/size-verified. Iteration14 is
+iteration16 (source `f6339d9`) is installed and hash/size-verified. Iteration15 is
 retained as a rollback APK. See STATUS's latest entry for exact source/pack/build/
 device identities and host verification. Only source-reviewed, separately verified
 areas of the preserved workstream branch have been integrated. Bisect or probe old
@@ -17,20 +17,27 @@ sources in a separate `git worktree`, never stash/checkout in the live tree.
 ## Current continuation (2026-10-26 evening)
 
 Read the latest STATUS entry and AUDIT before historical checkpoints below.
-Iteration15 is installed and re-verified; current source includes the
-reviewed text/input/screen dialogue batch. Preserve iteration14 and app-file backups.
+Iteration16 is installed and re-verified; current source includes the
+reviewed native continuation, touch NEXT and portrait-exit batch. Preserve iteration15
+and app-file backups. Manual gameplay16 remains unverified.
 The canonical stage and a selected host candidate can use different packs.
 
 Already repaired: transient FX owner draw groups, autoplay navigation through the
 engine's A*, ShiftFraction reward animation, radial blur state/update/pass and camera
-frame state. Strict host autoplay and ASan/UBSan pass 5,600 frames through original
-dialogue entry after Athena pickup. The exact held-input baseline remains five hits;
-the separate release/repress replay has seven. Visible vignette Shroud rendering remains explicitly unsupported; frame state is not GPU proof.
+frame state. Strict host continuation and final ASan/UBSan pass 4,748 frames through
+original first dialogue advancement after Athena pickup. The next frame rejects
+Athena's unsupported portrait creation graph; older 5,600-frame results waited at
+dialogue. The exact held-input baseline remains five hits; the earlier separate
+release/repress replay has seven. Visible vignette Shroud rendering remains
+explicitly unsupported; frame state is not GPU proof.
 
 Fresh device logs establish death-path gaps and `DeathArea/scene.bin` unavailable.
-Next milestones are original Athena dialogue/boon interaction and death/House recovery,
-then the script-selected next map and real save/Continue. Host autoplay currently
-handles combat and world Use only; idle frames during dialogue prove no UI selection.
+Next milestones are the complete Athena portrait FX/slide/emitter graph, original
+boon interaction (geometry, text areas, cursor and floating highlights), and death/House recovery,
+then the script-selected next map and real save/Continue. Host autoplay now
+supplies ContinueText pulses only for actual queued original notifications. The
+first continuation reaches an explicit Athena portrait graph gap; no boon selection
+is proven. The former idle dialogue route remains entry evidence only.
 Do not skip dialogue, inject damage, force rewards or invent a next room.
 
 Build in an isolated host stage, run the exact mixed replay and strict progression

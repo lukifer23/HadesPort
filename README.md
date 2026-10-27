@@ -5,14 +5,14 @@ An unofficial, work-in-progress **native ARM64 Android engine** for **Hades (Sup
 purchased PC copy** — on a C++/OpenGL ES engine reconstructed from the PC engine binary.
 No emulation, Wine, CPU translation, ads, accounts or network access.
 
-> **Status: prototype; full gameplay remains incomplete** (2026-10-26). Iteration15
-> is installed and its on-device APK identity has been re-verified. Strict host
-> progression clears the first encounter's four waves, picks up Athena and enters
-> original dialogue with zero faults, including ASan/UBSan. Dialogue advancement,
-> boon selection and later-room progression still need completion and device proof.
-> Fresh device logs also expose incomplete death presentation and a missing DeathArea
-> map. The current review, acceptance limits and ordered plan are
-> in [`AUDIT.md`](AUDIT.md); build and runtime results are in [`STATUS.md`](STATUS.md).
+> **Status: prototype; full gameplay remains incomplete** (2026-10-26). Iteration16
+> is installed and its on-device APK identity is verified. Strict host progression
+> clears the first encounter, picks up Athena and advances the first dialogue through
+> the original ContinueText path. Combat baseline and final ASan/UBSan checks pass.
+> Athena's portrait FX/slide/emitter graph is the next strict blocker; boon selection,
+> death/House recovery and later-room progression remain incomplete. Manual gameplay16
+> is unverified. The review and acceptance plan are in [`AUDIT.md`](AUDIT.md);
+> build and runtime evidence is in [`STATUS.md`](STATUS.md).
 
 **This repository contains no game files.** You must own Hades (e.g. on Steam or the Epic
 Games Store) and supply its files yourself. Read [`DISCLAIMER.md`](DISCLAIMER.md).
