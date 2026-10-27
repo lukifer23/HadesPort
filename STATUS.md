@@ -26,9 +26,38 @@ batches; the `.so` compile finished before any later edit). Canonical assets wer
 freshly staged with the default packs (action-effects-v24, audio-events-v30).
 SHA-256 `c5f7859909e6c43060920179dce6528ee4dca4e3291c42f9dd013de053417121`,
 2,540,195,648 bytes; full non-incremental user0 install; on-device hash and size match.
-Manual play results are pending and will be recorded here.
+A short manual session reached RoomOpening only (p50 8.0 ms, p95 14.2 ms, zero
+underruns, no contained faults); it predates the reward fixes below.
 
-Host fixes since iteration13 (committed, not yet on device):
+**Iteration14 installed** — source `94efe22` (everything below plus the fullscreen
+blur/vignette reconstruction). SHA-256
+`11e3e368301ca76d72831787dab71175b510b3924c439c2eb3693c3423237680`, 2,540,220,224 bytes;
+full non-incremental user0 install; on-device hash and size match; launched.
+Iteration13 is kept as `baseline-iteration13-c5f78599.apk`. Expected on device: the
+whole first encounter, the Athena reward spawning and pickup; the dialogue that
+follows is the next host gap (below). Manual play results will be recorded here.
+
+`94efe22` reconstructs BlurComponent radial blur (AdjustRadialBlurStrength/Distance,
+App::Update stepping, original RadialBlur.frag pass after grading and bloom) and the
+camera vignette frame (AdjustFrame, DrawHealthFX default). Zero-duration blur calls
+change no drawn value, exactly as App::Update 0x180037145 gates them. The reached
+route therefore never activates the blur, so its GPU pass is checked only by the
+host shader validator. Strict mixed 2,950 and autoplay with every-frame presentation
+(4,555 frames: all four waves, reward spawn and pickup) pass; autoplay now stops at
+`OnActiveUseTarget`: `Original text token unreconstructed: \` (Athena use prompt).
+
+Baseline note: strict mixed combat now records five COMBAT_HIT lines (2374, 2442,
+2532, 2546, 2828); runs earlier on 2026-10-26 recorded seven. Rebuilding committed
+sources from iteration13 (`2c5efc4`) through `94efe22` reproduces the five-hit
+sequence deterministically; the held Attack2 stays trigger-locked by the original
+`SwordDisableCancelableAndLockTrigger` until release. The seven-hit runs are not
+reproducible from any committed source and are treated as superseded.
+
+Active workstreams: text runtime (markup tokens, UseDescription, CreateTextBox Id,
+ModifySubtitles) and dialogue/boon screen assets (screen animations, CaesarDressing
+font, ToggleMove), integrated and committed by main only.
+
+Host fixes since iteration13 (all included in iteration14):
 
 - `0901272` Attached FX surviving their owner's disposal keep the owner's draw group
   (the pre-dispose snapshot omitted it). Autoplay with every-frame presentation now
@@ -42,8 +71,8 @@ Host fixes since iteration13 (committed, not yet on device):
 - Strict mixed combat: 2,950/2,950 frames with every-frame presentation, zero faults,
   combat-hit sequence identical to the pre-change run. Sanitized pass pending at batch end.
 
-In progress: reconstruction of `AdjustRadialBlurDistance`/`AdjustRadialBlurStrength`/
-`AdjustFrame` (script state plus a GLES pass from the original `radialblur.frag`).
+- `253700b` ShiftFraction Z-shift phase for action FX: boon-drop icons no longer
+  block, so the encounter reward spawns and can be picked up.
 
 ## Host progression checkpoint (2026-10-26, code-only)
 

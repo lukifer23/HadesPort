@@ -11,8 +11,10 @@ remaining gaps and acceptance priorities. Read the latest code-only section in
 `STATUS.md` before the historical October 20 checkpoint below. Work remains on `main`;
 selected consumers from the preserved workstream branch are integrated and verified
 on bounded host routes; its remaining changes stay separate. The Fold is connected again (2026-10-26 evening):
-iteration13 (source `2c5efc4`) is installed and hash-verified; see the STATUS.md
-"Device session" section for the install record, host fixes since, and play results.
+iteration14 (source `94efe22`) is installed and hash-verified; iteration13 is kept as a
+baseline APK. See the STATUS.md "Device session" section for install records, host
+fixes, the mixed-combat baseline note and play results. Bisect or probe older sources
+in a separate `git worktree`, never with stash/checkout in the live tree.
 
 ## Host progression integration (2026-10-26)
 
