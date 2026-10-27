@@ -1,4 +1,5 @@
 #include "text_runtime.hpp"
+#include "lua_arguments.hpp"
 #include "object_runtime.hpp"
 #include "platform_log.hpp"
 #include "control_symbols.hpp"
@@ -53,6 +54,7 @@ constexpr const char* ownerMetatable = "hades.textFormatRuntime.owner";
 using Color = std::array<float,4>;
 struct TextRunStyle {
     std::string font;float size=0,textSymbolScale=1;
+    int32_t lineSpacingTop=0,lineSpacingBottom=0;
     Color color{1,1,1,1},shadowColor{0,0,0,0},outlineColor{-1,-1,-1,-1};
     float shadowX=0,shadowY=0,shadowBlur=50,outlineThickness=0;
     bool emphasized=false,blockEmphasized=false;
@@ -61,6 +63,7 @@ struct TextBody {
     uint64_t ownerLifetime=0;bool destroyed=false,autoSet=false,hide=false;
     std::string textKey,rawText;bool raw=false,useDescription=false;
     std::string font;int32_t fontSize=0;float textSymbolScale=1,width=0,height=0,offsetX=0,offsetY=0;
+    int32_t lineSpacingTop=0,lineSpacingBottom=0;
     hades::TextJustification horizontal=hades::TextJustification::Center,vertical=hades::TextJustification::Center;
     float outlineThickness=0,shadowBlur=50,shadowX=0,shadowY=0;Color outlineColor{-1,-1,-1,-1},shadowColor{0,0,0,0};
     std::string variableAutoFormat;bool opacityWithOwner=false,locationZWithOwner=true,graft=false,emphasized=false,blockEmphasized=false;
@@ -71,7 +74,8 @@ struct TextBody {
     bool dirty=true;std::string resolved;std::vector<hades::TextPiece> pieces;
     std::vector<TextRunStyle> styles;
 };
-struct TextState { std::vector<TextFormatSnapshot> formats;std::map<uint64_t,TextBody> bodies;std::map<int32_t,uint64_t> components;std::shared_ptr<const hades::TextFontBank> fonts;TextControlLabelProvider controlLabel; uint64_t nextSequence = 1; };
+struct TextState { bool suppressLyrics=false; // sgg::Subtitles::SUPPRESS_LYRICS byte 0x181908619 (static zero).
+    std::vector<TextFormatSnapshot> formats;std::map<uint64_t,TextBody> bodies;std::map<int32_t,uint64_t> components;std::shared_ptr<const hades::TextFontBank> fonts;TextControlLabelProvider controlLabel; uint64_t nextSequence = 1; };
 TextState* lookup(lua_State* state) {
     lua_getfield(state,LUA_REGISTRYINDEX,registryKey);
     auto* result=static_cast<TextState*>(lua_touserdata(state,-1)); lua_pop(state,1); return result;
@@ -94,7 +98,7 @@ const std::set<std::string> booleans={"Graft","UseEmphasizedFont","BlockEmphasiz
 // ComponentDataDef reflection / CreateTextBox explicit property reads.
 const std::set<std::string> numbers={
     "FontSize","TextSymbolScale","Width","OffsetX","OffsetY","OutlineThickness",
-    "ShadowAlpha","ShadowBlur","ShadowRed","ShadowGreen","ShadowBlue","ShadowOffsetX","ShadowOffsetY","LineSpacingBottom","Height","Scale","FadeOpacity","FadeTarget","FadeDuration","CharacterFadeTime","CharacterFadeInterval",
+    "ShadowAlpha","ShadowBlur","ShadowRed","ShadowGreen","ShadowBlue","ShadowOffsetX","ShadowOffsetY","LineSpacingTop","LineSpacingBottom","Height","Scale","FadeOpacity","FadeTarget","FadeDuration","CharacterFadeTime","CharacterFadeInterval",
     "LangCnScaleModifier","LangKoScaleModifier","LangJaScaleModifier",
     "LangFrScaleModifier","LangItScaleModifier","LangDeScaleModifier",
     "LangEsScaleModifier","LangPlScaleModifier","LangPtBrScaleModifier",
@@ -122,7 +126,7 @@ std::string argText(lua_State*L,int t,const char*key,const std::string&fallback=
 bool hasArg(lua_State*L,int t,const char*key){lua_getfield(L,t,key);const bool present=!lua_isnil(L,-1);lua_pop(L,1);return present;}
 float argFloat(lua_State*L,int t,const char*key,float fallback){lua_getfield(L,t,key);float out=fallback;if(lua_isnumber(L,-1)){const double v=lua_tonumber(L,-1);if(!std::isfinite(v)||std::abs(v)>std::numeric_limits<float>::max()){lua_pop(L,1);throw std::runtime_error(std::string("Text numeric argument bound: ")+key);}out=float(v);}lua_pop(L,1);return out;}
 int32_t argInt(lua_State*L,int t,const char*key,int32_t fallback){lua_getfield(L,t,key);int32_t out=fallback;if(lua_isnumber(L,-1)){const double v=std::trunc(lua_tonumber(L,-1));if(!(v>=INT32_MIN&&v<=INT32_MAX)){lua_pop(L,1);throw std::runtime_error(std::string("Text integer argument bound: ")+key);}out=int32_t(v);}lua_pop(L,1);return out;}
-bool argBool(lua_State*L,int t,const char*key,bool fallback){lua_getfield(L,t,key);const bool out=lua_isboolean(L,-1)?lua_toboolean(L,-1):fallback;lua_pop(L,1);return out;}
+bool argBool(lua_State*L,int t,const char*key,bool fallback){return hades::luaArgumentBool(L,t,key,fallback);}
 // LuaTableExtensions::GetColor / ScriptArgs::ColorByName over original arrays.
 bool argColor(lua_State*L,int t,const char*key,Color&out){
  lua_getfield(L,t,key);if(lua_isnil(L,-1)){lua_pop(L,1);return false;}
@@ -154,7 +158,7 @@ std::string luaMarkupValue(lua_State*L,const std::string&path){
     else if(lua_isboolean(L,-1))out=lua_toboolean(L,-1)?"true":"false";
     else{lua_settop(L,top);throw std::runtime_error("Original Lua text value unavailable: "+path);}
     lua_settop(L,top);return out;}
-TextRunStyle runStyle(const TextBody&body){TextRunStyle out;out.font=body.font;out.size=float(body.fontSize);out.textSymbolScale=body.textSymbolScale;out.color=body.color;out.shadowColor=body.shadowColor;out.outlineColor=body.outlineColor;out.shadowX=body.shadowX;out.shadowY=body.shadowY;out.shadowBlur=body.shadowBlur;out.outlineThickness=body.outlineThickness;out.emphasized=body.emphasized;out.blockEmphasized=body.blockEmphasized;return out;}
+TextRunStyle runStyle(const TextBody&body){TextRunStyle out;out.font=body.font;out.size=float(body.fontSize);out.textSymbolScale=body.textSymbolScale;out.lineSpacingTop=body.lineSpacingTop;out.lineSpacingBottom=body.lineSpacingBottom;out.color=body.color;out.shadowColor=body.shadowColor;out.outlineColor=body.outlineColor;out.shadowX=body.shadowX;out.shadowY=body.shadowY;out.shadowBlur=body.shadowBlur;out.outlineThickness=body.outlineThickness;out.emphasized=body.emphasized;out.blockEmphasized=body.blockEmphasized;return out;}
 void appendText(std::vector<hades::TextPiece>&pieces,const std::string&text,uint32_t style){if(text.empty())return;if(pieces.empty()||pieces.back().symbol||pieces.back().style!=style)pieces.push_back({false,text,style});else pieces.back().text+=text;}
 // GetFormatter178980 resolves the actual Lua FormatContainerIds owner, then
 // selects the live TextComponent widget by ComponentData.Name. An unknown
@@ -169,11 +173,57 @@ void selectFormat(lua_State*L,TextBody&body,const std::string&name,uint32_t&curr
         // font/nonzero size/true emphasis flags, then chooses template's packed
         // FontOverride unless it is -1 (white), otherwise the current override.
         style=body.styles.at(current);if(!formatter->font.empty())style.font=formatter->font;if(formatter->fontSize)style.size=float(formatter->fontSize);style.emphasized|=formatter->emphasized;style.blockEmphasized|=formatter->blockEmphasized;
+        // ParseFormatting 0x18017cd2c..0x18017cd3d creates a fresh text box
+        // and calls GraftFrom(new,current,template). TextSystem::Create
+        // 0x1802d79f5..0x1802d7a18 calls Clear (vtable+8 = 0x1801740d0),
+        // zeroing runtime spacing. GraftFrom 0x180178818 copies ComponentData
+        // only (+0xa8); neither source's runtime +0xb44/+0xb48 is copied.
+        style.lineSpacingTop=style.lineSpacingBottom=0;
         if(formatter->color!=Color{1,1,1,1})style.color=formatter->color;
         stack.push_back(current);
     }
-    if(style.emphasized&&!style.blockEmphasized)throw std::runtime_error("Original emphasized font remap provider unavailable for format: "+name);
     if(body.styles.size()>=1024)throw std::runtime_error("Original text formatter stack bound");body.styles.push_back(std::move(style));current=uint32_t(body.styles.size()-1);
+}
+// Text lexer, English (non zh-CN/ja/ko) mode. Provenance:
+//  - CharAsToken 0x180206950: single-character tokens for ! # $ % & ' ( ) * +
+//    , . : ; < > ? @ [ \ ] ^ { } (the remaining ASCII is not a token char).
+//  - NextToken 0x180206ba0: token char -> length 1; iswspace run -> 0x1b;
+//    iswdigit run [. digit run] -> number; otherwise a word that runs until
+//    iswspace or a token char (FUN_180172810 selects the CJK word rule only
+//    for zh-CN/ja/ko). SkipWhitespace 0x180206b40 skips an iswspace run.
+// iswspace is reconstructed for ASCII (TAB..CR, SPACE). Non-ASCII Unicode
+// space classification is not recovered and fails explicitly when met here.
+bool asciiSpace(unsigned char c){return c==' '||(c>=0x09&&c<=0x0d);}
+bool lexTokenChar(unsigned char c){return c<0x80&&std::strchr("!#$%&'()*+,.:;<>?@[\\]^{}",c)&&c!=0;}
+void rejectUnicodeSpace(const std::string&s,size_t at){
+    const auto lead=uint8_t(s[at]);if(lead<0x80)return;
+    const auto cps=hades::textCodepoints(s.substr(at,std::min<size_t>(4,s.size()-at)).substr(0,lead>=0xf0?4:lead>=0xe0?3:2));
+    const uint32_t cp=cps.empty()?0:cps.front();
+    if(cp==0x85||cp==0xa0||cp==0x1680||(cp>=0x2000&&cp<=0x200a)||cp==0x2028||cp==0x2029||cp==0x202f||cp==0x205f||cp==0x3000)throw std::runtime_error("Original text lexer iswspace classification unreconstructed for non-ASCII space");}
+size_t lexTokenEnd(const std::string&s,size_t at){
+    const auto c=uint8_t(s[at]);if(lexTokenChar(c))return at+1;
+    if(asciiSpace(c)){while(at<s.size()&&asciiSpace(uint8_t(s[at])))++at;return at;}
+    if(c>='0'&&c<='9'){while(at<s.size()&&s[at]>='0'&&s[at]<='9')++at;if(at+1<s.size()&&s[at]=='.'&&s[at+1]>='0'&&s[at+1]<='9'){++at;while(at<s.size()&&s[at]>='0'&&s[at]<='9')++at;}return at;}
+    while(at<s.size()){const auto b=uint8_t(s[at]);if(asciiSpace(b)||lexTokenChar(b))break;rejectUnicodeSpace(s,at);at+=b<0x80?1:b>=0xf0?4:b>=0xe0?3:2;}return at;}
+size_t skipLexSpace(const std::string&s,size_t at){while(at<s.size()&&asciiSpace(uint8_t(s[at])))++at;if(at<s.size())rejectUnicodeSpace(s,at);return at;}
+// GUIComponentTextBox::Parse 0x181a00 case 0x13 ('\\'): NextToken; at end of
+// text nothing happens. Otherwise ParseEscape 0x180180050 with that token:
+//  - '[' or ']' token: the character is appended to the current word.
+//  - token starting with '"': '"' appended, lexer resumes after the quote.
+//  - exact token "n" (wide literal 0x1805ea8e0): SkipWhitespace, current word
+//    flushed, a new Line row starts at x 0 -> newline in the paragraph.
+//  - "Pad" (0x1805ea8d0) / "Column" (0x1805ea910) + integer token: line-text
+//    padding / column-start segments. Not reconstructed in the portable
+//    layout: explicit failure.
+//  - any other token: consumed and dropped (returns the x unchanged).
+// Returns the index of the last consumed byte.
+size_t parseEscape(const std::string&s,size_t backslash,std::string&run){
+    const size_t at=backslash+1;if(at>=s.size())return backslash;
+    if(s[at]=='['||s[at]==']'||s[at]=='"'){run.push_back(s[at]);return at;}
+    const size_t end=lexTokenEnd(s,at);const std::string token=s.substr(at,end-at);
+    if(token=="n"){run.push_back('\n');return skipLexSpace(s,end)-1;}
+    if(token=="Pad"||token=="Column")throw std::runtime_error("Original text \\"+token+" line segment layout unreconstructed");
+    return end-1;
 }
 // ParseMarkup17f1c0 / ParseFormatting17c690 preserve style changes through
 // recursive Lua localization. Format breaks retain horizontal continuation.
@@ -195,14 +245,24 @@ void parseMarkup(lua_State*L,const hades::TextFontBank&fonts,TextBody&body,const
             if(inner[0]=='!'){if(value.empty())throw std::runtime_error("Original empty text symbol path");pieces.push_back({true,value,current});}
             else{const bool autoFormat=!body.variableAutoFormat.empty();if(autoFormat)selectFormat(L,body,body.variableAutoFormat,current,stack);const std::string*display=fonts.displayName(value);parseMarkup(L,fonts,body,display?*display:value,pieces,depth+1,current,stack);if(autoFormat)selectFormat(L,body,"PreviousFormat",current,stack);}
             i=end;continue;}
-        if(c=='@'||c=='\\'||c=='[')throw std::runtime_error(std::string("Original text token unreconstructed: ")+c);
+        if(c=='\\'){i=parseEscape(s,i,run);continue;}
+        // Parse case 0xc '@' (ParseImage 0x180180710) and case 3 '[' remain
+        // unreconstructed at paragraph level.
+        if(c=='@'||c=='[')throw std::runtime_error(std::string("Original text token unreconstructed: ")+c);
         run.push_back(c);}
     appendText(pieces,run,current);}
-void applyLayoutStyles(const TextBody&body,hades::TextLayoutRequest&request){for(const auto&style:body.styles)request.styles.push_back({style.font,style.size,style.textSymbolScale});}
+void applyLayoutStyles(const TextBody&body,hades::TextLayoutRequest&request){request.lineSpacingTop=body.lineSpacingTop;request.lineSpacingBottom=body.lineSpacingBottom;request.emphasized=body.emphasized;request.blockEmphasized=body.blockEmphasized;for(const auto&style:body.styles)request.styles.push_back({style.font,style.size,style.textSymbolScale,style.lineSpacingTop,style.lineSpacingBottom,style.emphasized,style.blockEmphasized});}
 // ShowDisplayName 0x174550: GetTextData(key)->DisplayName, else the key.
+// ShowDescription 0x1745e0: GameDataManager::GetDescription 0x1800b6a30. A key
+// without a TextData record takes the engine's logged placeholder branch,
+// which is not reproduced: explicit failure.
+std::string resolveTextKey(const hades::TextFontBank&fonts,const std::string&key,bool useDescription){
+    if(!useDescription){const auto*d=fonts.displayName(key);return d?*d:key;}
+    if(!fonts.descriptionsExported())throw std::runtime_error("Original TextData Description records not exported in text catalog: "+key);
+    const auto*d=fonts.description(key);if(!d)throw std::runtime_error("Original GetDescription missing-record placeholder unreconstructed: "+key);return *d;}
 void reparse(lua_State*L,const hades::TextFontBank&fonts,TextBody&body,int32_t owner){
     const std::string before=body.resolved;std::string beforePieces;for(const auto&p:body.pieces)beforePieces+=(p.symbol?"@"+p.text+"@":p.text);
-    body.resolved=body.raw?body.rawText:[&]{const auto*d=fonts.displayName(body.textKey);return d?*d:body.textKey;}();
+    body.resolved=body.raw?body.rawText:resolveTextKey(fonts,body.textKey,body.useDescription);
     for(const auto&[key,ref]:body.luaParams){lua_rawgeti(L,LUA_REGISTRYINDEX,ref);lua_setglobal(L,key.c_str());}
     body.controlLabels.clear();body.styles={runStyle(body)};uint32_t current=0;std::vector<uint32_t> stack;std::vector<hades::TextPiece> pieces;parseMarkup(L,fonts,body,body.resolved,pieces,0,current,stack);body.pieces=std::move(pieces);body.dirty=false;
     if(!body.resolved.empty()){if(body.font.empty())throw std::runtime_error("Original default text font unreconstructed");if(body.fontSize<=0)throw std::runtime_error("Original nonpositive FontSize text unreconstructed");
@@ -225,19 +285,26 @@ void applyReflected(TextBody&body,const std::map<std::string,TextFormatProperty>
     if(auto i=p.find("OutlineColor");i!=p.end())body.outlineColor=hades::textSourceColor(i->second.array);
     if(auto i=p.find("ShadowOffset");i!=p.end()){body.shadowX=float(i->second.array[0]);body.shadowY=float(i->second.array[1]);}
     for(const char*k:{"CharacterFadeTime","CharacterFadeInterval"})if(auto i=p.find(k);i!=p.end()&&i->second.number!=0)throw std::runtime_error("Nonzero source character fade requires per-glyph component");
-    for(const char*k:{"ShadowRed","ShadowGreen","ShadowBlue","ShadowAlpha","ShadowOffsetX","ShadowOffsetY","LineSpacingBottom","FadeDuration","Graft","UseEmphasizedFont","BlockEmphasizedFont"})if(p.contains(k))body.dirty=true; // retained in the format snapshot; consumers for text are not reached.
+    for(const char*k:{"ShadowRed","ShadowGreen","ShadowBlue","ShadowAlpha","ShadowOffsetX","ShadowOffsetY","FadeDuration","Graft","UseEmphasizedFont","BlockEmphasizedFont"})if(p.contains(k))body.dirty=true; // retained in the format snapshot; consumers for text are not reached.
 }
 int create(lua_State* state) {
     if(!lua_istable(state,1)) throw std::runtime_error("CreateTextBox requires argument table");
     auto* registry=static_cast<TextState*>(lua_touserdata(state,lua_upvalueindex(1)));
     TextFormatSnapshot format;TextBody body;
-    lua_getfield(state,1,"Id");{if(!lua_isnumber(state,-1))throw std::runtime_error("CreateTextBox Id requires positive signed32-bit integer");const double id=lua_tonumber(state,-1);if(id<=0||id>INT32_MAX||std::trunc(id)!=id)throw std::runtime_error("CreateTextBox Id requires positive signed32-bit integer");format.ownerId=int32_t(id);}lua_pop(state,1);
+    // CreateTextBox 0x1802702a3..0x18027035e: getfield Id, lua_tointegerx;
+    // not convertible -> return without a component. The low 32 bits key the
+    // World Thing map (+0x398, signed int at node+0x20); no entry or a null
+    // Thing -> return without a component (both branches exit 0x18027173d).
+    lua_getfield(state,1,"Id");{int numeric=0;const lua_Integer id=lua_tointegerx(state,-1,&numeric);lua_pop(state,1);if(!numeric)return 0;format.ownerId=int32_t(uint32_t(uint64_t(id)));}
     const auto* object=findObjectSnapshot(state,format.ownerId);
-    if(!object||!object->active||!object->alive)throw std::runtime_error("CreateTextBox requires existing active owner Thing ID");
+    if(!object)return 0;
+    if(!object->active||!object->alive)throw std::runtime_error("CreateTextBox inactive/dead owner Thing semantics unreconstructed");
     body.ownerLifetime=object->entityHandle;format.ownerActive=true;
     body.scale=std::clamp(argFloat(state,1,"Scale",1),0.f,1.f);
     body.rawText=argText(state,1,"RawText");body.raw=!body.rawText.empty();
-    if(!body.raw){body.textKey=argText(state,1,"Text");if(!body.textKey.empty()&&argBool(state,1,"UseDescription",false))throw std::runtime_error("Original CreateTextBox UseDescription unreconstructed");}
+    // 0x1802704b2..0x1802704f8: nonempty Text -> Bool(UseDescription,false)
+    // selects ShowDescription 0x1745e0 over ShowDisplayName 0x174550.
+    if(!body.raw){body.textKey=argText(state,1,"Text");body.useDescription=!body.textKey.empty()&&argBool(state,1,"UseDescription",false);}
     Color c;if(argColor(state,1,"Color",c))body.color=body.colorTarget=c;
     if(!argText(state,1,"TooltipKey").empty())throw std::runtime_error("Original text tooltip unreconstructed");
     body.fadeOpacity=argFloat(state,1,"FadeOpacity",0);body.fadeTarget=argFloat(state,1,"FadeTarget",1);
@@ -260,7 +327,12 @@ int create(lua_State* state) {
         format.fontSize=body.fontSize;
     }
     if(format.properties.contains("FontSize"))format.fontSize=body.fontSize;
-    for(const char*k:{"LineSpacingTop","LineSpacingBottom","LineSpacingLeft","LineSpacingRight"})if(argInt(state,1,k,0)!=0&&!body.autoSet)throw std::runtime_error(std::string("Original text line spacing unreconstructed: ")+k);
+    // CreateTextBox 0x180270e85..0x180270eae, outside the AutoSet branch:
+    // Int(default 0) -> textbox runtime +0xb44/+0xb48. Clear 0x180174152
+    // zeros both; Draw 0x18017673c..0x1801767b0 consumes them in row pitch.
+    body.lineSpacingTop=argInt(state,1,"LineSpacingTop",0);
+    body.lineSpacingBottom=argInt(state,1,"LineSpacingBottom",0);
+    for(const char*k:{"LineSpacingLeft","LineSpacingRight"})if(argInt(state,1,k,0)!=0)throw std::runtime_error(std::string("Original text line spacing unreconstructed: ")+k);
     if(argColor(state,1,"OutlineColor",c)){body.outlineColor[0]=c[0];body.outlineColor[1]=c[1];body.outlineColor[2]=c[2];} // RGB only; alpha keeps its sentinel.
     if(argColor(state,1,"ShadowColor",c))body.shadowColor=c;
     if(hasArg(state,1,"ShadowOffset")){lua_getfield(state,1,"ShadowOffset");body.shadowX=body.shadowY=3;if(lua_istable(state,-1)&&lua_rawlen(state,-1)==2){lua_rawgeti(state,-1,1);lua_rawgeti(state,-2,2);if(lua_isnumber(state,-2)&&lua_isnumber(state,-1)){body.shadowX=float(lua_tonumber(state,-2));body.shadowY=float(lua_tonumber(state,-1));}lua_pop(state,2);}lua_pop(state,1);}
@@ -288,7 +360,12 @@ int modify(lua_State*state){
     if(owners.empty())return 0;
     if(argBool(state,1,"AutoSetDataProperties",false))throw std::runtime_error("Original ModifyTextBox AutoSetDataProperties reflection unreconstructed");
     for(const char*k:{"ParamValue","ParamTarget","TooltipKey","TooltipData","BlockTooltip","ReReadImmedaitely"})if(hasArg(state,1,k))throw std::runtime_error(std::string("Original ModifyTextBox argument unreconstructed: ")+k);
-    if(argBool(state,1,"UseDescription",false)&&!argText(state,1,"Text").empty())throw std::runtime_error("Original ModifyTextBox UseDescription unreconstructed");
+    // ModifyTextBox 0x1802be442..0x1802be5ee: Text (default "") then
+    // Bool(UseDescription,false). Description path: GetDescription(Text) even
+    // for an empty key; display path: TextData DisplayName, else the key. A
+    // nonempty result that differs from the current text replaces it.
+    const bool useDescription=argBool(state,1,"UseDescription",false);
+    if(useDescription&&argText(state,1,"Text").empty())throw std::runtime_error("Original ModifyTextBox empty-key GetDescription placeholder unreconstructed");
     const std::string affect=argText(state,1,"AffectText"),exclude=argText(state,1,"ExcludeText"),text=argText(state,1,"Text"),font=argText(state,1,"Font");
     Color color{},colorTarget{};const bool hasColor=argColor(state,1,"Color",color),hasColorTarget=argColor(state,1,"ColorTarget",colorTarget);
     const float fadeTarget=argFloat(state,1,"FadeTarget",-1),fadeDuration=argFloat(state,1,"FadeDuration",-1),scaleTarget=argFloat(state,1,"ScaleTarget",-1),scaleDuration=argFloat(state,1,"ScaleDuration",-1),colorDuration=argFloat(state,1,"ColorDuration",-1);
@@ -298,7 +375,8 @@ int modify(lua_State*state){
         if(std::find(owners.begin(),owners.end(),format.ownerId)==owners.end()||body.destroyed)continue;const int32_t owner=format.ownerId;
         if(!affect.empty()&&format.name!=affect&&body.textKey!=affect)continue;
         if(!exclude.empty()&&(format.name==exclude||body.textKey==exclude))continue;
-        if(!text.empty()&&(body.raw||text!=body.textKey)){body.textKey=text;body.raw=false;body.rawText.clear();body.dirty=true;}
+        if(!text.empty()){if(!registry->fonts)throw std::runtime_error("ModifyTextBox text requires original font layout resources");const std::string next=resolveTextKey(*registry->fonts,text,useDescription);
+            if(!next.empty()&&next!=body.resolved){body.textKey=text;body.useDescription=useDescription;body.raw=false;body.rawText.clear();body.dirty=true;}}
         if(hasColor)body.color=body.colorTarget=color;
         if(fadeTarget>=0)body.fadeTarget=fadeTarget;if(fadeDuration>=0)body.fadeSpeed=1/fadeDuration;
         if(scaleTarget>=0)body.scaleTarget=scaleTarget;if(scaleDuration>=0)body.scaleSpeed=1/scaleDuration;
@@ -325,6 +403,15 @@ int guardedCreate(lua_State* state) {
     try {return create(state);} catch(const std::exception& error) {std::snprintf(message,sizeof(message),"%s",error.what());}
     return luaL_error(state,"%s",message);
 }
+// ScriptAction::Execute 0x180251910 id128 -> 0x180252428: SUPPRESS_LYRICS =
+// LuaTableExtensions::Bool(args,"SuppressLyrics",false) (0x180247fe0); no
+// other argument is read and nothing is returned. Its readers are the lyric
+// subtitle presenters (Subtitles::ShowLyricA/B), which the port does not
+// present yet; the state is retained for them (textSuppressLyrics).
+int modifySubtitles(lua_State*state){auto*registry=static_cast<TextState*>(lua_touserdata(state,lua_upvalueindex(1)));
+    if(!lua_istable(state,1))throw std::runtime_error("ModifySubtitles requires argument table");
+    registry->suppressLyrics=hades::luaArgumentBool(state,1,"SuppressLyrics");return 0;}
+int guardedModifySubtitles(lua_State*s){char m[1024]{};try{return modifySubtitles(s);}catch(const std::exception&e){std::snprintf(m,sizeof m,"%s",e.what());}return luaL_error(s,"%s",m);}
 int finalize(lua_State* state) {static_cast<TextState*>(lua_touserdata(state,1))->~TextState();return 0;}
 }
 void registerTextRuntime(lua_State* state) {
@@ -337,6 +424,7 @@ void registerTextRuntime(lua_State* state) {
     lua_pushvalue(state,owner);lua_pushcclosure(state,guardedCreate,1);lua_setglobal(state,"CreateTextBox");
     lua_pushvalue(state,owner);lua_pushcclosure(state,guardedModify,1);lua_setglobal(state,"ModifyTextBox");
     lua_pushvalue(state,owner);lua_pushcclosure(state,guardedDestroy,1);lua_setglobal(state,"DestroyTextBox");
+    lua_pushvalue(state,owner);lua_pushcclosure(state,guardedModifySubtitles,1);lua_setglobal(state,"ModifySubtitles");
     lua_settop(state,top);
 }
 void configureTextControlLabels(lua_State*state,TextControlLabelProvider provider){auto*registry=lookup(state);if(!registry)throw std::runtime_error("Text input-label registry unavailable");registry->controlLabel=std::move(provider);for(auto&[id,body]:registry->bodies)body.dirty=true;}
@@ -385,7 +473,7 @@ std::vector<hades::TextVisual> snapshotTextVisuals(lua_State*state){std::vector<
         // Draw175e00 selects each Line::mFormatter's font and FontOverride,
         // while using the owning box's fade/owner alpha. Keep shared paragraph
         // positioning; partition only the atlas/style submission.
-        for(size_t index=0;index<body.styles.size();++index){const auto&style=body.styles[index];hades::TextVisual run=v;run.font=style.font;run.glyphs.clear();run.symbols.clear();for(const auto&q:v.glyphs)if(q.style==index)run.glyphs.push_back(q);for(const auto&q:v.symbols)if(q.style==index)run.symbols.push_back(q);if(run.glyphs.empty()&&run.symbols.empty())continue;
+        for(size_t index=0;index<body.styles.size();++index){const auto&style=body.styles[index];hades::TextVisual run=v;run.font=hades::textFontName(style.font,style.emphasized,style.blockEmphasized);run.glyphs.clear();run.symbols.clear();for(const auto&q:v.glyphs)if(q.style==index)run.glyphs.push_back(q);for(const auto&q:v.symbols)if(q.style==index)run.symbols.push_back(q);if(run.glyphs.empty()&&run.symbols.empty())continue;
             run.color=index?style.color:body.color;run.color[3]*=body.fadeOpacity*owner->alpha;
             run.shadowColor=style.shadowColor;run.shadowX=style.shadowX;run.shadowY=style.shadowY;run.shadowBlur=style.shadowBlur;run.outlineThickness=style.outlineThickness;
             if(style.outlineThickness>0){for(size_t c=0;c<3;++c)run.outlineColor[c]=float(int(std::clamp(style.outlineColor[c],0.f,1.f)*255))/255;run.outlineColor[3]=1;}
@@ -414,3 +502,4 @@ bool attachedTextDimensions(lua_State*state,int32_t ownerId,std::array<float,2>&
     }catch(const std::exception&e){error=e.what();return false;}
 }
 void disposeTextOwner(lua_State*state,int32_t ownerId){auto*registry=lookup(state);if(!registry)return;registry->components.erase(ownerId);std::erase_if(registry->formats,[&](const auto&format){if(format.ownerId!=ownerId)return false;releaseBody(state,registry->bodies.at(format.sequence));registry->bodies.erase(format.sequence);return true;});}
+bool textSuppressLyrics(lua_State*state){const auto*registry=lookup(state);return registry&&registry->suppressLyrics;}

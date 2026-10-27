@@ -1,4 +1,5 @@
 #include "input_runtime.hpp"
+#include "lua_arguments.hpp"
 #include "../analysis/control_names.hpp"
 #include <map>
 #include <cmath>
@@ -23,7 +24,12 @@ namespace {
 constexpr const char* registryKey="hades.inputRuntime";
 constexpr const char* metatableName="hades.inputRuntime.owner";
 struct Player {bool allowInput=true;std::set<std::string> blocks;int32_t activeUnitId=0;uint64_t activeUnitLifetime=0;};
-struct InputState {std::vector<Player> players;std::map<std::string,bool> controls;};
+// PlayerUnitInput+0x8 (byte) per PlayerUnit, keyed by the unit's entity
+// lifetime. PlayerUnit::PlayerUnit 0x1802ebd10 allocates the 0x88-byte
+// PlayerUnitInput, zero-fills it and stores dword 1 at +0x8 (1802ebda4), so
+// absent entries are enabled. PlayerUnitInput::HandleInput 0x1802eccb0 calls
+// DirectMovement 0x1802edf10 only while it is set (1802ed372).
+struct InputState {std::vector<Player> players;std::map<std::string,bool> controls;std::map<uint64_t,bool> unitMoveEnabled;};
 InputState* lookup(lua_State* state) {
     lua_getfield(state,LUA_REGISTRYINDEX,registryKey);
     auto* result=static_cast<InputState*>(lua_touserdata(state,-1));lua_pop(state,1);return result;
@@ -76,6 +82,26 @@ std::string firstName(lua_State* state) {
 Player* player(InputState& state,int64_t index) {
     return index>=1 && static_cast<uint64_t>(index)<=state.players.size()?&state.players[static_cast<size_t>(index-1)]:nullptr;
 }
+// ScriptAction::Execute case 64 ToggleMove (inline, 0x180251a8c..0x180251afa):
+// index=Int(PlayerIndex,1)-1; -1 or index>=player count or null player returns;
+// Bool(Enabled,false) is stored to Player.pActiveUnit(+0x18)->+0x560
+// (PlayerUnitInput)->+0x8 without a pActiveUnit null check.
+int toggleMove(lua_State* state) {
+    if(!lua_istable(state,1))throw std::runtime_error("ToggleMove requires argument table");
+    lua_pushnil(state);
+    while(lua_next(state,1)) {
+        if(lua_type(state,-2)!=LUA_TSTRING)throw std::runtime_error("ToggleMove requires named arguments");
+        const std::string key=lua_tostring(state,-2);
+        if(key!="PlayerIndex"&&key!="Enabled"&&key!="Delay"&&key!="DelaySeconds"&&key!="DelayMin"&&key!="DelayMax"&&key!="DelaySecondsMin"&&key!="DelaySecondsMax")throw std::runtime_error("Unsupported ToggleMove argument: "+key);
+        lua_pop(state,1);
+    }
+    auto& input=runtime(state);const auto index=playerIndex(state);
+    if(index<1||static_cast<uint64_t>(index)>input.players.size())return 0; // idx==-1 and unsigned idx>=count both return.
+    const bool enabled=hades::luaArgumentBool(state,1,"Enabled");
+    const auto& selected=input.players[static_cast<size_t>(index-1)];
+    if(!selected.activeUnitLifetime)throw std::runtime_error("ToggleMove requires the Player active unit (native dereferences pActiveUnit without a null check)");
+    input.unitMoveEnabled[selected.activeUnitLifetime]=enabled;return 0;
+}
 template<bool Add> int change(lua_State* state) {
     arguments(state);auto& input=runtime(state);const auto index=playerIndex(state);
     auto* selected=player(input,index);
@@ -93,7 +119,7 @@ int allowed(lua_State* state) {
 }
 int toggleControl(lua_State* state){
     if(!lua_istable(state,1))throw std::runtime_error("ToggleControl requires table");
-    lua_getfield(state,1,"Enabled");const bool enabled=lua_toboolean(state,-1);lua_pop(state,1);
+    const bool enabled=hades::luaArgumentBool(state,1,"Enabled");
     lua_getfield(state,1,"Names");if(lua_isnil(state,-1)){lua_pop(state,1);lua_getfield(state,1,"Name");}
     std::vector<std::string> names;
     if(lua_isstring(state,-1))names.emplace_back(lua_tostring(state,-1));
@@ -122,7 +148,7 @@ void registerInputRuntime(lua_State* state) {
     lua_setmetatable(state,owner);lua_pushvalue(state,owner);lua_setfield(state,LUA_REGISTRYINDEX,registryKey);
     const auto bind=[&](const char* name,lua_CFunction action){lua_pushvalue(state,owner);lua_pushcclosure(state,action,1);lua_setglobal(state,name);};
     bind("AddInputBlock",guarded<change<true>>);bind("RemoveInputBlock",guarded<change<false>>);bind("IsInputAllowed",guarded<allowed>);
-    bind("ToggleControl",guarded<toggleControl>);
+    bind("ToggleControl",guarded<toggleControl>);bind("ToggleMove",guarded<toggleMove>);
     lua_settop(state,top);
 }
 bool createRecoveredInputPlayer(lua_State* state,uint32_t index,std::string& error) {
@@ -164,6 +190,9 @@ bool bindRecoveredPlayerUnit(lua_State* state,uint32_t index,int32_t id,uint64_t
     auto* input=lookup(state);auto* selected=input?player(*input,index):nullptr;
     if(!selected){error="Active unit binding requires configured player slot";return false;}
     selected->activeUnitId=id;selected->activeUnitLifetime=lifetime;error.clear();return true;
+}
+bool isRecoveredUnitMoveEnabled(lua_State* state,uint64_t unitLifetime){
+    const auto* input=lookup(state);if(!input)return false;const auto at=input->unitMoveEnabled.find(unitLifetime);return at==input->unitMoveEnabled.end()||at->second;
 }
 bool isRecoveredControlEnabled(lua_State* state,const std::string& name){
     const auto* input=lookup(state);if(!input)return false;const auto at=input->controls.find(name);return at!=input->controls.end()&&at->second;

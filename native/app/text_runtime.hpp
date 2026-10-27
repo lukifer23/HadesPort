@@ -42,3 +42,5 @@ std::vector<hades::TextVisual> snapshotTextVisuals(lua_State*);
 bool attachedTextDimensions(lua_State*,int32_t ownerId,std::array<float,2>&,std::string&);
 std::vector<TextFormatSnapshot> snapshotTextFormats(lua_State*);
 std::string dumpTextRuntime(lua_State*);
+// Subtitles::SUPPRESS_LYRICS as last set by the original ModifySubtitles action.
+bool textSuppressLyrics(lua_State*);

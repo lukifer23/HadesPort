@@ -23,7 +23,16 @@ struct TextSymbol {std::string texture;uint32_t width=0,height=0,originalWidth=0
 struct TextPiece {bool symbol=false;std::string text;uint32_t style=0;};
 // GUIComponentTextBox Line::mFormatter: a format break continues the same
 // physical line with a different font, size and symbol advance.
-struct TextLayoutStyle {std::string font;float size=0,textSymbolScale=1;};
+struct TextLayoutStyle {
+ std::string font;float size=0,textSymbolScale=1;
+ // GUIComponentTextBox runtime +0xb44/+0xb48, not font metrics: signed
+ // pixel additions applied after TextScale (Draw 0x18017673c..0x1801767b0).
+ int32_t lineSpacingTop=0,lineSpacingBottom=0;
+ bool emphasized=false,blockEmphasized=false;
+};
+// ComponentData::SetupFont selects one exact EMPHASIS_MAPPING entry while
+// retaining the authored font name; missing entries leave it unchanged.
+std::string textFontName(const std::string& authored,bool emphasized,bool blockEmphasized);
 struct TextVisual {
  uint64_t sequence=0;int32_t ownerId=0;std::string font,group,text;
  bool screenSpace=false,locationZWithOwner=true;float ownerX=0,ownerY=0,ownerZ=0;
@@ -41,11 +50,15 @@ struct TextLayoutRequest {
  // When nonempty, replaces text: parsed runs including inline symbols.
  std::vector<TextPiece> pieces;float textSymbolScale=1; // data TextSymbolScale (tb+0x13c)
  std::vector<TextLayoutStyle> styles;
+ int32_t lineSpacingTop=0,lineSpacingBottom=0;
+ bool emphasized=false,blockEmphasized=false;
 };
 // Original UFN1/Alpha8 glyphs. Paragraph word wrapping is an explicit portable
 // layout policy; per-glyph ABC/cropping/line spacing follows matching DrawInto.
 class TextFontBank {
  std::map<std::string,TextFont> fonts_;std::map<std::string,std::string> localized_;
+ // Optional catalog table "Descriptions": TextData Description per Id.
+ std::map<std::string,std::string> descriptions_;bool descriptionsExported_=false;
  std::map<std::string,TextSymbol> symbols_;
  SourceValue subtitleStyle_;
 public:
@@ -56,6 +69,11 @@ public:
  std::string resolve(const std::string&)const;
  // GameDataManager::GetTextData(key)->DisplayName, or nullptr when no record.
  const std::string* displayName(const std::string&)const;
+ // GameDataManager::GetDescription 0x1800b6a30: TextData(key) found ->
+ // Description (+0x70) followed by the record's +0x88 string; nullptr when no
+ // record. Callers must fail when !descriptionsExported() (catalog lacks it).
+ const std::string* description(const std::string&)const;
+ bool descriptionsExported()const{return descriptionsExported_;}
  const std::map<std::string,TextSymbol>& symbols()const{return symbols_;}
  std::vector<TextGlyphQuad> layout(const TextLayoutRequest&,std::vector<TextSymbolQuad>* symbols=nullptr,std::array<float,2>* measured=nullptr)const;
 };

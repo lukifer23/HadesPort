@@ -252,7 +252,6 @@ public:
         ui_.remapCaptureRow=-1;bindingsEdited_=true;ui_.setBindings(bindings_.serialize());return true;
     }
     hades::input::HardwareInput hardware_;float stickX_=0,stickY_=0;
-    static bool gameplayControl(std::string_view n){for(auto c:{"Attack1","Attack2","Attack3","Rush","Use","Shout","Assist"})if(n==c)return true;return false;}
     void hardwareControls(hades::input::HardwareInput::Source source,const hades::input::ControlList& list,bool down){
         if(ui_.handleBackControls(hardware_.update(source,list,down)))releaseMovement();
     }
@@ -261,7 +260,12 @@ public:
     std::vector<std::string> mergedControls(){
         auto names=controls_.takeControls();
         const auto pressed=hardware_.takePressed();
-        for(const auto* set:{&hardware_.held(),&pressed})for(const auto& n:*set)if(gameplayControl(n)&&std::find(names.begin(),names.end(),n)==names.end())names.push_back(n);
+        // Preserve every original mapped control. NotifyOnControlPressed reads
+        // raw controls independently of PlayerUnit gameplay input blocks; a
+        // combat-only filter discarded Confirm/Select/ContinueText during
+        // original dialogue (control-notify-contract.json). Menu/back handling
+        // above still owns Android overlay transitions and input cancellation.
+        for(const auto* set:{&hardware_.held(),&pressed})for(const auto& n:*set)if(std::find(names.begin(),names.end(),n)==names.end())names.push_back(n);
         return names;
     }
     std::array<float,2> mergedMove()const{

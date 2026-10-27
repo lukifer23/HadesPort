@@ -1,0 +1,60 @@
+{
+  "schema": "hades-dialogue-text-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "evidence_kind": "Matching PE/PDB static instruction evidence; host replay is separate verification, not execution of the original engine.",
+  "sources": [
+    {
+      "path": ".local/reports/review-2026-10-26/get-description.json",
+      "sha256": "4f916898be1f6a525d2ee434638fa7de7ddf427b765f5346bbb51c2ae1b0d40f"
+    },
+    {
+      "path": ".local/reports/spacing-native-review.json",
+      "sha256": "21ffa983573e9db39f4790f392fd4c0b8f3f855951c627e4f952f4e89e32bbd1"
+    }
+  ],
+  "description": {
+    "va": "0x1800b6a30",
+    "consumer": "GameDataManager::GetDescription",
+    "found_record": "Copy TextData Description at +0x70, append nonempty AdditionalDescription at +0x88 without a separator. A known record with both empty produces empty text.",
+    "missing_record": "Native logs and returns a placeholder; port keeps explicit failure until that branch is reconstructed.",
+    "export": "Fields inherit independently, with explicit empty overrides; preserve field ambiguity and source provenance. Missing record is distinct from known empty."
+  },
+  "create": {
+    "va": "0x1802701e0",
+    "owner": "Id uses Lua integer conversion, low signed32 bits; absent/unconvertible/unresolved owner returns without a component. Inactive/dead owner behavior remains explicitly unsupported.",
+    "text": "Nonempty RawText takes precedence. Otherwise nonempty Text with Bool(UseDescription,false) selects ShowDescription0x1745e0; default selects ShowDisplayName0x174550.",
+    "line_spacing": "0x180270e85..0x180270eae reads signed Int default0 into textbox runtime+b44/+b48 independently of AutoSetDataProperties."
+  },
+  "row_pitch": {
+    "va": "0x18017673c..0x1801767b0",
+    "formula": "Maximum of base and each formatter font line spacing times its TextScale, plus that textbox runtime Top and Bottom. Integer spacing is added after scaling.",
+    "graft": "Fresh TextSystem::Create/Clear zeros runtime spacing; GraftFrom copies ComponentData, not runtime Top/Bottom. See font-emphasis-contract.json.",
+    "limits": "Existing portable wrapping/vertical-origin policy remains labelled; nonzero Left/Right spacing is explicitly unsupported."
+  },
+  "bool_argument": {
+    "va": "0x180247fe0",
+    "conversion": "Actual Lua booleans first; otherwise lua_isstring/lua_tolstring including numbers; exact case-sensitive true/false strings select value; unmatched values use supplied default.",
+    "consumers": [
+      "ToggleMove",
+      "ToggleControl",
+      "text argument Bool",
+      "ModifySubtitles"
+    ]
+  },
+  "toggle_move": {
+    "dispatch_va": "0x180251a8c..0x180251afa",
+    "state": "Enabled default false stored in active PlayerUnitInput+0x8. New PlayerUnit input defaults enabled (0x1802ebda4).",
+    "consumption": "HandleInput0x1802ed372 gates DirectMovement only. Lifetime identity keeps state from leaking to replacement units."
+  },
+  "scope_limits": [
+    "Description export is English only.",
+    "Emphasis exact map and single lookup are in font-emphasis-contract.json.",
+    "ModifySubtitles retains original suppression state; lyric presenters remain unrebuilt.",
+    "Dialog entry does not prove dialogue advancement or boon selection.",
+    "No original/derived game payload or disassembly is included in this contract."
+  ]
+}

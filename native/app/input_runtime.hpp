@@ -28,3 +28,5 @@ bool setRecoveredPlayerInputPermission(lua_State*, uint32_t playerIndex, bool al
                                        std::string& error);
 bool bindRecoveredPlayerUnit(lua_State*,uint32_t playerIndex,int32_t unitId,uint64_t lifetime,std::string& error);
 bool isRecoveredControlEnabled(lua_State*,const std::string& name);
+// ToggleMove state of the PlayerUnit with this entity lifetime (PlayerUnitInput+0x8; default enabled).
+bool isRecoveredUnitMoveEnabled(lua_State*,uint64_t unitLifetime);

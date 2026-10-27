@@ -1,0 +1,93 @@
+{
+  "schema": "hades-font-emphasis-contract-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "evidence_kind": "Matching PE/PDB static disassembly and literal bytes; no original engine execution.",
+  "sources": {
+    "initializer.json": {
+      "path": ".local/reports/emphasis-native/initializer.json",
+      "sha256": "3d1feeedbe15d5027c849e8588d8e6cb40e82a3794eccfb28e4d2acbe14599b7"
+    },
+    "setup-font.json": {
+      "path": ".local/reports/emphasis-native/setup-font.json",
+      "sha256": "27b84f22660f1853becb0b899abcb56086317e30e884a351e978a6fbe47bd2bc"
+    },
+    "graft.json": {
+      "path": ".local/reports/emphasis-native/graft.json",
+      "sha256": "2cf9d1710f0d60a49a62a5d1083c1f290f56e4377dd43d5cff200699ec5add94"
+    },
+    "parse-formatting.json": {
+      "path": ".local/reports/emphasis-native/parse-formatting.json",
+      "sha256": "a9d3af61b30197016eb1ddfff5c32cdba72a32bdb6379e8b4b0ae378feadb308"
+    },
+    "text-create.json": {
+      "path": ".local/reports/emphasis-native/text-create.json",
+      "sha256": "08a089900e35cf24d7ec2b827cedd0ef0a38f710aacbcba187fb71638ef03ca1"
+    }
+  },
+  "map_initializer": {
+    "va": "0x180015970",
+    "length": 1473,
+    "global_va": "0x181a0ffa0",
+    "coverage": "All eight 48-byte key/value pairs constructed in order from stack+0x30 through rbp+0xb0; insertion loop advances by0x30 at0x180015ed4 and ends at0x180015edf; no guessed font-name transformations.",
+    "pairs": [
+      [
+        "AlegreyaSansRegular",
+        "AlegreyaSansExtraBold"
+      ],
+      [
+        "AlegreyaSansExtraBold",
+        "AlegreyaSansExtraBoldItalic"
+      ],
+      [
+        "AlegreyaSansSCRegular",
+        "AlegreyaSansSCBold"
+      ],
+      [
+        "AlegreyaSansSCBold",
+        "AlegreyaSansSCExtraBold"
+      ],
+      [
+        "AlegreyaSansSCLight",
+        "AlegreyaSansSCMedium"
+      ],
+      [
+        "SpectralSCLight",
+        "SpectralSCMedium"
+      ],
+      [
+        "SpectralSCExtraLight",
+        "SpectralSCLight"
+      ],
+      [
+        "SpectralSCMedium",
+        "SpectralSCBold"
+      ]
+    ]
+  },
+  "consumer": {
+    "va": "0x1800a4c10",
+    "name": "sgg::ComponentData::SetupFont",
+    "gates": "UseEmphasizedFont ComponentDataDef+0x33 true and BlockEmphasizedFont+0x34 false (0x1800a4cbf..0x1800a4ccd).",
+    "lookup": "Copy authored Font ComponentDataDef+0x3b8 to temporary; exactly one case-sensitive length+memcmp map lookup (0x1800a4cd3..0x1800a4e07). A missing key leaves the temporary unchanged. The authored source Font is not mutated.",
+    "selection": "Pass chosen temporary name to the actual widget SetFont; existing atlas/resource admission still rejects unavailable selected fonts."
+  },
+  "graft_runtime_spacing": {
+    "parse": "ParseFormatting0x18017cd2c calls TextSystem::Create, then0x18017cd3d calls GraftFrom(new,current,template).",
+    "initialization": "TextSystem::Create0x1802d79f5..0x1802d7a18 calls virtual+8. Matching PE vtable0x1805ea998+8 holds0x1801740d0 Clear; Clear0x180174152 zeros runtime+b44/+b48.",
+    "graft": "GraftFrom0x180178818 copies ComponentData at+a8 only, then copies selected authored fields and color. It does not copy runtime+b44/+b48 from either current or template. Grafted runtime Top/Bottom remain0; owner base row-pitch comparison still applies."
+  },
+  "implementation": [
+    "native/app/text_layout.hpp",
+    "native/app/text_layout.cpp",
+    "native/app/text_runtime.cpp"
+  ],
+  "verification_limits": [
+    "No host build/replay/device verification in this evidence record.",
+    "Existing documented portable paragraph wrapping and vertical-origin policy is unchanged.",
+    "Localized font substitutions and default-font selection outside the already admitted English font route are not established here."
+  ]
+}

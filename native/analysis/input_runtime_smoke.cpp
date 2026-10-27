@@ -38,6 +38,20 @@ int main(int argc,char** argv) {
         if(!setRecoveredPlayerInputPermission(state,1,true,error))throw std::runtime_error(error);
         run(state,removeMap,"@RoomManager.lua:225-remove-absent");
         if(!isRecoveredInputAllowed(state,1))throw std::runtime_error("Expected allowed local input state");
+        // Real Lua action boundary: native Bool is not Lua truthiness, and
+        // ToggleMove belongs to the active unit lifetime, not the player slot.
+        if(!bindRecoveredPlayerUnit(state,1,40000,41,error))throw std::runtime_error(error);
+        if(!isRecoveredUnitMoveEnabled(state,41))throw std::runtime_error("New unit movement must default enabled");
+        for(const auto* value:{"false","'false'","0","1","'TRUE'","{}","nil"}) {
+            run(state,std::string("ToggleMove{Enabled=")+value+"};ToggleControl{Name='Right',Enabled="+value+"}","=native-bool-false");
+            if(isRecoveredUnitMoveEnabled(state,41)||isRecoveredControlEnabled(state,"Right"))throw std::runtime_error("Native false/default Bool mismatch");
+        }
+        for(const auto* value:{"true","'true'"}) {
+            run(state,std::string("ToggleMove{Enabled=")+value+"};ToggleControl{Name='Right',Enabled="+value+"}","=native-bool-true");
+            if(!isRecoveredUnitMoveEnabled(state,41)||!isRecoveredControlEnabled(state,"Right"))throw std::runtime_error("Native true Bool mismatch");
+        }
+        run(state,"ToggleMove{Enabled=false}","=old-unit-disabled");
+        if(!bindRecoveredPlayerUnit(state,1,40000,42,error)||!isRecoveredUnitMoveEnabled(state,42)||isRecoveredUnitMoveEnabled(state,41))throw std::runtime_error("ToggleMove leaked across unit lifetimes");
         std::cout<<"ORIGINAL_MAPLOAD_STARTROOM_TRANSITIONS_OK\n"<<dumpInputRuntime(state);
         lua_close(state);return 0;
     }catch(const std::exception& error){std::cerr<<error.what()<<'\n';lua_close(state);return 2;}

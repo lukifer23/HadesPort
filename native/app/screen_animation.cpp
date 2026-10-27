@@ -1,4 +1,5 @@
 #include "screen_animation.hpp"
+#include "effect_particle.hpp"
 #include <algorithm>
 #include <cmath>
 #include <set>
@@ -17,7 +18,26 @@ float num(const SourceValue&d,const char*k,float fallback=0){auto*p=d.get(k);ret
 bool flag(const SourceValue&d,const char*k){auto*p=d.get(k);return p&&p->boolean();}
 // Source keys reconstructed for reviewed GUI records (mirrors the exporter's
 // screen_gui_review.KEYS). Anything else is rejected at load.
-const std::set<std::string> guiKeys{"Name","InheritFrom","FilePath","Type","StartFrame","EndFrame","NumFrames","PlaySpeed","OffsetX","OffsetY","OriginX","OriginY","Scale","ScaleX","ScaleY","Alpha","AddColor","Material","SortMode","Loop","HoldLastFrame","ChildAnimation","AngleFromOwner","ScaleFromOwner","ColorFromOwner","DieWithOwner","Red","Green","Blue","Slides","Sound","Color","StartAlpha","EndAlpha","Duration","ChainTo","AttachedTextScalarX","AttachedTextScalarY","Ambient"};
+const std::set<std::string> guiKeys{"Name","InheritFrom","FilePath","Type","StartFrame","EndFrame","NumFrames","PlaySpeed","OffsetX","OffsetY","OriginX","OriginY","Scale","ScaleX","ScaleY","Alpha","AddColor","Material","SortMode","Loop","HoldLastFrame","ChildAnimation","AngleFromOwner","ScaleFromOwner","ColorFromOwner","DieWithOwner","Red","Green","Blue","Slides","Sound","Color","StartAlpha","EndAlpha","Duration","ChainTo","AttachedTextScalarX","AttachedTextScalarY","Ambient",
+ // Constant transition helpers (InitData 0x180292566..0x1802926e3 per channel,
+ // GetXShift/GetYShift 0x180297b40/0x180297a50, Animation::Loop 0x180296310).
+ "StartRed","StartGreen","StartBlue","EndRed","EndGreen","EndBlue","EaseIn","EaseOut","PingPongColor",
+ "StartOffsetX","EndOffsetX","StartOffsetY","EndOffsetY","PingPongShiftOverDuration","PhaseOffsetShiftOverDuration",
+ "StartScale","EndScale","PingPongScale"};
+// Keys whose transition fraction is the Constant duration fraction
+// (AnimationFractionFromDurationSystem 0x180152ce0). Book/Slide frame
+// fractions for these helpers are not reviewed for screen records.
+const char* const constantTransitionKeys[]{"Duration","StartAlpha","EndAlpha","StartRed","StartGreen","StartBlue","EndRed","EndGreen","EndBlue","EaseIn","EaseOut","PingPongColor","StartOffsetX","EndOffsetX","StartOffsetY","EndOffsetY","PingPongShiftOverDuration","PhaseOffsetShiftOverDuration","StartScale","EndScale","PingPongScale"};
+// AnimationData ctor 0x180093c70 sets Alpha(+0x214)=1 but leaves the
+// Start/End Red..Alpha pairs (+0x22c..+0x248, SGD_Deserialize 0x18008f020)
+// at 0. InitData 0x180292566..0x1802926e3 creates a channel helper only when
+// Start!=End; an absent helper contributes 1 (GetDrawColor 0x180298810).
+float colorTransition(const SourceValue&d,const char*a,const char*z,float f){const float s=num(d,a),e=num(d,z);return s==e?1.f:EffectParticleWorld::interpolate(s,e,f,num(d,"EaseIn"),num(d,"EaseOut"));}
+// Animation::GetValue 0x180298750 for GetXShift/GetYShift (PhaseOffset wraps once).
+float shiftValue(const SourceValue&d,const char*a,const char*z,float f){const float s=num(d,a),e=num(d,z);if(s==e)return 0;float x=num(d,"PhaseOffsetShiftOverDuration")/360.f+f;if(x>1)x-=1;else if(x<0)x+=1;const float in=num(d,"EaseIn"),out=num(d,"EaseOut");if(flag(d,"PingPongShiftOverDuration"))return x<.5f?EffectParticleWorld::interpolate(s,e,x*2,in,out):EffectParticleWorld::interpolate(e,s,(x-.5f)*2,in,out);return EffectParticleWorld::interpolate(s,e,x,in,out);}
+// InitData 0x18029217d..0x1802922fd scale helper (default Start=End=1),
+// BodyComponentTransitionHelper::CalcCurrentValue 0x1802b5420.
+float scaleTransition(const SourceValue&d,float f){const float s=num(d,"StartScale",1),e=num(d,"EndScale",1);if(s==e)return 1;const float in=num(d,"EaseIn"),out=num(d,"EaseOut");if(flag(d,"PingPongScale"))return f<.5f?EffectParticleWorld::interpolate(s,e,f*2,in,out):EffectParticleWorld::interpolate(e,s,(f-.5f)*2,in,out);return EffectParticleWorld::interpolate(s,e,f,in,out);}
 // APPROXIMATION: Material/Ambient/SortMode remain renderer presentation hints,
 // as in ActionEffectWorld::pendingFieldsSet; exporter receipts enumerate every
 // admitted definition that has one. This does not rebuild native lighting.
@@ -46,8 +66,7 @@ bool ScreenAnimationWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimati
    // with zero-duration slides skipped (ActorAnimationPlayback). Loop/PingPong
    // wrap and draw offsets are not reviewed for GUI slides.
    if(t=="Slide"){const auto bankIndex=bank->find(name);if(!bankIndex||(bank->clips().at(*bankIndex).flags&(ActorBook|ActorLoop))||flag(*definition,"Loop")||num(*definition,"OffsetX")!=0||num(*definition,"OffsetY")!=0)throw std::runtime_error("Unreviewed native screen Slide record "+name);}
-   if((definition->get("Duration")||definition->get("StartAlpha")||definition->get("EndAlpha"))&&t!="Constant")throw std::runtime_error("Unreviewed non-Constant screen duration/color transition "+name);
-   if(t=="Constant"&&flag(*definition,"Loop")&&num(*definition,"Duration")>0)throw std::runtime_error("Unreviewed screen Constant duration loop "+name);
+   if(t!="Constant")for(const char*k:constantTransitionKeys)if(definition->get(k))throw std::runtime_error("Unreviewed non-Constant screen duration/transition "+name+"."+k);
    if(t=="Book"&&(startFrame(*definition)<1||endFrame(*definition)<startFrame(*definition)))throw std::runtime_error("Unreviewed native Book frame range "+name);
   }
   if(!bank->find(name))throw std::runtime_error("Screen original pixels unavailable: "+name);definitions_[name]=*definition;}
@@ -197,7 +216,12 @@ bool ScreenAnimationWorld::advance(float dt,const ScreenAnimationSound&sound,std
     }
     continue;
    }
-   if(typeOf(d)==NativeAnimationType::Constant){if(l.durationBound){l.remaining-=dt*l.multiplier;l.progress=std::clamp(1.f-l.remaining/l.duration,0.f,1.f);if(l.remaining<0&&!flag(d,"HoldLastFrame")){if(k!=0)throw std::runtime_error("Native finished screen child Constant not reconstructed: "+l.name);finished=true;}}continue;}
+   if(typeOf(d)==NativeAnimationType::Constant){if(l.durationBound){l.remaining-=dt*l.multiplier;l.progress=std::clamp(1.f-l.remaining/l.duration,0.f,1.f);if(l.remaining<0&&!flag(d,"HoldLastFrame")){
+    // ConstantAnimation::UpdateInternal 0x1802b1bb0: a looping duration
+    // record loops (Animation::Loop 0x180296310 ResetTimeRemaining sets
+    // TimeRemaining=Duration) instead of finishing.
+    if(flag(d,"Loop"))l.remaining=l.duration;
+    else{if(k!=0)throw std::runtime_error("Native finished screen child Constant not reconstructed: "+l.name);finished=true;}}}continue;}
    if(typeOf(d)!=NativeAnimationType::Book)continue;
    // PlaySpeedUpdateSystem::Execute 0x153b80: step toward a positive target
    // (snap when within one step), otherwise free-running playback.
@@ -231,7 +255,7 @@ bool ScreenAnimationWorld::layerVisual(const ScreenThing&s,const ScreenLayer&l,A
  // GetScale 0x298bb0: Data.Scale x own transition x (Maintain) Thing body
  // mScale x Thing ScaleTransition. GetDrawScaleVector 0x298500: Data.ScaleX/Y
  // x (Maintain) Thing ScaleX/ScaleY transitions. Drawable scale = (v.x s, v.y s).
- const float scale=num(d,"Scale",1)*(maintain(d,"ScaleFromOwner")?s.body->scale*s.body->scaleFraction:1.f);
+ const float scale=num(d,"Scale",1)*scaleTransition(d,l.progress)*(maintain(d,"ScaleFromOwner")?s.body->scale*s.body->scaleFraction:1.f);
  float vx=num(d,"ScaleX",1)*s.modifier(2),vy=num(d,"ScaleY",1)*s.modifier(3);
  // GetDrawScaleVector 0x2985ef..6e8: largest attached textbox width/height
  // divided by the corresponding scalar, independently of text opacity.
@@ -249,7 +273,7 @@ bool ScreenAnimationWorld::layerVisual(const ScreenThing&s,const ScreenLayer&l,A
  // and HealthBar-Right (393px, OffsetX 265) spans 166.75..363.25, i.e. the
  // three original pieces abut only with unscaled data offsets.
  const float ownerScale=maintain(d,"ScaleFromOwner")?s.body->scale*s.body->scaleFraction:1.f;
- const float offsetScale=book?1.f:ownerScale;out.x=s.body->x+num(d,"OffsetX")*offsetScale;out.y=s.body->y+num(d,"OffsetY")*offsetScale;
+ const float offsetScale=book?1.f:ownerScale;out.x=s.body->x+(num(d,"OffsetX")+shiftValue(d,"StartOffsetX","EndOffsetX",l.progress))*offsetScale;out.y=s.body->y+(num(d,"OffsetY")+shiftValue(d,"StartOffsetY","EndOffsetY",l.progress))*offsetScale;
  // InitData/GetDrawColor 0x298810: own {mColor.rgb,trunc(mColor.a/255*Alpha*255)};
  // top-level Red/Green/Blue set mColor only when all three are present (>=0).
  std::array<uint32_t,4> c{255,255,255,255};
@@ -258,11 +282,11 @@ bool ScreenAnimationWorld::layerVisual(const ScreenThing&s,const ScreenLayer&l,A
  if(const auto*color=d.get("Color")){size_t k=0;for(const auto*key:{"Red","Green","Blue","Alpha"})c[k++]=uint32_t(std::trunc(std::clamp(num(*color,key,1),0.f,1.f)*255.f));}
  if(d.get("Red")&&d.get("Green")&&d.get("Blue")&&num(d,"Red")>=0&&num(d,"Green")>=0&&num(d,"Blue")>=0){size_t k=0;for(const char*key:{"Red","Green","Blue"})c[k++]=uint32_t(std::trunc(std::clamp(num(d,key),0.f,1.f)*255.f));c[3]=255;}
  c[3]=uint32_t(std::trunc(float(c[3])/255.f*num(d,"Alpha",1)*255.f));
- // InitData 0x29266c..26de sets the animation alpha helper (default
- // StartAlpha=EndAlpha=1); its progress comes from the duration component.
- const float start=num(d,"StartAlpha",1),end=num(d,"EndAlpha",1);
- const float alpha=start==end?1.f:start+(end-start)*l.progress;
- c[3]=c[3]*uint32_t(std::trunc(std::clamp(alpha,0.f,1.f)*255.f))/255;
+ // InitData 0x180292566..0x1802926e3 channel helpers (Start/End default 0,
+ // inactive when equal); their fraction comes from the duration component.
+ // PingPongColor (+0xaa) runs the helper forward then back over the duration.
+ {const char*starts[]{"StartRed","StartGreen","StartBlue","StartAlpha"};const char*ends[]{"EndRed","EndGreen","EndBlue","EndAlpha"};const float f=l.progress;
+  for(size_t k=0;k<4;++k){const float v=flag(d,"PingPongColor")?(f<.5f?colorTransition(d,starts[k],ends[k],f*2):colorTransition(d,ends[k],starts[k],(f-.5f)*2)):colorTransition(d,starts[k],ends[k],f);c[k]=c[k]*uint32_t(std::clamp(int(v*255),0,255))/255;}}
  if(maintain(d,"ColorFromOwner")){const std::array<uint8_t,4> base{byteOf(s.baseColor[0]),byteOf(s.baseColor[1]),byteOf(s.baseColor[2]),byteOf(s.baseColor[3])};const std::array<uint8_t,4> fraction{byteOf(s.fractionColor[0]),byteOf(s.fractionColor[1]),byteOf(s.fractionColor[2]),byteOf(s.body->alpha)};for(size_t k=0;k<4;++k){c[k]=c[k]*base[k]/255;c[k]=c[k]*fraction[k]/255;}}
  for(size_t k=0;k<4;++k)out.color[k]=float(std::min<uint32_t>(c[k],255))/255.f;
  // ShouldAddColor 0x296760 -> Drawable shader 13 (AddColor.frag).
