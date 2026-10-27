@@ -29,7 +29,74 @@ def run(command):
                    env=dict(os.environ, JAVA_HOME=str(JAVA)))
 
 
-def sign_and_publish_apk(aligned, key, output):
+def source_snapshot():
+    """Identify build/export code without retaining diffs or ambient local files."""
+    roots = ['native/app', 'native/host', 'native/tools', 'scripts', 'native/audio_decoder.cmake',
+             'native/analysis/lua_bridge_contract.hpp', 'native/analysis/control_names.hpp']
+    def git(*args):
+        return subprocess.check_output(['git', '-C', str(PROJECT), *args])
+    def code_files(raw):
+        suffixes = {'.c', '.cpp', '.h', '.hpp', '.java', '.py', '.cmake', '.xml', '.inc', '.rs', '.patch'}
+        return sorted(name for name in raw.decode().split('\0') if name and
+                      (Path(name).suffix in suffixes or Path(name).name == 'CMakeLists.txt'))
+    tracked = code_files(git('ls-files', '-z', '--', *roots))
+    untracked = code_files(git('ls-files', '--others', '--exclude-standard', '-z', '--', *roots))
+    files = []
+    for name in sorted(set(tracked + untracked)):
+        path = PROJECT / name
+        row = {'path': name, 'tracked': name in tracked, 'present': path.is_file()}
+        if row['present']:
+            with path.open('rb') as source:
+                row.update(bytes=path.stat().st_size, sha256=hashlib.file_digest(source, 'sha256').hexdigest())
+        files.append(row)
+    diff = git('diff', '--binary', 'HEAD', '--', *tracked)
+    return {'git_head': git('rev-parse', 'HEAD').decode().strip(),
+            'dirty': bool(diff or untracked), 'tracked_diff_sha256': hashlib.sha256(diff).hexdigest(),
+            'files': files, 'scope': 'Tracked and untracked build/export code; excludes documentation and private data'}
+
+
+def selected_input_snapshot(args):
+    """Bind selections to manifests; large payload hashes remain verified by staging."""
+    def local_name(path):
+        path = Path(path).absolute()
+        return str(path.relative_to(PROJECT)) if path.is_relative_to(PROJECT) else path.name
+    paths = set()
+    selections = {}
+    for role, value in vars(args).items():
+        values = value if isinstance(value, list) else [value]
+        selected = [path for path in values if isinstance(path, Path)]
+        if not selected:
+            continue
+        selections[role] = [local_name(path) for path in selected]
+        for path in selected:
+            if path.suffix == '.json' and path.is_file():
+                paths.add(path)
+            for companion in (path.parent / 'manifest.json', path.parent / 'scene-manifest.json'):
+                if companion.is_file():
+                    paths.add(companion)
+    manifests = []
+    for path in sorted(paths):
+        raw = path.read_bytes()
+        data = json.loads(raw)
+        row = {'path': local_name(path), 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()}
+        # Record manifest-declared payload identities. Their owning staging
+        # code remains responsible for verification; avoid rehashing large banks.
+        bindings = {}
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if isinstance(value, dict) and isinstance(value.get('sha256'), str) and 'path' in value:
+                    bindings[key] = {k: v for k, v in value.items() if k in ('bytes', 'sha256')}
+                    bindings[key]['path'] = local_name(value['path'])
+                elif key.endswith('_sha256') and isinstance(value, str):
+                    bindings[key] = value
+        if bindings:
+            row['bound_payloads'] = bindings
+        manifests.append(row)
+    return {'selections': selections, 'manifests': manifests,
+            'scope': 'Selected manifest bytes and declared payload identities; payload validation occurs during staging'}
+
+
+def sign_and_publish_apk(aligned, key, output, before_publish=None):
     """Publish a verified candidate without modifying an APK being installed."""
     output.parent.mkdir(parents=True, exist_ok=True)
     # Same filesystem permits an atomic replacement. Readers of the old APK
@@ -44,6 +111,8 @@ def sign_and_publish_apk(aligned, key, output):
             [str(TOOLS / 'aapt2'), 'dump', 'permissions', str(candidate)], text=True)
         if 'android.permission.INTERNET' in permissions:
             raise RuntimeError('Native Hades must have no INTERNET permission')
+        if before_publish is not None:
+            before_publish()
         os.replace(candidate, output)
 
 
@@ -289,9 +358,9 @@ def main():
     parser.add_argument('--actor-markers',type=Path,default=PROJECT / '.local/native-assets/actor-markers-v9/actor-markers.bin')
     parser.add_argument('--actor-properties',type=Path,default=PROJECT / '.local/native-assets/actor-properties-v14/actor-properties.bin')
     parser.add_argument('--actor-lights',type=Path,default=PROJECT / '.local/native-assets/actor-lights-opening-v1/manifest.json')
-    parser.add_argument('--text-resources',type=Path,default=PROJECT / '.local/native-assets/original-text-v7/manifest.json')
+    parser.add_argument('--text-resources',type=Path,default=PROJECT / '.local/native-assets/original-text-v10/manifest.json')
     parser.add_argument('--action-effects',type=Path,default=PROJECT / '.local/native-assets/action-effects-v24/manifest.json')
-    parser.add_argument('--screen-animations',type=Path,default=PROJECT / '.local/native-assets/screen-opening-v12/manifest.json')
+    parser.add_argument('--screen-animations',type=Path,default=PROJECT / '.local/native-assets/screen-dialogue-v13/manifest.json')
     parser.add_argument('--particle-frames',type=Path,default=PROJECT / '.local/native-assets/cinder-frames-v1/cinder-frames.bin')
     parser.add_argument('--primaries',type=Path,default=PROJECT / '.local/native-assets/opening-primaries-v6/manifest.json')
     parser.add_argument('--bloom-settings',type=Path,default=PROJECT / '.local/native-assets/bloom-settings-v1/manifest.json')
@@ -311,6 +380,9 @@ def main():
         validate_animation_audio_binding(args.audio_events,args.action_effects,args.actor_animations.parent/'manifest.json')
     if not args.compile_only and (args.scene is None or not args.scene.is_file()):
         parser.error('--scene must point to a decoded original HDS1/HDS2/HDS3 room')
+    provenance = None
+    if not args.compile_only and not args.assets_only:
+        provenance = {'source': source_snapshot(), 'inputs': selected_input_snapshot(args)}
     BUILD.mkdir(parents=True, exist_ok=True)
     if not args.assets_only:
         run(['cmake', '-S', PROJECT / 'native/app', '-B', BUILD / 'cmake', '-G', 'Ninja',
@@ -624,10 +696,16 @@ def main():
              '-alias', 'androiddebugkey', '-keypass', 'android', '-keyalg', 'RSA', '-keysize', '2048',
              '-validity', '10000', '-dname', 'CN=Hades Native Development'])
     output = PROJECT / '.local/build/native/hades-native-engine-preview.apk'
-    sign_and_publish_apk(aligned, key, output)
+    def verify_build_inputs_unchanged():
+        if source_snapshot() != provenance['source']:
+            raise RuntimeError('Build/export code changed during the build; previous APK retained. Rebuild from stable sources.')
+        if selected_input_snapshot(args) != provenance['inputs']:
+            raise RuntimeError('Selected input manifests changed during the build; previous APK retained. Rebuild from stable packs.')
+    sign_and_publish_apk(aligned, key, output, before_publish=verify_build_inputs_unchanged)
     report = {
         'apk': str(output), 'bytes': output.stat().st_size,
         'sha256': hashlib.file_digest(output.open('rb'), 'sha256').hexdigest(),
+        'provenance': provenance,
         'package': 'dev.hades.reconstruction', 'abi': 'arm64-v8a',
         'native_engine': str(library), 'game_engine_runtime': 'Native Android C++/GLES3',
         'android_window_bridge': 'NativeActivity subclass for UI-thread system-bar lifecycle only',
@@ -651,7 +729,26 @@ def main():
                       'Complete combat, audio, transitions and save compatibility'],
     }
     report_path = PROJECT / '.local/reports/native-build.json'
-    report_path.write_text(json.dumps(report, indent=2) + '\n')
+    receipt_path = report_path.parent / 'native-builds' / (report['sha256'] + '.json')
+    receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    report['immutable_receipt'] = str(receipt_path.relative_to(PROJECT))
+    report_text = json.dumps(report, indent=2) + '\n'
+    # A repeated byte-identical APK keeps its first receipt. Latest still records
+    # this invocation, preserving the existing native-build.json consumer shape.
+    with tempfile.NamedTemporaryFile(mode='w', prefix='native-build-', suffix='.json',
+                                     dir=report_path.parent, delete=False) as latest:
+        temporary_report = Path(latest.name)
+        try:
+            latest.write(report_text)
+            latest.flush()
+            # Link a complete receipt atomically without replacing a prior one.
+            try:
+                os.link(temporary_report, receipt_path)
+            except FileExistsError:
+                pass
+            os.replace(temporary_report, report_path)
+        finally:
+            temporary_report.unlink(missing_ok=True)
     print(json.dumps(report, indent=2))
 
 
