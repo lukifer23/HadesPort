@@ -34,7 +34,7 @@ KEYS={'Name','InheritFrom','FilePath','Type','StartFrame','EndFrame','NumFrames'
  # duration Loop via Animation::Loop 0x180296310).
  'StartRed','StartGreen','StartBlue','EndRed','EndGreen','EndBlue','EaseIn','EaseOut','PingPongColor',
  'StartOffsetX','EndOffsetX','StartOffsetY','EndOffsetY','PingPongShiftOverDuration','PhaseOffsetShiftOverDuration',
- 'StartScale','EndScale','PingPongScale'}
+ 'StartScale','EndScale','PingPongScale','CancelAllAttached'}
 # Transition keys driven by the Constant duration fraction only.
 CONSTANT_TRANSITION_KEYS={'Duration','StartAlpha','EndAlpha','StartRed','StartGreen','StartBlue','EndRed','EndGreen','EndBlue','EaseIn','EaseOut','PingPongColor','StartOffsetX','EndOffsetX','StartOffsetY','EndOffsetY','PingPongShiftOverDuration','PhaseOffsetShiftOverDuration','StartScale','EndScale','PingPongScale'}
 TYPES={'Constant','ConstantNoUpdate','Book','Slide'}
@@ -87,6 +87,8 @@ def resolve_all(records,origin,roots):
   d=resolve(name)
   unknown=set(d)-KEYS
   if unknown:raise ValueError('Unreviewed GUI animation property '+name+': '+repr(sorted(unknown)))
+  # Keep admission bounded to the recovered screen cancellation route.
+  if d.get('CancelAllAttached') and d.get('ChildAnimation') not in (None,'','null'):raise ValueError('Native screen CancelAllAttached with new ChildAnimation not reconstructed: '+name)
   if d.get('Type')not in TYPES:raise ValueError('Unreviewed GUI animation type '+name)
   # Book.Init 0x1802af310 / SetupFrameUpdateMode 0x1802b1040 never
   # initialize or dispatch SlideData (export_actor_animations.py): Book
@@ -97,6 +99,7 @@ def resolve_all(records,origin,roots):
   for field in ['ChildAnimation','ChainTo']:
    child=d.get(field)
    if child and child!='null':
+    if field=='ChildAnimation' and resolve(child).get('CancelAllAttached'):raise ValueError('Native screen child CancelAllAttached parent cancellation not reconstructed: '+child)
     edges.append({'parent':name,'field':field,'child':child})
     if child not in names:names.append(child)
   if len(names)>4096:raise ValueError('Bounded GUI closure exceeded')
