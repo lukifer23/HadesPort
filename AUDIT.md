@@ -1,16 +1,113 @@
-# Code audit — 2026-10-26
+# Hades port review — 2026-10-26 evening
 
-The port remains a prototype. This audit maps the implementation, repairs verified
-source defects, and orders the remaining work. It does not establish complete engine
-parity or device readiness. No device testing or APK publication was performed;
-iteration12 remains the installed build. The canonical asset stage is untouched;
-the second progression pass uses an isolated host candidate described below.
+The goal remains a complete offline native ARM64 Android Hades engine, driven by the
+owned PC game's original scripts/assets: full runs, enemies/bosses/weapons/boons,
+House, original-format saves, PC settings, touch/controllers and sustained correct
+presentation. This is a substantial two-room prototype, not a finished port.
 
-Initial inventory: approximately 30,000 lines across 205 C++ source/header files in `native/app/`,
-75 Python exporters/build helpers, the Java platform bridge, host tools, existing
-probes, recovered contracts, and the preserved workstream branch. Findings combine
-source inspection with bounded host checks; unsupported-branch searches are an
-inventory aid, not a completeness metric. Original assets and detailed evidence stay local.
+This review covers the Hades source architecture, pending changes, exporters/build,
+recovered contracts, progress receipts, documentation and fresh designated-device
+logs. It is a bounded engineering review, not proof that every engine branch was
+examined or exercised. The sibling REA checkout is supporting tooling and has a
+pre-existing bridge edit; it is outside this change's modification scope. Parent
+`research/` records are historical: their compatibility-runtime recommendation and
+unknown-device statements are superseded by the native-port constraints and fresh
+device evidence. They are not the active roadmap.
+
+## Current evidence and immediate findings
+
+- `main` entered this review at `e52c1d6`, with twelve modified files from unfinished
+  text/input/screen work. The original diff is preserved privately before edits.
+- Iteration14's actual installed APK hash and size match its recorded receipt.
+  Fresh logs are from the selected current process, not an old log-buffer process.
+  No device input was injected and no unrelated app screen was captured.
+- The latest pre-review strict host progression clears four encounter waves and
+  reaches Athena pickup at frame 4,555. Mixed combat has a reproducible five-hit
+  baseline. Old navigation, disposed-owner draw-group and ShiftFraction blockers
+  were repaired; the retained earlier audit below describes historical findings.
+- Fresh device death logs show missing low-health/death screen animations,
+  `AllowAnyFire`/Graphic reflection, camera/audio/action consumers and missing
+  death audio/subtitle resources, followed by `DeathArea/scene.bin` unavailable.
+  The player cannot complete a normal death/House loop yet. Later faults may be
+  cascades; preserve the first fault and diagnose each producer before patching.
+- Pending dialogue resources contain the required background, portraits, bubble,
+  arrow and CaesarDressing font, but the text exporter omitted Description data
+  required by the new runtime. Existing survey logs contain six gaps; they are
+  not acceptance. The combined corrected packs require a fresh strict replay.
+- Camera frame state is reconstructed, but visible vignette/Shroud drawing still
+  throws (`fullscreen_blur_renderer.cpp:62`). The radial sampler is an explicit
+  approximation. Do not call either complete visual parity.
+- Autoplay handles combat and world Use; it stops supplying input when gameplay
+  input is blocked (`autoplay.cpp:56`). Completed idle frames during dialogue
+  cannot prove dialogue advancement or boon selection.
+
+
+Dialogue integration at source `f04cd02` reconstructs original description lookup, lexer escapes,
+Top/Bottom row spacing, exact eight-entry emphasis mapping and Constant screen
+transitions. The complete source-derived font class includes emphasis targets.
+Strict host playback and final ASan/UBSan reach the first dialogue at 5,600 frames
+with zero faults (leak detection disabled);
+input remains blocked while the original script waits for confirmation. This is
+an entry milestone, not a completed conversation or boon selection. Mapped Android
+hardware controls now reach raw notification handling; touch dialogue advancement
+and physical device interaction still require their own acceptance.
+
+Death follow-up is now bounded by actual producer calls: low-health screen-owner
+pulse FX; native disabled-email gates; camera clamp clearing, live AllowAnyFire,
+ambient stop/Halt, Graphic/reset side effects; death movies/audio/VO and DeathArea.
+The nil speech-duration comparison follows contained PlaySpeech failure. Native
+SendSaveFileEmail dispatch checks UseAnalytics and DisableAnalyticsInDebug before
+any submission; reconstruct that disabled branch rather than inventing a result.
+Preserved Tartarus room exports do not include DeathArea. The generic room exporter
+and MapGroups package selection need review before deriving the real House bundle.
+
+Iteration15 is now built from source `f04cd02`, installed non-incrementally and
+verified against actual on-device SHA/size (2,564,954,077 bytes). The source/selected-pack
+receipt is immutable by APK hash. Launch evidence is separate from still-pending
+manual gameplay. Exact device/build details and final checks are in STATUS.
+
+Private baseline/device evidence: `.local/reports/review-2026-10-26/`.
+No game files, captures, decompilation or personal identifiers belong in git.
+
+## Ordered build and acceptance plan
+
+| Order | Deliverable | Required evidence |
+|---|---|---|
+| 1 | Integrate original text descriptions, dialogue resources and recovered movement gating; repair pending producer/lexer defects. | Fresh versioned packs, source provenance, strict mixed 2,950 replay with unchanged five-hit sequence, strict reward/dialogue entry and every-frame presentation sampling; final ASan/UBSan. |
+| 2 | Real dialogue controls and boon selection, including touch/controller navigation. | Original callbacks and selection state; explicit dialogue/choice milestones. Manual designated-device play, complete logs and guarded captures. No idle-frame or containment acceptance. |
+| 3 | Death/House recovery and original script-selected next room. | Reproduce death and transition faults, reconstruct consumers from matching DLL/PDB, derive actual requested room/resource closure, strict transition and device confirmation. No fallback scene or forced progression. |
+| 4 | Save/restart/Continue and interruption durability. | Preserve real saves; original-format round trip across maps on device. Decide/document Android atomic-save adaptation, injected truncation/write failures and checkpoint recovery. |
+| 5 | Android lifecycle, physical controls, audio routes and sustained performance. | Pause/resume/surface/resize, controller disconnect/remap, audio recovery, frame time/memory/load/thermal measurements on device. Host checks cannot establish these. |
+| 6 | Expand full runs, biomes/bosses, House and feature parity. | Resource-derived closure and strict feature routes plus device acceptance per milestone. Track unsupported branches and labelled adaptations separately. |
+
+Build discipline: one coordinator publishes/install; preserve rollback APKs, use full
+non-incremental user0 installation, verify installed hash/size, and record source and
+selected resource identities. Passing host checks reduce regression risk; they do
+not guarantee zero regressions. Never commit original or derived game content.
+
+## Remaining engineering risks
+
+| Area | Concrete boundary |
+|---|---|
+| Native combat | Straight/Arc/Instant/Homing do not implement Beam/Lob/Sky; delayed-fuse/live-target and other specialized branches still reject explicitly. Shared null-weapon TakeHit and projectile hit consumers must stay aligned. |
+| Presentation | Pending ActionEffect fields include unconsumed Material/Ambient/sort/transfer behavior; zero faults is not full visual equivalence. Visible vignette drawing is missing. Portable interaction geometry/order and text wrapping remain labelled adaptations. |
+| Persistence | Direct primary writes follow the original contract, but are not atomic; `.bak` is not a general recovery path. Release durability is incomplete. |
+| Delivery | APK remains bounded by ZIP32; only opening and RoomSimple01 ship. Full-game external content WIP is not integrated. Room staging should align its name bound and required-file checks with runtime validation. |
+| Tooling | Existing dependency extraction treats directory existence as completion; interrupted extraction can be retained. Repair before making clean-install reproducibility claims. |
+| Provenance/docs | Build receipts lacked complete source/selected-pack identities. README, HANDOFF and old audit priorities were stale. Current summaries must follow exact receipts rather than old broad catchalls. |
+| Performance | 384 MiB actor GPU cache plus CPU decoding/retired actors are measurement candidates. No memory/thermal conclusion follows from source inspection. |
+
+## Historical audit batches
+
+The sections below retain the earlier audit and its bounded evidence. Statements
+about installed iteration12, stale canonical packs, the 2,529-frame draw-group stop,
+9,000-frame navigation stall, unreconstructed ShiftFraction/blur, and deferred device
+access are historical. Current source and STATUS's latest entries supersede them.
+
+Initial inventory: approximately 30,000 lines across 205 C++ source/header files,
+75 Python exporters/build helpers, Java platform bridge, host tools, recovered
+contracts and preserved workstream branch. No bulk branch integration is authorized
+by this review; changes remain separately reviewed and verified.
 
 ## Architecture and coverage
 
@@ -149,7 +246,7 @@ the latter has an evidence ledger, but insufficient component-layout proof for a
 faithful implementation. No reward, boon or full-game acceptance claim follows.
 Evidence stays local under `.local/reports/progression-2026-10-26/`.
 
-## Priority work
+## Historical priority work (superseded by ordered plan above)
 
 | Priority | Work and source boundary | Acceptance |
 |---|---|---|

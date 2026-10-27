@@ -6,43 +6,37 @@ The detailed machine/session restart checkpoint, when present, is
 `.local/private/RESTART_HANDOFF.md`; read it together with `.local/private/LOCAL.md`.
 Both are ignored local files and must never be committed.
 
-The [2026-10-26 code audit](AUDIT.md) maps current implementation, repaired defects,
-remaining gaps and acceptance priorities. Read the latest code-only section in
-`STATUS.md` before the historical October 20 checkpoint below. Work remains on `main`;
-selected consumers from the preserved workstream branch are integrated and verified
-on bounded host routes; its remaining changes stay separate. The Fold is connected again (2026-10-26 evening):
-iteration14 (source `94efe22`) is installed and hash-verified; iteration13 is kept as a
-baseline APK. See the STATUS.md "Device session" section for install records, host
-fixes, the mixed-combat baseline note and play results. Bisect or probe older sources
-in a separate `git worktree`, never with stash/checkout in the live tree.
+The [2026-10-26 review](AUDIT.md) maps current implementation, verified repairs,
+remaining gaps and ordered acceptance milestones. The Fold is connected again;
+iteration15 (source `f04cd02`) is installed and hash/size-verified. Iteration14 is
+retained as a rollback APK. See STATUS's latest entry for exact source/pack/build/
+device identities and host verification. Only source-reviewed, separately verified
+areas of the preserved workstream branch have been integrated. Bisect or probe old
+sources in a separate `git worktree`, never stash/checkout in the live tree.
 
-## Host progression integration (2026-10-26)
+## Current continuation (2026-10-26 evening)
 
-The second code-only pass integrates collision/force/wall-hit/effect-clear,
-VFX timing/friction/occlusion, AI/live-offset/query/LOS/screen-Teleport,
-projectile impact/reflection, Book/Constant frame transfer and derived reward
-resources. Read [AUDIT.md](AUDIT.md) for exact boundaries and [STATUS.md](STATUS.md)
-for final validation. Build defaults select action-effects-v24/audio-events-v30;
-canonical staged assets remain v22/v29 and the installed APK is unchanged.
+Read the latest STATUS entry and AUDIT before historical checkpoints below.
+Iteration15 is installed and re-verified; current source includes the
+reviewed text/input/screen dialogue batch. Preserve iteration14 and app-file backups.
+The canonical stage and a selected host candidate can use different packs.
 
-Host/native ARM64 builds and focused probes pass. Strict mixed combat passes
-2,950 frames with every-frame presentation sampling. Strict autoplay runs 9,000
-frames with zero engine faults but stalls with three enemies alive. Its 6,000-frame
-trace shows movement consumed without an effect, request or strafe lock; collision
-navigation still needs diagnosis. Do not equate frame completion with encounter
-completion. Fullscreen frame/blur and reward ShiftSpeed remain explicit gaps.
-ASan/UBSan frame-transfer and strict mixed/presentation/save probes pass without
-findings. Stronger autoplay every-frame presentation stops at frame 2,529 with
-`Action FX owner draw group unavailable`; repair that transient owner resolution
-before claiming a longer render-safe route. The 9,000-frame result sampled only its
-final presentation snapshot. Exact results are recorded in STATUS.md.
+Already repaired: transient FX owner draw groups, autoplay navigation through the
+engine's A*, ShiftFraction reward animation, radial blur state/update/pass and camera
+frame state. Strict host autoplay and ASan/UBSan pass 5,600 frames through original
+dialogue entry after Athena pickup. The exact held-input baseline remains five hits;
+the separate release/repress replay has seven. Visible vignette Shroud rendering remains explicitly unsupported; frame state is not GPU proof.
 
-The temporary candidate/build directories are removed after verification. Recreate
-an isolated host stage using the selected versioned manifests before continuing;
-do not confuse the older canonical stage with the tested v24/v30 combination.
-Private receipts, replay inputs, source evidence and save probes remain under
-`.local/reports/progression-2026-10-26/`. Existing historical rosters below are
-context, not active assignments. Device testing remains deferred.
+Fresh device logs establish death-path gaps and `DeathArea/scene.bin` unavailable.
+Next milestones are original Athena dialogue/boon interaction and death/House recovery,
+then the script-selected next map and real save/Continue. Host autoplay currently
+handles combat and world Use only; idle frames during dialogue prove no UI selection.
+Do not skip dialogue, inject damage, force rewards or invent a next room.
+
+Build in an isolated host stage, run the exact mixed replay and strict progression
+with every-frame presentation sampling, then one final sanitized check. Only main
+publishes assets/builds/installs. Keep immutable source/pack/build/device identities
+and explicit limitations. Reconcile fresh results in STATUS and the private handoff.
 
 ## Storage and process hygiene
 
@@ -117,14 +111,14 @@ adb -s "$HADES_DEVICE_SERIAL" install --no-incremental -r --user 0 .local/build/
 adb -s "$HADES_DEVICE_SERIAL" logcat -d -v threadtime -s HadesNative HadesLua HadesSurvey AndroidRuntime
 # Save complete logs before filtering; retained faults can precede the visible symptom.
 adb -s "$HADES_DEVICE_SERIAL" exec-out screencap -d "$HADES_DISPLAY_ID" -p > .local/reports/shot.png
-# Fast host replay (own build dir), first-combat input file
+# Fast host replay (own build dir), mixed held-attack baseline (five hits)
 nice -n 15 cmake -S native/host -B .local/native-host-build-X -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DHADES_SANITIZE=OFF
 nice -n 15 cmake --build .local/native-host-build-X --target hades-debug -j 2
 nice -n 15 .local/native-host-build-X/hades-debug .local/native-build/assets .local/reports/NEW.json \
-  --activate-room --world-frames=2950 --input-replay=.local/reports/native-firstcombat-replay-v1.tsv
+  --activate-room --world-frames=2950 --input-replay=.local/reports/takeover-mixed-combat-hold.tsv
 # Blocker survey (host-only diagnostic): records every failure instead of stopping
 nice -n 15 .local/native-host-build-X/hades-debug .local/native-build/assets .local/reports/SURVEY.json \
-  --activate-room --world-frames=2950 --survey-blockers --input-replay=.local/reports/native-firstcombat-replay-v1.tsv
+  --activate-room --world-frames=2950 --survey-blockers --input-replay=.local/reports/takeover-mixed-combat-hold.tsv
 # Autoplay (host-only input source): plays the real encounter/reward flow from the
 #   original RequiredKillEnemies + live Interact owners via the touch input path.
 #   --contain-faults = device durability mode, prints SURVEY_SUMMARY of reached gaps.

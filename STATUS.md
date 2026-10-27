@@ -15,7 +15,64 @@ batch fixes before rerunning, use the shortest replay that reaches the changed
 path, and do one sanitized (ASan/UBSan) run at the end. Device installs only for
 meaningful milestones.
 
-## Device session (2026-10-26 evening)
+## Review and iteration15 (2026-10-26 evening)
+
+The full review and ordered acceptance plan are in [AUDIT.md](AUDIT.md). This entry
+supersedes historical host-only/no-device checkpoints below.
+
+**Iteration15 installed** — source `f04cd02`, full non-incremental user0 install.
+SHA-256 `891116b5c2119e2a707232ec9c39c1dbca40b008656601ce334c01694db9b1a4`,
+2,564,954,077 bytes. Actual installed SHA/size match; launch/process/resumed activity
+observed, zero launch fault lines in the captured current-process log. This is
+installation/launch evidence only; manual gameplay for iteration15 remains unverified.
+Iteration14 is preserved as `baseline-iteration14-11e3e368.apk`; app files are
+backed up privately. Canonical assets now select text10/screen-dialogue13 with
+actor9/weapons25/action24/audio30. Build receipt binds 311 code files and 30 selected
+manifests to source `f04cd02`; source identities match final host verification.
+Immutable build/device receipts stay ignored under `.local/reports/`.
+
+
+Before replacement, designated-device inspection re-verified iteration14's installed
+SHA/size and captured complete logs plus current-process filtering. Actual logs show low-health
+presentation gaps, then death consumers/audio faults and original DeathArea request;
+transition fails because DeathArea is not packaged. Later nil speech errors follow
+contained PlaySpeech failure and must not be treated as separate native contracts.
+Iteration14 and app files are backed up before any new publication. No injected
+phone input or unrelated app capture was used.
+
+The reviewed text/input/screen batch was integrated and tested with original-text-v10
+and screen-dialogue-v13 in an isolated host stage. Text10 retains all prior DisplayNames,
+adds independently inherited Description/AdditionalDescription (4,098 records) and
+preserves known empty descriptions. It exports 21 original fonts; no font substitutes.
+Coverage v20 matches v19's resource closure; the `or` lexer fix adds provenance only.
+
+Strict hold-combat 2,950 passes with every-frame presentation and the exact existing
+five-hit sequence (`takeover-mixed-combat-hold.tsv`). The separate release/repress
+input (`native-firstcombat-replay-v1.tsv`) also passes 2,950 with seven hits and a
+structurally equal save/reload probe; these input routes are not interchangeable.
+The save probe invokes the registered action directly and is not a script-reached
+checkpoint or device Continue proof. New native Bool/lifetime boundary checks pass.
+
+Strict autoplay with new resources reaches 4,575 frames, past Athena use and prior
+missing screen/font/description resources; it exposes original dialogue spacing and
+emphasis-font consumers. These failures are retained, not suppressed. Top/Bottom
+spacing and the complete original emphasis-font map are now recovered. A subsequent
+strict route passes 5,600 frames with every-frame presentation, zero faults and
+original dialogue presentation sampled while waiting for input. This proves dialogue entry, not
+advancement or boon choice. Android now retains all original mapped hardware controls
+(including Confirm/Select/ContinueText); physical confirmation remains pending. No
+new device gameplay claim follows from this host checkpoint.
+
+Private evidence: `.local/reports/review-2026-10-26/`, text export verification under
+`.local/reports/full-review-2026-10-26/`. Final ASan/UBSan autoplay passes 5,600/5,600
+with zero faults and every-frame presentation, no sanitizer findings (leak detection
+disabled). Final hold-combat
+passes with text10 and the unchanged five-hit sequence. Android ARM64/Java/signing/
+permission checks pass; the installed result is recorded above. No INTERNET permission was added. Owned temporary host/ASan/candidate trees
+were removed after retaining receipts. Pre-existing builds and all immutable packs,
+evidence, actual saves and rollback APKs were preserved.
+
+## Earlier device session (iterations13–14, superseded by15)
 
 The Fold (SM-F966U, Android 17) is connected again over USB and wireless debugging.
 The installed iteration12 hash was re-verified before replacement and is retained as
@@ -53,7 +110,7 @@ sequence deterministically; the held Attack2 stays trigger-locked by the origina
 `SwordDisableCancelableAndLockTrigger` until release. The seven-hit runs are not
 reproducible from any committed source and are treated as superseded.
 
-Active workstreams: text runtime (markup tokens, UseDescription, CreateTextBox Id,
+Workstreams at iteration14 (integrated by iteration15 above): text runtime (markup tokens, UseDescription, CreateTextBox Id,
 ModifySubtitles) and dialogue/boon screen assets (screen animations, CaesarDressing
 font, ToggleMove), integrated and committed by main only.
 
@@ -74,7 +131,7 @@ Host fixes since iteration13 (all included in iteration14):
 - `253700b` ShiftFraction Z-shift phase for action FX: boon-drop icons no longer
   block, so the encounter reward spawns and can be picked up.
 
-## Host progression checkpoint (2026-10-26, code-only)
+## Historical host progression checkpoint (superseded by evening device session)
 
 This batch integrates native collision weapon/force/wall-hit/effect-clear consumers,
 per-entity VFX clocks, non-HAA friction, persistent occluder roots, MoveAI failure
