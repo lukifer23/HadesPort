@@ -15,6 +15,36 @@ batch fixes before rerunning, use the shortest replay that reaches the changed
 path, and do one sanitized (ASan/UBSan) run at the end. Device installs only for
 meaningful milestones.
 
+## Device session (2026-10-26 evening)
+
+The Fold (SM-F966U, Android 17) is connected again over USB and wireless debugging.
+The installed iteration12 hash was re-verified before replacement and is retained as
+`baseline-iteration12-d39fefae.apk` alongside the iteration10a rollback.
+
+**Iteration13 installed** — source `2c5efc4` (the 2026-10-26 audit + progression
+batches; the `.so` compile finished before any later edit). Canonical assets were
+freshly staged with the default packs (action-effects-v24, audio-events-v30).
+SHA-256 `c5f7859909e6c43060920179dce6528ee4dca4e3291c42f9dd013de053417121`,
+2,540,195,648 bytes; full non-incremental user0 install; on-device hash and size match.
+Manual play results are pending and will be recorded here.
+
+Host fixes since iteration13 (committed, not yet on device):
+
+- `0901272` Attached FX surviving their owner's disposal keep the owner's draw group
+  (the pre-dispose snapshot omitted it). Autoplay with every-frame presentation now
+  validates 4,400/4,400 frames (previously stopped at 2,529). Projectile owner markers
+  for non-Book primaries use the shared base `Animation::GetMarkerLocation` dispatch.
+- `79f71e0` Host autoplay steers along the engine's own A* path (read-only query, no
+  RNG). The earlier "stall with three enemies" was the straight-line driver walking
+  into a concave wall corner, not an engine movement gate: dash moved the hero freely.
+  Autoplay now clears waves 1–3, enters wave 4 and reaches the original
+  `LastKillPresentation`, which stops strictly at `AdjustRadialBlurDistance`.
+- Strict mixed combat: 2,950/2,950 frames with every-frame presentation, zero faults,
+  combat-hit sequence identical to the pre-change run. Sanitized pass pending at batch end.
+
+In progress: reconstruction of `AdjustRadialBlurDistance`/`AdjustRadialBlurStrength`/
+`AdjustFrame` (script state plus a GLES pass from the original `radialblur.frag`).
+
 ## Host progression checkpoint (2026-10-26, code-only)
 
 This batch integrates native collision weapon/force/wall-hit/effect-clear consumers,
