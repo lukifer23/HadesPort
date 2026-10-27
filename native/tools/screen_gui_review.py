@@ -27,7 +27,16 @@ from export_actor_animations import string
 # 0x1802b46d0 skips zero-duration slides; SlideStart 0x1802b4080 duration/60).
 # Sound: animation-level cue played by Animation.InitData 0x180291c70
 # (SoundAllowedAfterFrame gate, default 2).
-KEYS={'Name','InheritFrom','FilePath','Type','StartFrame','EndFrame','NumFrames','PlaySpeed','OffsetX','OffsetY','OriginX','OriginY','Scale','ScaleX','ScaleY','Alpha','AddColor','Material','SortMode','Loop','HoldLastFrame','ChildAnimation','AngleFromOwner','ScaleFromOwner','ColorFromOwner','DieWithOwner','Red','Green','Blue','Slides','Sound','Color','StartAlpha','EndAlpha','Duration','ChainTo','AttachedTextScalarX','AttachedTextScalarY','Ambient'}
+KEYS={'Name','InheritFrom','FilePath','Type','StartFrame','EndFrame','NumFrames','PlaySpeed','OffsetX','OffsetY','OriginX','OriginY','Scale','ScaleX','ScaleY','Alpha','AddColor','Material','SortMode','Loop','HoldLastFrame','ChildAnimation','AngleFromOwner','ScaleFromOwner','ColorFromOwner','DieWithOwner','Red','Green','Blue','Slides','Sound','Color','StartAlpha','EndAlpha','Duration','ChainTo','AttachedTextScalarX','AttachedTextScalarY','Ambient',
+ # Constant transition helpers (screen_animation.cpp: InitData
+ # 0x180292566..0x1802926e3 colour channels, GetX/YShift 0x180297b40/
+ # 0x180297a50 + GetValue 0x180298750, scale helper 0x18029217d..0x1802922fd,
+ # duration Loop via Animation::Loop 0x180296310).
+ 'StartRed','StartGreen','StartBlue','EndRed','EndGreen','EndBlue','EaseIn','EaseOut','PingPongColor',
+ 'StartOffsetX','EndOffsetX','StartOffsetY','EndOffsetY','PingPongShiftOverDuration','PhaseOffsetShiftOverDuration',
+ 'StartScale','EndScale','PingPongScale'}
+# Transition keys driven by the Constant duration fraction only.
+CONSTANT_TRANSITION_KEYS={'Duration','StartAlpha','EndAlpha','StartRed','StartGreen','StartBlue','EndRed','EndGreen','EndBlue','EaseIn','EaseOut','PingPongColor','StartOffsetX','EndOffsetX','StartOffsetY','EndOffsetY','PingPongShiftOverDuration','PhaseOffsetShiftOverDuration','StartScale','EndScale','PingPongScale'}
 TYPES={'Constant','ConstantNoUpdate','Book','Slide'}
 SLIDE_KEYS={'DurationFrames'}
 
@@ -79,10 +88,12 @@ def resolve_all(records,origin,roots):
   unknown=set(d)-KEYS
   if unknown:raise ValueError('Unreviewed GUI animation property '+name+': '+repr(sorted(unknown)))
   if d.get('Type')not in TYPES:raise ValueError('Unreviewed GUI animation type '+name)
-  if 'Slides'in d and d.get('Type')!='Slide':raise ValueError('Unreviewed non-Slide Slides data '+name)
+  # Book.Init 0x1802af310 / SetupFrameUpdateMode 0x1802b1040 never
+  # initialize or dispatch SlideData (export_actor_animations.py): Book
+  # Slides are inert. Other non-Slide types with Slides stay unreviewed.
+  if 'Slides'in d and d.get('Type')not in('Slide','Book'):raise ValueError('Unreviewed non-Slide Slides data '+name)
   if d.get('Type')=='Slide':slide_durations(d)
-  if any(k in d for k in ['Duration','StartAlpha','EndAlpha']) and d.get('Type')!='Constant':raise ValueError('Unreviewed non-Constant screen duration/color transition '+name)
-  if d.get('Loop') and d.get('Type')=='Constant' and d.get('Duration',0)>0:raise ValueError('Unreviewed screen Constant duration loop '+name)
+  if any(k in d for k in CONSTANT_TRANSITION_KEYS) and d.get('Type')!='Constant':raise ValueError('Unreviewed non-Constant screen duration/transition '+name)
   for field in ['ChildAnimation','ChainTo']:
    child=d.get(field)
    if child and child!='null':
@@ -134,8 +145,9 @@ def coverage_roots(a,records,origin):
  reviewed,rejected={},{}
  for name,prov in cov['provenance'].items():
   if name not in records:continue
-  reviewed[name]='; '.join(prov[:3]) or 'coverage closure'
- graphics={g:'; '.join(p[:3]) for g,p in cov.get('obstacle_graphics',{}).items()}
+  # Provenance rows are strings, or source-bound dicts (forced encounter).
+  reviewed[name]='; '.join(x if isinstance(x,str)else json.dumps(x,sort_keys=True)for x in prov[:3]) or 'coverage closure'
+ graphics={g:'; '.join(x if isinstance(x,str)else json.dumps(x,sort_keys=True)for x in p[:3]) for g,p in cov.get('obstacle_graphics',{}).items()}
  return reviewed,graphics,rejected,cov
 
 def admissible(records,origin,names,rejected):

@@ -103,6 +103,8 @@ class Coverage:
         self.content = content
         self.sources = []
         self.provenance = defaultdict(list)  # name -> [provenance strings]
+        self.keyed_walks = {}  # (id(record), origin) -> (record, origin): every keyed record walk
+        self.dynamic_fields = {}
         self.load_animations()
         self.load_sjson()
         self.load_lua()
@@ -237,6 +239,8 @@ class Coverage:
     def walk_values(self, value, origin, keyed, path=()):
         """Animation names held by a record. keyed: require an animation-like key."""
         found = []
+        if keyed is True and not path:
+            self.keyed_walks.setdefault((id(value), origin), (value, origin))
         if isinstance(value, dict):
             for k, v in value.items():
                 if k in ('Name', 'InheritFrom', '__line__', '__expr__', '__function__'):
@@ -247,13 +251,17 @@ class Coverage:
         elif isinstance(value, list):
             for v in value:
                 found += self.walk_values(v, origin, keyed, path)
-        elif isinstance(value, str) and value in self.binks and path and path[-1].endswith('Binks'):
+        elif isinstance(value, str) and value in self.binks and path and path[-1].endswith('Binks') and not isinstance(keyed, frozenset):
             # WeaponBinks/PreLoadBinks name Bink videos; the engine plays them
             # through every animation whose VideoTexture is that video.
             found += [(n, origin + ':' + '.'.join(path) + ' ' + value) for n in self.binks[value]]
         elif isinstance(value, str) and value in self.anims:
             key = path[-1] if path else ''
-            if not keyed or ANIM_KEY.search(key) or any(part.endswith('FxStyles') for part in path[:-1]) or (len(path) >= 2 and path[-2] == 'Using'):
+            if isinstance(keyed, (set, frozenset)):
+                # Dynamic-field pass: only keys a reachable animation call reads.
+                if key in keyed:
+                    found.append((value, origin + ':' + '.'.join(path)))
+            elif not keyed or ANIM_KEY.search(key) or any(part.endswith('FxStyles') for part in path[:-1]) or (len(path) >= 2 and path[-2] == 'Using'):
                 found.append((value, origin + ':' + '.'.join(path)))
         return found
 
@@ -481,6 +489,15 @@ class Coverage:
         scope['functions'] = {'boundary': sorted(BOUNDARY), 'seeds': sorted(function_seeds & set(self.functions)), 'reachable': len(reach)}
         for name, origin in sites:
             add(name, origin)
+        # Data fields that reachable animation calls read by name: walk every
+        # in-scope record already admitted for keyed animation fields again,
+        # accepting exactly those field names (e.g. Portrait/Emote).
+        fields = frozenset(f for f in self.dynamic_fields if not ANIM_KEY.search(f))
+        for value, origin in list(self.keyed_walks.values()):
+            for name, source in self.walk_values(value, origin, fields):
+                field = source.rsplit('.', 1)[-1].rsplit(':', 1)[-1]
+                add(name, source + ' <- ' + self.dynamic_fields[field][0])
+        scope['dynamic_animation_fields'] = {f: self.dynamic_fields[f][:4] for f in sorted(fields)}
         self.dynamic_sites = dynamic
         return roots, scope
 
@@ -489,6 +506,7 @@ class Coverage:
         data_refs = defaultdict(list)
         groups = defaultdict(dict)
         var_concat, var_use = defaultdict(list), defaultdict(dict)
+        dyn_fields = defaultdict(list)
         for fname, f in self.lua.items():
             owner = f.owners(); t = f.tokens
             data = self.data_ranges[fname]
@@ -558,6 +576,19 @@ class Coverage:
                     var_use[o].setdefault(t[i + 2].value, call_at[i])
                 if call_at[i] in ANIM_CALLS and tk.kind == 'name' and tk.value in ('Name', 'Animation') and t[i + 1].value == '=' and t[i + 2].kind != 'str':
                     dyn[o].append(f'{fname}:{tk.line} {o} {call_at[i]} {tk.value}=' + ''.join(str(x.value) for x in t[i + 2:i + 8]))
+                    # `Name = a.b.Field` (optionally `.. "suffix"` / `or ...`):
+                    # the call reads the animation name from a data field.
+                    # Record the field so in-scope records holding it are
+                    # walked (e.g. Narrative.lua DisplayTextLine
+                    # source.Portrait / line.Emote, LootData dialogue lines).
+                    j, chain = i + 2, []
+                    if t[j].kind == 'name':
+                        chain.append(t[j].value); j += 1
+                        while t[j].kind == 'op' and t[j].value == '.' and t[j + 1].kind == 'name':
+                            chain.append(t[j + 1].value); j += 2
+                    if len(chain) >= 2 and ((t[j].kind == 'op' and t[j].value in (',', '}', '..')) or (t[j].kind == 'kw' and t[j].value == 'or')):
+                        dyn_fields[o].append((chain[-1], f'{fname}:{tk.line} {o} {call_at[i]} {tk.value}={".".join(chain)}'))
+        self.dynamic_fields = {}
         seen = set(s for s in seeds if s in self.functions and s not in BOUNDARY); stack = list(seen)
         while stack:
             x = stack.pop()
@@ -594,6 +625,9 @@ class Coverage:
                     if name != text and (name.endswith(text) and name[:-len(text)] in universe if suffix else name.startswith(text) and name[len(text):] in universe):
                         sites.append((name, origin + (' ..' if suffix else '.. ') + repr(text)))
             dynamic += dyn.get(fn, [])
+            for field, origin in dyn_fields.get(fn, []):
+                self.dynamic_fields.setdefault(field, [])
+                if origin not in self.dynamic_fields[field]: self.dynamic_fields[field].append(origin)
             # SpawnObstacle/CreateScreenObstacle names: a Thing.Graphic that is
             # a sprite path (no AnimationData) is a native Dataless animation.
             pending = list(obst.get(fn, [])); spawned = set()
