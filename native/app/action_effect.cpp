@@ -82,7 +82,7 @@ const std::set<std::string>& handledFields(){static const std::set<std::string> 
  "ScaleX","ScaleY","Sound","SoundAllowedAfterFrame","SoundManagerCap","StartAlpha","StartBlue","StartFrame","StartGreen",
  "StartRed","StartScale","TimeModifierFraction","TransferCopyBody","TransferDrawLayer","TransferFrameFromThis","TransferFrameToThis","UseAttachedMarkerLocation",
  "UseOwnAngle","UseVelocityAngleFromOwner","VelocityMax","VelocityMin","VisualFx","VisualFxCap","VisualFxCapMin","VisualFxCapMax","VisualFxIntervalMax","VisualFxIntervalMin",
- "VisualFxManagerCap","GroupName","UseAttachedGroup","MaintainAlphaOnly","ScaleRadius","GammaCorrection","NonHighColorChannelMultiplier","Red","Green","Blue","Alpha","DurationFrames","LoopFramesOnly","PlayBackwards","StartOffsetX","EndOffsetX","StartOffsetY","EndOffsetY","StartOffsetZ","EndOffsetZ","PingPongShiftOverDuration","PhaseOffsetShiftOverDuration","RandomFlipVertical","StartScaleX","EndScaleX","StartScaleY","EndScaleY","PingPongScale",
+ "VisualFxManagerCap","ShiftSpeed","ShiftSpeedMin","ShiftSpeedMax","GroupName","UseAttachedGroup","MaintainAlphaOnly","ScaleRadius","GammaCorrection","NonHighColorChannelMultiplier","Red","Green","Blue","Alpha","DurationFrames","LoopFramesOnly","PlayBackwards","StartOffsetX","EndOffsetX","StartOffsetY","EndOffsetY","StartOffsetZ","EndOffsetZ","PingPongShiftOverDuration","PhaseOffsetShiftOverDuration","RandomFlipVertical","StartScaleX","EndScaleX","StartScaleY","EndScaleY","PingPongScale",
  // Multi-angle atlas selection (BookAnimation::GetAngleNum 0x1802b0630),
  // angle transition, Hue/Saturation/Value (InitData 0x180292459), upward
  // velocity (0x180292a58), StopCue on Dispose/OnLoop, attached clock link
@@ -188,6 +188,9 @@ bool ActionEffectWorld::initialize(const std::string&name,int32_t ownerId,const 
  // D = GetValue(max(DurationFrames/60,Duration),RandMin,RandMax).
  s.durationBound=n(d,"Duration")>0||n(d,"DurationFrames")>0||n(d,"RandomDurationMin")>0||n(d,"RandomDurationMax")>0;
  s.duration=std::max(n(d,"DurationFrames")/60.f,n(d,"Duration"));if(n(d,"RandomDurationMin")||n(d,"RandomDurationMax"))if(!rng(p,n(d,"RandomDurationMin"),n(d,"RandomDurationMax"),s.duration,error))return false;s.remaining=s.duration;
+ // InitData 0x18029205a: GetValue291290(ShiftSpeed,ShiftSpeedMin,ShiftSpeedMax)
+ // draws once unless both bounds are zero, after duration and before scale RNG.
+ {float value=n(d,"ShiftSpeed");if(n(d,"ShiftSpeedMin")||n(d,"ShiftSpeedMax"))if(!rng(p,n(d,"ShiftSpeedMin"),n(d,"ShiftSpeedMax"),value,error))return false;if(value!=0||std::isnan(value))s.shiftFraction=value;}
  s.scaleVector={n(d,"ScaleX",1),n(d,"ScaleY",1)};s.ownScale=n(d,"Scale",1);if(n(d,"ScaleMin")||n(d,"ScaleMax")){float scale;if(!rng(p,n(d,"ScaleMin"),n(d,"ScaleMax"),scale,error))return false;s.ownScale*=scale;}
  if(t(d,"ScaleFromOwner")=="Take")s.ownScale*=owner.scale;
  // InitData 0x18029243c: alpha = GetValue(Alpha [ctor 1.0, 0x180094236], AlphaMin,
@@ -334,7 +337,10 @@ bool ActionEffectWorld::transferFrame(uint64_t target,const ActionEffectState&so
 bool ActionEffectWorld::slideFx(uint64_t handle,const ActionEffectProviders&p,std::string&error){auto&source=states_.at(handle);const auto&clip=bank_->clips().at(source.imageClip);const auto&step=source.definition.get("Slides")->array().at(clip.slides.at(source.slide).originalFrame-1);const auto fx=t(step,"VisualFx");if(fx.empty())return true;EffectOwnerState owner;if(!p.owner(source.ownerId,owner,error))return false;uint64_t h;if(!initialize(fx,source.ownerId,owner,source.position,0,false,p,h,error))return false;if(!h)return true;auto&spawned=states_.at(h);spawned.heading+=-1.5707963705062866f+source.heading;if(t(spawned.definition,"ScaleFromOwner")!="Ignore")spawned.ownScale*=source.ownScale*owner.scale;source.created.push_back(h);return true;}
 bool ActionEffectWorld::advance(float dt,const ActionEffectProviders&p,std::string&error){try{
  if(faulted_){error=fault_;return false;}if(mutating_||!std::isfinite(dt)||dt<0||dt>1){error="Invalid/faulted original action FX world";return false;}const auto snapshot=handles(true);std::vector<uint64_t>dead;
- for(auto h:snapshot){auto& s=states_.at(h);auto*life=registry_->find(h);if(!life||!life->initialized){error="Actual action FX lifetime lost";return false;}if(life->skipUpdate||s.done)continue;if(life->canceled){dead.push_back(h);continue;}const auto&d=s.definition;EffectOwnerState owner=s.ownerSnapshot;if(!s.detached){if(!p.owner(s.ownerId,owner,error)||owner.lifetime!=s.ownerLifetime)return false;s.ownerSnapshot=owner;}float elapsed=dt;if(p.elapsed&&!p.elapsed(s.ownerId,s.preferUnmodified?0:n(d,"TimeModifierFraction",-1),!s.detached&&life->attachedToTimeMultiplier,dt,elapsed,error))return false;if(!std::isfinite(elapsed)||elapsed<0||elapsed>1){error="Invalid actual action FX modified time";return false;}
+ for(auto h:snapshot){auto& s=states_.at(h);auto*life=registry_->find(h);if(!life||!life->initialized){error="Actual action FX lifetime lost";return false;}
+  // ShiftFractionSystem::Execute153390: phase+=rate*dt (rate stays 0), one wrap.
+  if(s.shiftFraction){float f=*s.shiftFraction+0.f*dt;if(0.f>f)f=1.f-(0.f-f);else if(f>1.f)f=f-1.f+0.f;s.shiftFraction=f;}
+  if(life->skipUpdate||s.done)continue;if(life->canceled){dead.push_back(h);continue;}const auto&d=s.definition;EffectOwnerState owner=s.ownerSnapshot;if(!s.detached){if(!p.owner(s.ownerId,owner,error)||owner.lifetime!=s.ownerLifetime)return false;s.ownerSnapshot=owner;}float elapsed=dt;if(p.elapsed&&!p.elapsed(s.ownerId,s.preferUnmodified?0:n(d,"TimeModifierFraction",-1),!s.detached&&life->attachedToTimeMultiplier,dt,elapsed,error))return false;if(!std::isfinite(elapsed)||elapsed<0||elapsed>1){error="Invalid actual action FX modified time";return false;}
  if(!s.detached&&(t(d,"LocationFromOwner").empty()||t(d,"LocationFromOwner")=="Maintain")){s.position[0]=owner.x+s.randomX;s.position[1]=owner.y+s.randomY;}if(!s.detached&&(t(d,"LocationZFromOwner").empty()||t(d,"LocationZFromOwner")=="Maintain"))s.position[2]=owner.z+s.ownZ;
  if(!s.detached&&!t(d,"UseAttachedMarkerLocation").empty()){std::array<float,3> marker;if(!p.marker(s.ownerId,t(d,"UseAttachedMarkerLocation"),marker,error))return false;s.position[0]=marker[0]+s.randomX;s.position[1]=marker[1]+s.randomY;}
  if(s.isLight&&state(s.parent))s.position=state(s.parent)->position;
@@ -462,7 +468,7 @@ bool ActionEffectWorld::updateDistance(const ActionEffectProviders&p,uint32_t& s
   if(n(d,"ActiveVisualFxCap")>0&&activeVfxCount(h)>=uint32_t(n(d,"ActiveVisualFxCap")))continue;
   EffectOwnerState owner=s.ownerSnapshot;if(!s.detached&&(!p.owner||!p.owner(s.ownerId,owner,error)))return false;
   std::array<float,3> location;if(!sourceLocation(s,owner,&p.marker,location,error))return false;
-  location[2]+=n(d,"OffsetZ")+s.addedOffsetZ+shift(d,"StartOffsetZ","EndOffsetZ",s.fraction);
+  location[2]+=n(d,"OffsetZ")+s.addedOffsetZ+shift(d,"StartOffsetZ","EndOffsetZ",s.shiftFraction.value_or(s.fraction));
   const auto marker=t(d,"VisualFxUseAttachedMarkerLocation");if(!marker.empty()&&owner.hasPrimaryAnimation&&(!p.marker||!p.marker(s.ownerId,marker,location,error)))return false;
   float delta=0;if(s.previousVfxLocation[0]!=0||s.previousVfxLocation[1]!=0){const float dx=location[0]-s.previousVfxLocation[0],dy=location[1]-s.previousVfxLocation[1];delta=std::min(std::sqrt(dx*dx+dy*dy),1920.f);if(delta>=n(d,"VisualFxDistanceMinChange"))s.distanceRemaining-=delta;}
   uint32_t emitted=0;
@@ -517,7 +523,7 @@ bool ActionEffectWorld::visual(uint64_t h,const EffectOwnerState&owner,const std
  }
  std::array<float,3> location;if(!sourceLocation(*s,owner,nullptr,location,error))return false;out.x=location[0];out.y=location[1];
  // GetZLocation297f50 adds OffsetZ + ZShift, unscaled.
- out.z=s->position[2]+n(d,"OffsetZ")+s->addedOffsetZ+shift(d,"StartOffsetZ","EndOffsetZ",s->fraction);out.scale=s->ownScale*scaleHelper(d,"StartScale","EndScale",s->fraction);if(!s->detached&&(t(d,"ScaleFromOwner").empty()||t(d,"ScaleFromOwner")=="Maintain"))out.scale*=owner.scale;
+ out.z=s->position[2]+n(d,"OffsetZ")+s->addedOffsetZ+shift(d,"StartOffsetZ","EndOffsetZ",s->shiftFraction.value_or(s->fraction));out.scale=s->ownScale*scaleHelper(d,"StartScale","EndScale",s->fraction);if(!s->detached&&(t(d,"ScaleFromOwner").empty()||t(d,"ScaleFromOwner")=="Maintain"))out.scale*=owner.scale;
  // Animation::GetScale 0x180298bb0: x mScaleRadius/def.ScaleRadius when both >0.
  if(s->scaleRadius>0&&n(d,"ScaleRadius")>0)out.scale*=s->scaleRadius/n(d,"ScaleRadius");out.angle=s->rotation-((d.get("UseOwnAngle")&&!b(d,"UseOwnAngle"))?0.f:s->heading+angleModifier(d,s->fraction));if(!s->detached&&maintainsOwnerAngle(d))out.angle-=owner.angle;
  // GetDrawAngle 0x1802980b0: NumAngles>1 draws the selected angle image unrotated.

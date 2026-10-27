@@ -31,6 +31,10 @@ struct ActionEffectState {
  EffectOwnerState ownerSnapshot;
  bool detached=false,preferUnmodified=false,useScreenLocation=false,movie=false;
  std::optional<std::string> runtimeGroup;
+ // sgg::ShiftFraction (8 bytes): {phase,rate}. InitData29205a..2920d4 copies
+ // {GetValue(ShiftSpeed,Min,Max),0} verbatim (Copy14f69f memmove 8); absent
+ // when that value compares equal to zero. Only GetZShift297c30 reads it.
+ std::optional<float> shiftFraction;
  std::array<float,2> scaleVector{1,1};
  float ownScale=1,heading=0,rotation=0,speed=0,acceleration=0,headingSpeed=0,timeRemaining=0;
  float distanceRemaining=0;std::array<float,3> previousVfxLocation{};
