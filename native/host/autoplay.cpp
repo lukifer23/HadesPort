@@ -4,8 +4,10 @@
 // Android touch controls use. It never changes game state directly.
 #include "autoplay.hpp"
 #include "../app/object_runtime.hpp"
+#include "../app/unit_path.hpp"
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 #include <sstream>
 extern "C" {
 #include <lua.h>
@@ -29,6 +31,20 @@ ScriptRuntime::AutoplayView ScriptRuntime::autoplayView(){
     }
     return view;
 }
+bool ScriptRuntime::autoplayWaypoint(float goalX,float goalY,float& x,float& y,std::string& error){
+    // Read-only query: planUnitPath and the node/line validators only refresh
+    // cached geometry and draw no engine RNG, so replays stay deterministic.
+    const auto hero=localPlayerBody();if(!hero){error="Autoplay hero unavailable";return false;}
+    const int32_t id=hero->id;float hx=0,hy=0;if(!actorWorld_.location(id,hx,hy,error))return false;
+    const hades::UnitPathConfig config;std::vector<hades::UnitPathNode> nodes;
+    const auto validate=[&](float nx,float ny,bool& blocked,std::string& detail){return unitPathNodeBlocked(id,nx,ny,false,blocked,detail);};
+    if(!hades::planUnitPath(hx,hy,goalX,goalY,config,validate,nodes,error))return false;
+    if(nodes.empty()){error="Autoplay path search exhausted";return false;}
+    // nodes run goal..start; take the node nearest the goal that is directly reachable.
+    for(const auto& node:nodes){bool clear=false;if(!unitLineOfMovement(id,float(node.x),float(node.y),false,clear,error))return false;
+        if(clear){x=float(node.x);y=float(node.y);error.clear();return true;}}
+    x=float(nodes.back().x);y=float(nodes.back().y);error.clear();return true;
+}
 
 namespace hades {
 // Policy: fight the nearest live enemy (approach, then release/repress
@@ -36,15 +52,23 @@ namespace hades {
 // with no enemies, walk to the nearest unused interaction and pulse Use.
 // Stalled progress triggers a sideways Rush. Tried usables are skipped for a
 // while so doors that refuse (locked) do not trap the driver.
-AutoplayInput Autoplay::step(int frame,const ScriptRuntime::AutoplayView& view){
+AutoplayInput Autoplay::step(int frame,const ScriptRuntime::AutoplayView& view,const Waypoint& waypoint){
     AutoplayInput input;if(!view.hero||!view.inputAllowed){stall_=0;return input;}
     if(view.map!=map_){map_=view.map;tried_.clear();}
     const ScriptRuntime::AutoplayTarget* target=nullptr;float best=1e30f;bool enemy=false;
     for(const auto& e:view.enemies){const auto t=tried_.find(e.id);if(t!=tried_.end()&&frame-t->second<1800)continue;const float d=std::hypot(e.x-view.x,e.y-view.y);if(d<best){best=d;target=&e;enemy=true;}}
     if(!target)for(const auto& u:view.usables){const auto t=tried_.find(u.id);if(t!=tried_.end()&&frame-t->second<900)continue;const float d=std::hypot(u.x-view.x,u.y-view.y);if(d<best){best=d;target=&u;}}
     if(!target){stall_=0;return input;}
-    float dx=target->x-view.x,dy=target->y-view.y;const float length=std::max(1.f,std::hypot(dx,dy));dx/=length;dy/=length;
-    if(target->id!=targetId_){targetId_=target->id;targetSince_=frame;lastDistance_=best;stall_=0;}
+    if(target->id!=targetId_){targetId_=target->id;targetSince_=frame;lastDistance_=best;stall_=0;waypointFrame_=-1000;}
+    // Steer along the engine's own A* path; straight lines walk into concave walls.
+    float goalX=target->x,goalY=target->y;
+    if(frame-waypointFrame_>=15){waypointFrame_=frame;std::string error;
+        if(waypoint(target->x,target->y,waypointX_,waypointY_,error)){waypointValid_=true;}
+        else{waypointValid_=false;if(error!=waypointError_){waypointError_=error;std::cout<<"AUTOPLAY_PATH frame="<<frame<<" direct: "<<error<<'\n';}}}
+    if(waypointValid_){goalX=waypointX_;goalY=waypointY_;}
+    float dx=goalX-view.x,dy=goalY-view.y;
+    if(std::hypot(dx,dy)<8){dx=target->x-view.x;dy=target->y-view.y;}
+    const float length=std::max(1.f,std::hypot(dx,dy));dx/=length;dy/=length;
     if(enemy&&frame-targetSince_>900){tried_[target->id]=frame;targetId_=-1;}
     if(best<lastDistance_-2){lastDistance_=best;stall_=0;}else ++stall_;
     if(enemy){

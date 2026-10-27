@@ -97,7 +97,7 @@ int main(int argc,char** argv) {
         using Clock=std::chrono::steady_clock;std::vector<double> frameMilliseconds;double updateMilliseconds=0,mixMilliseconds=0;
         if(activationComplete)for(int i=0;i<worldFrames;++i){
             const auto frameStart=Clock::now();
-            if(autoplay){const auto view=scripts.autoplayView();const auto input=autoplayDriver.step(i,view);if(!scripts.setLocalInput(input.x,input.y,input.controls,mixerError)){updateComplete=false;break;}
+            if(autoplay){const auto view=scripts.autoplayView();const auto input=autoplayDriver.step(i,view,[&](float gx,float gy,float& wx,float& wy,std::string& e){return scripts.autoplayWaypoint(gx,gy,wx,wy,e);});if(!scripts.setLocalInput(input.x,input.y,input.controls,mixerError)){updateComplete=false;break;}
                 if(i%60==0||view.map!=autoplayMap){autoplayMap=view.map;std::cout<<"AUTOPLAY frame="<<i<<" allowed="<<view.inputAllowed<<" hero="<<int(view.x)<<','<<int(view.y)<<' '<<input.summary<<" map="<<view.map<<'\n';}}
             if(replayAt<replay.size()&&replay[replayAt].frame==i){const auto& input=replay[replayAt++];if(!scripts.setLocalInput(input.x,input.y,input.controls,mixerError)){updateComplete=false;break;}}
             if(!scripts.advanceWorld(1.f/60,1./60)){if(survey){scripts.surveyRecordWorldFault();continue;}updateComplete=false;break;}

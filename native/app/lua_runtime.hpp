@@ -490,6 +490,9 @@ public:
     struct AutoplayTarget {int32_t id=0;float x=0,y=0;std::string name;};
     struct AutoplayView {bool hero=false;float x=0,y=0;bool inputAllowed=false;std::vector<AutoplayTarget> enemies,usables;std::string map;};
     AutoplayView autoplayView();
+    // Host autoplay navigation: native A* from the hero with its own node
+    // validator, shortened to the furthest node with clear line of movement.
+    bool autoplayWaypoint(float goalX,float goalY,float& x,float& y,std::string& error);
     size_t containedFaults()const{return survey_.size();}
     const std::string& lastContainedFault()const{return lastContained_;}
     bool advanceWorld(float dt,double screenDt);
