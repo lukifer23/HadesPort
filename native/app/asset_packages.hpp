@@ -1,6 +1,7 @@
 #pragma once
 #include "asset_store.hpp"
 #include "source_value.hpp"
+#include <cstdint>
 #include <deque>
 #include <map>
 #include <memory>
@@ -23,22 +24,33 @@ struct PackageState {
 // Native package requests remain asynchronous. This platform provider reads
 // decoded original RGBA incrementally; GPU residency is owned by the renderer.
 class AssetPackages {
+    struct Request {uint64_t id;std::string name;bool notify;};
     AssetStore* assets_;
     std::map<std::string,PackageState> packages_;
     std::deque<std::string> pending_;
+    std::deque<Request> requests_;
+    uint64_t nextRequestId_=1;
     // Platform storage deduplication: exported paths contain the content hash.
     // Package-local metadata and asynchronous completion remain independent.
     std::map<std::string,std::shared_ptr<const std::vector<uint8_t>>> resident_;
     std::string fault_;
+    void enqueueWork(const std::string&);
+    void finishReadyRequests();
 public:
+    struct Completion {uint64_t requestId;std::string name;};
     struct Residency {size_t residentBytes=0,logicalResidentBytes=0,uniqueTextures=0;};
+private:
+    std::vector<Completion> completions_;
+public:
     explicit AssetPackages(AssetStore* a):assets_(a){}
     bool loadCatalog(SourceValue,std::string& error);
     bool request(const std::string&,std::string& error);
+    bool request(const std::string&,bool notify,uint64_t& requestId,std::string& error);
     bool pump(size_t textureBudget,std::string& error);
+    std::vector<Completion> drainCompletions();
     const PackageState* package(const std::string&)const;
     const PackageTexture* texture(const std::string&)const;
-    bool pending()const{return !pending_.empty();}
+    bool pending()const{return !pending_.empty()||!requests_.empty();}
     Residency residency()const;
     std::string dump()const;
 };

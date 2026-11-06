@@ -1,5 +1,7 @@
 #include "asset_packages.hpp"
 #include <cmath>
+#include <functional>
+#include <limits>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -19,32 +21,64 @@ bool AssetPackages::loadCatalog(SourceValue root,std::string& error){
             PackageState p;p.name=name;p.manifestHash=prop(value,"manifest_sha256").text();p.packageHash=prop(value,"package_sha256").text();
             if(!hash(p.manifestHash)||!hash(p.packageHash))throw std::runtime_error("Invalid original package identity");
             for(const auto& inc:prop(value,"includes").array())p.includes.push_back(inc.text());
-            auto& textures=std::get<SourceValue::Array>(std::get<SourceValue::Object>(value.value).at("textures").value);
             std::set<std::string> names;
-            for(auto& src:textures){
+            for(const auto& src:prop(value,"textures").array()){
                 PackageTexture t;t.name=prop(src,"name").text();t.path=prop(src,"path").text();t.sha256=prop(src,"sha256").text();t.width=dimension(prop(src,"width"));t.height=dimension(prop(src,"height"));
                 if(!hash(t.sha256)||t.path!="package-textures/"+t.sha256+".rgba"||!names.insert(t.name).second||uint64_t(t.width)*t.height>64*1024*1024)throw std::runtime_error("Invalid package texture data");
-                t.sprites=std::move(std::get<SourceValue::Object>(src.value).at("sprites"));p.textures.push_back(std::move(t));
+                t.sprites=prop(src,"sprites");p.textures.push_back(std::move(t));
             }
             parsed.emplace(name,std::move(p));
         }
         for(const auto& [name,p]:parsed)for(const auto& inc:p.includes)if(!parsed.contains(inc))throw std::runtime_error("Package include missing: "+inc);
+        // Reject dependency cycles before publishing any catalog state. The
+        // portable worker must finish included reads before its parent is ready.
+        std::map<std::string,unsigned> visited;
+        std::function<void(const std::string&)> visit=[&](const std::string& name){
+            auto& state=visited[name];
+            if(state==1)throw std::runtime_error("Package include cycle: "+name);
+            if(state==2)return;
+            state=1;for(const auto& inc:parsed.at(name).includes)visit(inc);state=2;
+        };
+        for(const auto& [name,p]:parsed){(void)p;visit(name);}
         packages_=std::move(parsed);error.clear();return true;
     }catch(const std::exception& e){error=e.what();return false;}
 }
 bool AssetPackages::request(const std::string& name,std::string& error){
+    uint64_t ignored=0;return request(name,false,ignored,error);
+}
+void AssetPackages::enqueueWork(const std::string& name){
+    auto& p=packages_.at(name);if(p.requested)return;
+    p.requested=true;for(const auto& inc:p.includes)enqueueWork(inc);
+    pending_.push_back(name);
+}
+bool AssetPackages::request(const std::string& name,bool notify,uint64_t& requestId,std::string& error){
+    requestId=0;
     if(!fault_.empty()){error=fault_;return false;}
     const auto i=packages_.find(name);if(i==packages_.end()){error="Source asset package not exported: "+name;return false;}
-    auto& p=i->second;if(p.requested){error.clear();return true;}
-    p.requested=true;for(const auto& inc:p.includes)if(!request(inc,error))return false;
-    pending_.push_back(name);error.clear();return true;
+    if(nextRequestId_==std::numeric_limits<uint64_t>::max()){error="Package request identity exhausted";return false;}
+    // LoadPackageAsync RVA1f5150 always copies/enqueues a PackageItem,
+    // including repeated requests. Only physical atlas work is deduplicated.
+    enqueueWork(name);requestId=nextRequestId_++;
+    requests_.push_back({requestId,name,notify});error.clear();return true;
+}
+void AssetPackages::finishReadyRequests(){
+    while(!requests_.empty()){
+        const auto& request=requests_.front();
+        if(!packages_.at(request.name).cpuReady)break;
+        if(request.notify)completions_.push_back({request.id,request.name});
+        requests_.pop_front();
+    }
 }
 bool AssetPackages::pump(size_t budget,std::string& error){
     if(!fault_.empty()){error=fault_;return false;}
     try{
+        // Worker completion is deferred even for an already-resident package.
+        // Like GameAssetManager::Update RVA1ed150, the caller drains callbacks
+        // separately; cpuReady makes no claim about renderer/GPU residency.
+        if(budget)finishReadyRequests();
         while(budget&&!pending_.empty()){
             auto& p=packages_.at(pending_.front());
-            if(p.nextTexture==p.textures.size()){p.cpuReady=true;pending_.pop_front();continue;}
+            if(p.nextTexture==p.textures.size()){p.cpuReady=true;pending_.pop_front();finishReadyRequests();continue;}
             auto& t=p.textures[p.nextTexture];
             const auto size=size_t(t.width)*t.height*4;
             if(const auto cached=resident_.find(t.path);cached!=resident_.end()){
@@ -58,13 +92,16 @@ bool AssetPackages::pump(size_t budget,std::string& error){
                 t.rgba=std::move(bytes);resident_.emplace(t.path,t.rgba);
             }
             ++p.nextTexture;--budget;
-            if(p.nextTexture==p.textures.size()){p.cpuReady=true;pending_.pop_front();}
+            if(p.nextTexture==p.textures.size()){p.cpuReady=true;pending_.pop_front();finishReadyRequests();}
         }
         error.clear();return true;
     }catch(const std::exception& e){fault_=e.what();error=fault_;return false;}
 }
+std::vector<AssetPackages::Completion> AssetPackages::drainCompletions(){
+    auto ready=std::move(completions_);completions_.clear();return ready;
+}
 const PackageState* AssetPackages::package(const std::string& n)const{const auto i=packages_.find(n);return i==packages_.end()?nullptr:&i->second;}
 const PackageTexture* AssetPackages::texture(const std::string& n)const{for(const auto& [name,p]:packages_)for(const auto& t:p.textures)if(t.name==n&&t.rgba&&!t.rgba->empty())return &t;return nullptr;}
 AssetPackages::Residency AssetPackages::residency()const{Residency out;out.uniqueTextures=resident_.size();for(const auto& [path,bytes]:resident_)out.residentBytes+=bytes->size();for(const auto& [name,p]:packages_)for(const auto& t:p.textures)if(t.rgba)out.logicalResidentBytes+=t.rgba->size();return out;}
-std::string AssetPackages::dump()const{const auto memory=residency();std::ostringstream out;out<<"ASSET_PACKAGES count="<<packages_.size()<<" pending="<<pending_.size()<<" fault="<<fault_<<" residentBytes="<<memory.residentBytes<<" logicalResidentBytes="<<memory.logicalResidentBytes<<" uniqueTextures="<<memory.uniqueTextures<<'\n';for(const auto& [name,p]:packages_){size_t bytes=0;for(const auto& t:p.textures)if(t.rgba)bytes+=t.rgba->size();out<<"PACKAGE "<<name<<" requested="<<p.requested<<" cpuReady="<<p.cpuReady<<" textures="<<p.nextTexture<<'/'<<p.textures.size()<<" residentBytes="<<bytes<<" residency=shared_logical gpuResidency=renderer_owned\n";}return out.str();}
+std::string AssetPackages::dump()const{const auto memory=residency();std::ostringstream out;out<<"ASSET_PACKAGES count="<<packages_.size()<<" pending="<<pending_.size()<<" requests="<<requests_.size()<<" completions="<<completions_.size()<<" fault="<<fault_<<" residentBytes="<<memory.residentBytes<<" logicalResidentBytes="<<memory.logicalResidentBytes<<" uniqueTextures="<<memory.uniqueTextures<<'\n';for(const auto& [name,p]:packages_){size_t bytes=0;for(const auto& t:p.textures)if(t.rgba)bytes+=t.rgba->size();out<<"PACKAGE "<<name<<" requested="<<p.requested<<" cpuReady="<<p.cpuReady<<" textures="<<p.nextTexture<<'/'<<p.textures.size()<<" residentBytes="<<bytes<<" residency=shared_logical gpuResidency=renderer_owned\n";}return out.str();}
 }

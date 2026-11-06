@@ -268,6 +268,7 @@ void ScriptRuntime::initialize() {
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,spawnUnit,1);lua_setglobal(state_,"SpawnUnit");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,fireWeaponFromUnitAction,1);lua_setglobal(state_,"FireWeaponFromUnit");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,equipWeapon,1);lua_setglobal(state_,"EquipWeapon");
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,loadPackages,1);lua_setglobal(state_,"LoadPackages");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,runWeaponMethod,1);lua_setglobal(state_,"RunWeaponMethod");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,setUnitProperty,1);lua_setglobal(state_,"SetUnitProperty");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,setLifeProperty,1);lua_setglobal(state_,"SetLifeProperty");
@@ -467,6 +468,10 @@ std::string ScriptRuntime::stateSummary() const {
 }
 bool ScriptRuntime::dispatchCallbacks(const char* event,const char* sourceName,int32_t actorId,const TriggerArguments& extra,bool filterPlayerIndex) {
     const bool thingMatch=thingSourceMatch_;thingSourceMatch_=false; // consumed once: nested dispatches keep their own matching
+    // Script::OnPackageLoaded RVA24d080 searches mSources for the completed
+    // package, then run(nullptr,"",defaultArgs): exact nonempty filter only,
+    // with an empty payload. Match identity must not become args.name.
+    const bool packageEvent=std::strcmp(event,"OnPackageLoaded")==0;
     const int top=lua_gettop(state_);
     lua_getfield(state_,LUA_REGISTRYINDEX,"hades.triggerRegistrations");
     lua_getfield(state_,-1,event);
@@ -475,7 +480,7 @@ bool ScriptRuntime::dispatchCallbacks(const char* event,const char* sourceName,i
     for(size_t i=1;i<=count;++i){
         lua_rawgeti(state_,list,static_cast<int>(i));const int record=lua_gettop(state_);
         lua_getfield(state_,record,"definition");lua_rawgeti(state_,-1,1);
-        bool matches=true;
+        bool matches=!packageEvent;
         if(lua_type(state_,-1)==LUA_TSTRING&&lua_rawlen(state_,-1)>0){
             if(!sourceName){error_="Filtered pre-creation trigger requires source reconstruction";lua_settop(state_,top);reportError(event);return false;}
             const std::string filter=lua_tostring(state_,-1);
@@ -492,7 +497,7 @@ bool ScriptRuntime::dispatchCallbacks(const char* event,const char* sourceName,i
                     if(token.find_first_of("<>!=")==0){error_="Unsupported Script::isSource comparison token: "+token;lua_settop(state_,top);reportError(event);return false;}
                     std::string detail;hit=sourceTokenMatches(token,sourceName,actorId,detail);if(!detail.empty()){error_=detail;lua_settop(state_,top);reportError(event);return false;}
                     if(hit)matches=true;continue;}
-                if(token.find_first_of("<>!=0123456789")==0){error_="Unsupported map trigger source filter: "+token;lua_settop(state_,top);reportError(event);return false;}
+                if(token.find_first_of("<>!=0123456789")==0){error_=std::string(packageEvent?"Unsupported package trigger source filter: ":"Unsupported map trigger source filter: ")+token;lua_settop(state_,top);reportError(event);return false;}
                 if(token==sourceName)matches=true;
             }
         }
@@ -515,7 +520,7 @@ bool ScriptRuntime::dispatchCallbacks(const char* event,const char* sourceName,i
         lua_getfield(state_,record,"line");const int line=static_cast<int>(lua_tointeger(state_,-1));lua_pop(state_,1);
         lua_getglobal(state_,"dispatch");lua_rawgeti(state_,LUA_REGISTRYINDEX,ref);
         lua_newtable(state_);
-        if(sourceName){lua_pushstring(state_,sourceName);lua_setfield(state_,-2,"name");}
+        if(sourceName&&!packageEvent){lua_pushstring(state_,sourceName);lua_setfield(state_,-2,"name");}
         if(actorId){
             lua_pushinteger(state_,actorId);lua_setfield(state_,-2,"triggeredById");
             pushObjectLuaTable(state_,actorId);lua_setfield(state_,-2,"TriggeredByTable");
@@ -664,7 +669,7 @@ bool ScriptRuntime::advanceWorld(float dt,double screenDt){
     if(!advanceCamera(dt,error_)){if(!containStage("camera-update"))return false;}
     // A package or delayed-action gap must never skip the script scheduler
     // (every original Lua thread), or game logic freezes while audio runs.
-    if(!packages_.pump(1,error_)){if(!containStage("package-update"))return false;}
+    if(!serviceAssets(1)){if(!containStage("package-update"))return false;}
     if(!advanceDelayedActions(state_,worldTime_,executeDelayed,this,error_)){if(!containStage("delayed-action-update"))return false;}
     if(!advanceScriptScheduler(state_,worldTime_,screenTime_,error_)){if(!containStage("world-update"))return false;}
     if(!colorGrading_.advance(worldTime_,float(screenTime_),error_)){if(!containStage("color-grading-update"))return false;}
@@ -746,15 +751,104 @@ int ScriptRuntime::equipWeapon(lua_State* L){
     if(!ok)return luaL_error(L,"%s",message);return 0;
 }
 
+bool ScriptRuntime::loadPackagesImpl(lua_State* L,std::string& error){
+    if(!lua_istable(L,1)){error="LoadPackages requires argument table";return false;}
+    // ScriptAction::LoadPackages RVA265530 uses ScriptArgs::Names2817f0;
+    // Names takes precedence, then every name is rewritten via the exact-case
+    // GameDataManager::GetUnitPackageName lookup RVAba380 (Equip does not).
+    lua_getfield(L,1,"Names");const char* key="Names";
+    if(lua_isnil(L,-1)){lua_pop(L,1);key="Name";lua_getfield(L,1,key);}
+    std::vector<std::string> names;
+    const auto append=[&](int at){
+        size_t size=0;const char* text=lua_tolstring(L,at,&size);
+        if(!text||size>65536||std::memchr(text,0,size))throw std::runtime_error("Package name outside supported string bounds");
+        if(names.size()>=100000)throw std::runtime_error("Package name list exceeds bounded admission");
+        names.emplace_back(text,size);
+    };
+    // LuaTableExtensions::List<string> RVA248890 uses its custom GetType:
+    // numeric strings classify as numbers, so only nonnumeric scalar strings
+    // append. Sequences use gettable starting at 1, stopping at FIRST nil,
+    // accepting lua_isstring numbers as well. Do not substitute rawlen.
+    const int type=lua_type(L,-1);
+    if(type==LUA_TTABLE){
+        const int list=lua_gettop(L);
+        for(int index=1;;++index){
+            lua_pushinteger(L,index);lua_gettable(L,list);
+            if(lua_isnil(L,-1)){lua_pop(L,1);break;}
+            // Native fails to advance on a nonstringable element. Explicit
+            // rejection replaces that hang, never a fabricated completion.
+            if(!lua_isstring(L,-1))throw std::runtime_error("Nonstringable package sequence element");
+            append(-1);lua_pop(L,1);
+        }
+    }else if(type==LUA_TSTRING&&!lua_isnumber(L,-1))append(-1);
+    else if(type!=LUA_TBOOLEAN&&type!=LUA_TNUMBER&&type!=LUA_TFUNCTION&&!lua_isnumber(L,-1)){
+        // Missing chosen key: native NextKey scans the parent in lua_next
+        // order for string keys beginning with Name/Names, no suffix sorting.
+        lua_pushnil(L);
+        while(lua_next(L,1)){
+            if(lua_type(L,-2)==LUA_TSTRING){
+                size_t size=0;const char* text=lua_tolstring(L,-2,&size);const size_t prefix=std::strlen(key);
+                if(size>=prefix&&std::memcmp(text,key,prefix)==0&&lua_isstring(L,-1))append(-1);
+            }
+            lua_pop(L,1);
+        }
+    }
+    lua_pop(L,1);
+    if(names.empty()){error.clear();return true;}
+    if(!unitPackageNamesKnown_){error="LoadPackages requires original unit-package mapping metadata; re-export package catalog";return false;}
+    for(auto& name:names){
+        if(const auto found=unitPackageNames_.find(name);found!=unitPackageNames_.end()&&!found->second.empty())name=found->second;
+        // Native performs ALL synchronous manifest admissions before enqueueing
+        // ANY async read. The exported catalog already contains parsed manifest
+        // metadata/includes; fail closed here if any selected source is absent.
+        if(!packages_.package(name)){error="Source asset package not exported: "+name;return false;}
+    }
+    for(const auto& name:names){
+        uint64_t request=0;if(!packages_.request(name,true,request,error))return false;
+        hades::log(hades::Severity::Info,tag,"NATIVE_PACKAGE_REQUEST name=%s request=%llu completion=OnPackageLoaded",name.c_str(),static_cast<unsigned long long>(request));
+    }
+    error.clear();return true;
+}
+int ScriptRuntime::loadPackages(lua_State* L){
+    char message[2048]{};bool ok=false;
+    {try{std::string error;ok=runtime(L)->loadPackagesImpl(L,error);if(!ok)std::snprintf(message,sizeof(message),"%s",error.c_str());}
+    catch(const std::exception& e){std::snprintf(message,sizeof(message),"%s",e.what());}}
+    if(!ok)return luaL_error(L,"%s",message);return 0;
+}
+
 bool ScriptRuntime::loadPackageDefinitions(){
     auto asset=assets_->open("packages.lua");if(!asset||asset->size()>32*1024*1024){error_="Missing or oversized package catalog";return false;}
     std::vector<char> bytes(asset->size());size_t at=0;while(at<bytes.size()){const auto n=asset->read(bytes.data()+at,bytes.size()-at);if(!n){error_="Truncated package catalog";return false;}at+=n;}
     const int top=lua_gettop(state_);int status=luaL_loadbufferx(state_,bytes.data(),bytes.size(),"@packages.lua","t");if(status==LUA_OK)status=lua_pcall(state_,0,1,0);
     if(status!=LUA_OK){error_=lua_tostring(state_,-1);lua_settop(state_,top);return false;}
-    hades::SourceValue value;bool ok=hades::readSourceValue(state_,-1,value,error_);lua_settop(state_,top);lua_gc(state_,LUA_GCCOLLECT,0);if(ok)ok=packages_.loadCatalog(std::move(value),error_);return ok;
+    hades::SourceValue value;bool ok=hades::readSourceValue(state_,-1,value,error_);lua_settop(state_,top);lua_gc(state_,LUA_GCCOLLECT,0);
+    if(!ok)return false;
+    try{
+        std::map<std::string,std::string> mapping;const auto* original=value.get("unit_package_names");const bool mappingKnown=original!=nullptr;
+        if(original)for(const auto& [unit,package]:original->object()){
+            if(unit.empty()||unit.find('\0')!=std::string::npos)throw std::runtime_error("Invalid original unit-package key");
+            mapping.emplace(unit,package.text());
+        }
+        if(!packages_.loadCatalog(std::move(value),error_))return false;
+        unitPackageNames_=std::move(mapping);unitPackageNamesKnown_=mappingKnown;return true;
+    }catch(const std::exception& e){error_=e.what();return false;}
 }
 
-bool ScriptRuntime::serviceAssets(size_t budget){std::string detail;const bool ok=packages_.pump(budget,detail);if(!ok){if(error_.empty())error_=detail;hades::log(hades::Severity::Error,tag,"ASSET_PACKAGE_FAILED detail=%s",detail.c_str());}return ok;}
+bool ScriptRuntime::serviceAssets(size_t budget){
+    std::string detail;
+    if(!packages_.pump(budget,detail)){
+        if(error_.empty())error_=detail;hades::log(hades::Severity::Error,tag,"ASSET_PACKAGE_FAILED detail=%s",detail.c_str());return false;
+    }
+    // GameAssetManager::Update RVA1ed150 drains worker completions before
+    // invoking callbacks outside the queue. Callback-created requests wait for
+    // a later service pass; no synthetic scheduler notify or GPU fence implied.
+    const auto completed=packages_.drainCompletions();
+    for(const auto& done:completed){
+        hades::log(hades::Severity::Info,tag,"NATIVE_PACKAGE_COMPLETE name=%s request=%llu residency=cpu gpu=renderer_owned",done.name.c_str(),static_cast<unsigned long long>(done.requestId));
+        if(!dispatchCallbacks("OnPackageLoaded",done.name.c_str()))return false;
+    }
+    return true;
+}
 
 bool ScriptRuntime::setUnitPropertyImpl(lua_State* L,std::string& error){return setActorPropertyImpl(L,false,error);}
 bool ScriptRuntime::setActorPropertyImpl(lua_State* L,int kind,std::string& error){

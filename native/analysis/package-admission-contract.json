@@ -14,7 +14,17 @@
     "rva": "0x265530",
     "name_mapping": "Each input name looked up in GameDataManager::GetUnitPackageName. Nonnull/nonempty mapped value replaces original name. That is exact-case string hash map lookup; unmapped names stay unchanged. This rewrite does not appear in EquipWeapon.",
     "manifest_pass": "LoadManifest(mappedName,true) for all names first.",
-    "async_pass": "LoadPackageAsync(mappedName,true,callback@0x2656a0) then each callback calls Script::OnPackageLoaded(name)."
+    "async_pass": "LoadPackageAsync(mappedName,true,callback@0x2656a0) then each callback calls Script::OnPackageLoaded(name).",
+    "names": {
+      "helper_rva": "0x2817f0",
+      "list_helper_rva": "0x248890",
+      "type_helper_rva": "0x1ffcf0",
+      "selection": "Non-nil Names takes precedence over Name, including an empty Names table.",
+      "scalar": "Only nonnumeric string appended. Numeric strings classify as numbers; number/bool/function scalars produce an empty list.",
+      "sequence": "Lua gettable at integer indices starting1, stop first nil; stringable numbers accepted. Native nonstringable entry does not advance: reconstruction rejects explicitly rather than hanging.",
+      "missing_key": "Parent lua_next string keys with selected Name/Names prefix, stringable values appended in actual iteration order.",
+      "bounds_policy": "Portable maximum100000 names and65536 bytes/string; embedded NUL rejected."
+    }
   },
   "worker": {
     "rva": "0x1ebe60",
@@ -98,5 +108,25 @@
     "Boolean parameter semantic name/group-unload policy requires PDB member/type expansion.",
     "No GPU fence/texture-ready guarantee proven after worker LoadPackage return.",
     "Exact missing-manifest entries/cache state and retry policy need full decompiler follow-up; only logging and no Lua return are currently established."
-  ]
+  ],
+  "unit_package_mapping": {
+    "reader_rva": "0xb6df0",
+    "root_traversal": "0xb7518..0xb77f7",
+    "source": "Actual package filename set plus original UnitData records.",
+    "fields": {
+      "GameData.mName": "0x8",
+      "GameData.mInheritFrom": "0x38"
+    },
+    "matching": "Package roots and parent links use ASCII case-insensitive comparison. Child own-package boundary tests exact package basename membership. Runtime GetUnitPackageName uses exact unit keys and actual package spelling.",
+    "admission": "Known mapping targets need not be exported until requested. Unmapped names remain unchanged; EquipWeapon bypasses this mapping."
+  },
+  "package_loaded_trigger": {
+    "rva": "0x24d080",
+    "length": 373,
+    "match": "Exact package name membership in Script.mSources at+0xa0; empty/unfiltered sources never match.",
+    "call": "Script::run(nullptr, emptyString, defaultEmptyLuaTable) at0x24d1aa.",
+    "payload": "Empty table: no name, actor ID or object table. Original dispatch coroutine receives the same table as global_triggerArgs.",
+    "scheduler": "No synthetic notify or fabricated waiter completion; callbacks may enqueue later package work.",
+    "filter_limit": "Portable general trigger parser rejects numeric/comparison filter syntax explicitly; supported package-name lists follow original source matching."
+  }
 }

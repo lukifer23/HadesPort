@@ -110,6 +110,8 @@ class ScriptRuntime {
     hades::ProjectileDefenseProviders projectileDefenseProviders();
     std::shared_ptr<hades::ActorAnimationBank> animationBank_;
     hades::AssetPackages packages_;
+    std::map<std::string,std::string> unitPackageNames_;
+    bool unitPackageNamesKnown_=false;
     hades::EffectAnimationWorld effects_;
     hades::EffectParticleWorld particles_;
     hades::ActionEffectWorld actionEffects_;
@@ -270,6 +272,7 @@ class ScriptRuntime {
     static int unsupported(lua_State*);
     static int delayedAction(lua_State*);
     static int equipWeapon(lua_State*);
+    static int loadPackages(lua_State*);
     static int createAnimation(lua_State*);
     static int playerInputNotifyAction(lua_State*);
     bool rawInputPulse_=false,playerInputThisFrame_=false;
@@ -311,6 +314,7 @@ class ScriptRuntime {
     bool setActorPropertyImpl(lua_State*,int kind,std::string&);
     bool setUnitPropertyImpl(lua_State*,std::string&);
     bool equipWeaponImpl(lua_State*,std::string&);
+    bool loadPackagesImpl(lua_State*,std::string&);
     static bool delayedRandom(void*,float,float,float&,std::string&);
     static bool executeDelayed(lua_State*,int,int,void*,std::string&);
     bool installDelayedActions();
@@ -579,6 +583,10 @@ public:
     // Source-backed component debug only. Does not dispatch EquipWeapon on
     // query proxies, activate units or establish combat execution.
     bool probeStagedWeaponInitialization();
+#ifndef __ANDROID__
+    // Isolated registered-action diagnostic; never advances game progression.
+    bool probePackageRequests();
+#endif
     const std::string& error() const { return error_; }
     std::string sceneGroupsDump() const;
     std::string stateSummary() const;
