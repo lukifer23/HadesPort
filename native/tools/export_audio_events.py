@@ -18,6 +18,33 @@ from hades_audio import Bank,read_original,guid_names,digest,guid_list
 from export_actor_catalog import literal
 from audit_audio_namespace import audit as audit_namespace
 ZERO='00000000-0000-0000-0000-000000000000'
+def same_compressed_sample(left,right,verified_banks):
+ """Accept only a proven bank-locator alias, retaining the earlier record.
+
+ Historical immutable stream manifests can name a symlink alias that a newer
+ export resolves. A locator is not the sample identity: every payload field
+ and the bank's declared bytes/digest must still match. Both locators must
+ name the same actual file, whose bytes are verified once per export/stat.
+ Incoming provenance remains in its retained additional stream manifest.
+ """
+ if not isinstance(left,dict)or not isinstance(right,dict):return False
+ a,b=left.get('original_bank'),right.get('original_bank')
+ if not isinstance(a,dict)or not isinstance(b,dict)or set(a)!={'path','bytes','sha256'}or set(b)!=set(a):return False
+ if {k:v for k,v in left.items()if k!='original_bank'}!={k:v for k,v in right.items()if k!='original_bank'}:return False
+ if a['bytes']!=b['bytes']or a['sha256']!=b['sha256']or not isinstance(a['path'],str)or not isinstance(b['path'],str):return False
+ try:
+  first,second=Path(a['path']),Path(b['path'])
+  if not first.samefile(second):return False
+  stat=first.stat();signature=(stat.st_dev,stat.st_ino,stat.st_size,stat.st_mtime_ns,stat.st_ctime_ns,a['bytes'],a['sha256'])
+  if signature not in verified_banks:
+   _,actual=read_original(first)
+   if actual['bytes']!=a['bytes']or actual['sha256']!=a['sha256']:return False
+   after=first.stat()
+   if (after.st_dev,after.st_ino,after.st_size,after.st_mtime_ns,after.st_ctime_ns)!=signature[:5]:return False
+   verified_banks.add(signature)
+  return True
+ except OSError:return False
+
 class Graph:
  def __init__(self,bank):
   self.b=bank;self.own={};self.parents={};self.modulators={};self.props={}
@@ -76,13 +103,16 @@ def export(content,stream_manifest,output,extra_streams=(),mixing_control=False,
  if output.is_relative_to(content.parent):raise ValueError('Never export into originals')
  from animation_audio_binding import from_stream
  animation_closures=[closure for path in [stream_manifest,*extra_streams]if(closure:=from_stream(path))is not None]
- raw,stream_id=read_original(stream_manifest);streams=json.loads(raw)['catalog'];additional=[];unsupported=dict(streams.get('rejected',{}))
+ raw,stream_id=read_original(stream_manifest);streams=json.loads(raw)['catalog'];additional=[];unsupported=dict(streams.get('rejected',{}));verified_banks=set()
  for path in extra_streams:
   raw,identity=read_original(path);other=json.loads(raw)['catalog'];additional.append(identity);unsupported.update(other.get('rejected',{}))
   if other['schema']!=streams['schema']:raise ValueError('Mismatched compressed stream catalog')
   for key in ['samples','events']:
    for name,value in other[key].items():
-    if name in streams[key]and streams[key][name]!=value:raise ValueError('Conflicting original compressed catalog entry')
+    if name in streams[key]:
+     previous=streams[key][name]
+     if previous==value or(key=='samples'and same_compressed_sample(previous,value,verified_banks)):continue
+     raise ValueError('Conflicting original compressed catalog entry: '+key+' '+name)
     streams[key][name]=value
   if 'voice_namespace' in other:
    for key in ['voice_namespace','voice_header','actor_definitions']:
