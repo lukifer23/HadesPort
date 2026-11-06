@@ -84,14 +84,23 @@ resources remain at the root. Original-game output protection now resolves the
 actual `.local` symlink target before comparing paths. Real RoomSimple01 staging
 and actor revision exercise both valid publication and malformed manifests.
 
-**Hygiene:** the latest tracked tree has 584 files totaling about 5.22 MB, no exact
-byte duplicates, no files over 1 MiB and no game payloads found. Owned scratch was
-removed at each milestone: initial probes (373.7 MiB), hotfix builds (5.08 GiB),
-then package host/sanitizer/Android builds and redundant preliminary snapshots
-(900.2 MiB). Preserve original files, immutable exports, actual saves/backups,
-source-bound receipts, the uninstalled iteration18 candidate, rollback APKs,
-signing key and pinned dependencies. No Codex transcript files were found.
-The config smoke now uses a fresh temporary build and removes it automatically.
+**Hygiene:** 584 tracked files total about 5.22 MB, with no exact duplicates, files
+over 1 MiB or game payloads. Earlier owned scratch cleanup removed review probes,
+hotfix and package builds. The dedicated storage audit then consolidated 1,327
+exact binary/capture groups, preserving all 3,938 paths as read-only shared data;
+all export versions remain available. It archived iteration16, 17 legacy probes
+and older bulk logs/raw renders losslessly (108 files), with SHA-checked restore
+and original mode/mtime. Candidate18/rollback17 stay ready; iteration16 needs restore.
+
+The private directory's accounted usage fell from 44.2 to 35.5 GiB. Physical APFS free-space
+gain is unverified; do not report directory accounting as reclaimed volume space.
+Original game/installers, saves/backups, key, pinned dependencies, unique device
+media and supporting REA checkout remain protected. Python bytecode was removed;
+Rust analysis caches remain because offline dependency coverage was incomplete.
+All 90 build-manifest checks, 23 package checks and 49 room checks pass after cleanup.
+The restore tool was exercised on an actual render and executable. No Codex
+transcripts were found. HANDOFF documents shared-file and restoration rules;
+`.local/maintenance/storage-audit-20261106/summary.json` indexes exact evidence.
 
 ## Athena runtime milestone
 

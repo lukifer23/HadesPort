@@ -3,6 +3,29 @@
 Updated 2026-11-06. Read `HANDOFF.md` for commands and `AUDIT.md` for the implementation
 plan. This is an incomplete native ARM64 Android engine driven by the original game.
 
+## Storage audit (2026-11-06)
+
+Directory-accounted `.local` usage decreased from 44.2 to 35.5 GiB (about 8.7 GiB).
+This is a directory metric: the shared APFS volume's free-space measurements
+fluctuated, so physical free-space recovery is unverified.
+
+- 1,327 exact duplicate binary/capture groups consolidated; 3,938 paths and bytes
+  preserved, with shared payloads read-only. No export version was deleted.
+- 108 older artifacts archived losslessly: iteration16 APK, 17 standalone probes,
+  historical bulk logs and raw renders. Each gzip decoded to its original SHA256
+  before the original path was removed. Actual render/executable restoration passed.
+- Candidate18 and rollback17 hashes remain unchanged and ready to install.
+  Iteration16 is archived, not present at its old APK path; see HANDOFF to restore.
+- All 90 recorded build-manifest checks pass, along with 23 package and 49 room
+  checks. Originals, installer sources, saves/backups, key, pinned tools and unique
+  device videos/captures remain protected. Rebuildable Python bytecode was removed.
+- Rust target caches remain: the offline dependency check required an unavailable
+  crate. REA's source, existing bridge edit and dependencies were left unchanged.
+
+Receipts, lossless archives and restore tool:
+`.local/maintenance/storage-audit-20261106/`. No engine behavior or device state
+was changed. No Codex transcript files were found in the workspace.
+
 ## Offline package-loading milestone (2026-11-06)
 
 The device is unavailable. Source `f20c74c` now passes the original boon-menu
@@ -108,9 +131,10 @@ controls acceptance failed; combat/Athena, physical controllers, lifecycle and
 sustained play remain unverified. Real foreground Android Continue input was used
 under the owner's full authorization; no progression/callback state was injected.
 
-Current candidate: `.local/build/native/hades-native-engine-preview.apk`. Both
-iteration17 and iteration16 rollback APKs, the signing key, canonical assets and
-actual app-state backups are retained privately. Reconnect the designated device,
+Current candidate: `.local/build/native/hades-native-engine-preview.apk`.
+Iteration17 rollback is ready; iteration16 is retained as a lossless archive
+(restore instructions in HANDOFF). The signing key, canonical assets and actual
+app-state backups are retained privately. Reconnect the designated device,
 verify previous identity, install iteration18 non-incrementally, verify installed
 hash/size and unchanged app files before launch, then exercise repeated visible-stick
 press/move/release/repress and check faults, memory and thermals. Keep tests bounded;
@@ -191,7 +215,8 @@ other selected resource versions match. Device gameplay acceptance is separate.
 | Package final verification | `.local/reports/package-loader-2026-11-06/final-verification.json` |
 | Package sanitizer checks | `.local/reports/package-loader-2026-11-06/sanitizer-verification.json` |
 | Android ARM64 identity | `.local/reports/package-loader-2026-11-06/android-native.json` |
-| Current hygiene | `.local/reports/package-loader-2026-11-06/cleanup.json` |
+| Current storage audit | `.local/maintenance/storage-audit-20261106/summary.json` |
+| Package-build scratch cleanup | `.local/reports/package-loader-2026-11-06/cleanup.json` |
 | Package source identity | `.local/reports/package-loader-2026-11-06/tested-source.json` |
 | Package export preservation | `.local/reports/package-loader-2026-11-06/export-v2-verification.json` |
 | Package stage integrity | `.local/reports/package-loader-2026-11-06/package-catalog-stage-checks.json` |

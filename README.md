@@ -80,7 +80,7 @@ asset-pack versions. The resulting APK contains game assets — keep it for your
 Build defaults select versioned packs in `scripts/build_native.py`. Source selection,
 staged assets and installed APK are separate checkpoints; consult `STATUS.md` before
 assuming they match. Storage preservation, cleanup and
-restart guidance are in [`HANDOFF.md`](HANDOFF.md#layout-and-selected-packs).
+restart guidance are in [`HANDOFF.md`](HANDOFF.md#storage-cleanup-and-restoration).
 
 ## Contributing
 

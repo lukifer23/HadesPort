@@ -17,7 +17,8 @@ resize timing and thermal-aware pacing. See STATUS for candidate identity, check
 and limits. Reconnect, install non-incrementally, verify actual APK and unchanged
 app files before launch, then perform short repeated release/repress checks and
 health observations. Never count host controls checks as device acceptance.
-Both iteration17/16 rollback APKs and actual app-state backups are retained.
+Iteration17 rollback and actual app-state backups remain ready. Iteration16 is
+preserved in a lossless archive; restore it explicitly if needed (see below).
 The owner authorized continued offline work; package-loading implementation can
 advance independently while joystick/thermal device acceptance stays open.
 
@@ -62,6 +63,39 @@ separate identities. Source/canonical assets now use packages2; the preserved
 iteration18 joystick candidate and installed iteration17 use packages1. Other
 selected versions match. No new gameplay APK is published for this host milestone.
 Preserve iteration18 before any future APK publication. See STATUS for receipts.
+
+## Storage cleanup and restoration
+
+The 2026-11-06 storage audit consolidated 1,327 exact binary/capture groups while
+preserving all 3,938 paths. Shared export/capture payloads are read-only. Do not
+edit them in place or make a shared inode writable; export a fresh version or use
+an independent copy for changes. Metadata before linking is retained privately.
+
+The joystick candidate18 and installed-build rollback17 remain ready to install.
+Older iteration16, 17 retired standalone probes, and historical bulk logs/raw
+renders are preserved in 108 SHA-verified lossless gzip archives. Original game/
+installer files, all versioned export paths, saves/backups, signing key, pinned
+decoder/toolchains and unique device media remain protected. Rust analysis caches
+were retained because complete offline rebuild dependencies were not established.
+
+List archived paths or restore one exact original (including mode/mtime):
+
+```sh
+python3 .local/maintenance/storage-audit-20261106/restore_archives.py
+python3 .local/maintenance/storage-audit-20261106/restore_archives.py \
+  --path build/native/baseline-iteration16-b1bdc3a0.apk
+# Use --path reports/... for an archived historical trace/render.
+# For a legacy executable, use e.g. --path renderer-perf-hulls.
+# --all restores every archived original and retains the gzip backups.
+```
+
+The restore tool verifies archive and original hashes and refuses to overwrite a
+differing existing file. Restore an archived historical sidecar before rerunning
+an analysis that needs it. Audit inventory, links, prior metadata, archive index,
+retention reasons and verification are under
+`.local/maintenance/storage-audit-20261106/`. No device operations occurred.
+Directory accounting fell from about 44.2 to 35.5 GiB; physical APFS free-space gains
+are unverified and must not be inferred from that directory metric.
 
 ## Host commands
 
