@@ -149,6 +149,7 @@ int getConfigDefault(lua_State* state) {
         {"ResetRoomData", false}, // RVA0x11430
         {"UseMouse", false}, // RVA0xa0e0
         {"GamepadCursorControl", false}, // RVA0xa560
+        {"FreeFormSelectWrapY", false}, // InitializerRVA0xa6e0 writes byte0 at0xa74f ->globalRVA0x1a0f0ea; GetPropertyInfo0x108b81..0x108b9f returns same bool.
         {"FlipMapThings", false}, // RVA0x11330
         {"UseOcclusion", true}, // initializer RVA0xba30: movb $1 at 0x18000baa0 -> 0x181a0ed01
         {"CameraShake", true}, // initializer RVA0xd040 movb $1 -> 0x181a0f2d9 (.local/reports/config-defaults)
@@ -184,6 +185,10 @@ int setConfig(lua_State* state) {
     getConfigDefault(state);
     const int expectedType = lua_type(state, -1);
     lua_getfield(state, 1, "Value");
+    // GetValue RVA0x2509af returns an empty any for nil/missing Value.
+    // SetPropertyValue's string branch RVA0x202d6c..0x202d9c stores "" for
+    // that empty any. This is an assignment, not removal/reset of an override.
+    if(expectedType==LUA_TSTRING&&lua_isnil(state,-1)){lua_pop(state,1);lua_pushliteral(state,"");}
     if (lua_type(state, -1) != expectedType) return luaL_error(state, "Config Value has wrong type for recovered option");
     if (expectedType == LUA_TNUMBER) {
         const lua_Number value = lua_tonumber(state, -1);

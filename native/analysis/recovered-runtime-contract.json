@@ -11,7 +11,7 @@
     "build_scope": "Supplied base game Windows x64 engine; source build identity is not inferred from archive filename."
   },
   "config": {
-    "scope": "Compiled defaults for all20 literal getter names plus2 boot setter names. VM-owned mutable typed override table implements SetConfigOption; GetConfigOptionValue reads overrides. Unknown names/types error; loaded user config and FastForward external engine side effects remain unreconstructed.",
+    "scope": "Selected proven compiled defaults. VM-owned mutable typed override table implements SetConfigOption; GetConfigOptionValue reads overrides. Unknown names/types error; loaded user config and FastForward external engine side effects remain unreconstructed.",
     "typed_values": {
       "DebugRNGSeed": 0,
       "FreeFormSelecSearchFromId": 0,
@@ -34,7 +34,22 @@
       "ResetRoomData": false,
       "UseMouse": false,
       "GamepadCursorControl": false,
+      "FreeFormSelectWrapY": false,
       "FlipMapThings": false
+    },
+    "FreeFormSelectWrapY": {
+      "type": "bool",
+      "default": false,
+      "initializer_rva": "0xa6e0",
+      "initial_store": "RVA0xa74f writes byte0 to globalRVA0x1a0f0ea",
+      "reflection": "ConfigOptions::GetPropertyInfo RVA0x108b81..0x108b9f returns that same global; registered Field type0/bool, flags1/nonpersistent.",
+      "consumer_limit": "Mutable option storage is implemented; free-form GUI cursor traversal/wrapping is a separate unreconstructed consumer."
+    },
+    "nil_string_assignment": {
+      "action_rva": "0x265080",
+      "get_value": "SetConfigOption calls LuaTableExtensions::GetValue RVA0x250930 for Value. Nil/missing follows RVA0x2509af..0x2509bd, producing an empty eastl::any with null handler.",
+      "store": "ReflectionHelper::SetPropertyValue RVA0x202930 type5/string branches to RVA0x202d6c; an empty any assigns the empty string at RVA0x202d73..0x202d9c and returns true.",
+      "semantics": "Supported string properties store an empty-string override for nil/missing Value. They do not remove the override or restore a nonempty default. Other malformed types retain explicit rejection in the reconstruction."
     },
     "evidence": "Matching PDB named dynamic initializers, full bounded native disassembly in .local/reports/native-config-<key>-annotated.json (DebugRNGSeed also native-rng-default-annotated.json).",
     "cache": "RunManager.lua5561 UpdateConfigOptionCache populates6 entries; RoomManager.lua146 calls before RandomInit at OnPreThingCreation."
