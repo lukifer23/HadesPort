@@ -3,6 +3,53 @@
 Updated 2026-11-06. Read `HANDOFF.md` for commands and `AUDIT.md` for the implementation
 plan. This is an incomplete native ARM64 Android engine driven by the original game.
 
+## Offline package-loading milestone (2026-11-06)
+
+The device is unavailable. Source `f20c74c` now passes the original boon-menu
+LoadPackages request and its reached config setters. Strict host replay completes
+4,837 frames with zero contained faults and every-frame presentation before:
+
+```
+Original update: Scripts/Main.lua:419: Scripts/UIScripts.lua:2354: Original live screen animation unsupported: BoonSelectIn
+```
+
+Native admission resolves exact-case unit mappings, checks all selected manifests
+before requests, retains distinct duplicate request identities and services actual
+CPU atlas reads. Deferred OnPackageLoaded matches only explicit source names and
+runs the original dispatch coroutine with an empty table. Callback-created requests
+wait for later service. Names parsing follows native precedence, scalar/numeric,
+first-nil sequence and parent-prefix rules. Nonstringable sequence entries that
+would hang the original, and unsupported trigger filters, are explicitly rejected.
+
+Packages2 preserves all prior package/texture/sprite metadata and 103,741,952 RGBA
+bytes, adding nine independently decoded original Athena atlases. Three packages
+contain 21 references backed by 19 unique textures (185,573,248 resident bytes),
+retaining the existing 27,459,584-byte shared-atlas saving. Unit mappings derive
+from 240 original records, three sources and 46 package filenames. Nineteen exporter
+checks and 23 stage checks pass. Staging rederives mapping provenance from current
+original inputs and rejects stale filename inventories, damaged payloads and proofs.
+The stager does not parse Lua texture references; the native consumer exercises
+all actual staged references. Original selected packages have no authored positive
+include edge; source-copy include tests do not establish that missing coverage.
+
+Real Lua5.2 registered-action checks pass 14 callbacks, exact/empty/wrong-case filters,
+empty payload/global args, duplicate deferral, callback-created work, name forms
+and complete-batch missing-package preflight. The real worker checks missing and
+truncated files without false completion. Proven FreeFormSelectWrapY storage and
+nil/missing-to-empty string assignments pass native API tests; actual GUI cursor
+wrapping remains unimplemented. The old config driver no longer supplies fake
+Import/GetTime functions and removes its own build scratch.
+
+The 2,950-frame combat replay retains the exact historical five-hit sequence with
+zero faults and every-frame presentation. Final ASan/UBSan passes the slower
+5,437-frame route with zero findings (leak detection disabled); the package worker
+and registered-action diagnostics also pass under sanitizers. Android ARM64
+compilation passes; all 318 recorded code identities match across verification.
+Removed 900.2 MiB of owned build/probe scratch and redundant preliminary snapshots;
+584 tracked files have no exact duplicates or files over 1 MiB. No new APK or device
+operations are part of this milestone; the signed joystick-only candidate remains
+preserved for hardware acceptance. Boon selection is still unproven.
+
 ## Joystick and thermal repair — iteration18 candidate (2026-11-06)
 
 **The device is currently unavailable. Iteration18 is built and signed but
@@ -32,8 +79,9 @@ resource manifests match iteration17. Candidate SHA-256 / size:
 
 ### Device health
 
-The current crash buffer was empty and app exit history contained no Hades crash or
-ANR today. An older background LOW_MEMORY exit on October 27 predates this session.
+During the last connected inspection, the crash buffer was empty and app exit
+history contained no Hades crash or ANR from that session. An older background
+LOW_MEMORY exit on October 27 predates this session.
 At inspection, about 4.2 GiB memory was available, app PSS was about 1.65 GiB and
 memory PSI averages were low. **Thermal throttling was present:** Android status 3
 (severe), skin 45.8°C, battery 35.9°C. Hades was stopped, actual app state backed up,
@@ -71,11 +119,11 @@ no iteration18 device success is claimed. Build/probe intermediates and the clea
 worktree were removed after recording results (5.08 GiB allocated); the candidate,
 rollbacks, app backups, canonical assets and signing key remain preserved.
 
-## Athena portrait milestone (2026-11-06)
+## Earlier Athena portrait milestone (2026-11-06)
 
-Strict host progression now passes the former Athena failure at frame 4,748 and
-completes 4,837 frames through original dialogue advancement to the boon-menu
-package request. The longer default route stops explicitly on:
+The earlier `312f521` host milestone passed the former Athena failure at frame 4,748
+and completed 4,837 frames through original dialogue advancement to the boon-menu
+package request. Its then-current default route stopped explicitly on:
 
 ```
 Original update: Scripts/Main.lua:419: Scripts/Interactables.lua:826: Native engine action not reconstructed yet: LoadPackages
@@ -133,12 +181,20 @@ No mocks, replacement game art, skipped dialogue or forced rewards were introduc
 ## Selected assets and evidence
 
 Build defaults in `scripts/build_native.py` remain authoritative. Canonical assets
-use text12/screen15/action26/audio31/actor9/weapons25/properties14; only RoomOpening
-and RoomSimple01 are staged. Source, canonical assets, iteration17 and the iteration18
-candidate select the same resource versions. Device gameplay acceptance is separate.
+use packages2/text12/screen15/action26/audio31/actor9/weapons25/properties14; only
+RoomOpening and RoomSimple01 are staged. Source/canonical packages2 are ahead of
+the preserved iteration18 candidate and installed iteration17 (packages1). Their
+other selected resource versions match. Device gameplay acceptance is separate.
 
 | Evidence | Local path |
 |---|---|
+| Package final verification | `.local/reports/package-loader-2026-11-06/final-verification.json` |
+| Package sanitizer checks | `.local/reports/package-loader-2026-11-06/sanitizer-verification.json` |
+| Android ARM64 identity | `.local/reports/package-loader-2026-11-06/android-native.json` |
+| Current hygiene | `.local/reports/package-loader-2026-11-06/cleanup.json` |
+| Package source identity | `.local/reports/package-loader-2026-11-06/tested-source.json` |
+| Package export preservation | `.local/reports/package-loader-2026-11-06/export-v2-verification.json` |
+| Package stage integrity | `.local/reports/package-loader-2026-11-06/package-catalog-stage-checks.json` |
 | Iteration18 immutable build | `.local/reports/native-builds/4265c2a52f6014c114bfb35babc62005a2161a913ab915d5ce3549e8b1a53f0c.json` |
 | Joystick host verification | `.local/reports/joystick-2026-11-06/host-verification.json` |
 | Device health and fresh app backup | `.local/reports/device-2026-11-06/joystick-health/` |
@@ -158,12 +214,10 @@ candidate select the same resource versions. Device gameplay acceptance is separ
 
 ## Next work
 
-The owner authorized continued offline work while the device is unavailable.
-Implement and verify original LoadPackages admission, exact-case name mapping,
-request/completion
-and original OnPackageLoaded callback over the real source package closure. Then
-complete boon geometry, individual text areas, cursor/highlights and original
-Interact callbacks. Death/DeathArea/House, save/restart/Continue and Android
-acceptance follow. Install/verify the preserved joystick and thermal candidate
-when hardware returns; host package progress does not close that device gate.
-`AUDIT.md` records the concrete acceptance boundaries.
+Continue on the host with original BoonSelectIn initialization and its complete
+source material/image/child/owner graph before exporter admission. Then complete
+boon geometry, individual text areas, cursor/highlights and original Interact
+callbacks. Death/DeathArea/House, save/restart/Continue and Android acceptance
+follow. Install/verify the preserved joystick and thermal candidate when hardware
+returns; host progress does not close that device gate. `AUDIT.md` records the
+concrete acceptance boundaries.

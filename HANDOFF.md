@@ -21,12 +21,13 @@ Both iteration17/16 rollback APKs and actual app-state backups are retained.
 The owner authorized continued offline work; package-loading implementation can
 advance independently while joystick/thermal device acceptance stays open.
 
-Strict host progression now passes Athena's portrait graph and completes 4,837
-frames before the original boon-menu request hits unimplemented LoadPackages.
-The slower ContinueText cadence reaches the same boundary at 5,437 after multiple
-real blink loops. Next: original package admission/name mapping/completion callback,
-then boon geometry/text areas/cursor/highlights/Interact, death/DeathArea/House and
-real save/restart/Continue. See AUDIT's acceptance table.
+Strict host progression now passes original LoadPackages admission and the reached
+boon config setters. It completes 4,837 frames before unsupported BoonSelectIn
+initialization; slower ContinueText cadence reaches the same boundary at 5,437.
+Native request identities, CPU reads and deferred OnPackageLoaded dispatch use
+actual package data; completion does not establish GPU residency. Next: original
+BoonSelectIn graph/material/resource closure, then boon geometry/text areas/cursor/
+highlights/Interact, death/DeathArea/House and actual save/restart/Continue.
 Do not force progression, skip original dialogue, substitute scenes or drop fields.
 
 The dependency preparer and room pack builder/revision/stager now verify complete
@@ -54,17 +55,23 @@ storage waste from hardlinked file names. Preserve originals, exports, real save
 current APK, signing key, pinned decoder libraries and evidence. Remove only owned
 scratch/build intermediates after recording results.
 
-Build defaults select text12/screen15/action26/audio31/actor9/weapons25/properties14
+Build defaults select packages2/text12/screen15/action26/audio31/actor9/weapons25/properties14
 and RoomSimple01 in addition to root RoomOpening. `scripts/build_native.py` is the
 selection authority; selected source, staged assets and an installed APK are
-separate identities. Iteration17 and the iteration18 candidate bind the current
-selected packs; see STATUS for immutable build/install receipts. No binary should be assumed fresh after restart.
+separate identities. Source/canonical assets now use packages2; the preserved
+iteration18 joystick candidate and installed iteration17 use packages1. Other
+selected versions match. No new gameplay APK is published for this host milestone.
+Preserve iteration18 before any future APK publication. See STATUS for receipts.
 
 ## Host commands
 
 ```sh
 python3 scripts/prepare_native_dependencies.py
 PYTHONDONTWRITEBYTECODE=1 python3 native/analysis/dependency_integrity_check.py
+PYTHONDONTWRITEBYTECODE=1 python3 native/analysis/package_catalog_check.py \
+  --manifest .local/native-assets/player-packages-v2/manifest.json \
+  --legacy-manifest .local/native-assets/player-packages-v1/manifest.json
+PYTHONDONTWRITEBYTECODE=1 python3 native/analysis/smoke_recovered_runtime.py
 PYTHONDONTWRITEBYTECODE=1 python3 native/analysis/room_pack_check.py \
   --manifest .local/native-assets/room-packs-v6/RoomSimple01/manifest.json \
   --actors .local/native-assets/actor-simple-v4/manifest.json \
@@ -79,7 +86,10 @@ nice -n 15 .local/host-build-next/hades-debug .local/native-build/assets .local/
   --input-replay=.local/reports/takeover-mixed-combat-hold.tsv
 nice -n 15 .local/host-build-next/hades-debug .local/native-build/assets .local/reports/NEW-AUTO.json \
   --activate-room --world-frames=4900 --autoplay --validate-live-presentation
-# The current default longer route fails on LoadPackages at 4837.
+# Direct registered-action diagnostic; separate from world progression:
+nice -n 15 .local/host-build-next/hades-debug .local/native-build/assets .local/reports/NEW-PACKAGES.json \
+  --probe-packages
+# The current default longer route stops on BoonSelectIn at 4837.
 # To exercise genuine blink looping, use --autoplay-continue-period=600,
 # --world-frames=5550 and HADES_TRACE_SLIDES=1 (expected boundary5437).
 ```
@@ -92,6 +102,9 @@ from Body/Move timing. Source contracts record these distinct clock consumers.
 Host autoplay supplies actual touch/control input and ContinueText pulses only for
 live original notifications. It must not mutate game progression or call callbacks.
 `--probe-save` is a direct registered-action diagnostic, not a script-reached save.
+`--probe-packages` isolates real registered actions, worker reads and original Lua
+dispatch without advancing the world. It cannot be combined with progression flags.
+The config smoke uses real native APIs and supplies no substitute importer/clock.
 Use fresh temporary build directories and remove them at completion. Run one
 final ASan/UBSan check after runtime changes; leak detection is disabled on the
 recorded macOS checks. No broad test scaffolding or copied source trees.

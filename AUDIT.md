@@ -1,7 +1,8 @@
 # Hades port review and implementation plan
 
 Reviewed 2026-11-06; the initial review baseline was `faee143`, followed by the
-verified pipeline batch `86b0344` and the current Athena runtime milestone. The scope is HadesPort: native engine, host drivers, exporters/stagers,
+verified pipeline batch `86b0344`, Athena graph and current package/config milestone.
+The scope is HadesPort: native engine, host drivers, exporters/stagers,
 build/dependencies, recovered contracts, delivery evidence and storage hygiene.
 The sibling REA checkout is supporting tooling; its existing bridge edit is
 preserved. The designated device reached RoomOpening on iteration17, then disconnected before
@@ -17,15 +18,17 @@ original assets are exported locally. Unsupported behavior fails explicitly in
 strict host mode. Device containment records gaps and skips failed work; it does
 not implement that work and cannot count as acceptance.
 
-Fresh strict progression now passes Athena's former frame-4,748 failure and
-completes 4,837 frames through the original dialogue to its boon-menu package
-request. The longer route stops explicitly on unimplemented LoadPackages at
-Scripts/Interactables.lua:826. A slower original ContinueText input cadence exercises
-multiple Athena blink loops/random-duration resampling and reaches that same package
-boundary at frame 5,437. The held-combat 2,950-frame route retains the historical
-five-hit sequence. Presentation sampling checks decoded/runtime state; it is not
-full GPU or physical-device proof. Final ASan/UBSan passes 5,437 frames with no findings (leak detection disabled);
-Android ARM64 compilation also passes. STATUS indexes exact receipts.
+Strict progression now passes Athena's portrait/dialogue graph, original LoadPackages
+admission and reached boon config setters. It completes 4,837 frames before the
+unreconstructed BoonSelectIn graph at UIScripts.lua:2354. The 2,950-frame held-combat
+route preserves its exact historical five-hit sequence. Real Lua5.2 package/action
+checks pass, including 14 original-coroutine callbacks, duplicate deferral, empty
+payloads and name parsing. Packages2 preserves all prior payload/metadata while
+adding actual Athena atlases. Final ASan/UBSan reaches the slower 5,437-frame
+boundary without findings (leak detection disabled), including native worker and
+registered-action checks. Android ARM64 compilation passes. STATUS indexes receipts.
+Presentation checks establish decoded/runtime state; boon choice, GPU parity and
+physical-device acceptance remain open.
 
 Iteration17's actual installed hash/size and app-data preservation were verified;
 RoomOpening rendered on the device. Owner control acceptance failed: the floating
@@ -37,8 +40,8 @@ and passes ASan/UBSan. The signed candidate is built from clean source `4381770`
 with all 30 resource manifests unchanged. USB disconnected before install; device
 release/repress acceptance remains open. STATUS records exact identity and receipts.
 
-No current Hades crash/ANR was found. Current memory snapshots showed available
-headroom and low PSI, but Android reported severe thermal throttling. The app was
+At the last connected inspection, no current Hades crash/ANR was found. Memory
+snapshots showed available headroom and low PSI, but Android reported severe thermal throttling. The app was
 stopped and backed up; the phone cooled to light status. The candidate reads actual
 PowerManager thermal status and caps rendering while retaining fixed simulation,
 adds a 60 FPS fresh default and 30 FPS menu cap. Existing profiles/saves remain
@@ -52,8 +55,8 @@ override is justified. Sustained memory/thermal stability remains unproven.
 | Original script execution | `lua_runtime`, scheduler, notifications and Lua action units share the native world between host and Android. Control notification advancement is working on the verified route; unsupported script calls must remain explicit. |
 | World/combat | Actor lifecycle, movement/pathing, effects, weapons, projectiles, collision and audio support the initial encounter. Beam/Lob/Sky and specialized delayed/live-target branches remain incomplete. Keep shared and projectile hit consumers aligned. |
 | Animation ownership | `animation_registry` owns allocation/lifecycle; screen and action-effect worlds supply different owner state. Screen layers now initialize actual local/delegated children and independent created manager roots. Reached Athena FX/emitter ownership and disposal execute. External-child ChainTo/TransferChildren still reject explicitly. |
-| Boon UI | Screen animation, text and input infrastructure exist. `lua_interaction.cpp` rejects missing actual screen geometry/lifecycle and individual text-box bounds. Cursor selection/highlights and original screen Interact use must be completed before choice works. |
-| Maps/resources | Native transitions check 26 room-bound files before retiring the current map. Only RoomOpening/RoomSimple01 are staged. Original boon pickup now reaches unimplemented LoadPackages; exact-case unit-package mapping, manifest-first pass, asynchronous completion and OnPackageLoaded remain to implement. DeathArea is absent. Generic room staging still assumes `HeroEnd` and a unique `CameraIntroEnd`; inspect actual House geometry before exporting. |
+| Boon UI | First explicit blocker is original BoonSelectIn initialization; complete its actual graph/material/image closure before admitting exports. Screen animation, text and input infrastructure exist. `lua_interaction.cpp` rejects missing actual screen geometry/lifecycle and individual text-box bounds. Cursor selection/highlights and original screen Interact use must be completed before choice works. |
+| Maps/resources | Native transitions check 26 room-bound files before retiring the current map. Only RoomOpening/RoomSimple01 are staged. Original boon package admission now implements source-derived exact-case unit mapping, all-manifest preflight, real CPU reads and deferred OnPackageLoaded. GPU readiness remains separate. DeathArea is absent. Generic room staging still assumes `HeroEnd` and a unique `CameraIntroEnd`; inspect actual House geometry before exporting. |
 | Rendering | Actor/scene/UI pipelines and camera/blur state exist. Visible Shroud still throws in `fullscreen_blur_renderer.cpp`; radial sampling, text layout and some material/sort behavior retain documented approximations. |
 | Persistence | Original SGB1/Luabins/LZ4 and profile formats exist. `save_runtime.cpp` backs up then directly truncates/writes the primary. A direct host round trip does not establish script-reached saves, interrupted-write recovery or Android Continue. |
 | Content delivery | APK publication has identity/permission checks and an immutable receipt. ZIP32 and the already large APK cannot be the full-game packaging strategy. Content expansion needs a real local-content delivery implementation. |
@@ -81,21 +84,18 @@ resources remain at the root. Original-game output protection now resolves the
 actual `.local` symlink target before comparing paths. Real RoomSimple01 staging
 and actor revision exercise both valid publication and malformed manifests.
 
-**Hygiene:** the tracked tree had 575 files totaling about 5.15 MB, no exact byte
-duplicates, no large generated logs and no game payloads found. Removed about
-373.7 MiB of unused probe binaries/objects/debug symbols after checking open
-handles. Preserved original files, immutable exports, saves, receipts/captures,
-current APK, key and required decoder builds. No Codex transcript files were found.
-Historical reports include repeated snapshots; their run-specific evidence paths
-remain intact. Reduce future snapshot production when changing the replay driver.
-The joystick checkpoint rechecked all 581 tracked files (about 5.17 MB): no exact
-duplicates or files over 1 MiB. Removed another 5.08 GiB of owned APK/build/probe
-scratch and the clean hotfix worktree after recording identity; candidate, rollbacks,
-actual app backups, canonical exports and signing key remain retained.
+**Hygiene:** the latest tracked tree has 584 files totaling about 5.22 MB, no exact
+byte duplicates, no files over 1 MiB and no game payloads found. Owned scratch was
+removed at each milestone: initial probes (373.7 MiB), hotfix builds (5.08 GiB),
+then package host/sanitizer/Android builds and redundant preliminary snapshots
+(900.2 MiB). Preserve original files, immutable exports, actual saves/backups,
+source-bound receipts, the uninstalled iteration18 candidate, rollback APKs,
+signing key and pinned dependencies. No Codex transcript files were found.
+The config smoke now uses a fresh temporary build and removes it automatically.
 
 ## Athena runtime milestone
 
-The current batch reconstructs initialization order and real cross-consumer child
+The earlier Athena batch reconstructs initialization order and real cross-consumer child
 ownership, per-slide original image/random-duration/Loop playback, VFX offsets,
 actual screen-owner state, sound eligibility, clock links and pending disposal.
 Matching DLL/PDB evidence proves that CreateScreenObstacle calls World SpawnObstacle
@@ -114,9 +114,10 @@ records, retaining historical rows and incoming provenance. Cache identity inclu
 ctime, preventing same-size edits with restored mtime from reusing old validation.
 No original game bytes or derived evidence were added to git.
 
-The original script now requests the actual boon package. LoadPackages remains an
-explicit failure; completing its source contract and actual resource closure is
-next. The current milestone does not prove boon selection, later rooms, full visual
+That earlier milestone exposed the original boon package request. The current
+offline batch completes its source-derived admission/CPU completion and reached
+config storage; original BoonSelectIn initialization is the next explicit gap.
+The current milestone does not prove boon selection, later rooms, full visual
 parity or device play. Existing material/sort/ambient and nonspatial audio adaptations
 remain documented; additional unrelated audio playlist branches remain unsupported.
 
@@ -126,8 +127,8 @@ remain documented; additional unrelated audio playlist branches remain unsupport
 |---|---|---|
 | 0 | Deliver the iteration18 joystick/thermal repair after USB reconnect. | Verify actual installed identity, app-file preservation, repeated visible-stick release/repress, no current faults and short thermal/memory observations. Stop on severe throttling. Device acceptance remains open; host package work can proceed independently. |
 | 1 | Athena portrait graph — implemented and host-verified. | Strict default route passes the former 4,748 boundary through 4,837; slower real input reaches 5,437 after repeated blink loops. Preserve held-combat and final sanitizer/platform checks. Physical rendering/audio acceptance remains pending. |
-| 2 | Implement original LoadPackages and actual AthenaUpgrade resource admission. Reuse existing package parsing/residency, reconstruct exact-case unit-name mapping and manifest-first ordering, queue real work and dispatch original OnPackageLoaded only at the recovered completion boundary. Derive includes from the original package files. | Strict original pickup passes the current Interactables.lua:826 stop. No package-name insertion as fake completion, silent load success, direct callback or missing atlas/movie substitution. CPU residency, worker completion and GPU readiness remain distinct. |
-| 3 | Implement boon selection. Derive actual transformed screen polygons and individual text areas with original integer/justification rules; retain owner lifetimes, cursor ordering and floating-highlight FX/audio. Route real Select/touch through Interact.Use and NotifyOnInteract. | Original menu appears and a real input selects a boon via the original callback. Exercise disposal/ambiguity rejection. No fixed bounds, forced reward state or direct Lua callback. Device touch/controller acceptance remains separate. |
+| 2 | Original LoadPackages admission and reached config storage — implemented and host-verified. Source-derived mappings, manifest-first admission, actual worker reads and deferred callbacks replace the former Interactables.lua:826 stop. | Native Lua5.2/worker tests, preserved original atlas bytes, strict progression to BoonSelectIn, held combat and final sanitizer/platform checks. GPU residency and actual boon selection remain separate. |
+| 3 | Complete original BoonSelectIn graph/material/image/child/owner initialization first, then implement boon selection. Derive actual transformed screen polygons and individual text areas with original integer/justification rules; retain owner lifetimes, cursor ordering and floating-highlight FX/audio. Route real Select/touch through Interact.Use and NotifyOnInteract. | Original menu appears and a real input selects a boon via the original callback. Exercise disposal/ambiguity rejection. No fixed bounds, forced reward state or direct Lua callback. Device touch/controller acceptance remains separate. |
 | 4 | Restore death/House and the script-selected next room. Reconstruct low-health FX, AllowAnyFire/Graphic side effects, camera clamp clearing and Stop/Halt/death voice resources. Implement the proven disabled analytics/email branch. Review actual DeathArea MapGroups/anchors before export. | Strict original death reaches actual House/DeathArea and normal control. Normal progression loads the map selected by scripts. No invented room, injected damage or forced encounter clear. |
 | 5 | Implement save durability while retaining original wire formats. Document Android atomic publication/recovery and complete script-reached checkpoint/restart/Continue across actual maps. | Compatibility, interrupted/truncated writes and recovery verified using copies of actual saves. Device process death/relaunch resumes without resetting saves. |
 | 6 | Implement full-game local content delivery before broad room expansion. Retain immutable payload identity and offline import while removing single-APK size limits. | Complete identity checks, bounded reads and explicit missing-content errors. No network permission or uploaded game files. |
@@ -135,10 +136,21 @@ remain documented; additional unrelated audio playlist branches remain unsupport
 
 The joystick/thermal repair is the next device delivery gate when hardware returns.
 The owner authorized independent offline progress; the next host deliverable is
-actual package admission/
-completion at the original boon request. The held historical screen patch remains reference
+original BoonSelectIn initialization and then actual boon selection.
+The held historical screen patch remains reference
 material; the integrated implementation was independently reviewed and verified.
 STATUS indexes resource preservation, source evidence and exact input routes.
+
+The first boon-shell batch is bounded: 14 actual animation definitions across six
+owners, eight not yet admitted to screen15. Bind the original opening/closing Bink
+movies (38 frames total) to generic Book playback and preserve completion/ChainTo,
+owner lifetime and source atlas geometry. Next handle the six-node symbol graph's
+angle/per-axis scale helpers at the primary root, then the lighting Constant's
+original random-duration/RNG and alpha ping-pong. Existing action26 definitions
+and pixels can be reused through real owner/primary consumers; child delegation
+alone does not implement the unsupported root. After shell initialization reaches
+actual button creation, implement selection highlights, text bounds and Interact.
+No still-image movie substitute, stripped fields or direct choice callback.
 
 ## Verification discipline
 
