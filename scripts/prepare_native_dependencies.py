@@ -8,8 +8,11 @@ implementation. Every archive is identified by SHA-256 before extraction.
 """
 import hashlib
 import io
+import os
 from pathlib import Path
+import stat
 import tarfile
+import tempfile
 import urllib.request
 
 PROJECT = Path(__file__).resolve().parents[1]
@@ -46,6 +49,59 @@ DEPENDENCIES = [
 ]
 
 
+def source_members(package, dependency):
+    """Validate the complete archive before creating any extracted source files."""
+    members = []
+    names = set()
+    for entry in package.getmembers():
+        path = Path(entry.name)
+        if path.is_absolute() or '..' in path.parts or not path.parts or path.parts[0] != dependency['directory']:
+            raise RuntimeError(f"Unsafe {dependency['name']} archive member")
+        if entry.issym() or entry.islnk():
+            if entry.name not in dependency['skip_links']:
+                raise RuntimeError(f"Unexpected link in {dependency['name']} archive")
+            continue
+        if not (entry.isfile() or entry.isdir()) or path in names:
+            raise RuntimeError(f"Unsafe or duplicate {dependency['name']} archive member")
+        names.add(path)
+        members.append(entry)
+    if not any(entry.isfile() for entry in members):
+        raise RuntimeError(f"Empty {dependency['name']} source archive")
+    return members
+
+
+def verify_sources(directory, package, members, dependency):
+    """Existence is not completion: compare every source with the pinned archive."""
+    if directory.is_symlink() or not directory.is_dir():
+        raise RuntimeError(f"Pinned {dependency['name']} source is not an actual directory: {directory}")
+    expected = set()
+    for entry in members:
+        relative = Path(entry.name).relative_to(dependency['directory'])
+        expected.add(relative)
+        expected.update(relative.parents)
+        path = directory / relative
+        try:
+            mode = path.lstat().st_mode
+        except FileNotFoundError:
+            raise RuntimeError(f"Incomplete {dependency['name']} source: missing {relative}") from None
+        # Check parent directories before opening a member, so verification never
+        # follows an injected symlink outside the selected source tree.
+        if any((directory / parent).is_symlink() for parent in relative.parents):
+            raise RuntimeError(f"Unexpected link in {dependency['name']} source: {relative}")
+        if entry.isdir():
+            valid = stat.S_ISDIR(mode)
+        else:
+            valid = stat.S_ISREG(mode) and path.stat().st_size == entry.size
+            if valid:
+                with path.open('rb') as actual, package.extractfile(entry) as original:
+                    valid = hashlib.file_digest(actual, 'sha256').digest() == hashlib.file_digest(original, 'sha256').digest()
+        if not valid:
+            raise RuntimeError(f"Modified {dependency['name']} source: {relative}; existing files preserved")
+    for path in directory.rglob('*'):
+        if path.relative_to(directory) not in expected:
+            raise RuntimeError(f"Unexpected {dependency['name']} source entry: {path.relative_to(directory)}; existing files preserved")
+
+
 def prepare(root, dependency):
     archive = root / dependency['archive']
     if not archive.exists():
@@ -53,33 +109,38 @@ def prepare(root, dependency):
             data = response.read(dependency['max_bytes'] + 1)
         if len(data) > dependency['max_bytes'] or hashlib.sha256(data).hexdigest() != dependency['sha256']:
             raise RuntimeError(f"{dependency['name']} source archive identity mismatch")
-        archive.write_bytes(data)
+        # A cancelled download must not publish a partial cache entry.
+        with tempfile.TemporaryDirectory(prefix='.archive-', dir=root) as temporary:
+            candidate = Path(temporary) / dependency['archive']
+            candidate.write_bytes(data)
+            os.replace(candidate, archive)
+    if archive.stat().st_size > dependency['max_bytes']:
+        raise RuntimeError(f"Cached {dependency['name']} archive exceeds size bound")
     data = archive.read_bytes()
-    if hashlib.sha256(data).hexdigest() != dependency['sha256']:
+    if len(data) > dependency['max_bytes'] or hashlib.sha256(data).hexdigest() != dependency['sha256']:
         raise RuntimeError(f"Cached {dependency['name']} archive identity mismatch")
-    if (root / dependency['directory']).exists():
-        print(f"Pinned {dependency['name']} source already present")
-        return
     with tarfile.open(fileobj=io.BytesIO(data), mode='r:gz') as package:
-        members = []
-        for entry in package.getmembers():
-            path = Path(entry.name)
-            if path.is_absolute() or '..' in path.parts or (path.parts and path.parts[0] != dependency['directory']):
-                raise RuntimeError(f"Unsafe {dependency['name']} archive member")
-            if entry.issym() or entry.islnk():
-                if entry.name not in dependency['skip_links']:
-                    raise RuntimeError(f"Unexpected link in {dependency['name']} archive")
-                continue
-            if not (entry.isfile() or entry.isdir()):
-                raise RuntimeError(f"Unsafe {dependency['name']} archive member")
-            members.append(entry)
-        package.extractall(root, members=members, filter='data')
+        members = source_members(package, dependency)
+        directory = root / dependency['directory']
+        if directory.exists() or directory.is_symlink():
+            verify_sources(directory, package, members, dependency)
+            print(f"Verified pinned {dependency['name']} source")
+            return
+        # Extract and verify beside the destination, then publish with one rename.
+        # Failures/cancellation leave no directory that could masquerade as ready.
+        with tempfile.TemporaryDirectory(prefix='.source-', dir=root) as temporary:
+            package.extractall(temporary, members=members, filter='data')
+            candidate = Path(temporary) / dependency['directory']
+            verify_sources(candidate, package, members, dependency)
+            if directory.exists() or directory.is_symlink():
+                raise RuntimeError(f"{dependency['name']} source appeared during preparation; existing files preserved")
+            candidate.rename(directory)
     print(f"Prepared {dependency['name']} {dependency['sha256']} from {dependency['url']}")
 
 
 def main():
     root = PROJECT / '.local/native-deps'
-    root.mkdir(exist_ok=True)
+    root.mkdir(parents=True, exist_ok=True)
     for dependency in DEPENDENCIES:
         prepare(root, dependency)
 
