@@ -19,60 +19,76 @@ Earlier rollback APKs were retired in a separate authorized storage cleanup on
 and app-file backups remain; do not mistake those receipts for retained APKs.
 Before any future replacement, preserve the current APK and actual app files.
 
-## Reproduced progression boundary
+## Athena portrait milestone (2026-11-06)
 
-A fresh strict host build against canonical assets completes 4,748 world frames,
-with presentation sampled every frame and zero contained faults. The longer
-4,900-frame request correctly fails at frame 4,748:
+Strict host progression now passes the former Athena failure at frame 4,748 and
+completes 4,837 frames through original dialogue advancement to the boon-menu
+package request. The longer default route stops explicitly on:
 
 ```
-Original update: Scripts/Main.lua:419: Original live screen animation unsupported: Portrait_Athena_Default_01
+Original update: Scripts/Main.lua:419: Scripts/Interactables.lua:826: Native engine action not reconstructed yet: LoadPackages
 ```
 
-The original flow clears the first encounter, picks up Athena and advances the first
-ContinueText notification. Athena's created FX, looping/random slide children and
-attached ray emitter remain unavailable. No completed Athena conversation, boon
-selection, death/House loop or later-room progression is proven.
+There are zero contained faults before that boundary and presentation is sampled
+every frame. A slower real ContinueText input cadence exercises AthenaBlink through
+multiple loops and resamples its authored random duration before reaching the same
+LoadPackages boundary at frame 5,437. These are different input routes; neither
+proves a boon choice or later-room progression.
 
-The exact held-combat 2,950-frame replay passes with every-frame presentation and
-retains the historical five-hit sequence. Release/repress recordings are different
-routes and must not be compared as the same baseline. Final ASan/UBSan also passes all 4,748 supported frames with every-frame
-presentation and no findings (leak detection disabled). Android ARM64 compilation
-also passes; the output was verified as an AArch64 ELF shared library. These checks
-do not validate physical controls, lifecycle, performance or full GPU presentation.
+The final held-combat 2,950-frame route retains the exact historical five-hit
+sequence with every-frame presentation. Final ASan/UBSan passes 5,437 frames on the
+slower input route with zero findings (leak detection disabled), including three
+entries into the blink loop's first frame. Android ARM64 compilation passes; the
+library was verified as AArch64 ELF. Tested runtime source is `312f521`. No device
+operations occurred. All owned host/ASan/Android scratch builds were removed.
 
-## Implemented in this review
+Implemented behavior:
 
-- Dependency preparation verifies every extracted file against the pinned Lua,
-  Luabins and LZ4 archives. Incomplete, modified, extra or symlinked sources fail
-  explicitly without replacement. New extractions are verified before publication.
-- Room packs use the same 26-file declaration as the native transition consumer.
-  Builders, revisions and staging enforce complete identities and runtime-compatible
-  names. Invalid packs and duplicate selections cannot publish a partial room.
-- Original-game output protection resolves both sides of the `.local` symlink;
-  logical and physical paths into the preserved game are rejected.
-- Approximately 373.7 MiB of unused generated probe binaries, objects and debug
-  symbols were removed. Original assets, exports, saves, evidence, current APK,
-  signing key and required decoder builds were preserved.
-- Current documentation replaces accumulated historical checkpoints. The previous
-  documents remain available in git at `faee143`; private evidence stays local.
+- Screen-layer initialization follows Attach, Child, singleton Create, ordered
+  Creates and Sound, with child completion before parent initialization returns.
+  Delegated children retain actual registry parent ownership; created roots remain
+  independent manager allocations. Entire reached graphs preflight before mutation.
+- AthenaBlink uses original per-slide images, durations, Loop and shared engine
+  bounded PCG. Equal random bounds consume no draw; later loops resample real
+  per-instance durations while preserving elapsed remainder.
+- Original CreateScreenObstacle is a World SpawnObstacle followed by a coordinate
+  flag. Portrait primaries/FX remain in World manager0. Body helpers, movement and
+  animation time now use their distinct recovered clock equations; screen drawing
+  does not choose manager ownership. Pending disposal precedes FX emission.
+- Action FX read actual screen body, fractions, HSV, group, lifetime and live sound/
+  elapsed fields. VFX offsets, nested creation, audio admission/fades and pre-dispose
+  consumers execute. Nonspatial screen audio remains a documented Android adaptation.
+- Audio export accepts proven same-file bank aliases without overriding retained
+  sample evidence. Warm-cache verification includes ctime. Seventeen real-input
+  checks pass, including same-size tampering with restored mtime.
 
-Repeatable real-input checks: 24 dependency integrity checks and 49 room-pack checks, including a full producer run.
-No simulated providers, replacement game assets or new runtime stubs were introduced.
-Owned host, sanitizer and Android CMake scratch directories were removed after
-recording source/library identities and results. The retained APK hash still matches
-iteration16; no new APK was published.
+Resource preservation was independently checked: all 1,942 prior screen frames and
+787 clips remain byte-identical; 25 frames/21 clips are added. Action26 preserves
+1,913 prior definitions, nine movie definitions, 13,615 frame payloads and 1,861
+clip schedules/image bindings after packet-index normalization. Audio31 preserves
+all 2,190 prior event semantics, 3,635 exact sample rows, four closure proofs and
+24 stream identities, adding nine events/seven samples. Historical locator spelling
+and one uniquely named parameter-array order can differ; original payloads and
+mixing values remain unchanged. Three unrelated playlist cues remain unsupported.
+
+The preceding review repaired dependency/source integrity and complete room-pack
+publication (73 real-input checks), removed about 373.7 MiB of generated probes and
+consolidated historical documentation. Its receipts remain indexed below.
+No mocks, replacement game art, skipped dialogue or forced rewards were introduced.
 
 ## Selected assets and evidence
 
 Build defaults in `scripts/build_native.py` remain authoritative. Canonical assets
-use text12/screen14/action24/audio30/actor9/weapons25/properties14; only RoomOpening
-and RoomSimple01 are staged. No versioned asset export or APK publication was needed
-for this pipeline repair.
+use text12/screen15/action26/audio31/actor9/weapons25/properties14; only RoomOpening
+and RoomSimple01 are staged. Source and staged resources are ahead of the retained
+iteration16 APK; no new APK was published.
 
 | Evidence | Local path |
 |---|---|
-| Current verification summary | `.local/reports/review-2026-11-06/final-verification.json` |
+| Athena milestone | `.local/reports/athena-graph-2026-11-06/final-verification.json` |
+| Screen/action resource preservation | `.local/reports/screen-slide-2026-11-06/` |
+| Audio preservation and alias checks | `.local/reports/screen-action-child-2026-11-06/` |
+| Prior review verification | `.local/reports/review-2026-11-06/final-verification.json` |
 | Current review/build/replays | `.local/reports/review-2026-11-06/` |
 | Dependency integrity | `.local/reports/dependency-integrity-2026-11-06.json` |
 | Generated-file cleanup | `.local/private/cleanup/generated-probes-20261106.json` |
@@ -83,7 +99,8 @@ for this pipeline repair.
 
 ## Next work
 
-Implement Athena's complete initialization/FX/slide/emitter ownership graph first,
-then actual boon geometry, individual text areas, cursor/highlights and original
-Interact callbacks. Follow with death/DeathArea/House, save/restart/Continue and
-Android acceptance. `AUDIT.md` records the concrete work and acceptance boundaries.
+Implement original LoadPackages admission, exact-case name mapping, request/completion
+and original OnPackageLoaded callback over the real source package closure. Then
+complete boon geometry, individual text areas, cursor/highlights and original
+Interact callbacks. Death/DeathArea/House, save/restart/Continue and Android
+acceptance follow. `AUDIT.md` records the concrete acceptance boundaries.

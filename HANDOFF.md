@@ -12,11 +12,12 @@ the last observed installation; manual gameplay remains unverified. Earlier roll
 APKs were retired in a separate authorized cleanup. Preserve the current APK and
 actual app files before any future replacement.
 
-Strict host progression reproduces the Athena portrait graph failure at frame
-4,748. Original encounter/pickup/first ContinueText work on this route. Implement
-the complete created-FX/slide/emitter graph before exporting/admitting Athena's
-record. Next come actual boon geometry/text areas/cursor/highlights/Interact,
-death/DeathArea/House, and real save/restart/Continue. See AUDIT's acceptance table.
+Strict host progression now passes Athena's portrait graph and completes 4,837
+frames before the original boon-menu request hits unimplemented LoadPackages.
+The slower ContinueText cadence reaches the same boundary at 5,437 after multiple
+real blink loops. Next: original package admission/name mapping/completion callback,
+then boon geometry/text areas/cursor/highlights/Interact, death/DeathArea/House and
+real save/restart/Continue. See AUDIT's acceptance table.
 Do not force progression, skip original dialogue, substitute scenes or drop fields.
 
 The dependency preparer and room pack builder/revision/stager now verify complete
@@ -44,7 +45,7 @@ storage waste from hardlinked file names. Preserve originals, exports, real save
 current APK, signing key, pinned decoder libraries and evidence. Remove only owned
 scratch/build intermediates after recording results.
 
-Build defaults select text12/screen14/action24/audio30/actor9/weapons25/properties14
+Build defaults select text12/screen15/action26/audio31/actor9/weapons25/properties14
 and RoomSimple01 in addition to root RoomOpening. `scripts/build_native.py` is the
 selection authority; selected source, staged assets and an installed APK are
 separate identities. No binary should be assumed fresh after restart.
@@ -68,11 +69,16 @@ nice -n 15 .local/host-build-next/hades-debug .local/native-build/assets .local/
   --input-replay=.local/reports/takeover-mixed-combat-hold.tsv
 nice -n 15 .local/host-build-next/hades-debug .local/native-build/assets .local/reports/NEW-AUTO.json \
   --activate-room --world-frames=4900 --autoplay --validate-live-presentation
-# The current longer route must fail at 4748. A 4748-frame run excludes that failure.
+# The current default longer route fails on LoadPackages at 4837.
+# To exercise genuine blink looping, use --autoplay-continue-period=600,
+# --world-frames=5550 and HADES_TRACE_SLIDES=1 (expected boundary5437).
 ```
 
 `--survey-blockers` / `--contain-faults` are diagnostic, never strict acceptance.
 The held route has five hits; release/repress inputs have different results.
+CreateScreenObstacle makes native World obstacles: draw coordinates do not change
+manager ownership. Keep per-animation time fractions and real owner links separate
+from Body/Move timing. Source contracts record these distinct clock consumers.
 Host autoplay supplies actual touch/control input and ContinueText pulses only for
 live original notifications. It must not mutate game progression or call callbacks.
 `--probe-save` is a direct registered-action diagnostic, not a script-reached save.
