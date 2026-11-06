@@ -46,11 +46,14 @@ bool TouchControls::controlLabel(const std::string& control,std::string& label)c
     return false;
 }
 std::array<float,2> TouchControls::defaultStick()const{
-    // Rest above the original HUD's bottom health/ammo band (drawn ~20% from
-    // the bottom on the Fold's aspect) so the stick never covers it.
+    // Android adaptation: prefer the physical offset above the bottom HUD,
+    // but keep the default ring in the floating movement area on short panels.
+    // A fixed 45 mm offset put the cover-display rest above its input region.
     const float rest=mm(25)*scale_,restY=mm(45)*scale_,offset=(leftHanded_?-1.f:1.f)*mm(layout_[2*ButtonCount]);
     const float r=stickRadius();
-    return {std::clamp((leftHanded_?width_-rest:rest)+offset,r,std::max(r,width_-r)),std::clamp(height_-restY+mm(layout_[2*ButtonCount+1]),r,std::max(r,height_-r))};
+    const float margin=std::min(r+mm(2),height_*.5f),bottom=height_-margin;
+    const float baseY=std::clamp(height_-restY,std::min(bottom,height_*.45f+margin),bottom);
+    return {std::clamp((leftHanded_?width_-rest:rest)+offset,r,std::max(r,width_-r)),std::clamp(baseY+mm(layout_[2*ButtonCount+1]),r,std::max(r,height_-r))};
 }
 bool TouchControls::editPointer(UiPointer phase,int id,float x,float y){
     if(phase==UiPointer::Cancel){editOwner_=-1;return true;}
@@ -113,7 +116,10 @@ bool TouchControls::pointer(UiPointer phase,int id,float x,float y){
         if(best<buttons.size()){actionContacts_[id]=best;pressed_[best]=held_[best]=true;return true;}
         if(continueTextRequested_)return false; // no movement/pinch behind dialogue
         const bool movementSide=leftHanded_?x>width_*.55f:x<width_*.45f;
-        const bool eligible=floating_?(movementSide&&y>height_*.45f):std::hypot(x-visualX_,y-visualY_)<radius*1.65f;
+        // The visible control is always a valid acquisition target, including
+        // an edited rest outside the general lower-side floating region.
+        const bool onStick=std::hypot(x-visualX_,y-visualY_)<radius*1.65f;
+        const bool eligible=onStick||(floating_&&movementSide&&y>height_*.45f);
         if(owner_<0&&eligible){
             owner_=id;anchorX_=floating_?x:visualX_;anchorY_=floating_?y:visualY_;
             visualX_=std::clamp(anchorX_,radius+s,std::max(radius+s,width_-radius-s));

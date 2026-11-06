@@ -15,7 +15,7 @@ struct UiSettings {
     bool leftHanded=false,floatingStick=true;
     // Graphics (Android adaptation): internal scene resolution fraction,
     // frame-rate cap (0 = display rate) and the performance overlay.
-    float renderScale=1;int frameCap=0;bool showFps=true,vibration=true;
+    float renderScale=1;int frameCap=60;bool showFps=true,vibration=true;
     // Original ConfigOptions Master/Music/Fx/DialogueVolume (default 1.0).
     float masterVolume=1,musicVolume=1,effectsVolume=1,voiceVolume=1;
     // Touch layout editor offsets (mm): 7 action buttons + movement stick rest.

@@ -1,11 +1,46 @@
 #include "../app/camera_rig.hpp"
 #include "../app/hardware_input.hpp"
+#include "../app/frame_pacing.hpp"
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
 
 namespace {void require(bool value,const char* text){if(!value)throw std::runtime_error(text);}}
 int main(){try{
+    require(hades::UiSettings{}.frameCap==60,"Fresh settings run above 60 FPS");
+    require(hades::displayFrameCap(0,1,-1,true)==0&&hades::displayFrameCap(120,1,0,true)==120,"Cool device lost requested display rate");
+    require(hades::displayFrameCap(0,3,0,true)==60&&hades::displayFrameCap(120,3,0,true)==60,"Battery mode did not bound frame rate");
+    require(hades::displayFrameCap(120,1,2,true)==60&&hades::displayFrameCap(0,1,3,true)==30&&hades::displayFrameCap(60,1,4,true)==15,"Platform thermal status did not bound rendering");
+    require(hades::displayFrameCap(30,1,2,true)==30&&hades::displayFrameCap(0,1,0,false)==30,"Frame limiter raised a lower cap or left menu uncapped");
+    // Use the production touch policy at actual cover/inner panel geometry.
+    // The cover's old 45 mm bottom offset put its visible rest ABOVE the
+    // floating acquisition zone: bottom touches worked only until release.
+    for(const auto panel: {std::array<int,2>{2520,1080},std::array<int,2>{2184,1968}})
+    for(bool left: {false,true})for(bool floating: {false,true})for(float scale: {.7f,1.f,1.3f}){
+        hades::UiSettings layout;layout.leftHanded=left;layout.floatingStick=floating;layout.touchScale=scale;
+        hades::TouchControls stick;stick.configure(panel[0],panel[1],layout,420);
+        require(stick.y()>panel[1]*.45f,"Visible default stick is outside lower movement area");
+        for(int cycle=0;cycle<4;++cycle){
+            const float x=stick.x(),y=stick.y(),direction=left?-1.f:1.f;
+            require(stick.pointer(hades::UiPointer::Down,50,x,y)&&stick.active(),"Visible stick could not be acquired after release");
+            stick.pointer(hades::UiPointer::Move,50,x+direction*stick.stickRadius()*.8f,y);
+            require(direction*stick.dx()>.5f,"Reacquired visible stick did not move");
+            stick.pointer(hades::UiPointer::Up,51,x,y);
+            require(stick.active(),"Unrelated release cancelled reacquired stick");
+            stick.pointer(hades::UiPointer::Up,50,x,y);
+            require(!stick.active()&&stick.dx()==0&&stick.dy()==0,"Release retained movement");
+            stick.configure(panel[0],panel[1],layout,420);
+            stick.pointer(hades::UiPointer::Move,50,x,y);
+            require(!stick.active(),"Released pointer moved without a new press");
+        }
+        // An explicitly edited rest must remain touchable above the general
+        // floating zone; physical size and editor offsets do not define input.
+        layout.touchLayout[15]=-45;
+        stick.configure(panel[0],panel[1],layout,420);
+        require(stick.pointer(hades::UiPointer::Down,52,stick.x(),stick.y())&&stick.active(),"Edited visible stick is unreachable");
+        stick.cancel();stick.configure(panel[0],panel[1],layout,420);
+        require(stick.pointer(hades::UiPointer::Down,53,stick.x(),stick.y())&&stick.active(),"Cancelled stick cannot reacquire");
+    }
     hades::UiSettings settings;hades::TouchControls controls;controls.configure(1800,1200,settings);
     controls.pointer(hades::UiPointer::Down,10,250,900);
     controls.pointer(hades::UiPointer::Move,10,250+controls.stickRadius()*.8f,900);

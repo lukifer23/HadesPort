@@ -36,6 +36,7 @@
 #include "input_bindings.hpp"
 #include "control_bindings.hpp"
 #include "hardware_input.hpp"
+#include "frame_pacing.hpp"
 #include <set>
 
 #define INFO(...) __android_log_print(ANDROID_LOG_INFO, "HadesNative", __VA_ARGS__)
@@ -101,7 +102,8 @@ class Engine {
     }
     void paceFrame(){
         const int cap=effectiveFrameCap();
-        if(cap!=hintedCap_&&app_->window){hintedCap_=cap;using SetRate=int32_t(*)(ANativeWindow*,float,int8_t);
+        if(cap!=hintedCap_&&app_->window){hintedCap_=cap;nextPresent_={};using SetRate=int32_t(*)(ANativeWindow*,float,int8_t);
+            INFO("FRAME_PACING requested=%d effective=%d thermal=%d gameMode=%d playing=%d",ui_.settings.frameCap,cap,thermalStatus_,gameMode_,ui_.playing());
             if(auto set=reinterpret_cast<SetRate>(dlsym(RTLD_DEFAULT,"ANativeWindow_setFrameRate")))set(app_->window,float(cap),0);}
         if(ui_.settings.vsync!=appliedVsync_){appliedVsync_=ui_.settings.vsync;eglSwapInterval(display_,appliedVsync_?1:0);INFO("VSYNC swap_interval=%d",appliedVsync_?1:0);}
         if(cap<=0){nextPresent_={};return;}
@@ -141,9 +143,14 @@ class Engine {
     }
     jmethodID gameModeMethod_=nullptr;int gameMode_=0;
     void pollGameMode(){if(!javaMethod(gameModeMethod_,"gameMode","()I"))return;const int mode=jni_->CallIntMethod(app_->activity->clazz,gameModeMethod_);if(jni_->ExceptionCheck()){jni_->ExceptionClear();return;}if(mode!=gameMode_){gameMode_=mode;INFO("GAME_MODE mode=%d",mode);}}
-    // Battery game mode caps an uncapped display rate at 60 FPS; an explicit
-    // user cap always wins (Android adaptation of GameManager modes).
-    int effectiveFrameCap()const{const int cap=ui_.settings.frameCap;return cap==0&&gameMode_==3?60:cap;}
+    jmethodID thermalMethod_=nullptr;int thermalStatus_=-1;
+    void pollThermal(){
+        if(!javaMethod(thermalMethod_,"thermalStatus","()I"))return;
+        const int status=jni_->CallIntMethod(app_->activity->clazz,thermalMethod_);
+        if(jni_->ExceptionCheck()){jni_->ExceptionClear();ERROR("THERMAL_STATUS_QUERY_FAILED");return;}
+        if(status!=thermalStatus_){thermalStatus_=status;INFO("THERMAL_STATUS status=%d",status);}
+    }
+    int effectiveFrameCap()const{return hades::displayFrameCap(ui_.settings.frameCap,gameMode_,thermalStatus_,ui_.playing());}
     bool touchVisible()const{return ui_.settings.touchMode==1||(ui_.settings.touchMode==0&&!usingController_);}
     void applyConfig(){
         if(!scripts_)return;const auto& s=ui_.settings;const std::array<bool,7> v{s.easyMode,s.damageNumbers,s.uiAnimations,s.speechBubbles,s.subtitles,s.bloom,s.cameraShake};
@@ -497,7 +504,7 @@ public:
             }
             if(worldAccumulator_>=1./60){INFO("WORLD_CATCHUP_LIMIT retained_ms=%.2f",worldAccumulator_*1000);worldAccumulator_=std::min(worldAccumulator_,1./60);}
         }
-        if((controllerProbe_-=dt)<=0){controllerProbe_=2;pollControllers();pollGameMode();}
+        if((controllerProbe_-=dt)<=0){controllerProbe_=2;pollControllers();pollGameMode();pollThermal();}
         syncBindings();
         if(scripts_&&scripts_->gameLoaded())applyConfig();
         if(scripts_&&scripts_->roomActivated()){const auto& s=ui_.settings;const std::array<float,4> v{s.masterVolume,s.musicVolume,s.effectsVolume,s.voiceVolume};

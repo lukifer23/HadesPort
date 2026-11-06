@@ -15,6 +15,13 @@ import android.view.WindowInsetsController;
  * rendering, UI, input and decides when original rumble events fire.
  */
 public final class HadesActivity extends NativeActivity {
+    /** Actual platform thermal status; -1 when unavailable on API26-28. */
+    public int thermalStatus() {
+        if (Build.VERSION.SDK_INT < 29) return -1;
+        android.os.PowerManager manager = getSystemService(android.os.PowerManager.class);
+        return manager == null ? -1 : manager.getCurrentThermalStatus();
+    }
+
     /** Android GameManager mode (0 unsupported, 1 standard, 2 performance, 3 battery). */
     public int gameMode() {
         if (Build.VERSION.SDK_INT < 31) return 0;
