@@ -472,6 +472,9 @@ public:
         const float dt=std::chrono::duration<float>(frameTime-lastFrame_).count();lastFrame_=frameTime;
         eglQuerySurface(display_, surface_, EGL_WIDTH, &width_); eglQuerySurface(display_, surface_, EGL_HEIGHT, &height_);
         if(width_<=0||height_<=0)return;
+        // Release old-panel ownership before any fixed simulation step can
+        // consume its vector. The later configure also updates dialogue rest.
+        controls_.configure(width_,height_,ui_.settings,dpi_);
         if(scripts_&&scripts_->roomActivated()){
             // A failed/stopped output must not block Retry/New Run teardown or
             // raise the same failure again while the failure screen is shown.
@@ -592,7 +595,7 @@ public:
             if (cmd == APP_CMD_INIT_WINDOW && app_->window && display_ == EGL_NO_DISPLAY) { failed_ = false; initialize(); }
             else if (cmd == APP_CMD_TERM_WINDOW) shutdown();
             else if (cmd == APP_CMD_CONFIG_CHANGED) { readDensity(); INFO("DISPLAY_DENSITY dpi=%.0f",dpi_); }
-            else if (cmd == APP_CMD_GAINED_FOCUS) { focused_ = true;if(scripts_&&scripts_->roomActivated()&&!scripts_->startAudio())throw std::runtime_error(scripts_->error());lastFrame_=std::chrono::steady_clock::now();interval_=lastFrame_;frames_=0;metricCount_=metricAt_=0;metricFrames_=0;updateMs_=submitMs_=presentMs_=0; INFO("Resumed"); }
+            else if (cmd == APP_CMD_GAINED_FOCUS) { focused_ = true;controllerProbe_=0;nextPresent_={};if(scripts_&&scripts_->roomActivated()&&!scripts_->startAudio())throw std::runtime_error(scripts_->error());lastFrame_=std::chrono::steady_clock::now();interval_=lastFrame_;frames_=0;metricCount_=metricAt_=0;metricFrames_=0;updateMs_=submitMs_=presentMs_=0; INFO("Resumed"); }
             else if (cmd == APP_CMD_LOST_FOCUS) { focused_ = false;if(scripts_)scripts_->stopAudio();ui_.cancel();releaseMovement(); INFO("Paused"); }
         } catch (const std::exception& failure) {
             ERROR("ENGINE_FAILURE stage=%d reason=%s", cmd, failure.what()); failed_ = true;
