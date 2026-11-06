@@ -67,7 +67,9 @@ verify previous identity, install iteration18 non-incrementally, verify installe
 hash/size and unchanged app files before launch, then exercise repeated visible-stick
 press/move/release/repress and check faults, memory and thermals. Keep tests bounded;
 stop Hades if severe throttling recurs. USB disappeared before installation began;
-no iteration18 device success is claimed.
+no iteration18 device success is claimed. Build/probe intermediates and the clean
+worktree were removed after recording results (5.08 GiB allocated); the candidate,
+rollbacks, app backups, canonical assets and signing key remain preserved.
 
 ## Athena portrait milestone (2026-11-06)
 

@@ -88,6 +88,10 @@ handles. Preserved original files, immutable exports, saves, receipts/captures,
 current APK, key and required decoder builds. No Codex transcript files were found.
 Historical reports include repeated snapshots; their run-specific evidence paths
 remain intact. Reduce future snapshot production when changing the replay driver.
+The joystick checkpoint rechecked all 581 tracked files (about 5.17 MB): no exact
+duplicates or files over 1 MiB. Removed another 5.08 GiB of owned APK/build/probe
+scratch and the clean hotfix worktree after recording identity; candidate, rollbacks,
+actual app backups, canonical exports and signing key remain retained.
 
 ## Athena runtime milestone
 
