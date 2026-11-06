@@ -16,15 +16,11 @@
 
 namespace hades {
 inline constexpr std::string_view kRootMapName = "RoomOpening";
-inline constexpr std::array<std::string_view, 26> kRoomBoundAssets{{
-    "scene.bin", "scene-sha256.bin", "materials.bin", "ambient.bin", "composition.bin",
-    "animations.bin", "animations-sha256.bin", "parallax.bin", "hulls.bin",
-    "render-options.bin", "groups.bin", "camera.bin", "player-world.bin", "ordering.bin",
-    "DecodedMapObjects.lua", "actors.lua", "effects.lua", "spawner-frames.bin",
-    "room-leaf-frames.bin", "room-leaf-facing.bin", "room-leaf-sha256.bin",
-    "primaries.lua", "primary-child-frames.bin",
-    "actor-lights.lua", "actor-light-frames.bin", "actor-light-sha256.bin",
-}};
+inline constexpr auto kRoomBoundAssets = std::to_array<std::string_view>({
+#define HADES_ROOM_ASSET(name) name,
+#include "room_asset_names.inc"
+#undef HADES_ROOM_ASSET
+});
 inline bool isRoomBoundAsset(std::string_view name) {
     for (const auto bound : kRoomBoundAssets) if (bound == name) return true;
     return false;
