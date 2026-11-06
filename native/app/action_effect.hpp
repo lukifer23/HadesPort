@@ -21,6 +21,10 @@ struct ActionEffectProviders {
  // -> GridManager::IsLocationBlocked 0x180307f70(location, units=true,
  // PathfindersPreferAvoid=false, BlockSpawns=true); blocked -> no Animation.
  std::function<bool(float,float,bool&,std::string&)> locationBlocked;
+ // Animation.OnChildFinished belongs to the actual parent consumer. A
+ // screen layer parent is not an ActionEffectState; its owner clears the
+ // genuine child reference before this world disposes the finished child.
+ std::function<bool(uint64_t parent,uint64_t child,std::string&)> childFinished;
 };
 struct ActionEffectState {
  uint64_t handle=0,parent=0,child=0,light=0,ownerLifetime=0;
@@ -107,6 +111,7 @@ public:
  bool movie(const std::string& name)const{return movies_.contains(name);}
  void setSoundStop(std::function<bool(uint32_t,float,std::string&)> f){stopSound_=std::move(f);}
  bool admits(const std::string& name)const{return definitions_.contains(name);}
+ std::string imageBankSha256()const{const auto*p=catalog_.get("ImageBankSha256");return p?p->text():std::string{};}
  // Exporter/coverage reason for a covered original name that is not admitted.
  const std::string* rejection(const std::string& name)const{auto i=rejected_.find(name);return i==rejected_.end()?nullptr:&i->second;}
  const std::vector<std::string>* pendingFields(const std::string& name)const{auto i=pending_.find(name);return i==pending_.end()||i->second.empty()?nullptr:&i->second;}
@@ -136,6 +141,13 @@ public:
  bool preferUnmodifiedTime(uint64_t,std::string&);
  bool prepare(const std::string&,int32_t,const ActionEffectProviders&,std::string&,bool guiLine=false)const;
  bool create(const std::string&,int32_t,std::optional<std::array<float,3>>,const ActionEffectProviders&,uint64_t&,std::string&,bool guiLine=false);
+ // Animation.AddChild293ae0 -> CreateCustom29f870: real child ownership,
+ // the parent's raw Animation+98 XY (not draw/GetLocation), no manager Add.
+ // A pending parent is valid during InitData; the owner/lifetime and manager
+ // must match. External-parent ChainTo/TransferChildren stay fail-closed.
+ bool prepareExternalChild(const std::string&,int32_t,const ActionEffectProviders&,std::string&)const;
+ bool prepareChild(const std::string&,int32_t,uint64_t parent,const ActionEffectProviders&,std::string&)const;
+ bool createChild(const std::string&,int32_t,uint64_t parent,std::array<float,3> parentPosition,const ActionEffectProviders&,uint64_t&,std::string&);
  // Native CreateCustom with nullptr Thing: a genuinely ownerless allocation.
  bool createStandalone(const std::string&,std::array<float,3>,const ActionEffectProviders&,uint64_t&,std::string&);
  bool copyState(uint64_t target,uint64_t source,const ActionEffectProviders&,std::string&);

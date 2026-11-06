@@ -58,7 +58,7 @@ AutoplayInput Autoplay::step(int frame,const ScriptRuntime::AutoplayView& view,c
     // PlayerUnit gameplay input is blocked. Supply release/repress pulses;
     // the original waiters, callbacks and scripts own all progression.
     if(std::binary_search(view.pendingControls.begin(),view.pendingControls.end(),"ContinueText")) {
-        if(frame%60==0)input.controls.push_back("ContinueText");
+        if(frame%continuePeriod_==0)input.controls.push_back("ContinueText");
         input.summary="queued ContinueText";stall_=0;return input;
     }
     if(!view.hero||!view.inputAllowed){stall_=0;return input;}

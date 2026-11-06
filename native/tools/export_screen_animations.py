@@ -13,6 +13,7 @@ for key in ['content','decoder','output']:p.add_argument('--'+key,type=Path,requ
 p.add_argument('--base-manifest',type=Path,help='Reuse a retained original movie export in a fresh directory, adding reviewed static screen resources.')
 p.add_argument('--gui-review',action='store_true',help='Also admit the coverage-derived original GUIAnimations/Thing.Graphic closure (screen_gui_review.py).')
 p.add_argument('--coverage',type=Path,help='Static animation coverage report (animation_coverage.py) for --gui-review.')
+p.add_argument('--action-effects',type=Path,help='Verified action resource manifest for delegated GUI Child/Create graph.')
 a=p.parse_args();a.source=a.content/'Game/Animations/ObstacleAnimations.sjson';a.names=['RemBGIntro','RemBG'];a.unit_scale=1.;a.directions=1;a.allow_unused_movie_tail=True;a.movie_directory=a.content/'Movies/720p'
 if a.base_manifest:
  if a.output.exists():raise ValueError('Fresh output required')
@@ -59,5 +60,8 @@ if a.gui_review:
  from screen_gui_review import append_gui
  m=append_gui(a,m)
 catalog={'schema':'hades-screen-animations-v1','bank_sha256':m['packet']['sha256'],'target_sha256':'d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254','clips':{c['name']:{'definition':c['definition'],'source_sequence':c['source_sequence']}for c in m['clips']}}
+if 'action_binding'in m:
+ catalog['action_bank_sha256']=m['action_binding']['packet_sha256']
+ catalog['action_children']=sorted({e['child']for e in m['gui_review']['closure_edges']if e.get('backend')=='action'and e['field']=='ChildAnimation'})
 (a.output/'screen-animations.lua').write_text('return '+lua(catalog)+'\n')
 (a.output/'manifest.json').write_text(json.dumps({**m,'screen_catalog':identity(a.output/'screen-animations.lua'),'screen_coordinates':'Original script ScreenCenterX/Y from 1920x1080 reference. UnitScale1; no world Z projection or 0.7 hero scale.'},indent=2)+'\n')

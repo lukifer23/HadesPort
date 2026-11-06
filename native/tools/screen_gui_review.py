@@ -22,9 +22,11 @@ from export_actor_animations import string
 # Source keys whose runtime semantics are reconstructed by screen_animation.cpp.
 # Any other key (VisualFx, RandomPlaySpeed, CreateAnimations, ...)
 # rejects the export rather than shipping an unimplemented record.
-# Slides: SlideAnimation per-slide DurationFrames only (SetupSlideIndex
+# Slides: SlideAnimation per-slide DurationFrames (SetupSlideIndex
 # 0x1802b5010 copies each 0x110-byte slide record's +0x1c duration; NextSlide
-# 0x1802b46d0 skips zero-duration slides; SlideStart 0x1802b4080 duration/60).
+# 0x1802b46d0 skips zero-duration slides and loops to StartFrame; SlideStart
+# 0x1802b4080 replaces instance duration from the shared bounded RNG, then adds
+# duration/60). GetTexture 0x1802b4ae0 uses nonempty per-slide FilePath verbatim.
 # Sound: animation-level cue played by Animation.InitData 0x180291c70
 # (SoundAllowedAfterFrame gate, default 2).
 KEYS={'Name','InheritFrom','FilePath','Type','StartFrame','EndFrame','NumFrames','PlaySpeed','OffsetX','OffsetY','OriginX','OriginY','Scale','ScaleX','ScaleY','Alpha','AddColor','Material','SortMode','Loop','HoldLastFrame','ChildAnimation','AngleFromOwner','ScaleFromOwner','ColorFromOwner','DieWithOwner','Red','Green','Blue','Slides','Sound','Color','StartAlpha','EndAlpha','Duration','ChainTo','AttachedTextScalarX','AttachedTextScalarY','Ambient',
@@ -34,11 +36,11 @@ KEYS={'Name','InheritFrom','FilePath','Type','StartFrame','EndFrame','NumFrames'
  # duration Loop via Animation::Loop 0x180296310).
  'StartRed','StartGreen','StartBlue','EndRed','EndGreen','EndBlue','EaseIn','EaseOut','PingPongColor',
  'StartOffsetX','EndOffsetX','StartOffsetY','EndOffsetY','PingPongShiftOverDuration','PhaseOffsetShiftOverDuration',
- 'StartScale','EndScale','PingPongScale','CancelAllAttached'}
+ 'StartScale','EndScale','PingPongScale','CancelAllAttached','CreateAnimation','CreateAnimations','TimeModifierFraction'}
 # Transition keys driven by the Constant duration fraction only.
 CONSTANT_TRANSITION_KEYS={'Duration','StartAlpha','EndAlpha','StartRed','StartGreen','StartBlue','EndRed','EndGreen','EndBlue','EaseIn','EaseOut','PingPongColor','StartOffsetX','EndOffsetX','StartOffsetY','EndOffsetY','PingPongShiftOverDuration','PhaseOffsetShiftOverDuration','StartScale','EndScale','PingPongScale'}
 TYPES={'Constant','ConstantNoUpdate','Book','Slide'}
-SLIDE_KEYS={'DurationFrames'}
+SLIDE_KEYS={'DurationFrames','FilePath','RandomDurationFramesMin','RandomDurationFramesMax'}
 
 class Ranged(Sjson):
  """Character ranges of each parsed record (converted to UTF-8 bytes once)."""
@@ -68,7 +70,8 @@ def load_records(content):
 def byte_span(text,bom,b,e):
  head=len(text[:b].encode('utf-8'));return [bom+head,len(text[b:e].encode('utf-8'))]
 
-def resolve_all(records,origin,roots):
+def resolve_all(records,origin,roots,action_definitions=None):
+ action_definitions=action_definitions or {}
  resolved={};provenance={};edges=[]
  def resolve(name,stack=()):
   if name in resolved:return resolved[name]
@@ -99,9 +102,17 @@ def resolve_all(records,origin,roots):
   for field in ['ChildAnimation','ChainTo']:
    child=d.get(field)
    if child and child!='null':
+    child_record=resolve(child)
+    if field=='ChildAnimation' and child in action_definitions and (set(child_record)-KEYS or child_record.get('Type')not in TYPES):
+     edges.append({'parent':name,'field':field,'child':child,'backend':'action'});continue
     if field=='ChildAnimation' and resolve(child).get('CancelAllAttached'):raise ValueError('Native screen child CancelAllAttached parent cancellation not reconstructed: '+child)
     edges.append({'parent':name,'field':field,'child':child})
     if child not in names:names.append(child)
+  created=[d.get('CreateAnimation')]+[r.get('Name')for r in d.get('CreateAnimations',[])]
+  for child in created:
+   if child and child!='null':
+    if child not in action_definitions:raise ValueError('Original GUI created animation requires selected action resource: '+child)
+    edges.append({'parent':name,'field':'CreateAnimation','child':child,'backend':'action'})
   if len(names)>4096:raise ValueError('Bounded GUI closure exceeded')
  return {n:resolved[n]for n in names},provenance,edges
 
@@ -111,15 +122,19 @@ def slide_durations(d):
  if not isinstance(slides,list)or not slides:raise ValueError('Slide record without original Slides '+d['Name'])
  if any(not isinstance(x,dict)or set(x)-SLIDE_KEYS or 'DurationFrames'not in x for x in slides):raise ValueError('Unreviewed per-slide property '+d['Name'])
  out=[x['DurationFrames']for x in slides]
- if any(not isinstance(v,int)or not 0<=v<=100000 for v in out):raise ValueError('Slide duration outside bounds '+d['Name'])
+ if any(type(v)is not int or not 0<=v<=100000 for v in out)or sum(out)>1000000:raise ValueError('Slide duration outside bounds '+d['Name'])
+ for slide in slides:
+  lo,hi=slide.get('RandomDurationFramesMin',0),slide.get('RandomDurationFramesMax',0)
+  if any(type(v)is not int or not 0<=v<=100000 for v in (lo,hi))or(lo>0 and hi<lo):raise ValueError('Slide random duration outside bounds '+d['Name'])
+  if 'FilePath'in slide and not isinstance(slide['FilePath'],str):raise ValueError('Slide FilePath must be original text '+d['Name'])
  # SetupSlideIndex enters at StartFrame-1 then NextSlide; NextSlide's bound is
  # the slide-record count, so playback covers slides StartFrame..len(Slides).
  # Only StartFrame 1 and EndFrame absent/== len(Slides) are reviewed.
  if d.get('StartFrame',1)!=1 or d.get('EndFrame',len(out))!=len(out) or d.get('NumFrames',len(out))!=len(out):raise ValueError('Unreviewed Slide frame range '+d['Name'])
  if not any(out):raise ValueError('Slide record without positive duration '+d['Name'])
- # NextSlide Loop (0x1802af290) / PingPong (+0x77) wrap is not reviewed for GUI.
- if d.get('Loop'):raise ValueError('Unreviewed GUI Slide Loop '+d['Name'])
- if d.get('OffsetX',0)or d.get('OffsetY',0):raise ValueError('Unreviewed GUI Slide draw offset '+d['Name'])
+ # Plain Loop wraps to StartFrame; PingPong remains an unadmitted top-level
+ # key. Slide inherits Book PrepDraw/SubmitDraw (vtable0x1805f80d0+10/+18),
+ # including its unscaled screen OffsetX/Y path.
  return out
 
 def image_names(d):
@@ -128,7 +143,7 @@ def image_names(d):
   # skips them), so only positive-duration slide images are exported. The
   # HoldLastFrame end state (NextSlide sets index=EndFrame) is enforced at
   # runtime (screen_animation.cpp fails loudly if it needs an unexported image).
-  return [(i,d['FilePath']+f'{i:04}')for i,v in enumerate(slide_durations(d),1)if v]
+  return [(i,d['Slides'][i-1].get('FilePath')or d['FilePath']+f'{i:04}')for i,v in enumerate(slide_durations(d),1)if v]
  n=d.get('NumFrames',1);s=d.get('StartFrame',1);e=d.get('EndFrame',n)
  if not(isinstance(n,int)and isinstance(s,int)and isinstance(e,int)and 1<=s<=e<=n<=1000):raise ValueError('Unreviewed GUI frame range '+d['Name'])
  if n==1:return [(1,d['FilePath'])]
@@ -153,12 +168,12 @@ def coverage_roots(a,records,origin):
  graphics={g:'; '.join(x if isinstance(x,str)else json.dumps(x,sort_keys=True)for x in p[:3]) for g,p in cov.get('obstacle_graphics',{}).items()}
  return reviewed,graphics,rejected,cov
 
-def admissible(records,origin,names,rejected):
+def admissible(records,origin,names,rejected,action_definitions=None):
  """Drop (with reason) names whose own or ChildAnimation-closure record this consumer cannot represent."""
  ok=[]
  for name in names:
   try:
-   d,_,_=resolve_all(records,origin,[name]);[image_names(x)for x in d.values()];ok.append(name)
+   d,_,_=resolve_all(records,origin,[name],action_definitions);[image_names(x)for x in d.values()];ok.append(name)
   except ValueError as e:rejected[name]=str(e)
  return ok
 
@@ -166,10 +181,19 @@ def append_gui(a,m):
  retained_review=copy.deepcopy(m.get('gui_review',{}))
  retained_gui_images=m['statistics'].get('gui_original_images',0)
  retained_gui_bytes=m['statistics'].get('gui_raw_rgba_bytes',0)
+ action_definitions={};action_binding=None
+ if getattr(a,'action_effects',None):
+  selected=Path(a.action_effects);am=json.loads(selected.read_text())
+  if am.get('schema')!='hades-action-effect-resources-v1':raise ValueError('Screen graph action resource schema')
+  for row in [am['catalog'],am['lua']]:
+   source=Path(row['path'])
+   if source.stat().st_size!=row['bytes']or hashlib.file_digest(source.open('rb'),'sha256').hexdigest()!=row['sha256']:raise ValueError('Screen graph action source identity changed')
+  action_definitions=json.loads(Path(am['catalog']['path']).read_text())['Definitions']
+  action_binding={'manifest':identity(selected),'catalog':am['catalog'],'lua':am['lua'],'packet_sha256':am['packet']['sha256']}
  records,origin,anim_sources=load_records(a.content)
  reviewed,graphics,rejected,cov=coverage_roots(a,records,origin)
- names=admissible(records,origin,sorted(reviewed),rejected)
- definitions,provenance,edges=resolve_all(records,origin,names)
+ names=admissible(records,origin,sorted(reviewed),rejected,action_definitions)
+ definitions,provenance,edges=resolve_all(records,origin,names,action_definitions)
  existing={c['name']for c in m['clips']}
  # Movie/static base clips keep their retained definitions.
  for n in list(definitions):
@@ -197,7 +221,7 @@ def append_gui(a,m):
   clips=[c for c in clips if c[0]not in rejected]
   # A parent whose ChildAnimation was dropped cannot be represented either.
   while True:
-   kept={c[0]for c in clips};bad=[c for c in clips if c[1].get('ChildAnimation')not in (None,'null')and c[1].get('ChildAnimation')not in kept and c[1].get('ChildAnimation')not in existing]
+   kept={c[0]for c in clips};bad=[c for c in clips if c[1].get('ChildAnimation')not in (None,'null')and c[1].get('ChildAnimation')not in kept and c[1].get('ChildAnimation')not in existing and not any(e['parent']==c[0]and e['field']=='ChildAnimation'and e.get('backend')=='action'for e in edges)]
    if not bad:break
    for c in bad:rejected[c[0]]='ChildAnimation not representable: '+c[1]['ChildAnimation']
    clips=[c for c in clips if c[0]not in rejected]
@@ -258,6 +282,9 @@ def append_gui(a,m):
  m['clips']=m['clips']+clip_rows;m['frames']=m['frames']+frame_rows
  st=m['statistics'];st['clips']=nc+len(clip_rows);st['movie_frames']=nf+len(frame_rows);st['gui_original_images']=retained_gui_images+len(frame_rows);st['gui_raw_rgba_bytes']=retained_gui_bytes+sum(r['raw_bytes']for r in frame_rows)
  m['gui_review']={'coverage':str(Path(a.coverage).resolve()),'reviewed_animations':{n:reviewed.get(n,'original dependency closure')for n in definitions},'reviewed_graphics':graphics,'rejected':dict(sorted(rejected.items())),'closure_edges':edges,'admitted_keys':sorted(KEYS),'original_payloads':payloads,'rule':'InheritFrom resolved by native Read order (ClearSlides/ClearCreateAnimations, additive CreateAnimations); OriginX/Y baked into frame origin; Offset/Scale/ScaleX/ScaleY/Alpha/Color/AddColor and Constant duration alpha transitions applied at runtime from the retained definition. AttachedTextScalar uses actual attached text layout dimensions; finite primary ChainTo retains the screen Thing owner.'}
+ if action_binding:
+  m['action_binding']=action_binding
+  m['sources'] += [action_binding[k]for k in ['manifest','catalog','lua']]
  m['gui_review']['renderer_approximations']={n:[k for k in ['Ambient','Material','SortMode']if k in d]for n,d in definitions.items()if any(k in d for k in ['Ambient','Material','SortMode'])}
  # A retained export already owns real frames and admitted definitions. Keep
  # their review/provenance when appending the newly reached resource closure;
@@ -272,6 +299,6 @@ def append_gui(a,m):
    if key not in seen:seen.add(key);combined.append(row)
   review[field]=combined
  review['coverage_history']=list(dict.fromkeys(retained_review.get('coverage_history',[])+([retained_review['coverage']]if retained_review.get('coverage')else[])+[review['coverage']]))
- admitted=set(review['reviewed_animations'])|set(review['reviewed_graphics'])|{e['child']for e in review['closure_edges']}
+ admitted=set(review['reviewed_animations'])|set(review['reviewed_graphics'])|{e['child']for e in review['closure_edges']if e.get('backend')!='action'}
  review['rejected']={n:reason for n,reason in {**retained_review.get('rejected',{}),**review['rejected']}.items()if n not in admitted}
  return m

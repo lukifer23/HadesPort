@@ -88,7 +88,8 @@ void setObjectDestroy(lua_State*,ObjectDestroy);
 using ObjectMembership=std::function<bool(int32_t)>;
 void setObjectMembership(lua_State*,ObjectMembership);
 
-// Separate native GameUI body consumers: screen Things never enter world physics.
+// Portable component adapter for screen-drawn World obstacles. The original
+// SpawnObstacle manager remains World0; coordinate flags do not change ownership.
 struct ObjectScreenHooks {
  ObjectAnimationSet animation;
  ObjectFractionChanged fraction;

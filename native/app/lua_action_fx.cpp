@@ -26,7 +26,20 @@ bool ScriptRuntime::loadActionEffectDefinitions(){try{
 hades::ActionEffectProviders ScriptRuntime::actionEffectProviders(){hades::ActionEffectProviders p;
  p.owner=[this](int32_t id,hades::EffectOwnerState&o,std::string&e){return effectOwner(id,o,e);};p.marker=[this](int32_t id,const std::string&name,std::array<float,3>&point,std::string&e){return effectMarker(id,name,point,e);};
  p.random=[this](double&v,std::string&e){if(nextRecoveredEngineRandom(state_,v))return true;e="Actual action FX uniform RNG unavailable";return false;};p.bounded=[this](uint32_t bound,uint32_t&v,std::string&e){if(nextRecoveredEngineBoundedRandom(state_,bound,v))return true;e="Actual action FX bounded PCG unavailable";return false;};p.worldFrame=worldFrame_;
- p.sound=[this](const std::string&cue,int32_t owner,const std::array<float,3>&position,uint32_t cap,uint32_t&id,std::string&e){return owner==0?playLocationAudioCue(cue,position,int32_t(cap),id,e):playAudioCue(cue,owner,position,id,e,int32_t(cap));};
+ p.sound=[this](const std::string&cue,int32_t owner,const std::array<float,3>&position,uint32_t cap,uint32_t&id,std::string&e){
+  const auto*object=owner>0?findObjectSnapshot(state_,owner):nullptr;
+  if(object&&object->backend==ObjectBackend::Screen){
+   id=0;bool valid=false;if(!audio_.resolveCue(cue,valid,e,true))return false;if(!valid)return true;
+   bool allowed=false;if(!admitOwnerAudio(cue,owner,allowed,e,int32_t(cap)))return false;if(!allowed)return true;
+   // Explicit Android UI adaptation, shared with screenAnimationSound: retain
+   // original cue graphs/admission/fades while outputting non-spatial UI audio.
+   // This does not claim native Camera screen-to-world 3D source conversion.
+   if(!audio_.createCue(cue,{},id,e,true)||!audio_.play(id,e))return false;
+   if(id)++audioFramePlays_;return true;
+  }
+  return owner==0?playLocationAudioCue(cue,position,int32_t(cap),id,e):playAudioCue(cue,owner,position,id,e,int32_t(cap));
+ };
+ p.childFinished=[this](uint64_t parent,uint64_t child,std::string&e){return screenAnimations_.childFinished(parent,child,e);};
  p.prepareSound=[this](const std::string&cue,std::string&e){return audio_.prepareCueCoverage(cue,e,true);};
  p.elapsed=[this](int32_t owner,float fraction,bool attachedTime,float dt,float&result,std::string&e){
   // InitData2927a1 adds TimeModifierFraction only for authored values>=0;
@@ -38,6 +51,7 @@ hades::ActionEffectProviders ScriptRuntime::actionEffectProviders(){hades::Actio
   float multiplier=1;
   if(attachedTime){
    if(owner<0){const auto it=projectileFxOwners_.find(owner);const auto* q=it==projectileFxOwners_.end()?nullptr:projectileWorld_.actor(it->second);if(!q||q->disposed){e="Actual action FX elapsed projectile owner unavailable";return false;}multiplier=q->timeMultiplier;}
+   else if(const auto*object=findObjectSnapshot(state_,owner);object&&object->backend==ObjectBackend::Screen){const auto*screen=screenAnimations_.thing(owner);if(!screen||screen->body!=object||!object->active||!object->alive||!object->entityHandle){e="Actual action FX elapsed screen owner unavailable";return false;}multiplier=screen->timeMultiplier;}
    else{const auto* a=actorWorld_.actor(owner);if(!a||!a->registered){e="Actual action FX elapsed owner unavailable";return false;}multiplier=a->timeMultiplier;}
   }
   return hades::physicsComponentElapsed(dt,worldSpeedModifier_,fraction>=0?fraction:1,multiplier,result,e);};
@@ -121,13 +135,21 @@ bool ScriptRuntime::createAnimationImpl(lua_State* L,std::string& error){
     if(const float a=actionNumber(L,"Angle",-999999.f);a!=-999999.f)setup.angleDegrees=a;
     if(actionHas(L,"Color"))setup.color=actionColor(L,"Color");
     if(actionHas(L,"Group")){lua_getfield(L,1,"Group");const char*g=lua_tostring(L,-1);setup.group=g?g:"";lua_pop(L,1);}
-    lua_getfield(L,1,"UseScreenLocation");setup.useScreenLocation=lua_isboolean(L,-1)&&lua_toboolean(L,-1);lua_pop(L,1);// Native owner draw flag is resolved at PrepDraw; it must not mutate the distinct animation own flag.
+    lua_getfield(L,1,"UseScreenLocation");setup.useScreenLocation=lua_isboolean(L,-1)&&lua_toboolean(L,-1);lua_pop(L,1);
+    // SetupAnimation 0x180262da0..262dc2 explicitly sets the animation own
+    // screen flag when its destination Thing is screen-rendered OR the script
+    // requests it. This differs from DrawScreenRelative, which only mutates
+    // the owner's flag and never invokes this Setup path.
+    setup.useScreenLocation=setup.useScreenLocation||(o&&o->screenSpace);
     const auto* actor=actorWorld_.actor(id);
     if(actor)setup.parallax=actor->ownParallax*actor->mapParallax;
+    const auto* screen=o&&o->backend==ObjectBackend::Screen?screenAnimations_.thing(id):nullptr;
+    if(o&&o->backend==ObjectBackend::Screen){if(!screen||screen->body!=o||!o->entityHandle){error="CreateAnimation actual screen destination lifetime unavailable";return false;}setup.parallax=screen->ownParallax*screen->mapParallax;}
     // OffsetX is negated when the destination primary ShouldMirror()
     // (Animation 0x1802977a0: requires definition Mirror).
-    if(setup.offsetX!=0&&actor){const hades::SourceValue* primary=nullptr;
-        if(actor->animation.active()){auto it=actorAnimationDefinitions_.find(actor->animation.clip()->name);if(it!=actorAnimationDefinitions_.end())primary=it->second.get("definition");}
+    if(setup.offsetX!=0&&(actor||screen)){const hades::SourceValue* primary=nullptr;
+        if(screen){if(const auto*life=effects_.registry()->find(screen->primary))primary=&life->sourceDefinition;}
+        else if(actor->animation.active()){auto it=actorAnimationDefinitions_.find(actor->animation.clip()->name);if(it!=actorAnimationDefinitions_.end())primary=it->second.get("definition");}
         else if(const auto* s=actionEffects_.state(actor->primaryAnimationLifetime))primary=&s->definition;
         else if(const auto* s=scenePrimaries_.state(actor->primaryAnimationLifetime))primary=&s->definition;
         if(primary&&primary->get("Mirror")&&primary->get("Mirror")->boolean()){error="CreateAnimation OffsetX on a Mirror primary (ShouldMirror angle test) not reconstructed: "+name;return false;}}
@@ -146,6 +168,7 @@ bool ScriptRuntime::createAnimationImpl(lua_State* L,std::string& error){
         if(handle)if(const auto* pending=actionEffects_.pendingFields(name)){std::string list;for(const auto& f:*pending)list+=(list.empty()?"":",")+f;hades::log(hades::Severity::Info,tag,"NATIVE_ACTION_FX_PENDING_PRESENTATION name=%s fields=%s",name.c_str(),list.c_str());}
     }else if(effects_.admits(name)){
         if(custom){error="CreateCustom invisible-spawner ownerless factory not reconstructed: "+name;return false;}
+        if(o&&o->backend==ObjectBackend::Screen){error="CreateAnimation invisible-spawner screen owner manager not reconstructed: "+name;return false;}
         if(setup.scale!=1||setup.scaleRadius>0||setup.duration>0||minDuration!=0&&maxDuration!=0||setup.offsetX!=0||setup.offsetY!=0||setup.offsetZ!=0||setup.angleDegrees||setup.color||setup.group||setup.useScreenLocation){error="SetupAnimation options on an invisible spawner animation not reconstructed: "+name;return false;}
         if(!effects_.create(name,id,owners,random,handle,error))return false;
     }else{const auto* why=actionEffects_.rejection(name);error="CreateAnimation original animation not exported: "+name+(why?" ("+*why+")":" (outside animation coverage)");return false;}

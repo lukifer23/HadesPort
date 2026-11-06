@@ -642,6 +642,7 @@ bool ScriptRuntime::advanceWorld(float dt,double screenDt){
     if(!advanceUnitMovement(dt,error_)){if(!containStage("unit-movement-update"))return false;}
     if(!advanceUnitDisposal(true,error_)){if(!containStage("unit-disposal-update"))return false;}
     if(!advanceObstacleDisposal(error_)){if(!containStage("obstacle-disposal-update"))return false;}
+    if(!screenAnimations_.disposePending(screenAnimationSound(),error_)){if(!containStage("screen-obstacle-disposal-update"))return false;}
     // ObstacleManager::Update 0x1802c80c0 occlusion block, before Body update.
     if(!advanceObstacleOcclusion(error_)){if(!containStage("obstacle-occlusion-update"))return false;}
     for(const auto id:actorWorld_.registrationOrder()){
@@ -649,12 +650,15 @@ bool ScriptRuntime::advanceWorld(float dt,double screenDt){
         if(!actorWorld_.advanceBody(id,dt,worldSpeedModifier_,error_)){if(!containStage("body-update"))return false;}
     }
     for(const auto handle:projectileWorld_.bodyComponents())if(!projectileWorld_.advanceBody(handle,dt,worldSpeedModifier_,error_)){if(!containStage("projectile-body-update"))return false;}
+    // Script screen obstacles are World Things: their body/primary changes
+    // must reach attached FX before the common animation manager advances.
+    // Native World.Update/ObstacleManager.Update precede AnimationManager.
+    if(!advanceScreenAnimations(dt,error_)){if(!containStage("screen-animation-update"))return false;}
     if(!advanceActorAnimations(dt,error_)||!advanceVfx(dt,error_)||!advanceActorLights(dt,error_)||!cameraFade_.advance(dt,error_)){reportError("native-component-update");worldFaulted_=true;return false;}
     if(!advanceLife(dt,error_)){reportError("life-update");worldFaulted_=true;return false;}
     if(!advanceAudio(dt,error_)){if(!containStage("audio-update"))return false;}
     if(!advanceSpeech(dt,error_)){if(!containStage("speech-update"))return false;}
     if(!consumeSpeechText(drainSpeechPresentation(),error_)){if(!containStage("speech-text-update"))return false;}
-    if(!advanceScreenAnimations(float(screenDt),error_)){if(!containStage("screen-animation-update"))return false;}
     if(!advanceText(dt,float(screenDt),error_)){if(!containStage("text-update"))return false;}
     if(!advanceNativeNotifies(dt,error_)){if(!containStage("native-notify-update"))return false;}
     if(!advanceCamera(dt,error_)){if(!containStage("camera-update"))return false;}
@@ -795,7 +799,17 @@ bool ScriptRuntime::setActorPropertyImpl(lua_State* L,int kind,std::string& erro
     }
     if(kind==2){hades::log(hades::Severity::Info,tag,"SET_THING_PROPERTY property=%s data=%d targets=%zu",property.c_str(),int(data),ids.size());
         if(!data){
-            for(const auto id:ids){auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered||!actor->object||!actor->object->active||!actor->object->alive)continue;
+            for(const auto id:ids){
+                if(const auto* object=findObjectSnapshot(L,id);object&&object->backend==ObjectBackend::Screen){
+                    auto* screen=screenAnimations_.thing(id);
+                    if(!screen||screen->body!=object){error="SetThingProperty actual screen Body lifetime unavailable";return false;}
+                    if(!object->active||!object->alive||!object->entityHandle)continue;
+                    // ReflectionHelper<Thing> 0x1802e6fe2 addresses the live
+                    // member independently of World/GameUI manager ownership.
+                    if(!mutateLive(*screen))return false;
+                    continue;
+                }
+                auto* actor=actorWorld_.actor(id);if(!actor||!actor->registered||!actor->object||!actor->object->active||!actor->object->alive)continue;
                 if(!mutateLive(*actor))return false;}
             return true;
         }}
@@ -1024,6 +1038,33 @@ bool ScriptRuntime::loadEffectDefinitions(){
 bool ScriptRuntime::effectOwner(int32_t id,hades::EffectOwnerState& state,std::string& error)const{
     if(id<0)return projectileEffectOwner(id,state,error);
     const auto* actor=actorWorld_.actor(id);const auto* object=findObjectSnapshot(state_,id);
+    if(object&&object->backend==ObjectBackend::Screen){try{
+        const auto* screen=screenAnimations_.thing(id);
+        // A marked-for-removal Thing still has its real Body until the manager's
+        // pre-dispose pass (OnAttachedToPreDispose 0x18029a2f0). Do not reject
+        // screen.dead here: that pass must snapshot the actual final owner.
+        if(!screen||screen->body!=object||object->queryProxy||!object->active||!object->alive||!object->entityHandle){error="Effect owner requires actual live screen Body lifetime";return false;}
+        const auto* definition=actorWorld_.definition("Obstacles/"+object->name);
+        if(!definition){error="Actual screen effect owner source definition unavailable";return false;}
+        const auto scalar=[&](const char* key){const auto* value=definition->properties.path(key);if(!value)throw std::runtime_error(std::string("Actual screen effect owner source field unavailable: ")+key);const float result=float(value->number());if(!std::isfinite(result))throw std::runtime_error(std::string("Nonfinite screen effect owner source field: ")+key);return result;};
+        // Screen Things have no portable Physics registration. A definition
+        // that would allocate one (InitPhysics 0x1802dda20) needs that consumer.
+        if(scalar("Thing.Grip")<99999.f){error="Screen effect owner Physics component not reconstructed";return false;}
+        if(scalar("Thing.StartAngle")!=0){error="Screen effect owner nonzero source StartAngle not reconstructed";return false;}
+        state={};state.lifetime=object->entityHandle;state.screenSpace=object->screenSpace;
+        // Thing.GetLocation 0x1802e0b70: these screen Things are unparented
+        // (screen spawn rejects Attach), so mLocation is the actual raw XY.
+        state.x=object->x;state.y=object->y;state.z=object->z;
+        state.scale=object->scale*object->scaleFraction;state.angle=object->angle;
+        state.scaleVector={screen->modifier(2),screen->modifier(3)};
+        std::array<uint8_t,4> color{};for(size_t k=0;k<4;++k)color[k]=uint8_t(std::clamp(int(std::lround(screen->baseColor[k]*255.f)),0,255));
+        state.baseColor=color;
+        // InitThing 0x1802dd5c0 adds authored HSV to the fresh Body. Screen
+        // data-copy HSV mutation is rejected by its existing typed boundary.
+        state.baseHsv=std::array<float,4>{scalar("Thing.Hue"),scalar("Thing.Saturation"),scalar("Thing.Value"),0};
+        state.group=object->group;state.hasPrimaryAnimation=screen->primary!=0;
+        error.clear();return true;
+    }catch(const std::exception& exception){error=exception.what();return false;}}
     if(!actor||!actor->registered||!object||object->queryProxy||!object->active||!object->alive||!actor->entityHandle){error="Effect owner requires actual live actor components";return false;}
     state.lifetime=actor->entityHandle;state.screenSpace=object->screenSpace;
     if(!actorWorld_.location(id,state.x,state.y,error)||!actorWorld_.zLocation(id,state.z,error))return false;

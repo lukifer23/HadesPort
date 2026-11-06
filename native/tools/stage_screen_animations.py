@@ -11,6 +11,12 @@ def stage_screen_animations(manifest_path,assets):
  for item in items:
   p=Path(item['path'])
   if p.stat().st_size!=item['bytes']or hashlib.file_digest(p.open('rb'),'sha256').hexdigest()!=item['sha256']:raise ValueError('Original screen resource/source changed: '+str(p))
+ graph_edges=m.get('gui_review',{}).get('closure_edges',[])
+ needs_action=any(e.get('backend')=='action'for e in graph_edges)or any(c['definition'].get('CreateAnimation')not in(None,'','null')or c['definition'].get('CreateAnimations')for c in m['clips'])
+ if needs_action and 'action_binding'not in m:raise ValueError('Screen graph requires an action resource binding')
+ if 'action_binding'in m:
+  binding=m['action_binding']
+  if (assets/'action-effect-sha256.bin').read_bytes().hex()!=binding['packet_sha256']or hashlib.file_digest((assets/'action-effects.lua').open('rb'),'sha256').hexdigest()!=binding['lua']['sha256']:raise ValueError('Staged action resources differ from screen graph binding')
  base={'RemBGIntro','RemBG','Backgrounds\\rectangle_01','Blank','VignetteOverlay'}
  count,frames=m['statistics']['clips'],m['statistics']['movie_frames'];names=[c['name']for c in m['clips']]
  expected=base if(count,frames)==(5,133)else(base|{'RoomTransitionIn','RoomTransitionOut'}if(count,frames)==(7,153)else None)
@@ -18,7 +24,7 @@ def stage_screen_animations(manifest_path,assets):
  if gui:
   # Reviewed original HUD closure (screen_gui_review.py): every admitted clip
   # is a reviewed name, its ChildAnimation closure, or a Thing.Graphic path.
-  admitted=set(gui['reviewed_animations'])|{e['child']for e in gui['closure_edges']}|set(gui['reviewed_graphics'])
+  admitted=set(gui['reviewed_animations'])|{e['child']for e in gui['closure_edges']if e.get('backend')!='action'}|set(gui['reviewed_graphics'])
   expected=base|{'RoomTransitionIn','RoomTransitionOut'}|admitted
   if count!=len(expected)or frames!=153+m['statistics']['gui_original_images']:expected=None
  if expected is None or set(names)!=expected or len(names)!=len(expected):raise ValueError('Unexpected bounded screen original source closure')

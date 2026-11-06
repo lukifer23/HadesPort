@@ -28,7 +28,7 @@ static void jsonString(std::ostream& out,const std::string& text) {
 }
 
 int main(int argc,char** argv) {
-    bool autoplay=false,capture=false,activate=false,probe=false,weaponProbe=false,survey=false,contain=false,validatePresentation=false;int worldFrames=120;std::string inputReplay,saveProbeDirectory,loadSaveDirectory;
+    bool autoplay=false,capture=false,activate=false,probe=false,weaponProbe=false,survey=false,contain=false,validatePresentation=false;int worldFrames=120,continuePeriod=60;std::string inputReplay,saveProbeDirectory,loadSaveDirectory;
     for(int i=3;i<argc;++i){const std::string arg=argv[i];
         if(arg=="--capture-active-room")capture=activate=true;
         else if(arg=="--activate-room")activate=true;
@@ -40,16 +40,18 @@ int main(int argc,char** argv) {
         else if(arg=="--probe-staged-weapons")weaponProbe=true;
         else if(arg.starts_with("--probe-save="))saveProbeDirectory=arg.substr(13);
         else if(arg.starts_with("--load-save="))loadSaveDirectory=arg.substr(12);
+        else if(arg.starts_with("--autoplay-continue-period=")){const auto value=std::string_view(arg).substr(std::string_view("--autoplay-continue-period=").size());const auto result=std::from_chars(value.data(),value.data()+value.size(),continuePeriod);if(result.ec!=std::errc{}||result.ptr!=value.data()+value.size())continuePeriod=0;}
         else if(arg.starts_with("--world-frames=")){const auto value=std::string_view(arg).substr(15);const auto result=std::from_chars(value.data(),value.data()+value.size(),worldFrames);if(result.ec!=std::errc{}||result.ptr!=value.data()+value.size())worldFrames=0;}
         else if(arg.starts_with("--input-replay="))inputReplay=arg.substr(15);
         else{std::cerr<<"Unknown debug argument: "<<arg<<'\n';return 64;}}
-    if(argc<3||worldFrames<1||worldFrames>36000){std::cerr<<"Usage: hades-debug ASSET_ROOT NEW_TRACE.json [--capture-active-room|--activate-room] [--world-frames=1..36000] [--input-replay=TSV]\n";return 64;}
+    if(argc<3||worldFrames<1||worldFrames>36000||continuePeriod<2||continuePeriod>36000){std::cerr<<"Usage: hades-debug ASSET_ROOT NEW_TRACE.json [--capture-active-room|--activate-room] [--world-frames=1..36000] [--input-replay=TSV] [--autoplay-continue-period=2..36000]\n";return 64;}
     try {
         if(std::filesystem::exists(argv[2]))throw std::runtime_error("Trace already exists; choose a new output");
         if(validatePresentation&&!activate)throw std::runtime_error("Live presentation validation requires activation");
         for(int i=3;i<argc;++i)for(const auto prefix:{"--probe-save=","--load-save=","--input-replay="})
             if(std::string_view(argv[i])==prefix)throw std::runtime_error("Empty debug path: "+std::string(prefix));
         struct ReplayInput {int frame;float x,y;std::vector<std::string> controls;};std::vector<ReplayInput> replay;
+        if(continuePeriod!=60&&!autoplay)throw std::runtime_error("ContinueText cadence requires autoplay");
         if(autoplay&&(!activate||!inputReplay.empty()))throw std::runtime_error("Autoplay requires activation and replaces --input-replay");
         if(!inputReplay.empty()){
             if(!activate)throw std::runtime_error("Input replay requires actual room activation");
@@ -91,7 +93,7 @@ int main(int argc,char** argv) {
         std::ofstream weaponDump(std::string(argv[2])+".weapons.txt");weaponDump<<scripts.stagedWeaponsDump();
         for(size_t i=0;scripts.assetsPending()&&i<128;++i)if(!scripts.serviceAssets())break;
         bool updateComplete=activationComplete;
-        hades::Autoplay autoplayDriver;std::string autoplayMap;
+        hades::Autoplay autoplayDriver(continuePeriod);std::string autoplayMap;
         std::ostringstream worldTrace;size_t replayAt=0;int worldFramesCompleted=0;uint64_t pcmSamples=0;double pcmSquared=0;float pcmPeak=0;bool firstWorldSample=true;std::string mixerError;
         size_t presentationSamples=0,validatedPresentationFrames=0;std::string presentationError;
         // Fullscreen BlurComponent/vignette state sampled every validated frame;

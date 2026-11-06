@@ -1,5 +1,6 @@
 #include "lua_runtime.hpp"
 #include "scene_runtime.hpp"
+#include "recovered_runtime.hpp"
 #include "text_runtime.hpp"
 #include <cmath>
 #include <algorithm>
@@ -12,7 +13,19 @@ extern "C" {
 bool ScriptRuntime::loadScreenAnimationDefinitions(){try{
  auto file=assets_->open("screen-animations.lua");if(!file||file->size()>1024*1024)throw std::runtime_error("Original screen animation catalog unavailable");std::vector<char>bytes(file->size());size_t at=0;while(at<bytes.size()){auto n=file->read(bytes.data()+at,bytes.size()-at);if(!n)throw std::runtime_error("Original screen catalog truncated");at+=n;}
  const int top=lua_gettop(state_);int status=luaL_loadbufferx(state_,bytes.data(),bytes.size(),"@screen-animations.lua","t");if(status==LUA_OK)status=lua_pcall(state_,0,1,0);if(status!=LUA_OK){error_=lua_tostring(state_,-1);lua_settop(state_,top);return false;}hades::SourceValue data;const bool ok=hades::readSourceValue(state_,-1,data,error_);lua_settop(state_,top);if(!ok)return false;
+ bool crossBank=false;if(const auto*children=data.get("action_children"))crossBank=!children->array().empty();
+ for(const auto&[name,row]:data.get("clips")->object()){(void)name;const auto*d=row.get("definition");if(!d)continue;const auto*one=d->get("CreateAnimation"),*many=d->get("CreateAnimations");if((one&&!one->text().empty()&&one->text()!="null")||(many&&!many->array().empty()))crossBank=true;}
+ const auto*bound=data.get("action_bank_sha256");if((crossBank&&!bound)||(bound&&bound->text()!=actionEffects_.imageBankSha256()))throw std::runtime_error("Screen graph action bank identity differs from actual manager resources");
  screenAnimationBank_=std::make_shared<hades::ActorAnimationBank>();screenAnimationBank_->load(*assets_,"screen-animation-frames.bin");if(!screenAnimations_.load(std::move(data),screenAnimationBank_,effects_.registry(),error_))return false;
+ screenAnimations_.setBoundedRandomProvider([this](uint32_t bound,uint32_t&value,std::string&e){if(nextRecoveredEngineBoundedRandom(state_,bound,value))return true;e="Actual screen Slide deterministic RNG unavailable";return false;});
+ hades::ScreenAnimationGraph graph;
+ graph.prepare=[this](int32_t id,const std::string&name,std::string&e){return actionEffects_.prepare(name,id,actionEffectProviders(),e);};
+ graph.prepareChild=[this](int32_t id,const std::string&name,std::string&e){return actionEffects_.prepareExternalChild(name,id,actionEffectProviders(),e);};
+ graph.child=[this](int32_t id,const std::string&name,uint64_t parent,std::array<float,3>raw,uint64_t&h,std::string&e){return actionEffects_.createChild(name,id,parent,raw,actionEffectProviders(),h,e);};
+ graph.create=[this](int32_t id,const std::string&name,std::array<float,3>location,uint64_t&h,std::string&e){return actionEffects_.create(name,id,location,actionEffectProviders(),h,e);};
+ graph.releaseChild=[this](uint64_t h,std::string&e){if(actionEffects_.state(h))return actionEffects_.destroy(h,e);if(!effects_.registry()->find(h))return true;e="Actual delegated screen child consumer unavailable";return false;};
+ screenAnimations_.setGraphProvider(std::move(graph));
+ screenAnimations_.setPreDisposeOwnerProvider([this](int32_t id,std::string&e){hades::EffectOwnerState owner;if(!effectOwner(id,owner,e))return false;return actionEffects_.preDisposeOwner(id,owner,e);});
  // Animation.Attach CancelAllAttached needs actual attachment owners across
  // managers. Screen layers are handled locally; foreign domains must be
  // recognized before cancellation rather than silently dropping their work.
@@ -36,7 +49,7 @@ bool ScriptRuntime::loadScreenAnimationDefinitions(){try{
  if(mapRevision_==0){const char*names[]{"SetAnimationFrameTarget","SetScaleX","SetScaleY","FadeObstacleIn","HideObstacle","GetWeaponMaxAmmo","TeleportCursor"};for(int mode=0;mode<7;++mode){lua_pushlightuserdata(state_,this);lua_pushinteger(state_,mode);lua_pushcclosure(state_,screenAction,2);lua_setglobal(state_,names[mode]);}}
  return true;
  }catch(const std::exception&e){error_=e.what();return false;}}
-hades::ScreenAnimationSound ScriptRuntime::screenAnimationSound(){hades::ScreenAnimationSound p;p.worldFrame=worldFrame_;
+hades::ScreenAnimationSound ScriptRuntime::screenAnimationSound(){hades::ScreenAnimationSound p;p.worldFrame=worldFrame_;p.prepare=[this](const std::string&cue,std::string&e){return audio_.prepareCueCoverage(cue,e,true);};
  // UI audio is adapted to non-spatial Android output; the original event graph
  // and its actual playback/finish fade remain owned by AudioWorld.
  p.play=[this](const std::string&cue,uint32_t&id,std::string&e){if(!audio_.createCue(cue,{},id,e)||!audio_.play(id,e))return false;++audioFramePlays_;return true;};p.stop=[this](uint32_t id,float fade,std::string&e){return audio_.setVolume(id,0,fade,true,false,e);};return p;}
@@ -53,7 +66,7 @@ bool ScriptRuntime::spawnScreenObstacleImpl(lua_State*L,int32_t&created,std::str
  lua_getfield(L,1,"TriggerOnSpawn");const bool trigger=lua_isnil(L,-1)||lua_toboolean(L,-1);lua_pop(L,1);const auto* sourceTrigger=def->properties.path("Thing.TriggerOnSpawn");if(trigger&&sourceTrigger&&sourceTrigger->boolean()&&!dispatchCallbacks("OnSpawn",name.c_str(),created))return false;return true;
  }catch(const std::exception&e){error=e.what();return false;}}
 bool ScriptRuntime::setScreenAnimation(int32_t id,const std::string&name,std::string&e){return screenAnimations_.setAnimation(id,name,screenAnimationSound(),e);}
-bool ScriptRuntime::advanceScreenAnimations(float dt,std::string&e){return screenAnimations_.advance(dt,screenAnimationSound(),e);}
+bool ScriptRuntime::advanceScreenAnimations(float dt,std::string&e){return screenAnimations_.advance(dt,screenAnimationSound(),e,worldSpeedModifier_);}
 bool ScriptRuntime::screenFraction(int32_t id,bool scale,float target,const hades::BodyTransitionOptions&o,std::string&e){return screenAnimations_.adjustFraction(id,scale,target,o,e);}
 bool ScriptRuntime::screenColor(int32_t id,const std::array<float,4>&color,bool base,std::string&e){return screenAnimations_.setColor(id,color,base,e);}
 bool ScriptRuntime::screenDestroy(int32_t id,std::string&e){return screenAnimations_.markDead(id,e);}

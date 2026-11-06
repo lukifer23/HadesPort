@@ -1,0 +1,36 @@
+{
+  "schema": "hades-screen-thing-fx-owner-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence_kind": "Matching PE/PDB and retained static disassembly; no original-engine runtime observation",
+  "evidence_index": ".local/reports/screen-fx-owner-2026-11-06/evidence-index.json",
+  "native_domain": {
+    "script_helper": "Original CreateScreenObstacle is a Lua helper around SpawnObstacle with UseScreenLocation=true; it does not create a native GUIComponent.",
+    "app_world_binding": "App.CreateGameplayScreen1800360a0 loads EntityManager.s_managers[0] and passes it as r8 at360d0 to World.Init360d8.",
+    "obstacle_binding": "World.Init18031222b stores singleton ObstacleManager at World+60;31222f writes the supplied EntityManager into ObstacleManager+38.",
+    "spawn": "ScriptAction.SpawnObstacle18026f7dc obtains singleton ObstacleManager.Instance180062f80;26f801 calls its Create1802c7ad0. Create allocates from that manager+38 EntityManager. UseScreenLocation is applied only after creation by virtual action0x4f.",
+    "consequence": "Screen-rendered script obstacles, their Thing primaries and InitData-created graphs remain native world-domain animations. A portable Screen resource backend does not imply native GameUI ownership or an unscaled GUI clock.",
+    "generic_create": "ScriptAction.CreateAnimation18026222b resolves World.GetActiveThing;26226e loads MANAGERS[0] directly,262297 calls Create. Table and standalone branches also select MANAGERS[0].",
+    "init_data_create": "Animation.InitData1802932f5 passes the current animation entity+44 to GetManager18029e7b0; subsequent Create calls use that animation's actual manager. GetManager resolves entity domain via >>30 and the AnimHandle component.",
+    "setup_screen_flag": "ScriptAction.SetupAnimation180262da0..262dc2 sets the animation own screen flag when destination Thing+220 is true OR args.UseScreenLocation is true, then propagates SetUseScreenLocation along the child chain. This is separate from DrawScreenRelative action0x4f, which changes only the Thing render flag. Native InitData-created graphs do not invoke ScriptAction.SetupAnimation."
+  },
+  "owner_state": {
+    "location": "Thing.GetLocation1802e0b70 reads raw XY+88 when no actual attached parent; source screen spawn currently rejects Attach.",
+    "body": "Use actual retained Body scale times its scale fraction, actual angle, per-axis transition fractions, base packed color and source-initialized HSV (Thing.InitThing1802dd5c0). No actor or Physics component is manufactured.",
+    "bounds": "A source screen definition that needs Physics (InitPhysics1802dda20 Grip<99999) or nonzero StartAngle stays rejected until those screen consumers are reconstructed.",
+    "fraction_color": "Body.GetColorModifier1802b55c0..2b564c clamps each RGB/alpha fraction to[0,1], multiplies255 and truncates via CVTTSS2SI. Base color bytes are separate.",
+    "lifetime": "Marking a screen Thing dead does not clear its Body/entity immediately. OnAttachedToPreDispose18029a2f0 needs the final owner state before the manager clears that lifetime. Native DieWithOwner/detach policy remains owned by ActionEffectWorld."
+  },
+  "clocks_and_live_fields": {
+    "elapsed": "World.Update314fdf scales manager elapsed once. TimeModifierSystem188cde..188d07 reads global World+20;188e02..188ebb divides the manager elapsed by speed+(1-speed)*animationFraction.188ff0..189061 applies Thing+80 only for a real AttachedToTimeMultiplier link. Thing.TimeModifierFraction is not the animation's fraction.",
+    "multiplier_default": "Thing.Defaults1802dbe6a writes1 to live Thing+80. ReflectionHelper.Thing1802e6fe2 exposes ElapsedTimeMultiplier as that live member independently of resource backend.",
+    "mutation": "The portable screen Thing retains live ElapsedTimeMultiplier and SuppressSounds; existing primitive reflection applies actual requested mutations instead of silently skipping screen targets.",
+    "prefer_unmodified": "ScriptAction.CreateAnimation calls SetupAnimation262c50, which calls PreferUnmodifiedTime29a5c0 unconditionally. That method applies only where source TimeModifierFraction<0 and iterates self then mChild+0xc8 at29a734. It does not traverse independent CreateAnimation/CreateAnimations roots. ScriptAction.SetAnimation261a10 has its own argument handling and does not call SetupAnimation or PreferUnmodifiedTime.",
+    "move": "ObstacleManager.Update1802c87ba/ca supplies World-scaled manager elapsed to each move helper. Move action TimeModifierFraction defaults1; UpdateTransitionHelper2c6760 conditionally divides elapsed by speed+(1-speed)*helperFraction only when fraction<1, then divides by helper UndoMultiplier. A selected helper with defaultfraction1/undo1 consumes World-scaled elapsed. Fraction0 cancels world speed only when actually requested.",
+    "body_transition": "Screen bodies remain world Body consumers. BodyTransition.advance(worldElapsed,worldSpeed) follows the same existing recovered Body helper equation as actual actor bodies; helper remaining counts elapsed/worldSpeed independently of the animation or Move helper fraction."
+  },
+  "audio": {
+    "eligibility": "Reuse actual AudioManager owner admission: live SuppressSounds, source HighPrioritySfx, actual voice classification, allocated-channel cap and frame counter. Screen owners must preserve the same eligibility rules.",
+    "adaptation": "Android screen audio currently uses explicitly non-spatial output while retaining original cue graph/admission/fade semantics. Native Camera screen-to-world 3D source conversion is not claimed."
+  },
+  "verification_boundary": "Requires original-script host progression and actual presentation/lifetime checks after graph integration. Static evidence and source implementation alone do not prove physical-device interaction, native GPU parity or Android lifecycle behavior."
+}

@@ -89,7 +89,7 @@ const std::set<std::string>& handledFields(){static const std::set<std::string> 
  // (UseAttachedToTimeMultiplier 0x180299d40; per-entity elapsed adapters
  // validate actual clock links), ActiveVisualFxCap (UpdateVfxTimeInterval 0x1802952cd).
  "NumAngles","AngleNumOffset","StartAngle","EndAngle","PingPongAngle","PhaseOffsetAngle","Hue","Saturation","Value",
- "RandomStartFrame","VisualFxAngleOffset","VisualFxInheritAngle","VisualFxDistanceMin","VisualFxDistanceMax","VisualFxDistanceMinChange","VisualFxFrameCap","UpwardVelocity","UpwardVelocityMin","UpwardVelocityMax","RadialOffsetMin","RadialOffsetMax","RadialOffsetScaleY","AlphaMin","AlphaMax","StopSoundOnFinishFade","UseAttachedTimeMultiplier","ActiveVisualFxCap"};return v;}
+ "RandomStartFrame","VisualFxAngleOffset","VisualFxInheritAngle","VisualFxOffsetX","VisualFxOffsetY","VisualFxDistanceMin","VisualFxDistanceMax","VisualFxDistanceMinChange","VisualFxFrameCap","UpwardVelocity","UpwardVelocityMin","UpwardVelocityMax","RadialOffsetMin","RadialOffsetMax","RadialOffsetScaleY","AlphaMin","AlphaMax","StopSoundOnFinishFade","UseAttachedTimeMultiplier","ActiveVisualFxCap"};return v;}
 // Presentation hints with no native consumer yet in the shared renderer/draw
 // order (material/ambient/sort/overlay, attached flasher, chain transfers).
 // Admitted as explicit approximations and reported per definition.
@@ -165,6 +165,21 @@ bool ActionEffectWorld::preflight(const std::string&name,const ActionEffectProvi
  path.pop_back();return true;
 }
 bool ActionEffectWorld::prepare(const std::string&name,int32_t ownerId,const ActionEffectProviders&p,std::string&error,bool guiLine)const{try{if(faulted_){error=fault_;return false;}std::vector<std::string>path;if(!registry_||!preflight(name,p,path,error,guiLine))return false;EffectOwnerState o;if(!p.owner(ownerId,o,error)||!o.lifetime||!o.baseColor||!o.baseHsv){if(error.empty())error="Actual action FX source owner/body unavailable";return false;}return true;}catch(const std::exception&e){error=e.what();return false;}}
+bool ActionEffectWorld::prepareExternalChild(const std::string&name,int32_t ownerId,const ActionEffectProviders&p,std::string&error)const{try{
+ if(!prepare(name,ownerId,p,error))return false;
+ std::function<bool(const std::string&)> completion=[&](const std::string&candidate){const auto&d=definitions_.at(candidate);
+  if(nativeType(d)==NativeAnimationType::Random){for(const auto&choice:d.get("Random")->array())if(!completion(t(choice,"Name")))return false;return true;}
+  if((!t(d,"ChainTo").empty()&&t(d,"ChainTo")!="null")||b(d,"TransferChildren")){error="Native external-parent child ChainTo/TransferChildren not reconstructed: "+candidate;return false;}return true;};
+ if(!completion(name))return false;
+ if(!p.childFinished){error="Actual external child completion consumer unavailable";return false;}
+ return true;
+ }catch(const std::exception&e){error=e.what();return false;}}
+bool ActionEffectWorld::prepareChild(const std::string&name,int32_t ownerId,uint64_t parent,const ActionEffectProviders&p,std::string&error)const{try{
+ if(!prepareExternalChild(name,ownerId,p,error))return false;
+ const auto*life=registry_->find(parent);EffectOwnerState owner;
+ if(!life||life->child||life->manager!=0||life->ownerId!=ownerId||!p.owner(ownerId,owner,error)||life->ownerLifetime!=owner.lifetime){if(error.empty())error="Actual external child parent/owner/manager lifetime unavailable";return false;}
+ return true;
+ }catch(const std::exception&e){error=e.what();return false;}}
 bool ActionEffectWorld::initialize(const std::string&name,int32_t ownerId,const EffectOwnerState&owner,std::array<float,3>position,uint64_t parent,bool light,const ActionEffectProviders&p,uint64_t&handle,std::string&error){
  const auto&d=definitions_.at(name);
  if(nativeType(d)==NativeAnimationType::Random){const float chance=n(d,"CreateChance",1);if(chance<1){float roll;if(!rng(p,0,1,roll,error))return false;if(roll>chance){handle=0;return true;}}const auto&choices=d.get("Random")->array();if(choices.empty()||choices.size()>64){error="Original Random action choice bound";return false;}uint32_t index=0;if(!p.bounded(uint32_t(choices.size()),index,error)||index>=choices.size())return false;primaryRequest_=primaryRequest_&&!parent&&!light;return initialize(t(choices[index],"Name"),ownerId,owner,position,parent,light,p,handle,error);}
@@ -275,6 +290,18 @@ bool ActionEffectWorld::initialize(const std::string&name,int32_t ownerId,const 
  handle=s.handle;return true;
 }
 bool ActionEffectWorld::create(const std::string&name,int32_t owner,std::optional<std::array<float,3>>position,const ActionEffectProviders&p,uint64_t&handle,std::string&error,bool guiLine){try{if(mutating_||!prepare(name,owner,p,error,guiLine))return false;EffectOwnerState body;if(!p.owner(owner,body,error))return false;guiLineRequest_=guiLine;if(guiLine){body.scale=1;body.angle=0;body.z=0;}mutating_=true;const bool ok=initialize(name,owner,body,position.value_or(std::array<float,3>{body.x,body.y,body.z}),0,false,p,handle,error);mutating_=false;if(!ok)retainFault(error);return ok;}catch(const std::exception&e){mutating_=false;error=e.what();retainFault(error);return false;}}
+bool ActionEffectWorld::createChild(const std::string&name,int32_t owner,uint64_t parent,std::array<float,3>position,const ActionEffectProviders&p,uint64_t&handle,std::string&error){try{
+ if(mutating_){error="Action child creation during another native mutation";return false;}
+ if(!prepareChild(name,owner,parent,p,error))return false;
+ for(float value:position)if(!std::isfinite(value)){error="Actual external child raw parent location invalid";return false;}
+ EffectOwnerState body;if(!p.owner(owner,body,error))return false;
+ const auto*life=registry_->find(parent);if(!life||life->ownerLifetime!=body.lifetime||life->manager!=0||life->child){error="Actual external child parent changed before creation";return false;}
+ // AddChild293b4c/293bd6 passes raw XY into CreateCustom; its location
+ // parameter is Vector2, so no parent draw offset or Z is substituted.
+ position[2]=0;
+ mutating_=true;const bool ok=initialize(name,owner,body,position,parent,false,p,handle,error);mutating_=false;
+ if(!ok)retainFault(error);return ok;
+ }catch(const std::exception&e){const bool mutated=mutating_;mutating_=false;error=e.what();if(mutated)retainFault(error);return false;}}
 bool ActionEffectWorld::createStandalone(const std::string&name,std::array<float,3>position,const ActionEffectProviders&p,uint64_t&handle,std::string&error){try{
  if(faulted_){error=fault_;return false;}if(mutating_||!registry_)throw std::runtime_error("Invalid standalone Animation factory state");std::vector<std::string>path;if(!preflight(name,p,path,error))return false;
  // AnimationManager.CreateCustom29f870 passes nullptr Thing into CreateAndInit.
@@ -395,7 +422,15 @@ bool ActionEffectWorld::advance(float dt,const ActionEffectProviders&p,std::stri
    // Animation.OnChildFinished295780 releases its finished child, then
    // AddChild293ae0 creates ChainTo UNDER THE SAME PARENT. There is no
    // manager Add, CopyState, or OnDeath/CreateAnimationOnEnd in this path.
-   const auto* actualParent=state(old.parent);if(!actualParent||actualParent->child!=h){error="Native finished child parent lifetime/link unavailable";return false;}const auto parent=*actualParent;
+   const auto* actualParent=state(old.parent);
+   if(!actualParent){
+    const auto*parentLife=registry_->find(old.parent);const auto chain=t(old.definition,"ChainTo");
+    if(!parentLife||parentLife->child!=h||parentLife->manager!=0||parentLife->ownerId!=old.ownerId||parentLife->ownerLifetime!=old.ownerLifetime){error="Actual external finished child parent lifetime/link unavailable";return false;}
+    if((!chain.empty()&&chain!="null")||b(old.definition,"TransferChildren")){error="Native external-parent child ChainTo/TransferChildren not reconstructed: "+old.name;return false;}
+    if(!p.childFinished||!p.childFinished(old.parent,h,error))return false;
+    if(!destroy(h,error))return false;continue;
+   }
+   if(actualParent->child!=h){error="Native finished child parent lifetime/link unavailable";return false;}const auto parent=*actualParent;
    const auto chain=t(old.definition,"ChainTo");
    if(!chain.empty()&&chain!="null"&&parent.detached){error="Native finished child of detached parent needs ownerless lineage factory";return false;}
    if(n(parent.definition,"ZWobbleSpeed")!=0||n(parent.definition,"ZWobbleDistance")!=0){error="Native OnChildFinished parent WobbleOffsetZ component copy unavailable";return false;}
@@ -440,7 +475,11 @@ bool ActionEffectWorld::advance(float dt,const ActionEffectProviders&p,std::stri
 bool ActionEffectWorld::updateTime(float dt,const ActionEffectProviders&p,uint32_t& spawnedThisFrame,std::string&error){try{
  // Explicit main-thread TimeVFX phase after component motion/frame updates.
  if(faulted_){error=fault_;return false;}if(mutating_||!registry_||!std::isfinite(dt)||dt<0||dt>1){error="Invalid/faulted action FX Time phase";return false;}
- const auto spawners=handles();for(auto h:spawners){auto&s=states_.at(h);const auto* life=registry_->find(h);if(!life||!life->initialized){error="Actual action Time lifetime unavailable";return false;}if(life->skipUpdate||life->canceled)continue;const auto&d=s.definition;if(t(d,"VisualFx").empty()||t(d,"VisualFx")=="null"||spawnedThisFrame>=60)continue;float elapsed=dt;if(p.elapsed&&!p.elapsed(s.ownerId,s.preferUnmodified?0:n(d,"TimeModifierFraction",-1),!s.detached&&life->attachedToTimeMultiplier,dt,elapsed,error))return false;if(!std::isfinite(elapsed)||elapsed<0||elapsed>1){error="Invalid action Time elapsed";return false;}s.timeRemaining=std::max(s.timeRemaining-elapsed,-n(d,"VisualFxIntervalMax"));if(s.timeRemaining>=0||(s.visualFxCap>0&&s.totalSpawned>=uint32_t(s.visualFxCap)))continue;if(n(d,"VisualFxManagerCap")>0&&registry_->managerCount(0)>=size_t(n(d,"VisualFxManagerCap")*4))continue;if(n(d,"ActiveVisualFxCap")>0&&activeVfxCount(h)>=uint32_t(n(d,"ActiveVisualFxCap")))continue;EffectOwnerState owner=s.ownerSnapshot;if(!s.detached&&!p.owner(s.ownerId,owner,error))return false;std::array<float,3>location;if(!sourceLocation(s,owner,&p.marker,location,error))return false;EffectOwnerState initialOwner=owner;if(s.detached){initialOwner.velocity.reset();initialOwner.scale=1;initialOwner.angle=0;initialOwner.baseColor=std::array<uint8_t,4>{255,255,255,255};initialOwner.baseHsv=std::array<float,4>{0,0,0,0};}uint64_t spawned;if(!initialize(t(d,"VisualFx"),s.ownerId,initialOwner,location,0,false,p,spawned,error))return false;if(!spawned)continue;auto&leaf=states_.at(spawned);leaf.detached=s.detached;leaf.preferUnmodified=s.preferUnmodified;leaf.ownerSnapshot=owner;// UpdateVfxTimeInterval29538f..542c + SetupSpawned294e4f..ec5:
+ const auto spawners=handles();for(auto h:spawners){auto&s=states_.at(h);const auto* life=registry_->find(h);if(!life||!life->initialized){error="Actual action Time lifetime unavailable";return false;}if(life->skipUpdate||life->canceled)continue;const auto&d=s.definition;if(t(d,"VisualFx").empty()||t(d,"VisualFx")=="null"||spawnedThisFrame>=60)continue;float elapsed=dt;if(p.elapsed&&!p.elapsed(s.ownerId,s.preferUnmodified?0:n(d,"TimeModifierFraction",-1),!s.detached&&life->attachedToTimeMultiplier,dt,elapsed,error))return false;if(!std::isfinite(elapsed)||elapsed<0||elapsed>1){error="Invalid action Time elapsed";return false;}s.timeRemaining=std::max(s.timeRemaining-elapsed,-n(d,"VisualFxIntervalMax"));if(s.timeRemaining>=0||(s.visualFxCap>0&&s.totalSpawned>=uint32_t(s.visualFxCap)))continue;if(n(d,"VisualFxManagerCap")>0&&registry_->managerCount(life->manager)>=size_t(n(d,"VisualFxManagerCap")*4))continue;if(n(d,"ActiveVisualFxCap")>0&&activeVfxCount(h)>=uint32_t(n(d,"ActiveVisualFxCap")))continue;EffectOwnerState owner=s.ownerSnapshot;if(!s.detached&&!p.owner(s.ownerId,owner,error))return false;std::array<float,3>location;if(!sourceLocation(s,owner,&p.marker,location,error))return false;
+ // SpawnVfxTimeInterval294467/294475: source VisualFxOffsetX/Y (+29c/+2a0)
+ // are added to actual Animation.GetLocation XY before the manager factory.
+ location[0]+=n(d,"VisualFxOffsetX");location[1]+=n(d,"VisualFxOffsetY");
+ EffectOwnerState initialOwner=owner;if(s.detached){initialOwner.velocity.reset();initialOwner.scale=1;initialOwner.angle=0;initialOwner.baseColor=std::array<uint8_t,4>{255,255,255,255};initialOwner.baseHsv=std::array<float,4>{0,0,0,0};}uint64_t spawned;if(!initialize(t(d,"VisualFx"),s.ownerId,initialOwner,location,0,false,p,spawned,error))return false;if(!spawned)continue;auto&leaf=states_.at(spawned);leaf.detached=s.detached;leaf.preferUnmodified=s.preferUnmodified;leaf.ownerSnapshot=owner;// UpdateVfxTimeInterval29538f..542c + SetupSpawned294e4f..ec5:
  // default VisualFxAngleOffset=0; inherit own angle only when requested,
  // then source mAngle unless spawned AngleFromOwner=Ignore.
  leaf.heading+=radD(n(d,"VisualFxAngleOffset"))+(b(d,"VisualFxInheritAngle")?s.heading:0.f);if(t(leaf.definition,"AngleFromOwner")!="Ignore")leaf.heading+=s.heading;if(t(leaf.definition,"ScaleFromOwner")!="Ignore")leaf.ownScale*=s.ownScale*((s.detached||t(s.definition,"ScaleFromOwner")=="Ignore")?1.f:owner.scale);s.created.push_back(spawned);s.vfx.push_back(spawned);++s.totalSpawned;++spawnedThisFrame;float interval;if(!rng(p,n(d,"VisualFxIntervalMin"),n(d,"VisualFxIntervalMax"),interval,error))return false;s.timeRemaining+=interval;}
@@ -464,7 +503,7 @@ bool ActionEffectWorld::updateDistance(const ActionEffectProviders&p,uint32_t& s
   if(!life||!life->initialized)throw std::runtime_error("Action Distance animation lifetime unavailable");
   if(s.guiLine||life->skipUpdate||life->canceled||t(d,"VisualFx").empty()||t(d,"VisualFx")=="null"||(n(d,"VisualFxDistanceMin")==0&&n(d,"VisualFxDistanceMax")==0))continue;
   if((s.visualFxCap>0&&s.totalSpawned>=uint32_t(s.visualFxCap))||spawnedThisFrame>=60)continue;
-  if(n(d,"VisualFxManagerCap")>0&&registry_->managerCount(0)>=size_t(n(d,"VisualFxManagerCap")*4))continue;
+  if(n(d,"VisualFxManagerCap")>0&&registry_->managerCount(life->manager)>=size_t(n(d,"VisualFxManagerCap")*4))continue;
   if(n(d,"ActiveVisualFxCap")>0&&activeVfxCount(h)>=uint32_t(n(d,"ActiveVisualFxCap")))continue;
   EffectOwnerState owner=s.ownerSnapshot;if(!s.detached&&(!p.owner||!p.owner(s.ownerId,owner,error)))return false;
   std::array<float,3> location;if(!sourceLocation(s,owner,&p.marker,location,error))return false;
@@ -474,7 +513,11 @@ bool ActionEffectWorld::updateDistance(const ActionEffectProviders&p,uint32_t& s
   uint32_t emitted=0;
   while(s.distanceRemaining<0){if((s.visualFxCap>0&&s.totalSpawned>=uint32_t(s.visualFxCap))||(n(d,"VisualFxFrameCap")>0&&emitted>=uint32_t(n(d,"VisualFxFrameCap")))||spawnedThisFrame>=60||(n(d,"ActiveVisualFxCap")>0&&activeVfxCount(h)>=uint32_t(n(d,"ActiveVisualFxCap"))))break;
    const float fraction=delta>0?std::clamp(1-std::abs(s.distanceRemaining/delta),0.f,1.f):0;
-   std::array<float,3> position;for(size_t k=0;k<3;++k)position[k]=(location[k]-s.previousVfxLocation[k])*fraction+s.previousVfxLocation[k];
+   // SpawnVfxDistanceInterval2948f6/2948ff then294abb..294af2:
+   // offsets affect the current endpoint before interpolation against the
+   // retained previous raw location. They do not change travelled distance.
+   auto endpoint=location;endpoint[0]+=n(d,"VisualFxOffsetX");endpoint[1]+=n(d,"VisualFxOffsetY");
+   std::array<float,3> position;for(size_t k=0;k<3;++k)position[k]=(endpoint[k]-s.previousVfxLocation[k])*fraction+s.previousVfxLocation[k];
    EffectOwnerState initialOwner=owner;if(s.detached){initialOwner.velocity.reset();initialOwner.scale=1;initialOwner.angle=0;initialOwner.baseColor=std::array<uint8_t,4>{255,255,255,255};initialOwner.baseHsv=std::array<float,4>{0,0,0,0};}
    uint64_t spawned=0;if(!initialize(t(d,"VisualFx"),s.ownerId,initialOwner,position,0,false,p,spawned,error))return false;
    if(spawned){auto&leaf=states_.at(spawned);leaf.detached=s.detached;leaf.preferUnmodified=s.preferUnmodified;leaf.ownerSnapshot=owner;leaf.ownZ=position[2];leaf.position[2]=position[2];

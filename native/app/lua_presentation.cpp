@@ -10,6 +10,9 @@
 namespace {
 float number(const hades::ActorWorld& world,int32_t id,const char* key){const auto* v=world.currentProperty(id,key);if(!v)throw std::runtime_error(std::string("Presentation source property unavailable: ")+key);const float n=float(v->number());if(!std::isfinite(n))throw std::runtime_error("Nonfinite presentation property");return n;}
 int ownerPolicy(const hades::SourceValue& source,const char* name){const auto* value=source.get(name);if(!value)return 0;if(std::holds_alternative<std::string>(value->value)){const auto text=value->text();if(text=="Maintain")return 0;if(text=="Take")return 1;if(text=="Ignore")return 2;throw std::runtime_error(std::string("Unknown source owner policy ")+name);}return int(value->number());}
+// Body.GetColorModifier 0x1802b55c0..2b564c: clamp, multiply255,
+// CVTTSS2SI. Fractions are distinct from the Body's retained base bytes.
+uint8_t screenFractionByte(float value){if(!std::isfinite(value))throw std::runtime_error("Nonfinite screen owner fraction color");return uint8_t(std::clamp(value,0.f,1.f)*255.f);}
 }
 uint32_t ScriptRuntime::presentationGroup(const std::string& name)const{
     if(presentationGroupFrame_!=worldFrame_||presentationGroups_.empty()){
@@ -124,9 +127,17 @@ bool ScriptRuntime::samplePresentationImpl(const VisualKey& key,hades::ActorVisu
             if(!q||!effectOwner(key.owner,owner,error))return false;fraction[3]=uint8_t(std::clamp(q->body.alpha,0.f,1.f)*255.f);
         }
         else if(!source->detached){
-            if(!actor||!actor->registered||!actor->object)throw std::runtime_error("Actual attached action FX draw owner unavailable");
-            if(!effectOwner(key.owner,owner,error))return false;
-            fraction={uint8_t(actor->tint[0]*255.f),uint8_t(actor->tint[1]*255.f),uint8_t(actor->tint[2]*255.f),uint8_t(std::clamp(actor->object->alpha,0.f,1.f)*255.f)};
+            const auto*body=findObjectSnapshot(state_,key.owner);
+            if(body&&body->backend==ObjectBackend::Screen){
+                const auto*screen=screenAnimations_.thing(key.owner);
+                if(!screen||screen->body!=body||body->entityHandle!=source->ownerLifetime)throw std::runtime_error("Actual attached screen FX draw owner lifetime unavailable");
+                if(!effectOwner(key.owner,owner,error))return false;
+                fraction={screenFractionByte(screen->fractionColor[0]),screenFractionByte(screen->fractionColor[1]),screenFractionByte(screen->fractionColor[2]),screenFractionByte(body->alpha)};
+            }else{
+                if(!actor||!actor->registered||!actor->object)throw std::runtime_error("Actual attached action FX draw owner unavailable");
+                if(!effectOwner(key.owner,owner,error))return false;
+                fraction={uint8_t(actor->tint[0]*255.f),uint8_t(actor->tint[1]*255.f),uint8_t(actor->tint[2]*255.f),uint8_t(std::clamp(actor->object->alpha,0.f,1.f)*255.f)};
+            }
         }
         if(!actionEffects_.visual(key.handle,owner,fraction,out,error))return false;
         if(source->guiLine){

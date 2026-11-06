@@ -173,12 +173,16 @@ bool ScriptRuntime::stopActorAmbientSound(int32_t id,std::string& error){
 bool ScriptRuntime::admitOwnerAudio(const std::string& cue,int32_t owner,bool& allowed,std::string& error,int32_t managerCap){
  allowed=false;
  if(owner<0){const auto it=projectileFxOwners_.find(owner);const auto* p=it==projectileFxOwners_.end()?nullptr:projectileWorld_.actor(it->second);if(!p||!p->bodyPending||!p->thing){error="Projectile owner3D sound requires actual initialized Thing";return false;}bool voice=false;if(!audio_.voiceCue(cue,voice,error))return false;if(p->suppressSounds&&!voice)return true;const auto* priority=p->thing->get("HighPrioritySfx");if(!priority){error="Projectile sound source HighPrioritySfx unavailable";return false;}allowed=priority->boolean()||audioFramePlays_<16||voice;return true;}
- const auto* a=actorWorld_.actor(owner);if(!a||!a->registered){error="Owner3D sound requires registered Thing";return false;}
+ const auto* a=actorWorld_.actor(owner);const auto* object=findObjectSnapshot(state_,owner);
+ const auto* screen=object&&object->backend==ObjectBackend::Screen?screenAnimations_.thing(owner):nullptr;
+ const auto* screenDefinition=screen&&object?actorWorld_.definition("Obstacles/"+object->name):nullptr;
+ if(screen){if(screen->body!=object||!object->active||!object->alive||!object->entityHandle||!screenDefinition){error="Owner sound requires actual screen Thing lifetime/source";return false;}}
+ else if(!a||!a->registered){error="Owner3D sound requires registered Thing";return false;}
  bool voice=false;if(!audio_.voiceCue(cue,voice,error))return false;
  // Native49d93 reads LIVE Thing+62 before Data.HighPrioritySfx and frame cap.
  // Active-listener owner2D and delayed CreateCue3D bypass this entire path.
- if(a->suppressSounds&&!voice)return true;
- const auto* priority=actorWorld_.currentProperty(owner,"Thing.HighPrioritySfx");if(!priority){error="Owner3D sound requires actual HighPrioritySfx";return false;}
+ if((screen?screen->suppressSounds:a->suppressSounds)&&!voice)return true;
+ const auto* priority=screen?screenDefinition->properties.path("Thing.HighPrioritySfx"):actorWorld_.currentProperty(owner,"Thing.HighPrioritySfx");if(!priority){error="Owner3D sound requires actual HighPrioritySfx";return false;}
  // Play3D49db8..49dff: manager cap counts ALL allocated channels, not
  // instances of this cue. Exceeding it alone does not reject an ordinary
  // sound: native falls through to the VO/frame admission test.
