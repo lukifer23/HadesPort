@@ -5,8 +5,8 @@ plan. This is an incomplete native ARM64 Android engine driven by the original g
 
 ## Joystick and thermal repair — iteration18 candidate (2026-11-06)
 
-**Iteration18 is built and signed; installation is waiting for the disconnected
-USB device. Iteration17 remains the last verified installed build.** The owner
+**The device is currently unavailable. Iteration18 is built and signed but
+uninstalled; iteration17 remains the last verified installed build.** The owner
 reported the visible joystick jumping upward and becoming unresponsive after
 release during actual RoomOpening play. This is an open device regression until
 installation and repeated physical-input checks pass.
@@ -158,10 +158,12 @@ candidate select the same resource versions. Device gameplay acceptance is separ
 
 ## Next work
 
-First install/verify the joystick and thermal candidate after USB reconnect. Package
-work is paused until control acceptance. Then implement original LoadPackages
-admission, exact-case name mapping, request/completion
+The owner authorized continued offline work while the device is unavailable.
+Implement and verify original LoadPackages admission, exact-case name mapping,
+request/completion
 and original OnPackageLoaded callback over the real source package closure. Then
 complete boon geometry, individual text areas, cursor/highlights and original
 Interact callbacks. Death/DeathArea/House, save/restart/Continue and Android
-acceptance follow. `AUDIT.md` records the concrete acceptance boundaries.
+acceptance follow. Install/verify the preserved joystick and thermal candidate
+when hardware returns; host package progress does not close that device gate.
+`AUDIT.md` records the concrete acceptance boundaries.

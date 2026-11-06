@@ -8,8 +8,8 @@ No emulation, Wine, CPU translation, ads, accounts or network access.
 > **Status: prototype; full gameplay remains incomplete** (2026-11-06). Iteration17
 > reached RoomOpening on the designated device, where the owner reported a joystick
 > regression. A verified host/Android repair and thermal-aware frame pacing are
-> packaged as iteration18; USB disconnected before installation. Device acceptance
-> remains pending. Host progression clears the first encounter, advances Athena's
+> packaged as iteration18. The device is currently unavailable, so installation and
+> device acceptance remain pending; host implementation work continues. Host progression clears the first encounter, advances Athena's
 > portrait/dialogue graph and stops at the boon-menu LoadPackages request. Boon
 > selection, death/House recovery and later-room progression remain incomplete.
 > See [`AUDIT.md`](AUDIT.md) for the plan and [`STATUS.md`](STATUS.md) for exact

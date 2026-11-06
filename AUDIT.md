@@ -124,7 +124,7 @@ remain documented; additional unrelated audio playlist branches remain unsupport
 
 | Order | Concrete implementation | Acceptance before moving on |
 |---|---|---|
-| 0 | Deliver the iteration18 joystick/thermal repair after USB reconnect. | Verify actual installed identity, app-file preservation, repeated visible-stick release/repress, no current faults and short thermal/memory observations. Stop on severe throttling. Package work remains paused until this passes. |
+| 0 | Deliver the iteration18 joystick/thermal repair after USB reconnect. | Verify actual installed identity, app-file preservation, repeated visible-stick release/repress, no current faults and short thermal/memory observations. Stop on severe throttling. Device acceptance remains open; host package work can proceed independently. |
 | 1 | Athena portrait graph — implemented and host-verified. | Strict default route passes the former 4,748 boundary through 4,837; slower real input reaches 5,437 after repeated blink loops. Preserve held-combat and final sanitizer/platform checks. Physical rendering/audio acceptance remains pending. |
 | 2 | Implement original LoadPackages and actual AthenaUpgrade resource admission. Reuse existing package parsing/residency, reconstruct exact-case unit-name mapping and manifest-first ordering, queue real work and dispatch original OnPackageLoaded only at the recovered completion boundary. Derive includes from the original package files. | Strict original pickup passes the current Interactables.lua:826 stop. No package-name insertion as fake completion, silent load success, direct callback or missing atlas/movie substitution. CPU residency, worker completion and GPU readiness remain distinct. |
 | 3 | Implement boon selection. Derive actual transformed screen polygons and individual text areas with original integer/justification rules; retain owner lifetimes, cursor ordering and floating-highlight FX/audio. Route real Select/touch through Interact.Use and NotifyOnInteract. | Original menu appears and a real input selects a boon via the original callback. Exercise disposal/ambiguity rejection. No fixed bounds, forced reward state or direct Lua callback. Device touch/controller acceptance remains separate. |
@@ -133,8 +133,9 @@ remain documented; additional unrelated audio playlist branches remain unsupport
 | 6 | Implement full-game local content delivery before broad room expansion. Retain immutable payload identity and offline import while removing single-APK size limits. | Complete identity checks, bounded reads and explicit missing-content errors. No network permission or uploaded game files. |
 | 7 | Validate Android behavior, then expand full runs. Preserve current APK/app files, install a milestone candidate non-incrementally, verify actual hash/size, then exercise controls/lifecycle/audio/thermal and frame-time behavior. Expand from original script/resource requirements. | Source/pack/APK/device identities and real manual play per milestone. Host-only evidence never closes a device gate. |
 
-The immediate delivery gate is the joystick/thermal repair on the real device.
-After control acceptance, the next runtime deliverable is actual package admission/
+The joystick/thermal repair is the next device delivery gate when hardware returns.
+The owner authorized independent offline progress; the next host deliverable is
+actual package admission/
 completion at the original boon request. The held historical screen patch remains reference
 material; the integrated implementation was independently reviewed and verified.
 STATUS indexes resource preservation, source evidence and exact input routes.

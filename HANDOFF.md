@@ -7,7 +7,8 @@ session evidence under ignored `.local/`.
 
 ## Current continuation
 
-**Iteration18 joystick/thermal repair is built; USB disconnected before install.**
+**The device is currently unavailable. Iteration18 joystick/thermal repair is built
+but uninstalled; continue host implementation and verification.**
 Iteration17 remains the last verified installed APK and has an owner-reported
 joystick acquisition regression during RoomOpening play. Hades was stopped after
 Android reported severe throttling; app state was backed up, then temperature
@@ -17,6 +18,8 @@ and limits. Reconnect, install non-incrementally, verify actual APK and unchange
 app files before launch, then perform short repeated release/repress checks and
 health observations. Never count host controls checks as device acceptance.
 Both iteration17/16 rollback APKs and actual app-state backups are retained.
+The owner authorized continued offline work; package-loading implementation can
+advance independently while joystick/thermal device acceptance stays open.
 
 Strict host progression now passes Athena's portrait graph and completes 4,837
 frames before the original boon-menu request hits unimplemented LoadPackages.
