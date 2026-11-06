@@ -352,7 +352,7 @@ def main():
     parser.add_argument('--actors',type=Path,default=PROJECT / '.local/native-assets/opening-actors-v13/actors.lua')
     parser.add_argument('--parallax',type=Path,default=PROJECT / '.local/native-assets/opening-parallax-v1/parallax.bin')
     parser.add_argument('--hulls',type=Path,default=PROJECT / '.local/native-assets/opening-hulls-v1/hulls.bin')
-    parser.add_argument('--packages',type=Path,default=PROJECT / '.local/native-assets/player-packages-v1/packages.lua')
+    parser.add_argument('--packages',type=Path,default=PROJECT / '.local/native-assets/player-packages-v2/packages.lua')
     parser.add_argument('--actor-animations',type=Path,default=PROJECT / '.local/native-assets/actor-actions-v9/actor-animations.bin')
     parser.add_argument('--effects',type=Path,default=PROJECT / '.local/native-assets/opening-spawners-v1/effects.lua')
     parser.add_argument('--actor-markers',type=Path,default=PROJECT / '.local/native-assets/actor-markers-v9/actor-markers.bin')
@@ -441,15 +441,8 @@ def main():
         if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
             raise RuntimeError('Actor source/provenance changed: '+item['path'])
     shutil.copyfile(args.actors,assets/'actors.lua')
-    package_manifest=json.loads((args.packages.parent/'manifest.json').read_text())
-    if package_manifest['schema']!='hades-native-asset-packages-v1' or hashlib.file_digest(args.packages.open('rb'),'sha256').hexdigest()!=package_manifest['packet']['sha256']:
-        raise RuntimeError('Package catalog identity changed')
-    for item in package_manifest['sources']:
-        if hashlib.file_digest(Path(item['path']).open('rb'),'sha256').hexdigest()!=item['sha256']:
-            raise RuntimeError('Original package source changed')
-    for texture in (args.packages.parent/'package-textures').glob('*.rgba'):
-        if hashlib.file_digest(texture.open('rb'),'sha256').hexdigest()!=texture.stem:
-            raise RuntimeError('Decoded package texture changed: '+texture.name)
+    from package_catalog import validate_package_catalog
+    validate_package_catalog(args.packages.parent/'manifest.json',args.packages)
     shutil.copyfile(args.packages,assets/'packages.lua')
     shutil.copytree(args.packages.parent/'package-textures',assets/'package-textures',dirs_exist_ok=True)
     action_manifest=json.loads((args.actor_animations.parent/'manifest.json').read_text())
