@@ -1,311 +1,104 @@
-# Hades port review — 2026-10-26 evening
+# Hades port review and implementation plan
 
-The goal remains a complete offline native ARM64 Android Hades engine, driven by the
-owned PC game's original scripts/assets: full runs, enemies/bosses/weapons/boons,
-House, original-format saves, PC settings, touch/controllers and sustained correct
-presentation. This is a substantial two-room prototype, not a finished port.
+Reviewed 2026-11-06 against source `faee143` and its canonical original-resource
+stage. The scope is HadesPort: native engine, host drivers, exporters/stagers,
+build/dependencies, recovered contracts, delivery evidence and storage hygiene.
+The sibling REA checkout is supporting tooling; its existing bridge edit is
+preserved. No device is connected. This is a bounded source and host-runtime review,
+not evidence that every original-engine branch has been executed.
 
-This review covers the Hades source architecture, pending changes, exporters/build,
-recovered contracts, progress receipts, documentation and fresh designated-device
-logs. It is a bounded engineering review, not proof that every engine branch was
-examined or exercised. The sibling REA checkout is supporting tooling and has a
-pre-existing bridge edit; it is outside this change's modification scope. Parent
-`research/` records are historical: their compatibility-runtime recommendation and
-unknown-device statements are superseded by the native-port constraints and fresh
-device evidence. They are not the active roadmap.
+## Current result
 
-## Current evidence and immediate findings
+The repository implements a substantial two-room native prototype. Original Lua
+scripts control progression; reconstructed C++ components supply engine behavior;
+original assets are exported locally. Unsupported behavior fails explicitly in
+strict host mode. Device containment records gaps and skips failed work; it does
+not implement that work and cannot count as acceptance.
 
-- `main` entered this review at `e52c1d6`, with twelve modified files from unfinished
-  text/input/screen work. The original diff is preserved privately before edits.
-- Iteration14's actual installed APK hash and size match its recorded receipt.
-  Fresh logs are from the selected current process, not an old log-buffer process.
-  No device input was injected and no unrelated app screen was captured.
-- The latest pre-review strict host progression clears four encounter waves and
-  reaches Athena pickup at frame 4,555. Mixed combat has a reproducible five-hit
-  baseline. Old navigation, disposed-owner draw-group and ShiftFraction blockers
-  were repaired; the retained earlier audit below describes historical findings.
-- Fresh device death logs show missing low-health/death screen animations,
-  `AllowAnyFire`/Graphic reflection, camera/audio/action consumers and missing
-  death audio/subtitle resources, followed by `DeathArea/scene.bin` unavailable.
-  The player cannot complete a normal death/House loop yet. Later faults may be
-  cascades; preserve the first fault and diagnose each producer before patching.
-- At review intake, pending dialogue resources contained the required background, portraits, bubble,
-  arrow and CaesarDressing font, but the text exporter omitted Description data
-  required by the new runtime. Existing survey logs contain six gaps; they are
-  not acceptance. The combined corrected packs require a fresh strict replay.
-- Camera frame state is reconstructed, but visible vignette/Shroud drawing still
-  throws (`fullscreen_blur_renderer.cpp:62`). The radial sampler is an explicit
-  approximation. Do not call either complete visual parity.
-- The former autoplay route stopped supplying input when gameplay input was blocked.
-  Its idle dialogue frames proved entry only. The current driver supplies actual
-  ContinueText press/release pulses when a live original notification requests it;
-  it does not call dialogue callbacks or alter script progression state.
+Fresh strict progression reproduces 4,748 frames through encounter completion,
+Athena pickup and the first original ContinueText advancement. Frame 4,748 rejects
+`Portrait_Athena_Default_01`. The held-combat 2,950-frame route passes with the
+historical five-hit sequence. Presentation sampling checks decoded/runtime state;
+it is not full GPU or physical-device proof. Final ASan/UBSan passes 4,748 frames with no findings; Android ARM64 compilation
+also passes. Exact current receipts are in STATUS.
 
+The last observed device delivery is iteration16 from 2026-10-26. Current device
+state and manual gameplay are unknown beyond the user's report that no device is
+connected. Earlier rollback APKs were retired before this review; preserve the
+current APK before future publication.
 
-Dialogue integration at source `f04cd02` reconstructs original description lookup, lexer escapes,
-Top/Bottom row spacing, exact eight-entry emphasis mapping and Constant screen
-transitions. The complete source-derived font class includes emphasis targets.
-Strict host playback and final ASan/UBSan reach the first dialogue at 5,600 frames
-with zero faults (leak detection disabled);
-input remains blocked while the original script waits for confirmation. This is
-an entry milestone, not a completed conversation or boon selection. Mapped Android
-hardware controls now reach raw notification handling; touch dialogue advancement
-and physical device interaction still require their own acceptance.
+## Architecture and gaps
 
-Dialogue continuation at source `f6339d9` now uses the complete recovered control
-registry, disabled-control frame caching, a contextual touch NEXT button and the
-original control notification path. Screen rendering coordinates are independent of
-component-manager ownership; screen destinations resolve their actual location and
-parallax, and disposed numeric action targets are skipped by actual manager membership.
-Portrait exit cancellation follows native Attach order and retains cross-manager
-ownership checks. The original first ContinueText advances through Zagreus's exit
-and the reward presentation. Recovered HasDisplayName, NotifyOnInteract and scalar
-SetInteractProperty consumers are present; this is not boon-selection acceptance.
-
-The current strict boundary is Athena's portrait graph: initialization creates FX,
-looping/random-timed slide children and an attached ray emitter. Those consumers
-remain explicit gaps. Do not admit CreateAnimation fields while dropping their
-work. Rebuild the complete graph with real screen-owner location/fraction/lifetime,
-attachment, FX and audio consumers, then derive a fresh resource closure. After
-that, boon interaction needs actual screen geometry, per-text-component rectangles,
-cursor selection and floating-highlight FX before Select can drive the real Interact
-and original notification/callback. Static evidence and the ordered producer plan
-are retained privately; no arbitrary button bounds or direct callback shortcut.
-
-Death follow-up is now bounded by actual producer calls: low-health screen-owner
-pulse FX; native disabled-email gates; camera clamp clearing, live AllowAnyFire,
-ambient stop/Halt, Graphic/reset side effects; death movies/audio/VO and DeathArea.
-The nil speech-duration comparison follows contained PlaySpeech failure. Native
-SendSaveFileEmail dispatch checks UseAnalytics and DisableAnalyticsInDebug before
-any submission; reconstruct that disabled branch rather than inventing a result.
-Preserved Tartarus room exports do not include DeathArea. The generic room exporter
-and MapGroups package selection need review before deriving the real House bundle.
-
-Iteration16 is now built from source `f6339d9`, installed non-incrementally and
-verified against actual on-device SHA/size (2,571,651,037 bytes). The source/selected-pack
-receipt is immutable by APK hash. Launch evidence is separate from still-pending
-manual gameplay. Exact device/build details and final checks are in STATUS.
-
-Private baseline/device evidence: `.local/reports/review-2026-10-26/`.
-No game files, captures, decompilation or personal identifiers belong in git.
-
-## Ordered build and acceptance plan
-
-| Order | Deliverable | Required evidence |
-|---|---|---|
-| 1 | Dialogue entry and first native continuation (implemented; device acceptance pending). | Text12/screen14 preserve prior payloads; strict held combat 2,950 has unchanged five-hit sequence; strict continuation and final ASan/UBSan pass 4,748 with every-frame presentation and zero faults. Longer strict route retains Athena failure at frame 4,748. |
-| 2 | Complete Athena portrait initialization graph. | Reconstruct Attach/Child/Create/Sound ordering, looping/random slide timing, screen-owned FX/emitter projection and lifetime; derive full resource closure. Strict original dialogue advances past current failure; no dropped fields or substitute art. |
-| 3 | Real boon selection with touch/controller navigation. | Actual screen geometry, individual text areas, cursor target, floating-highlight animation/FX/audio, Interact.Use and original callback. Strict choice milestone and manual designated-device play with complete logs. |
-| 4 | Death/House recovery and original script-selected next room. | Reproduce first transition faults, reconstruct consumers from matching DLL/PDB, derive actual requested room/resource closure, strict transition and device confirmation. No fallback scene or forced progression. |
-| 5 | Save/restart/Continue and interruption durability. | Preserve real saves; original-format round trip across maps on device. Decide/document Android atomic-save adaptation, injected truncation/write failures and checkpoint recovery. |
-| 6 | Android lifecycle, physical controls, audio routes and sustained performance. | Pause/resume/surface/resize, controller disconnect/remap, audio recovery, frame time/memory/load/thermal measurements on device. Host checks cannot establish these. |
-| 7 | Expand full runs, biomes/bosses, House and feature parity. | Resource-derived closure and strict feature routes plus device acceptance per milestone. Track unsupported branches and labelled adaptations separately. |
-
-Build discipline: one coordinator publishes/install; preserve rollback APKs, use full
-non-incremental user0 installation, verify installed hash/size, and record source and
-selected resource identities. Passing host checks reduce regression risk; they do
-not guarantee zero regressions. Never commit original or derived game content.
-
-## Remaining engineering risks
-
-| Area | Concrete boundary |
+| Area | Current boundary and implication |
 |---|---|
-| Native combat | Straight/Arc/Instant/Homing do not implement Beam/Lob/Sky; delayed-fuse/live-target and other specialized branches still reject explicitly. Shared null-weapon TakeHit and projectile hit consumers must stay aligned. |
-| Presentation | Pending ActionEffect fields include unconsumed Material/Ambient/sort/transfer behavior; zero faults is not full visual equivalence. Visible vignette drawing is missing. Portable interaction geometry/order and text wrapping remain labelled adaptations. |
-| Persistence | Direct primary writes follow the original contract, but are not atomic; `.bak` is not a general recovery path. Release durability is incomplete. |
-| Delivery | APK remains bounded by ZIP32; only opening and RoomSimple01 ship. Full-game external content WIP is not integrated. Room staging should align its name bound and required-file checks with runtime validation. |
-| Tooling | Existing dependency extraction treats directory existence as completion; interrupted extraction can be retained. Repair before making clean-install reproducibility claims. |
-| Provenance/docs | Build receipts lacked complete source/selected-pack identities. README, HANDOFF and old audit priorities were stale. Current summaries must follow exact receipts rather than old broad catchalls. |
-| Performance | 384 MiB actor GPU cache plus CPU decoding/retired actors are measurement candidates. No memory/thermal conclusion follows from source inspection. |
+| Original script execution | `lua_runtime`, scheduler, notifications and Lua action units share the native world between host and Android. Control notification advancement is working on the verified route; unsupported script calls must remain explicit. |
+| World/combat | Actor lifecycle, movement/pathing, effects, weapons, projectiles, collision and audio support the initial encounter. Beam/Lob/Sky and specialized delayed/live-target branches remain incomplete. Keep shared and projectile hit consumers aligned. |
+| Animation ownership | `animation_registry` owns allocation/lifecycle; screen and action-effect worlds supply different owner state. Screen layers implement a bounded Child chain. Independent created manager roots, screen-owned FX and emitter lifetimes are missing from Athena's graph. |
+| Boon UI | Screen animation, text and input infrastructure exist. `lua_interaction.cpp` rejects missing actual screen geometry/lifecycle and individual text-box bounds. Cursor selection/highlights and original screen Interact use must be completed before choice works. |
+| Maps/resources | Native transitions check 26 room-bound files before retiring the current map. Only RoomOpening/RoomSimple01 are staged. DeathArea is absent. Generic room staging still assumes `HeroEnd` and a unique `CameraIntroEnd`; inspect actual House geometry before exporting. |
+| Rendering | Actor/scene/UI pipelines and camera/blur state exist. Visible Shroud still throws in `fullscreen_blur_renderer.cpp`; radial sampling, text layout and some material/sort behavior retain documented approximations. |
+| Persistence | Original SGB1/Luabins/LZ4 and profile formats exist. `save_runtime.cpp` backs up then directly truncates/writes the primary. A direct host round trip does not establish script-reached saves, interrupted-write recovery or Android Continue. |
+| Content delivery | APK publication has identity/permission checks and an immutable receipt. ZIP32 and the already large APK cannot be the full-game packaging strategy. Content expansion needs a real local-content delivery implementation. |
+| Platform/performance | Physical controls, controller loss/remap, pause/resume, surface changes, audio routes and sustained thermal/frame-time/memory behavior require hardware. The 384 MiB actor GPU cache is a measurement target, not a measured defect. |
 
-## Historical audit batches
+Source consumers and specialized recovered contracts take precedence over broad
+historical contract summaries. Some older summaries still describe subsequently
+implemented behavior; do not reconstruct a feature twice based on stale prose.
 
-The sections below retain the earlier audit and its bounded evidence. Statements
-about installed iteration12, stale canonical packs, the 2,529-frame draw-group stop,
-9,000-frame navigation stall, unreconstructed ShiftFraction/blur, and deferred device
-access are historical. Current source and STATUS's latest entries supersede them.
+## Repairs completed now
 
-Initial inventory: approximately 30,000 lines across 205 C++ source/header files,
-75 Python exporters/build helpers, Java platform bridge, host tools, recovered
-contracts and preserved workstream branch. No bulk branch integration is authorized
-by this review; changes remain separately reviewed and verified.
+**Dependency integrity:** directory existence previously counted as completed
+extraction. A cancelled or modified source tree could silently enter builds. The
+preparer now checks actual files against the hash-pinned archive, rejects missing,
+modified, unexpected and symlinked entries, and publishes verified new extraction
+with one rename. Valid existing sources remain untouched. Real cached archives
+exercise fresh/idempotent preparation and damaged-input rejection without mocks.
 
-## Architecture and coverage
+**Room-pack admission and publication:** staging previously accepted arbitrary
+file lists and unbounded names, wrote files before later validation, and merged
+duplicate selections. Builders/revisions/staging now share admission and the native
+26-file declaration, validate identities, and publish complete directories from
+scratch. Copied catalog bytes are checked against source identities. Boot-map
+resources remain at the root. Original-game output protection now resolves the
+actual `.local` symlink target before comparing paths. Real RoomSimple01 staging
+and actor revision exercise both valid publication and malformed manifests.
 
-| Area | Implementation and current boundary |
-|---|---|
-| Android lifecycle | [engine.cpp](native/app/engine.cpp), [HadesActivity.java](native/app/HadesActivity.java): NativeActivity, EGL, focus/surface recovery, platform vibration/controllers/game mode; lifecycle behavior still needs device regression. |
-| Script/world | [lua_runtime.cpp](native/app/lua_runtime.cpp), [script_scheduler.cpp](native/app/script_scheduler.cpp): original Lua, callbacks, clocks, staged native systems; partial phase coverage and explicit missing consumers. |
-| Combat/AI | [weapon_execution.cpp](native/app/weapon_execution.cpp), [projectile_world.cpp](native/app/projectile_world.cpp), [lua_combat.cpp](native/app/lua_combat.cpp), [unit_path.cpp](native/app/unit_path.cpp): opening combat works on bounded routes; selected collision/AI/force consumers are integrated in the second pass, with specialized projectiles and other branches still incomplete. |
-| Rooms/progression | [lua_map.cpp](native/app/lua_map.cpp), [room_assets.hpp](native/app/room_assets.hpp): retained Lua across map changes; packaged opening/two-room route only, reward/boon/next-room path incomplete. |
-| Graphics/animation | [scene_renderer.cpp](native/app/scene_renderer.cpp), [actor_animation.cpp](native/app/actor_animation.cpp), [action_effect.cpp](native/app/action_effect.cpp): GLES scene/actor composition, caches, lighting and effects; full frame and later-content coverage unproven. |
-| UI/input | [game_ui.cpp](native/app/game_ui.cpp), [touch_controls.cpp](native/app/touch_controls.cpp), [control_bindings.cpp](native/app/control_bindings.cpp): native menus/settings/touch editor and original bindings; controller menus, mouse and some mapped actions incomplete. |
-| Audio/text | [audio_world.cpp](native/app/audio_world.cpp), [audio_output.cpp](native/app/audio_output.cpp), [speech_world.cpp](native/app/speech_world.cpp), [text_layout.cpp](native/app/text_layout.cpp): compressed assets/mixing/AAudio/text; event graph, subtitle and full voice coverage remain partial. |
-| Persistence | [save_runtime.cpp](native/app/save_runtime.cpp), [lua_save.cpp](native/app/lua_save.cpp), [config_file.cpp](native/app/config_file.cpp): original save/profile formats and host round trips; interruption recovery and device Continue still need work. |
-| Content/build | [asset_packages.cpp](native/app/asset_packages.cpp), [build_native.py](scripts/build_native.py), [stage_room_packs.py](native/tools/stage_room_packs.py): validated local packs and bounded ZIP32 APK; full-game external content remains separate WIP. |
-| Diagnostics | [main.cpp](native/host/main.cpp), [blocker_survey.cpp](native/app/blocker_survey.cpp): strict replays, containment surveys, presentation sampling and performance counters; a survey reaching its frame limit is not acceptance. |
+**Hygiene:** the tracked tree had 575 files totaling about 5.15 MB, no exact byte
+duplicates, no large generated logs and no game payloads found. Removed about
+373.7 MiB of unused probe binaries/objects/debug symbols after checking open
+handles. Preserved original files, immutable exports, saves, receipts/captures,
+current APK, key and required decoder builds. No Codex transcript files were found.
+Historical reports include repeated snapshots; their run-specific evidence paths
+remain intact. Reduce future snapshot production when changing the replay driver.
 
-## Repairs in this audit batch
+## Ordered implementation plan
 
-- New Run now requests a fresh runtime after returning from a retained game to the
-  title; Resume keeps its separate meaning ([game_ui.cpp](native/app/game_ui.cpp),
-  [engine.cpp](native/app/engine.cpp)).
-  Continue retains its load intent through Retry. Shared Pause/Cancel bindings
-  make exactly one menu transition, including when returning from Settings.
-- Hardware input tracks physical sources/device IDs, so releasing one binding does
-  not clear another held source. Disconnect polling releases stale buttons/sticks;
-  trigger/hat state resets with input cancellation ([hardware_input.hpp](native/app/hardware_input.hpp)).
-- Touch-layout cancellation releases the editor pointer, allowing a new drag after
-  cancellation or resize ([touch_controls.cpp](native/app/touch_controls.cpp)).
-- AAudio disconnection is serviced on the owning thread: the old worker/stream closes
-  before reopening with the retained mixer. Other failures retain their diagnostics;
-  route recovery latency and playback remain device-unverified ([audio_output.cpp](native/app/audio_output.cpp)).
-- Actor rendering now defaults to strict errors. Android explicitly enables bounded
-  containment, whose visual gaps contribute to the displayed count; suppression is
-  renderer-owned and resets on shutdown ([scene_renderer.cpp](native/app/scene_renderer.cpp)).
-- Callback-capable activation, weapons, effects and movement phases snapshot actor
-  IDs before callbacks can grow manager storage. This removes invalidated span iteration
-  while preserving phase membership ([lua_actor_animation.cpp](native/app/lua_actor_animation.cpp),
-  [lua_combat.cpp](native/app/lua_combat.cpp), [lua_effects.cpp](native/app/lua_effects.cpp),
-  [lua_player_input.cpp](native/app/lua_player_input.cpp)).
-- Primary spawner metadata, movement definitions and aim-line polygon fields now fail
-  with explicit missing/bounds errors; aim-line maximum Y handles negative coordinates.
-  Rumble releases C++ error owners before Lua raises via longjmp ([lua_runtime.cpp](native/app/lua_runtime.cpp)).
-- Package atlas CPU payloads share immutable storage by validated content-addressed
-  path; package metadata/readiness remain independent. The selected catalog has 12
-  references to 10 unique textures: 131,201,536 logical bytes become 103,741,952 unique
-  payload bytes, saving 27,459,584 bytes (26.2 MiB). This is payload accounting, not an
-  RSS or GPU-memory measurement ([asset_packages.cpp](native/app/asset_packages.cpp)).
-- Host success now requires completed requested frames, no contained faults, and no
-  mixer/input/presentation failure. Argument and trace-write errors fail explicitly
-  ([main.cpp](native/host/main.cpp)).
-- APK signing/verification/permission checks finish in a private candidate directory
-  before atomic publication, preserving the previous APK on failure. Build defaults
-  now use `nice -n 15` and two jobs ([build_native.py](scripts/build_native.py)).
-
-## First-pass verification
-
-These results apply to the audit repair batch before the progression integration below.
-
-The baseline strict 2,950-frame route passed. The initial repaired route also passed
-2,950 frames with `--validate-live-presentation`, no recorded faults, and all 2,950
-frames sampled for presentation data. Sampling does not draw every frame or establish
-complete rendering parity. Host and native ARM64 builds and Java compilation passed;
-controls/menu and package-sharing probes passed. The GPU diagnostic passed strict
-rejection, containment deduplication/bounds and reload checks. Malformed spawner
-fields/indices return explicit errors without crashing; invalid CLI arguments are
-rejected. The final strict 2,950-frame route, every-frame presentation sampling and
-structural save/reload comparison passed. Six injected APK publication cases passed;
-no production APK was published by those probes.
-
-A fresh 9,000-frame autoplay containment survey reached the first encounter reward
-with 16 distinct faults and returned failure status 2. It is diagnostic evidence of
-remaining gaps. Final ASan/UBSan controls, package-sharing and 2,950-frame strict
-combat/presentation checks pass without sanitizer findings.
-Detailed evidence is retained locally under `.local/reports/audit-2026-10-26/`.
-
-## Second progression pass
-
-Selected consumers from the preserved workstream branch have now been reviewed and
-integrated into current source, without a bulk branch merge:
-
-- Collision weapons, ApplyForce, collision-effect clearing and the shared wall-hit
-  damage path ([lua_combat.cpp](native/app/lua_combat.cpp), [life_take_hit.cpp](native/app/life_take_hit.cpp)).
-  The shared damage method still rejects weapon/projectile/effect-bearing requests;
-  this does not establish every collision or damage branch.
-- Per-entity VFX clocks, non-HAA primary friction and persistent occluder-root updates
-  ([lua_vfx.cpp](native/app/lua_vfx.cpp), [lua_physics.cpp](native/app/lua_physics.cpp),
-  [lua_occlusion.cpp](native/app/lua_occlusion.cpp)).
-- Native MoveAI failure selection/live target offsets, GetClosest obstacle stop filters and ordinary
-  screen Teleport ([unit_path.cpp](native/app/unit_path.cpp), [lua_actor_motion.cpp](native/app/lua_actor_motion.cpp),
-  [lua_spatial_queries.cpp](native/app/lua_spatial_queries.cpp)). Retained native reader
-  evidence corrected WIP's case-sensitive enum parsing to case-insensitive matching.
-- Distance notifications now use actual obstacle stopping predicates and swept LOS
-  geometry, retaining the documented portable grid/narrowphase adaptations
-  ([lua_collision_notify.cpp](native/app/lua_collision_notify.cpp)).
-- Projectile impact FX/tip location and live elapsed-time/AllProjectiles reflection
-  ([lua_projectiles.cpp](native/app/lua_projectiles.cpp), [projectile_world.cpp](native/app/projectile_world.cpp),
-  [lua_runtime.cpp](native/app/lua_runtime.cpp)). Unsupported reflection consumers remain explicit.
-- Book and Constant frame transfer now follows the destination's native virtual
-  consumer in both primary replacement and manager chains. Book keeps the raw
-  fractional frame; atlas geometry and pixels both use the clamped displayed frame.
-  A real seven-frame destination probe caught and fixed an out-of-bounds atlas-ratio
-  lookup ([action_effect.cpp](native/app/action_effect.cpp),
-  [animation-frame-transfer-contract.json](native/analysis/animation-frame-transfer-contract.json)).
-- Reward animation/resource closure derives spawnable LootData and transitive
-  RewardStoreData/ConsumableData references with source-field provenance, preserving
-  combat arsenal scope ([animation_coverage.py](native/tools/animation_coverage.py)).
-
-The isolated host candidate selects validated action-effects-v24 and audio-events-v30:
-1,913 action definitions/13,615 frames and 2,190 audio events/3,635 samples. A focused
-source comparison finds its reward roots, banks, packages and arsenal scope identical
-to the immutable coverage used to generate v24; no new binary export was needed.
-Build defaults now select v24/v30. The canonical stage still contains v22/v29 and
-the APK is untouched; the candidate is temporary host validation data.
-
-Host compilation, effect-clock, movement, occlusion lifecycle and actual-resource
-Book/Constant transfer probes pass. Strict mixed combat passes 2,950 frames with
-every-frame presentation sampling and zero faults. A strict 9,000-frame autoplay
-run also records zero faults, but stalls with three enemies remaining. It proves
-bounded world updates, not encounter completion. Earlier intermediate surveys
-reached reward barriers, but their counts cannot be compared directly after the
-route changes. The wall-hit path dispatches original OnHit and records actual
-health reduction (130 to 111 from 19 native damage).
-
-The final native ARM64 build passes. ASan/UBSan frame-transfer and strict 2,950-frame
-combat/every-frame-presentation/save checks pass without findings, including a
-structural save/reload comparison. Stronger autoplay every-frame presentation
-sampling fails at frame 2,529 with `Action FX owner draw group unavailable`, status
-2, and no reported sanitizer finding. The fault-free 9,000-frame replay samples
-presentation at its final snapshot only; it does not cover transient visuals.
-The 6,000-frame trace shows normal movement consumption with empty effects/requests
-and no strafe lock, but collision-limited displacement; detour diagnosis remains open.
-
-Remaining explicit presentation gaps include transient owner draw-group/lifetime
-resolution, fullscreen AdjustFrame/radial blur and reward ShiftSpeed components;
-the latter has an evidence ledger, but insufficient component-layout proof for a
-faithful implementation. No reward, boon or full-game acceptance claim follows.
-Evidence stays local under `.local/reports/progression-2026-10-26/`.
-
-## Historical priority work (superseded by ordered plan above)
-
-| Priority | Work and source boundary | Acceptance |
+| Order | Concrete implementation | Acceptance before moving on |
 |---|---|---|
-| 1 | Repair transient action-FX owner draw-group/lifetime resolution and diagnose the longer autoplay combat stall using actual movement/request traces; distinguish host-driver navigation from engine gates. Finish remaining collision/damage and AI branches: [lua_combat.cpp](native/app/lua_combat.cpp), [lua_actor_motion.cpp](native/app/lua_actor_motion.cpp), [autoplay.cpp](native/host/autoplay.cpp). | Every-frame presentation on the autoplay route, then strict original encounter completion with movement, death and next-wave milestones; a fault-free frame budget is insufficient. |
-| 1 | Reconstruct fullscreen blur/frame, reward ShiftSpeed and remaining subtitle consumers: [action_effect.cpp](native/app/action_effect.cpp), [lua_speech.cpp](native/app/lua_speech.cpp), [lua_presentation.cpp](native/app/lua_presentation.cpp). | Prove ECS layout/update/copy and RNG order before admission; sample transient visuals and validate actual GPU output. |
-| 2 | Original reward Use → dialogue → boon selection → script-chosen door/map, followed by later encounters/biomes/bosses and House features. | Strict progression and save/Continue across transitions; touch/controller screen paths; device confirmation later. |
-| 2 | Controller title/settings/retry navigation, mouse buttons/scroll, and mapped controls discarded by the gameplay whitelist: [engine.cpp](native/app/engine.cpp), [game_ui.hpp](native/app/game_ui.hpp). | Physical-input source tests plus later device menus/remapping/hotplug; retain original control semantics. |
-| 2 | Save interruption and recovery: [save_runtime.cpp](native/app/save_runtime.cpp) writes with `fopen(...,"wb")` after a backup; [lua_save.cpp](native/app/lua_save.cpp) does not provide general backup recovery. | Proven original behavior/adaptation policy, injected write/truncation failures, recoverable checkpoint selection; preserve real saves. |
-| 3 | Full audio graphs/loops/voice/subtitles, timer/indicators/hero silhouette and later content; existing settings do not prove their engine consumers. | Resource-derived coverage and feature-specific routes; device audio/rendering/accessibility review. |
+| 1 | Complete Athena initialization. Add graph preflight, real screen-owner effect state, fractions/clocks/location, independent created-manager handles and attachment/disposal. Preserve Defaults → Attach → InitData → Child → singleton Create → ordered Creates → Sound, including child initialization completion. Implement per-slide original FilePath, Loop and random-duration behavior and the ray emitter's nested creation graph. Then derive a fresh versioned resource closure. | Strict original dialogue advances beyond frame 4,748 with zero contained faults and every-frame presentation; creation order, owner death/cancellation and audio are exercised. Preserve held-combat results and run one final ASan/UBSan check. Keep all unsupported fields rejected until their consumers exist. |
+| 2 | Implement boon selection. Derive actual transformed screen polygons from source geometry/frame metadata, preserve each attached text component's area and integer/justification rules, register actual screen owner lifetimes, implement cursor candidate ordering and floating highlight FX/audio. Route real Select/touch through Interact.Use with null user and existing NotifyOnInteract. | Original menu appears and a real input selects a boon through the original callback; no fixed button bounds, direct Lua callbacks or forced reward state. Exercise disposal and ambiguous target rejection. Physical touch/controller acceptance remains a separate device gate. |
+| 3 | Restore death/House and the script-selected next room. Reproduce first historical death faults; reconstruct low-health screen FX, AllowAnyFire/Graphic side effects, camera clamp clearing and audio Stop/Halt/death voice resources. Rebuild the proven disabled analytics/email branch. Review MapGroups and actual anchors before deriving DeathArea and its complete resource closure. | Strict original death reaches actual DeathArea/House and returns to normal control. Normal progression loads the map selected by original scripts. No fallback scene, invented next room, injected damage or forced encounter clear. |
+| 4 | Implement save durability. Retain the original wire formats; document the Android atomic-publication adaptation and recovery precedence. Complete script-reached checkpoint, restart and Continue across actual maps with real saved state. | Byte/semantic compatibility, interrupted/truncated writes and recovery tested using copies of actual saves. Device process death/relaunch resumes correctly without resetting user saves. |
+| 5 | Implement full-game local content delivery before broad room expansion. Measure selected closure sizes; retain immutable payload identity and offline ownership/import workflow while removing the single-APK size bottleneck. | Original content loads from the selected local store with complete identity checks, bounded reads and explicit missing-content errors. No network permission or uploaded game files. |
+| 6 | Validate Android behavior, then expand full runs. On reconnection, preserve current APK/app files, build a milestone candidate, install non-incrementally and verify actual installed hash/size. Exercise controls, lifecycle, audio recovery and sustained play. Expand enemies/weapons/biomes/bosses/House from reached original script/resource requirements. | Source/pack/APK/device identities recorded per milestone; complete logs, real manual play and measured frame-time/memory/audio/thermal results. Host-only evidence never closes a device gate. |
 
-Performance candidates remain unmeasured: full scene copies/sorts per frame
-([scene_renderer.cpp](native/app/scene_renderer.cpp)), settings/profile writes during
-slider/layout changes ([engine.cpp](native/app/engine.cpp)), fixed 384 MiB actor GPU
-cache plus decoded CPU caches, and scans retaining retired actors
-([actor_runtime.hpp](native/app/actor_runtime.hpp)). Capture frame/update/upload/cache
-and memory data before changing ordering, eviction or lifecycle semantics. Sustained
-frame rate, thermal behavior, load latency and memory pressure require device testing.
+The immediate next runtime deliverable is Athena's complete graph, not a longer
+idle replay. The held unfinished patch under local evidence is reference material,
+not an approved implementation to apply wholesale. The detailed original geometry
+and cursor evidence is indexed by STATUS.
 
-Connectivity means wired/Bluetooth controller and audio lifecycle plus local content
-delivery. The app intentionally has no network permission; online services are outside
-the architecture ([AndroidManifest.xml](native/app/AndroidManifest.xml)).
+## Verification discipline
 
-## Preserved branch integration
+Use one build/export/replay process at a time per worker, `nice -n 15`, `-j 2`,
+RelWithDebInfo without sanitizers while iterating. Use the shortest real route that
+reaches the change, then preserve the held-combat baseline and one final sanitized
+run. Surveys discover gaps; zero-fault strict runs establish only reached coverage.
+No new game-specific switches, substitute assets, mocks or silent field dropping.
 
-`wip/agents-2026-10-20` remains separate: 52 changed files, roughly +2,036/-352 lines,
-without new test files in that preserved snapshot. Selected areas are now integrated
-as described above; remaining areas need separate review and verification on `main`.
-Its combat, presentation, exporter and packaging changes are not one acceptance unit.
-The recorded frame-zero `DrawHealthFX` failure needs a fresh check: stored source
-already adds that default. The shared null-weapon damage method is wired to wall
-collision, while weapon/projectile/effect branches remain rejected. Beam/Lob/Sky state
-records do not implement those projectile classes. Fullscreen effects lack host draw
-wiring and vignette blending remains an explicit approximation.
+Keep private evidence under `.local/`; commit source and recovered facts only.
+Delete owned scratch builds after recording results. Existing exports can share
+hardlinked storage; logical duplicate paths do not establish wasted physical bytes.
 
-Before adopting its external content store, repair retry-after-install, bounds checked
-after allocation, deduplicated-byte progress, and synchronous cold verification during
-the loading frame. Validate hash vectors, malformed/truncated/missing content, cache
-invalidation, cold/warm loads and recovery. Verify the current reward/ImpactFx and
-timing/friction/combat batches before that larger delivery change. Exported maps are
-not proof of gameplay coverage.
+Previous detailed audit/checkpoint history is preserved at git commit `faee143`.
+Current STATUS and this acceptance plan replace its stale connected-device and
+rollback-retention claims.
