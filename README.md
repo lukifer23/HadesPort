@@ -5,15 +5,15 @@ An unofficial, work-in-progress **native ARM64 Android engine** for **Hades (Sup
 purchased PC copy** — on a C++/OpenGL ES engine reconstructed from the PC engine binary.
 No emulation, Wine, CPU translation, ads, accounts or network access.
 
-> **Status: prototype; full gameplay remains incomplete** (2026-11-06). No test device
-> is connected. Iteration16 is the last verified installation (2026-10-26).
-> Fresh host progression clears the first encounter, picks up Athena and advances
-> the original dialogue through the portrait/FX graph to the boon-menu package
-> request. The next explicit blocker is LoadPackages; boon selection, death/House
-> recovery and later-room progression remain incomplete. Manual gameplay16 is
-> unverified. Source/staged assets are ahead of that APK. The current review and
-> acceptance plan are in [`AUDIT.md`](AUDIT.md), with exact verification boundaries
-> and resource identities in [`STATUS.md`](STATUS.md).
+> **Status: prototype; full gameplay remains incomplete** (2026-11-06). Iteration17
+> reached RoomOpening on the designated device, where the owner reported a joystick
+> regression. A verified host/Android repair and thermal-aware frame pacing are
+> packaged as iteration18; USB disconnected before installation. Device acceptance
+> remains pending. Host progression clears the first encounter, advances Athena's
+> portrait/dialogue graph and stops at the boon-menu LoadPackages request. Boon
+> selection, death/House recovery and later-room progression remain incomplete.
+> See [`AUDIT.md`](AUDIT.md) for the plan and [`STATUS.md`](STATUS.md) for exact
+> build, runtime and device verification boundaries.
 
 **This repository contains no game files.** You must own Hades (e.g. on Steam or the Epic
 Games Store) and supply its files yourself. Read [`DISCLAIMER.md`](DISCLAIMER.md).
@@ -38,7 +38,7 @@ Games Store) and supply its files yourself. Read [`DISCLAIMER.md`](DISCLAIMER.md
 
 | Path | Contents |
 |---|---|
-| `native/app/` | Engine: C++20, GLES 3, Android NativeActivity + a small Java bridge (vibration, controllers, game mode) |
+| `native/app/` | Engine: C++20, GLES 3, Android NativeActivity + a small Java bridge (vibration, controllers, game mode, thermal status) |
 | `native/host/` | macOS host debugger (`hades-debug`) and capture tools for fast replays without a device |
 | `native/tools/` | Asset exporters and stagers (write fresh, versioned output dirs under `.local/`) |
 | `native/analysis/` | Recovered contracts (`*-contract.json`), engine identity, RE helper scripts |

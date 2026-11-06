@@ -7,10 +7,16 @@ session evidence under ignored `.local/`.
 
 ## Current continuation
 
-**No test device is connected (2026-11-06).** Continue on the host. Iteration16 is
-the last observed installation; manual gameplay remains unverified. Earlier rollback
-APKs were retired in a separate authorized cleanup. Preserve the current APK and
-actual app files before any future replacement.
+**Iteration18 joystick/thermal repair is built; USB disconnected before install.**
+Iteration17 remains the last verified installed APK and has an owner-reported
+joystick acquisition regression during RoomOpening play. Hades was stopped after
+Android reported severe throttling; app state was backed up, then temperature
+cooled to light throttling. Source `4381770` fixes visible-stick acquisition/rest,
+resize timing and thermal-aware pacing. See STATUS for candidate identity, checks
+and limits. Reconnect, install non-incrementally, verify actual APK and unchanged
+app files before launch, then perform short repeated release/repress checks and
+health observations. Never count host controls checks as device acceptance.
+Both iteration17/16 rollback APKs and actual app-state backups are retained.
 
 Strict host progression now passes Athena's portrait graph and completes 4,837
 frames before the original boon-menu request hits unimplemented LoadPackages.
@@ -48,7 +54,8 @@ scratch/build intermediates after recording results.
 Build defaults select text12/screen15/action26/audio31/actor9/weapons25/properties14
 and RoomSimple01 in addition to root RoomOpening. `scripts/build_native.py` is the
 selection authority; selected source, staged assets and an installed APK are
-separate identities. No binary should be assumed fresh after restart.
+separate identities. Iteration17 and the iteration18 candidate bind the current
+selected packs; see STATUS for immutable build/install receipts. No binary should be assumed fresh after restart.
 
 ## Host commands
 
@@ -102,11 +109,15 @@ sessions you open. The sibling REA checkout has an existing bridge edit: leave i
 untouched. The old FMOD PDB does not match its shipped DLL; use the established
 static/descriptor evidence. No external source is needed to establish local state.
 
-When hardware returns, rediscover the designated device and always use
+For each device session, rediscover the designated device and always use
 `adb -s "$HADES_DEVICE_SERIAL"`; no historical serial/display/PID is current.
-Owner drives manual play. No injected phone input, network-setting changes or
-unrelated app capture. Preserve APK/app files, install non-incrementally for user0,
+The owner authorized bounded real Android input while Hades is focused. Verify
+foreground/keyguard and active physical display before any input/capture. No
+network-setting changes, unrelated app capture, save reset or direct progression/
+callback injection. Preserve APK/app files, install non-incrementally for user0,
 verify actual installed hash/size, then record separate launch and play evidence.
+Check actual crashes/exits, memory PSI and thermal status. Stop Hades and allow
+cooldown on severe throttling; do not force system thermal status for acceptance.
 
 Local details are in `.local/private/RESTART_HANDOFF.md`; historical public detail
 is in git at `faee143`. STATUS indexes current receipts and proof limitations.

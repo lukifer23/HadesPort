@@ -3,21 +3,71 @@
 Updated 2026-11-06. Read `HANDOFF.md` for commands and `AUDIT.md` for the implementation
 plan. This is an incomplete native ARM64 Android engine driven by the original game.
 
-## Device and delivery
+## Joystick and thermal repair — iteration18 candidate (2026-11-06)
 
-**No test device is connected.** No device inspection, installation or manual play
-was performed during this review. Host results cannot establish device acceptance.
+**Iteration18 is built and signed; installation is waiting for the disconnected
+USB device. Iteration17 remains the last verified installed build.** The owner
+reported the visible joystick jumping upward and becoming unresponsive after
+release during actual RoomOpening play. This is an open device regression until
+installation and repeated physical-input checks pass.
 
-Last observed installation: iteration16, runtime source `f6339d9`, verified on
-2026-10-26 by actual installed APK SHA-256 and size:
-`b1bdc3a03969d45bd03d333a8558607fc9d6aa4d1f78ad366cbedf135c93ff19`,
-2,571,651,037 bytes. Manual gameplay16 remains unverified. Its current local APK is
-`.local/build/native/hades-native-engine-preview.apk`.
+Root cause: at 2520×1080 / density 420, the old 45 mm bottom offset placed the stick
+at y=336 while floating acquisition required y>486. Bottom touches acquired it;
+release returned the visible control to the unreachable rest. The repair bounds
+the default rest within the lower movement area and makes the visible stick an
+acquisition target even with an edited position. Original raw Android coordinates,
+pointer-ID ownership, release, dead zone and combat controls remain authoritative.
+Surface configuration now releases stale movement before simulation after resize.
 
-Earlier rollback APKs were retired in a separate authorized storage cleanup on
-2026-11-06. They are **not available locally**. Historical installation receipts
-and app-file backups remain; do not mistake those receipts for retained APKs.
-Before any future replacement, preserve the current APK and actual app files.
+The production controls check reproduces the original failure and passes with the
+repair: 96 repeated press–move–release cycles across cover/inner geometry, handedness,
+fixed/floating modes and three scales, plus edited rests, cancel/repress, unrelated
+releases and existing pinch/action/dialogue/lifecycle checks. Final controls
+ASan/UBSan passes without findings (leak detection disabled). Android compilation,
+APK signing and the no-network-permission check pass. Source is `4381770`, built
+from a clean detached worktree excluding unfinished package work. All 30 selected
+resource manifests match iteration17. Candidate SHA-256 / size:
+`4265c2a52f6014c114bfb35babc62005a2161a913ab915d5ce3549e8b1a53f0c`,
+2,579,975,054 bytes.
+
+### Device health
+
+The current crash buffer was empty and app exit history contained no Hades crash or
+ANR today. An older background LOW_MEMORY exit on October 27 predates this session.
+At inspection, about 4.2 GiB memory was available, app PSS was about 1.65 GiB and
+memory PSI averages were low. **Thermal throttling was present:** Android status 3
+(severe), skin 45.8°C, battery 35.9°C. Hades was stopped, actual app state backed up,
+and the device cooled to status 1 (light), skin 39.4°C. Boot reason was user-requested;
+no reboot occurred during this inspection. These snapshots do not establish long-run
+stability or attribute all heat to this app.
+
+The candidate uses the real API29+ [PowerManager thermal status](https://developer.android.com/reference/android/os/PowerManager#getCurrentThermalStatus()), polled every two
+active seconds and refreshed on resume. Rendering caps at 60/30/15 FPS for moderate/
+severe/critical-or-higher states, preserving lower user limits and the original
+fixed 60 Hz simulation. Menus cap at 30; fresh settings default to 60. Existing saved
+settings are preserved; saved display-rate mode remains available while cool.
+No thermal override, phone-wide setting changes, save reset or simulated device
+health was used. Actual platform throttling response still needs device observation.
+
+### Delivery history and next gate
+
+Iteration17 was installed non-incrementally for user0, with actual APK identity
+verified as `b913b9681a4924203eeb5fb3f81d7aac1e24de8168e97b1d00c6807714be21fa`
+(2,579,970,958 bytes; build `f635114`, Athena runtime `312f521`). All backed-up app
+file contents were identical after installation before launch. Title/first frame
+and later actual RoomOpening rendering were observed. The joystick report means
+controls acceptance failed; combat/Athena, physical controllers, lifecycle and
+sustained play remain unverified. Real foreground Android Continue input was used
+under the owner's full authorization; no progression/callback state was injected.
+
+Current candidate: `.local/build/native/hades-native-engine-preview.apk`. Both
+iteration17 and iteration16 rollback APKs, the signing key, canonical assets and
+actual app-state backups are retained privately. Reconnect the designated device,
+verify previous identity, install iteration18 non-incrementally, verify installed
+hash/size and unchanged app files before launch, then exercise repeated visible-stick
+press/move/release/repress and check faults, memory and thermals. Keep tests bounded;
+stop Hades if severe throttling recurs. USB disappeared before installation began;
+no iteration18 device success is claimed.
 
 ## Athena portrait milestone (2026-11-06)
 
@@ -39,8 +89,10 @@ The final held-combat 2,950-frame route retains the exact historical five-hit
 sequence with every-frame presentation. Final ASan/UBSan passes 5,437 frames on the
 slower input route with zero findings (leak detection disabled), including three
 entries into the blink loop's first frame. Android ARM64 compilation passes; the
-library was verified as AArch64 ELF. Tested runtime source is `312f521`. No device
-operations occurred. All owned host/ASan/Android scratch builds were removed.
+library was verified as AArch64 ELF. Tested runtime source is `312f521`. That host
+milestone performed no device operations; iteration17 delivery and the iteration18
+candidate are recorded above.
+All owned host/ASan/Android scratch builds were removed.
 
 Implemented behavior:
 
@@ -80,11 +132,16 @@ No mocks, replacement game art, skipped dialogue or forced rewards were introduc
 
 Build defaults in `scripts/build_native.py` remain authoritative. Canonical assets
 use text12/screen15/action26/audio31/actor9/weapons25/properties14; only RoomOpening
-and RoomSimple01 are staged. Source and staged resources are ahead of the retained
-iteration16 APK; no new APK was published.
+and RoomSimple01 are staged. Source, canonical assets, iteration17 and the iteration18
+candidate select the same resource versions. Device gameplay acceptance is separate.
 
 | Evidence | Local path |
 |---|---|
+| Iteration18 immutable build | `.local/reports/native-builds/4265c2a52f6014c114bfb35babc62005a2161a913ab915d5ce3549e8b1a53f0c.json` |
+| Joystick host verification | `.local/reports/joystick-2026-11-06/host-verification.json` |
+| Device health and fresh app backup | `.local/reports/device-2026-11-06/joystick-health/` |
+| Iteration17 installation/launch | `.local/reports/device-2026-11-06/iteration17-installed.json` |
+| Immutable iteration17 build | `.local/reports/native-builds/b913b9681a4924203eeb5fb3f81d7aac1e24de8168e97b1d00c6807714be21fa.json` |
 | Athena milestone | `.local/reports/athena-graph-2026-11-06/final-verification.json` |
 | Screen/action resource preservation | `.local/reports/screen-slide-2026-11-06/` |
 | Audio preservation and alias checks | `.local/reports/screen-action-child-2026-11-06/` |
@@ -99,7 +156,9 @@ iteration16 APK; no new APK was published.
 
 ## Next work
 
-Implement original LoadPackages admission, exact-case name mapping, request/completion
+First install/verify the joystick and thermal candidate after USB reconnect. Package
+work is paused until control acceptance. Then implement original LoadPackages
+admission, exact-case name mapping, request/completion
 and original OnPackageLoaded callback over the real source package closure. Then
 complete boon geometry, individual text areas, cursor/highlights and original
 Interact callbacks. Death/DeathArea/House, save/restart/Continue and Android
