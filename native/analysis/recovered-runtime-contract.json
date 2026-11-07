@@ -11,32 +11,7 @@
     "build_scope": "Supplied base game Windows x64 engine; source build identity is not inferred from archive filename."
   },
   "config": {
-    "scope": "Selected proven compiled defaults. VM-owned mutable typed override table implements SetConfigOption; GetConfigOptionValue reads overrides. Unknown names/types error; loaded user config and FastForward external engine side effects remain unreconstructed.",
-    "typed_values": {
-      "DebugRNGSeed": 0,
-      "FreeFormSelecSearchFromId": 0,
-      "KioskModeNumLives": 2,
-      "ExclusiveInteractGroup": "",
-      "ShowDamageNumbers": true,
-      "ShowUIAnimations": true,
-      "LogCombatMultipliers": false,
-      "ShowSpeechBubble": true,
-      "EasyMode": false,
-      "HardMode": false,
-      "AllowStripRequirements": false,
-      "DrawBloom": true,
-      "DumpRunStatsOnLoad": false,
-      "EditingMode": false,
-      "EnableConsoleMenus": false,
-      "FastForward": false,
-      "ForceFlipMapThings": false,
-      "KioskMode": false,
-      "ResetRoomData": false,
-      "UseMouse": false,
-      "GamepadCursorControl": false,
-      "FreeFormSelectWrapY": false,
-      "FlipMapThings": false
-    },
+    "scope": "Registered scalar defaults and reflected types come exclusively from config_file.cpp optionSpecs/findOption (346 registered fields; Bool/Int/Long/Float/String supported, Other enums explicitly rejected). VM-owned typed overrides implement SetConfigOption; GetConfigOptionValue reads overrides. Native GetPropertyInfo-only scalar fields remain separately sourced. Unknown names/types error; loaded user config and external engine side effects remain separate consumers.",
     "FreeFormSelectWrapY": {
       "type": "bool",
       "default": false,
@@ -52,7 +27,14 @@
       "semantics": "Supported string properties store an empty-string override for nil/missing Value. They do not remove the override or restore a nonempty default. Other malformed types retain explicit rejection in the reconstruction."
     },
     "evidence": "Matching PDB named dynamic initializers, full bounded native disassembly in .local/reports/native-config-<key>-annotated.json (DebugRNGSeed also native-rng-default-annotated.json).",
-    "cache": "RunManager.lua5561 UpdateConfigOptionCache populates6 entries; RoomManager.lua146 calls before RandomInit at OnPreThingCreation."
+    "cache": "RunManager.lua5561 UpdateConfigOptionCache populates6 entries; RoomManager.lua146 calls before RandomInit at OnPreThingCreation.",
+    "default_owner": "native/app/config_file.cpp registered OptionSpec table; native/analysis/config-file-contract.json retains initializer provenance. No registered default whitelist remains in recovered_runtime.cpp.",
+    "native_only_defaults": {
+      "scope": "Fields exposed by native GetPropertyInfo but absent from the registered persistence field map.",
+      "float1": "ConfigOptions::Defaults VA0x1801058f6/0x180105900/0x18010590a stores 1.0f to DamageMultiplier/DamageTakenMultiplier/SpeedMultiplier, global RVA0x6a7f10/0x6a7f30/0x6a7f14.",
+      "DisableDamage": "Bool2/GetPropertyInfo RVA0x109233, loader-zero virtual .data tail at RVA0x6a7eff; false."
+    },
+    "numeric_storage": "OptionSpec Float values must be finite and within float32 range, then narrow to float32. Int and Windows Long values retain the reconstruction boundary of exact signed32 integral values; no uint32 wrap or fractional integer coercion. Wrong types preserve the existing override. String nil/missing stores empty string as recovered. Embedded-NUL/oversize option names reject before lookup."
   },
   "rng": {
     "algorithm": "PCG32 XSH-RR; integer output rotate-right32(uint32((old>>45)^(old>>27)),old>>59)",
@@ -73,15 +55,33 @@
     },
     "limits": [
       "Reconstructed stream0 is reserved with native static initializer; exact engine boot reseed time has not been recovered. Script stream1 is exact after explicit Random.lua seeding.",
-      "randomgaussian observed uses separate Gaussian array and polar Box-Muller; native Seed only writes Rngs array. Not registered in reconstructed bindings yet.",
-      "Lua argument coercion is stricter for malformed inputs than native wrapper; valid original-script integer arguments are supported."
+      "Lua argument coercion is stricter for malformed inputs than native wrapper; valid original-script integer arguments are supported.",
+      "Gaussian source arithmetic and cache lifetime are recovered; Windows CRT log/sqrt versus Android/host libm last-bit equivalence remains unproven."
     ],
     "implemented": "native/app/recovered_runtime.cpp",
     "host_debug_smoke": {
       "reproducer": "native/analysis/smoke_recovered_runtime.py",
       "log": ".local/reports/native-runtime-smoke.log",
       "result": "Pass actual Random.lua import, explicit seed123 stream1 outputs353602019/2^32 and2452673855/2^32, inclusive integer result10 in1..10, boolean type preservation and unknown config failure. Harness isolates DebugScripts import only; production importer is unchanged."
-    }
+    },
+    "gaussian": {
+      "binding": "ScriptManager::InitLua RVA0x285f45 binds helper RVA0x287be0 as randomgaussian at RVA0x286045. Original Random.lua Rng:RandomGaussian passes its stream id.",
+      "state": "Gaussian array RVA0x1ca3640 is separate from Rngs RVA0x1ca3e40. All64 records initialize state0xea1b84321029ee21, increment0xb47c73972972b7b7, spare0 and spare-present=false at initializer RVA0x20950. The initializer recurrent seed stores independently evaluate to the same state.",
+      "bounds": "id<0 or id>=RandomNumberGenerator::Count returns0. Count is shared with normal Rng registration; Gaussian does not change normal reference counts or SequenceIndex.",
+      "spare": "Each Gaussian record has cached double+0x10 and flag+0x18. When flag true, return cached double and clear flag without drawing. Seed RVA0x201660 changes only Rngs and normal counters; it neither reseeds Gaussian nor clears its spare.",
+      "fresh_pair": "Draw two independent PCG outputs from Gaussian[id], ldexp(value,-32), x=(u+u)-1, y=(v+v)-1. Compute xx=x*x, yy=y*y, radius=yy+xx with separate scalar operations. Repeat when radius>=1 or radius==0. Compute log(radius), multiply by -2.0, divide by radius, sqrt. Cache factor*y, set flag, return factor*x. Source constants at VA0x180610ef8=1.0 and VA0x180611180=-2.0.",
+      "arithmetic": "Same recovered PCG transition/output helper owns both normal and Gaussian arithmetic. Gaussian binary64 scalar multiply/add contraction disabled on the Android/macOS Clang toolchains. Cross-platform last-bit equivalence of Windows CRT log/sqrt with host/Android libm remains unproven.",
+      "evidence": [
+        ".local/reports/boon-completion-2026-11-07/rng-gaussian-native.json",
+        ".local/reports/native-rng-gaussian-initializer.json",
+        ".local/reports/native-rng-seed-annotated.json",
+        ".local/reports/boon-completion-2026-11-07/rng-registration-native.json",
+        ".local/reports/boon-completion-2026-11-07/rng-gaussian-reference.json"
+      ],
+      "verification": "Registered native API smoke uses independently transcribed scalar source vectors (first pair rejects once, consuming4 draws), per-id spare/seed isolation, invalid Count bounds, and unchanged normal engine/script outputs. Vectors validate the source-transcribed algorithm with bounded libm tolerance, not observed original Windows execution."
+    },
+    "math_random_binding": "InitLua RVA0x2860de installs an arity/truthiness dispatcher over native random/randomint defaults (stream0), replacing Lua stdlib math.random. Reconstructed in C++ without copying the original Lua shim: both truthy arguments select integer bounds; one truthy argument selects1..a; otherwise uniform; extra arguments ignored. Globals resolve at call time. Native math.randomseed is not replaced.",
+    "registration_inventory": "The complete native RNG extra-global family in InitLua is random/randomint/randomseed/randomgaussian; all four are now bound. The separate native math.random dispatcher also routes to these globals."
   },
   "language": {
     "GetLanguage_action": 281,

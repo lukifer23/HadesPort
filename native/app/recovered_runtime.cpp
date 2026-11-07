@@ -1,4 +1,5 @@
 #include "recovered_runtime.hpp"
+#include "config_file.hpp"
 #include <bit>
 #include <cmath>
 #include <limits>
@@ -20,8 +21,13 @@ constexpr uint64_t increment = UINT64_C(0xb47c73972972b7b7);
 constexpr uint64_t seedSubtract = UINT64_C(0x03d657cc62bc341e);
 constexpr uint64_t initialState = UINT64_C(0xea1b84321029ee21);
 struct Generator { uint64_t state = initialState; uint32_t references = 0, sequence = 0; };
+struct GaussianStream {uint64_t state=initialState;double spare=0;bool hasSpare=false;};
 struct Runtime {
     Generator generators[64];
+    // Gaussian initializer RVA0x20950, array RVA0x1ca3640: each of the 64
+    // 32-byte native records starts with this same PCG state/increment and
+    // zero spare/flag. Seed RVA0x201660 writes Rngs, never this separate array.
+    GaussianStream gaussian[64];
     int count = 1;
     int32_t lastLuaSeed = 0;
     char language[3] = {};
@@ -40,9 +46,9 @@ int32_t int32Argument(lua_State* state, int index, int32_t fallback = 0) {
     return std::bit_cast<int32_t>(value);
 }
 // Random::RandomDouble RVA0x54f80 and pcg32_boundedrand_r RVA0x327dd0.
-uint32_t next(Generator& generator) {
-    const uint64_t old = generator.state;
-    generator.state = old * multiplier + increment;
+uint32_t next(uint64_t& state) {
+    const uint64_t old = state;
+    state = old * multiplier + increment;
     const uint32_t xorshifted = static_cast<uint32_t>((old >> 45) ^ (old >> 27));
     const uint32_t rotation = static_cast<uint32_t>(old >> 59);
     return (xorshifted >> rotation) | (xorshifted << ((-rotation) & 31));
@@ -73,7 +79,7 @@ int randomNumber(lua_State* state) {
     // Native lambda RVA0x287b10 checks count, returns 0 for invalid IDs.
     if (id < 0 || id >= r.count) { lua_pushnumber(state, 0); return 1; }
     Generator& generator = r.generators[id];
-    const double result = std::ldexp(static_cast<double>(next(generator)), -32);
+    const double result = std::ldexp(static_cast<double>(next(generator.state)), -32);
     ++generator.sequence;
     lua_pushnumber(state, result);
     return 1;
@@ -91,74 +97,95 @@ int randomInteger(lua_State* state) {
     uint32_t offset = 0;
     if (bound != 0) {
         const uint32_t threshold = (uint32_t(0) - bound) % bound;
-        do { offset = next(generator); } while (offset < threshold);
+        do { offset = next(generator.state); } while (offset < threshold);
         offset %= bound;
     }
     ++generator.sequence;
     lua_pushinteger(state, std::bit_cast<int32_t>(offset + static_cast<uint32_t>(low)));
     return 1;
 }
-int getConfigDefault(lua_State* state) {
+int randomGaussian(lua_State* state){
+#if defined(__clang__)
+    // The recovered x64 helper uses separate scalar mul/add instructions;
+    // Android ARM64 must not contract radius/factor operations into an FMA.
+#pragma clang fp contract(off)
+#endif
+    Runtime& r=*runtime(state);
+    const int id=int32Argument(state,1);
+    // Native ScriptManager lambda RVA0x287be0: Count gate is shared, but
+    // Gaussian[id] has independent PCG state, spare(+0x10) and flag(+0x18).
+    // No normal-Rng sequence index changes on either branch.
+    if(id<0||id>=r.count){lua_pushnumber(state,0);return 1;}
+    auto& stream=r.gaussian[id];
+    if(stream.hasSpare){stream.hasSpare=false;lua_pushnumber(state,stream.spare);return 1;}
+    double x,y,radius;
+    do{
+        const double u=std::ldexp(static_cast<double>(next(stream.state)),-32);
+        x=(u+u)-1.;
+        const double v=std::ldexp(static_cast<double>(next(stream.state)),-32);
+        y=(v+v)-1.;
+        const double xx=x*x;
+        const double yy=y*y;
+        radius=yy+xx; // Native RVA0x287d18..2b: y squared, then add x squared.
+    }while(radius>=1.||radius==0.);
+    // RVA0x287d46..92 calls native log/sqrt in this exact order, returns
+    // factor*x and caches factor*y. Last-bit Windows CRT/libm parity is not
+    // established by using the platform implementations of these functions.
+    const double logged=std::log(radius);
+    const double scaled=logged*-2.;
+    const double divided=scaled/radius;
+    const double factor=std::sqrt(divided);
+    stream.spare=factor*y;stream.hasSpare=true;
+    lua_pushnumber(state,factor*x);return 1;
+}
+int mathRandom(lua_State* state){
+    // InitLua RVA0x2860de installs an arity/truthiness dispatcher over native
+    // random/randomint, defaulting to engine stream0. Reconstruct its behavior
+    // here instead of retaining Lua's unrelated libc PRNG or copying the shim.
+    int arguments=0;const char* operation="random";
+    if(lua_toboolean(state,1)&&lua_toboolean(state,2)){lua_settop(state,2);arguments=2;operation="randomint";}
+    else if(lua_toboolean(state,1)){lua_settop(state,1);lua_pushinteger(state,1);lua_insert(state,1);arguments=2;operation="randomint";}
+    else lua_settop(state,0);
+    // The native-installed Lua function resolves the globals at call time.
+    lua_getglobal(state,operation);lua_insert(state,1);lua_call(state,arguments,LUA_MULTRET);
+    return lua_gettop(state);
+}
+const hades::config::OptionSpec* configSpec(lua_State* state) {
     luaL_checktype(state, 1, LUA_TTABLE);
     lua_getfield(state, 1, "Name");
-    const char* name = luaL_checkstring(state, -1);
-    // Exact type/value stores in native dynamic initializers, not guessed fallbacks.
-    // RVA0x10580 proves DebugRNGSeed is int0. The remaining six are bools;
-    // their full initializer disassembly is native-config-<Name>-annotated.json.
-    if (strcasecmp(name, "DebugRNGSeed") == 0 || strcasecmp(name, "FreeFormSelecSearchFromId") == 0) {
-        // FreeFormSelecSearchFromId RVA0x12e70 also initializes an int to zero.
-        lua_pushinteger(state, 0); return 1;
-    }
-    if (strcasecmp(name, "KioskModeNumLives") == 0) { // RVA0xd9e0
-        lua_pushinteger(state, 2); return 1;
-    }
-    if (strcasecmp(name, "ExclusiveInteractGroup") == 0) { // RVA0xa880, empty string default
-        lua_pushliteral(state, ""); return 1;
-    }
-    if(strcasecmp(name,"FullscreenEffectGroup")==0){ // Exact initializer18000cf40 passes "Vignette" to registerField<string>.
-        lua_pushliteral(state,"Vignette");return 1;
-    }
-    if(strcasecmp(name,"SpeedMultiplier")==0||strcasecmp(name,"DamageMultiplier")==0||strcasecmp(name,"DamageTakenMultiplier")==0){
-        // ConfigOptions.Defaults105830, VA18010590a ->globalRVA6a7f14.
-        // DamageMultiplier VA1801058f6->6a7f10 and DamageTakenMultiplier
-        // VA180105900->6a7f30 both explicitly write float1. GetPropertyInfo
-        // exposes both as Float4 (107b09/109768); retained combat-config report.
-        lua_pushnumber(state,1.0);return 1;
-    }
-    struct Option { const char* name; bool value; };
-    constexpr Option options[] = {
-        {"DisableDamage", false}, // Bool2/GetPropertyInfo109233; loader-zero virtual .data tail atRVA6a7eff.
-        {"AllowPlaySpeech", true}, // Exact original source Defaults18000b9a0; mutable VM setting thereafter.
-        {"Subtitles", true}, // Exact original source initializer18000cca5; mutable VM setting thereafter.
-        {"ZeroMouseTether", false}, // Initializer18000ebef writes byte0 to181a0ed5b.
-        {"ShowDamageNumbers", true}, // RVA0xc730
-        {"ShowUIAnimations", true}, // RVA0xc6b0
-        {"LogCombatMultipliers", false}, // RVA0x9650
-        {"ShowSpeechBubble", true}, // RVA0xd1c0
-        {"EasyMode", false}, // RVA0xd860
-        {"HardMode", false}, // RVA0xd8e0
-        {"AllowStripRequirements", false}, // RVA0x10930
-        {"DrawColorGrading", true}, // Source initializer18000f670 writes true at181a0f298.
-        {"DrawBloom", true}, // RVA0xf4e0
-        {"DumpRunStatsOnLoad", false}, // RVA0x9b50
-        {"EditingMode", false}, // RVA0xbb30
-        {"EnableConsoleMenus", false}, // RVA0x12af0
-        {"FastForward", false}, // RVA0x9bd0
-        {"ForceFlipMapThings", false}, // RVA0x113b0
-        {"KioskMode", false}, // RVA0xd960
-        {"ResetRoomData", false}, // RVA0x11430
-        {"UseMouse", false}, // RVA0xa0e0
-        {"GamepadCursorControl", false}, // RVA0xa560
-        {"FreeFormSelectWrapY", false}, // InitializerRVA0xa6e0 writes byte0 at0xa74f ->globalRVA0x1a0f0ea; GetPropertyInfo0x108b81..0x108b9f returns same bool.
-        {"FlipMapThings", false}, // RVA0x11330
-        {"UseOcclusion", true}, // initializer RVA0xba30: movb $1 at 0x18000baa0 -> 0x181a0ed01
-        {"CameraShake", true}, // initializer RVA0xd040 movb $1 -> 0x181a0f2d9 (.local/reports/config-defaults)
-        {"DrawHealthFX", true}, // initializer RVA0xea80 movb $1 at 0x18000eaf0 -> 0x181a0f035 (GameplayScreen::Draw 0x1801b0da2 vignette gate)
+    size_t length=0;
+    const char* name=luaL_checklstring(state,-1,&length);
+    if(length>=256||std::memchr(name,0,length))luaL_error(state,"Invalid config option name");
+    // The registered field map is the sole owner of the 346 registered defaults
+    // and type tags (registerField / ConfigOptions dynamic initializers; see
+    // config-file-contract.json). Script GetPropertyInfo is case-insensitive.
+    if(const auto* spec=hades::config::findOption(std::string_view(name,length)))return spec;
+    // These four native GetPropertyInfo fields are absent from the registered
+    // persistence map. ConfigOptions::Defaults VA1801058f6/5900/590a explicitly
+    // writes float1 to DamageMultiplier/DamageTakenMultiplier/SpeedMultiplier
+    // (global RVAs6a7f10/6a7f30/6a7f14). DisableDamage is Bool2 at GetPropertyInfo
+    // RVA109233, loader-zero globalRVA6a7eff. Never duplicate registered fields.
+    using hades::config::FieldType;
+    static constexpr hades::config::OptionSpec nativeOnly[]={
+        {"SpeedMultiplier",FieldType::Float,0,false,0,1.f,"",0},
+        {"DamageMultiplier",FieldType::Float,0,false,0,1.f,"",0},
+        {"DamageTakenMultiplier",FieldType::Float,0,false,0,1.f,"",0},
+        {"DisableDamage",FieldType::Bool,0,false,0,0.f,"",0},
     };
-    for (const auto& option : options) {
-        if (strcasecmp(name, option.name) == 0) { lua_pushboolean(state, option.value); return 1; }
+    for(const auto& spec:nativeOnly)if(strcasecmp(name,spec.name)==0)return &spec;
+    luaL_error(state,"Native config option not recovered yet: %s",name);return nullptr;
+}
+int getConfigDefault(lua_State* state) {
+    const auto* spec=configSpec(state);
+    using hades::config::FieldType;
+    switch(spec->type){
+    case FieldType::Bool:lua_pushboolean(state,spec->defaultBool);return 1;
+    case FieldType::Int:case FieldType::Long:lua_pushinteger(state,spec->defaultInt);return 1;
+    case FieldType::Float:lua_pushnumber(state,spec->defaultFloat);return 1;
+    case FieldType::String:lua_pushstring(state,spec->defaultString);return 1;
+    case FieldType::Other:return luaL_error(state,"Native config enum/non-scalar option not recovered yet: %s",spec->name);
     }
-    return luaL_error(state, "Native config option not recovered yet: %s", name);
+    return luaL_error(state,"Native config property type not recovered yet: %s",spec->name);
 }
 constexpr const char* configOverridesKey = "hades.recoveredConfigOverrides";
 void configKey(lua_State* state, char (&key)[256]) {
@@ -192,8 +219,8 @@ int setConfig(lua_State* state) {
     if (lua_type(state, -1) != expectedType) return luaL_error(state, "Config Value has wrong type for recovered option");
     if (expectedType == LUA_TNUMBER) {
         const lua_Number value = lua_tonumber(state, -1);
-        char option[256];configKey(state,option);
-        const bool nativeFloat=std::strcmp(option,"speedmultiplier")==0||std::strcmp(option,"damagemultiplier")==0||std::strcmp(option,"damagetakenmultiplier")==0;
+        const auto* spec=configSpec(state);lua_pop(state,1);
+        const bool nativeFloat=spec->type==hades::config::FieldType::Float;
         if(!std::isfinite(value))return luaL_error(state,"Recovered config requires finite Value");
         if(nativeFloat){if(std::abs(value)>std::numeric_limits<float>::max())return luaL_error(state,"Recovered float config outside float32 range");lua_pop(state,1);lua_pushnumber(state,float(value));}
         else if(value<INT32_MIN||value>INT32_MAX||std::trunc(value)!=value)return luaL_error(state,"Recovered integer config requires a signed32-bit integer Value");
@@ -238,8 +265,10 @@ void registerRecoveredRuntime(lua_State* state) {
     bind(state, userdata, "randomseed", randomSeed);
     bind(state, userdata, "random", randomNumber);
     bind(state, userdata, "randomint", randomInteger);
-    // randomgaussian remains the fail-fast generic binding: its separate native
-    // Gaussian stream lifetime/seeding is not reconstructed by these routines.
+    bind(state, userdata, "randomgaussian", randomGaussian);
+    lua_getglobal(state,"math");
+    lua_pushcfunction(state,mathRandom);lua_setfield(state,-2,"random");
+    lua_pop(state,1);
     lua_settop(state, oldTop);
 }
 
@@ -255,13 +284,13 @@ bool configureRecoveredLanguage(lua_State* state, const char* languageCode) {
 bool nextRecoveredEngineRandom(lua_State* L,double& value) {
     lua_getfield(L,LUA_REGISTRYINDEX,runtimeRegistryKey);
     auto* r=static_cast<Runtime*>(lua_touserdata(L,-1));lua_pop(L,1);if(!r)return false;
-    auto& g=r->generators[0];value=std::ldexp(static_cast<double>(next(g)),-32);++g.sequence;return true;
+    auto& g=r->generators[0];value=std::ldexp(static_cast<double>(next(g.state)),-32);++g.sequence;return true;
 }
 bool nextRecoveredEngineBoundedRandom(lua_State* L,uint32_t bound,uint32_t& value) {
     if(!bound)return false;
     lua_getfield(L,LUA_REGISTRYINDEX,runtimeRegistryKey);
     auto* r=static_cast<Runtime*>(lua_touserdata(L,-1));lua_pop(L,1);if(!r)return false;
     auto& g=r->generators[0];const uint32_t threshold=(uint32_t(0)-bound)%bound;
-    uint32_t sample=0;do{sample=next(g);}while(sample<threshold);
+    uint32_t sample=0;do{sample=next(g.state);}while(sample<threshold);
     value=sample%bound;++g.sequence;return true;
 }

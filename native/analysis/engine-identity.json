@@ -331,7 +331,7 @@
       },
       "limits": [
         "Reconstructed stream0 is reserved with native static initializer; exact engine boot reseed time has not been recovered. Script stream1 is exact after explicit Random.lua seeding.",
-        "randomgaussian observed uses separate Gaussian array and polar Box-Muller; native Seed only writes Rngs array. Not registered in reconstructed bindings yet.",
+        "randomgaussian separate Gaussian array, source scalar math and cached spare lifecycle are implemented; see recovered-runtime-contract.json for current provenance and cross-platform libm limits.",
         "Lua argument coercion is stricter for malformed inputs than native wrapper; valid original-script integer arguments are supported."
       ],
       "implemented": "native/app/recovered_runtime.cpp",
