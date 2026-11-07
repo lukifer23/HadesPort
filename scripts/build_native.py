@@ -358,7 +358,7 @@ def main():
     parser.add_argument('--actor-markers',type=Path,default=PROJECT / '.local/native-assets/actor-markers-v9/actor-markers.bin')
     parser.add_argument('--actor-properties',type=Path,default=PROJECT / '.local/native-assets/actor-properties-v14/actor-properties.bin')
     parser.add_argument('--actor-lights',type=Path,default=PROJECT / '.local/native-assets/actor-lights-opening-v1/manifest.json')
-    parser.add_argument('--text-resources',type=Path,default=PROJECT / '.local/native-assets/original-text-v12/manifest.json')
+    parser.add_argument('--text-resources',type=Path,default=PROJECT / '.local/native-assets/original-text-v13/manifest.json')
     parser.add_argument('--action-effects',type=Path,default=PROJECT / '.local/native-assets/action-effects-v27/manifest.json')
     parser.add_argument('--screen-animations',type=Path,default=PROJECT / '.local/native-assets/screen-dialogue-v17/manifest.json')
     parser.add_argument('--particle-frames',type=Path,default=PROJECT / '.local/native-assets/cinder-frames-v1/cinder-frames.bin')

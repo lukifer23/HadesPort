@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.13
 """Export preserved English XNB glyphs and original localized text records."""
-import argparse,json,struct,csv,re
+import argparse,hashlib,json,os,shutil,struct,csv,re,tempfile
 from pathlib import Path
 from export_native_ui import read_font
 from build_room_scene import Sjson,identity
@@ -164,5 +164,77 @@ def export(content,out):
  lua=out/'text-fonts.lua';lua.write_text('return '+literal(catalog)+'\n')
  report={'schema':'hades-original-text-v1','target_sha256':'d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254','catalog':identity(lua),'files':[identity(p)for p in sorted((out/'text-fonts').iterdir())],'sources':sources,'fonts':details,'font_class':{'policy':'Script-literal *Font names plus one exact native emphasis-map target per authored name, with original remap entries and English XNBs; no recursive remapping','references':{n:v[:8] for n,v in sorted(font_refs.items())},'emphasis_contract':emphasis_identity,'emphasis_edges':font_edges,'rejections':font_rejections},'ambiguous_localization_keys_excluded':excluded['DisplayName'],'ambiguous_text_fields_excluded':excluded,'unsupported_text_fields_excluded':unknown,'localization_count':len(localization),'description_count':len(descriptions),'text_data_id_count':len(text_data_ids),'text_data_id_records':text_data_ids,'localization_records':{k:records[k]for k in localization},'description_records':{k:{'records':records[k],'fields':{name:field_sources[k,name]for name in('Description','AdditionalDescription')}}for k in descriptions},'symbols':symbol_details,'symbol_class':{'source':str(icon_path.resolve()),'record_count':len(icons),'literal_textures':len(texture_icons),'policy':'All original IconData literal TexturePath records, independent of selected room or icon key'},'symbol_rejections':symbol_rejections,'subtitle_style':style,'limits':['Original glyphs/metrics and English DisplayName/Description/AdditionalDescription strings preserved; macros and rich text substitutions require actual format consumers.','Script-referenced original fonts admitted (font_class); no system font substitution.','Text fields inherit independently, parent-then-own including explicit empty strings; ambiguous fields are excluded independently; only English.','TextDataIds preserves complete English source record membership independently of field admission, including MacroText, numeric DisplayName and ambiguous records.','Absent TextData string fields retain the native empty default; unsupported numeric fields remain explicit unknowns rather than fabricated strings.','Symbol textures derive from the complete original IconData literal texture class; absent GUI-package resources and unsupported transform flags are reported and remain unavailable.','Speech text and lifetime come from original audio SpeechPresentation events; no copied subtitle timing.']}
  (out/'manifest.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps({'fonts':len(fonts),'localized_keys':len(localization),'font_bytes':sum(x['bytes']for x in report['files']),'catalog_bytes':report['catalog']['bytes']}))
+def extend_native_menu_tooltips(content,out,base_manifest):
+ """Preserve an admitted text pack and append actual native GUI resources."""
+ from stage_text_resources import validate_text_resources,read_native_menu_tooltip_templates,TARGET
+ from hades_assets import Package,xnb_image
+ content=Path(content).resolve();out=Path(out)
+ if out.exists()or out.is_symlink():raise ValueError('Fresh output required')
+ out=out.resolve()
+ if out.is_relative_to(content.parent)or out.is_relative_to((Path(__file__).resolve().parents[2]/'.local/game').resolve()):raise ValueError('Text output cannot overwrite original game files')
+ base_manifest=Path(base_manifest).resolve();base,catalog=validate_text_resources(base_manifest)
+ if 'NativeMenuTooltips'in catalog:raise ValueError('Native tooltip resources already exported in base pack')
+ engine=identity(content.parent/'x64/EngineWin64s.dll')
+ if engine['sha256']!=TARGET:raise ValueError('Native tooltip export requires matching original engine')
+ menu=content/'Game/GUI/MenuScreen.sjson';ingame=content/'Game/GUI/InGameUI.sjson'
+ templates=read_native_menu_tooltip_templates(menu,ingame)
+ for name in ('Header','Body'):
+  if templates[name].get('Font')not in catalog['Fonts']:raise ValueError('Actual native tooltip font not present in base pack')
+ graphic=templates['Backing'].get('Graphic')
+ if not isinstance(graphic,str)or not graphic or graphic in catalog['Symbols']:raise ValueError('Native tooltip backing graphic missing/already present')
+ manifest=content/'Win/Packages/GUI.pkg_manifest';package=manifest.with_suffix('.pkg')
+ matches=[(entry['name'],sprite)for entry in Package(manifest).entries()for sprite in entry.get('sprites',[])if sprite['name']==graphic]
+ if len(matches)!=1:raise ValueError('Original native tooltip atlas binding unavailable/ambiguous')
+ atlas,sprite=matches[0];x,y,w,h=sprite['rect']
+ if sprite['flags']&3 or min(x,y)<0 or min(w,h)<=0:raise ValueError('Unsupported original native tooltip atlas geometry')
+ contract=Path(__file__).resolve().parents[1]/'analysis/screen-tooltip-contract.json'
+ proof={'menu_source':identity(menu),'ingame_source':identity(ingame),'contract':identity(contract),'graphic':graphic,'atlas':atlas,'sprite':sprite}
+ sources={row['path']:row for row in base['sources']}
+ for row in [engine,identity(base_manifest),proof['menu_source'],proof['ingame_source'],proof['contract'],identity(manifest),identity(package)]:
+  if row['path']in sources and row!=sources[row['path']]:raise ValueError('Original native tooltip source differs from base pack')
+  sources[row['path']]=row
+ # Validate original source identity before decoding, then repeat immediately
+ # before atomic publication. Never update old exports or a shared inode.
+ out.parent.mkdir(parents=True,exist_ok=True)
+ with tempfile.TemporaryDirectory(prefix=out.name+'-stage-',dir=out.parent)as temporary:
+  work=Path(temporary)/out.name;work.mkdir();(work/'text-fonts').mkdir()
+  for row in base['files']:
+   source=Path(row['path']);target=work/source.resolve().relative_to(base_manifest.parent)
+   target.parent.mkdir(parents=True,exist_ok=True)
+   if source.stat().st_mode&0o222:shutil.copyfile(source,target);target.chmod(0o444)
+   else:os.link(source,target)
+  found=0
+  for entry in Package(package).entries():
+   if entry.get('name')!=atlas:continue
+   found+=1
+   if found!=1 or entry.get('type')!='texture':raise ValueError('Original native tooltip texture carrier ambiguous')
+   image,info=xnb_image(entry['data'])
+   if x+w>image.width or y+h>image.height:raise ValueError('Original native tooltip sprite outside atlas')
+   raw=image.crop((x,y,x+w,y+h)).tobytes();stem=graphic.replace('\\','_')
+   relative=f'text-fonts/{stem}.rgba';payload=work/relative
+   if payload.exists():raise ValueError('Native tooltip payload filename collision')
+   payload.write_bytes(b'UIR1'+struct.pack('<II',w,h)+raw);payload.chmod(0o444)
+   proof['xnb_sha256']=hashlib.sha256(entry['data']).hexdigest()
+  if found!=1:raise ValueError('Original native tooltip atlas XNB unavailable')
+  symbol={'Image':relative,'Width':w,'Height':h,'OriginalWidth':sprite['original'][0],'OriginalHeight':sprite['original'][1],'TrimX':sprite['trim'][0],'TrimY':sprite['trim'][1],'ScaleRatioX':sprite['scale_ratio'][0],'ScaleRatioY':sprite['scale_ratio'][1]}
+  catalog['Symbols'][graphic]=symbol;catalog['NativeMenuTooltips']=templates
+  lua=work/'text-fonts.lua';lua.write_text('return '+literal(catalog)+'\n')
+  report=dict(base);report['catalog']=identity(lua);report['files']=[identity(p)for p in sorted((work/'text-fonts').iterdir())]
+  report['sources']=list(sources.values());report['native_menu_tooltips']=proof
+  report['extended_from']={'manifest':identity(base_manifest),'catalog':base['catalog'],'preserved_payloads':len(base['files']),'added_payloads':1}
+  report['symbols']=dict(base['symbols']);report['symbols'][graphic]={'atlas':atlas,'sprite':sprite,'xnb':info,'xnb_sha256':proof['xnb_sha256'],'package':str(package),'class_source':str(menu),'class_template':'TooltipBacking','references':{}}
+  report['limits']=[*base['limits'],'Native InGameUI tooltip templates preserve all authored MenuScreen fields plus source overrides. GUI lifetime, eligibility and queue/fade behavior require the native runtime consumer.']
+  report_path=work/'manifest.json';report_path.write_text(json.dumps(report,indent=2)+'\n')
+  validate_text_resources(report_path)
+  # Manifest paths describe the published immutable pack, not scratch paths.
+  for row in [report['catalog'],*report['files']]:row['path']=str(out/Path(row['path']).relative_to(work))
+  report_path.write_text(json.dumps(report,indent=2)+'\n');lua.chmod(0o444);report_path.chmod(0o444)
+  if out.exists()or out.is_symlink():raise ValueError('Fresh output required')
+  work.rename(out)
+ print(json.dumps({'fonts':len(catalog['Fonts']),'symbols':len(catalog['Symbols']),'preserved_payloads':len(base['files']),'added_payloads':1,'native_menu_tooltip_slots':templates['SlotCount']}))
+ return report
+
 if __name__=='__main__':
- p=argparse.ArgumentParser(description=__doc__);p.add_argument('--content',type=Path,required=True);p.add_argument('--output',type=Path,required=True);a=p.parse_args();export(a.content,a.output)
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('--content',type=Path,required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--base-manifest',type=Path,help='Preserve this text pack and append source-derived native MenuScreen tooltip resources');a=p.parse_args()
+ if a.base_manifest:extend_native_menu_tooltips(a.content,a.output,a.base_manifest)
+ else:export(a.content,a.output)

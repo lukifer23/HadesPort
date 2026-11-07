@@ -250,6 +250,10 @@ class _DataReader:
                 return p.value == 'true', j
             if p.kind == 'kw' and p.value == 'nil':
                 return None, j
+        # Lua's unary minus is a separate token. Preserve negative literal
+        # fields as numbers while leaving compound expressions unevaluated.
+        if len(parts) == 2 and parts[0].kind == 'op' and parts[0].value == '-' and parts[1].kind == 'num':
+            return -parts[1].value, j
         if parts and parts[0].kind == 'kw' and parts[0].value == 'function':
             # Skip a function body: balance block keywords.
             depth, k = 0, i
