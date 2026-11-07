@@ -1,0 +1,93 @@
+{
+  "schema": "hades-screen-animation-helpers-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "scope": "Recovered Animation/Constant helpers used by screen-rendered world Things; static matching DLL/PDB evidence, no original runtime or device observation.",
+  "duration_initialization": {
+    "admission": "Animation.InitData RVA0x291d18..0x291d4a tests positive Duration, DurationFrames, RandomDurationMin or RandomDurationMax before adding duration components.",
+    "selection": "RVA0x291dc6..0x291df8 calls GetValue(max(float(DurationFrames)/60,Duration),RandomDurationMin,RandomDurationMax).",
+    "uniform_rng": "GetValue RVA0x291290 returns the base value only when both random bounds compare equal to zero. Otherwise Random.RandomDouble RVA0x54f80 uses the native TLS stream, converts double to float, multiplies by float(max-min), then separately adds min. Equal nonzero bounds still consume one draw.",
+    "initial_state": "Duration receives the selected value; TimeRemaining receives the same value when RandomStartFraction is false and StartFraction is zero. AnimFraction is initialized to zero at RVA0x291f20..0x291f36.",
+    "other_start_branches": "RandomStartFraction at data+0xa9 samples another uniform value in [0,selectedDuration); nonzero StartFraction at data+0x208 replaces initial remaining time with selectedDuration*(1-StartFraction), with an optional coin flip for the random-start branch. These are separate behaviors, not implied by RandomDuration.",
+    "order": "Own duration and helper initialization precedes ChildAnimation at RVA0x2932db, then singleton CreateAnimation and ordered CreateAnimations. Child initialization completes before parent initialization continues. Validation must not consume RNG."
+  },
+  "fraction_and_constant_update": {
+    "time": "TimeRemainingSystem subtracts actual component elapsed multiplied by PlaySpeedMultiplier. AnimationFractionFromDurationSystem RVA0x152ce0 computes clamp(1-TimeRemaining/Duration,0,1).",
+    "cached_helper_fraction": "ConstantAnimation.UpdateInternal RVA0x2b1c11..0x2b1c1b copies cached Animation+0x6c fraction into every active Body transition helper+0x54 before testing whether TimeRemaining is negative.",
+    "child_order": "Constant.UpdateInternal RVA0x2b1bb9 and Book.UpdateInternal RVA0x2af539 first call Animation.UpdateChild RVA0x295900. UpdateChild directly invokes child.UpdateInternal at RVA0x295918. Child loop RNG therefore precedes parent loop RNG; independently manager-created roots are separate from this child recursion.",
+    "completion": "ConstantAnimation.UpdateInternal RVA0x2b1c52 skips time completion for HoldLastFrame. Otherwise strict TimeRemaining<0 and Loop or LoopFramesOnly calls Loop(false) at RVA0x2b1c80..0x2b1c88; exactly zero does not loop or finish.",
+    "loop_draw_fraction": "A loop does not synchronously recompute the helper fraction copied earlier in UpdateInternal. The loop frame retains that cached fraction; the subsequent component update supplies the next fraction. Do not set the presentation fraction to zero merely when resetting remaining time."
+  },
+  "loop_randomization": {
+    "default": "AnimationData constructor VA0x18009425b writes byte1 to data+0x72, ReRandomizeOnLoop. Omission means true.",
+    "reset": "Animation.Loop RVA0x296351..0x2963de queues ResetTimeRemaining when !LoopFramesOnly or force. ResetTimeRemaining RVA0x2962a0 reads the current Duration component and writes TimeRemaining.",
+    "rerandom_gate": "RVA0x2963ea..0x2963ee skips all rerandomization only when ReRandomizeOnLoop is false.",
+    "duration_gate": "RVA0x296414..0x296427 rerandomizes duration only when RandomDurationMin>0 and (!LoopFramesOnly or force). This differs from initialization's either-bound-nonzero predicate.",
+    "duration_draw": "RVA0x296429..0x296431 calls Deterministic.RandomFloat RVA0x66850 with the duration bounds. That 80-byte helper uses the same TLS Random.RandomDouble RVA0x54f80, converts to float and separately multiplies/adds. It does not skip equal bounds.",
+    "writes": "RVA0x296436..0x296476 queues Duration and TimeRemaining to the same newly sampled float using EntityCommandBuffer.SetValue. The native reset command is queued before those two writes.",
+    "book_frame_order": "BookAnimation.Loop RVA0x2b1480 first calls SetFrame with StartFrame, or EndFrame when backwards, at RVA0x2b14ab; it then tail-calls Animation.Loop at RVA0x2b14c1. Base-loop RandomStartFrame therefore replaces that normal start/end frame rather than being overwritten afterward.",
+    "post_update": "Constant.PostUpdate RVA0x2b1cb0 and Book.PostUpdate RVA0x2b0870 first post-update their child and call OnChildFinished when needed. Only afterward do Updated and Looped flags trigger OnLoop (Constant RVA0x2b1cee, Book RVA0x2b08ff). OnLoop RVA0x296670 stops the current cue with a positive StopSoundOnFinishFade, then replays when ReplaySoundOnLoop and a sound are present. Base Animation.Loop does not itself execute OnLoop audio.",
+    "manager_passes": "AnimationManager.Update first traverses selected manager roots with UpdateInternal (RVA0x29d3be), then later traverses them with PostUpdate (RVA0x29d46b). Deferring OnLoop sound until the post-update pass preserves this manager-level separation; Thing-owned primary update scheduling is a separate phase.",
+    "later_operations_in_order": [
+      "RVA0x296482..0x2964f2: if any fixed/random PlaySpeed operand is nonzero, GetValue then queue DataPlaySpeed{speed,0}. A fixed nonzero speed with zero random bounds consumes no RNG.",
+      "RVA0x2964fe..0x29652a: GetValue(Scale,ScaleMin,ScaleMax), assign the animation's live scalar scale, mark Body dirty. Zero random bounds consume no RNG, but the fixed scale assignment still occurs.",
+      "RVA0x296542..0x2965e6: positive RandomOffsetX and RandomOffsetY independently draw uniform offsets from their symmetric ranges.",
+      "RVA0x2965f8..0x296639: RandomStartFrame draws pcg32_bounded(end-start) and sets the fractional frame; equal bounds skip the bounded draw."
+    ],
+    "policy": "A supported random-duration loop must retain shared-stream draw order and the current cached presentation fraction. Unsupported non-duration rerandomization branches must remain explicit."
+  },
+  "transition_helpers": {
+    "scale": "InitData RVA0x29217d..0x2922fd creates scalar/X/Y Body helpers only when corresponding StartScale and EndScale differ. Constructor defaults are 1. Helpers use PingPongScale and EaseIn/EaseOut.",
+    "angle_read": "AnimationData.Read RVA0x90212/0x9026d converts StartAngle/EndAngle from authored degrees using double multiplication by pi/180 then float storage.",
+    "angle_init": "InitData RVA0x2928ab..0x292941 creates the angle helper only when endpoints differ, preserving the start and wrapping the end with end-floor(end/tau)*tau. It passes PhaseOffsetAngle, PingPongAngle, SmoothStep and easing into BodyComponent.Adjust.",
+    "initial_fraction": "BodyComponent.Adjust RVA0x2b74ad..0x2b74b0 initializes helper fraction to zero. RVA0x2b74b3..0x2b74f2 wraps phase once against [0,360] and multiplies by float(1/360).",
+    "evaluation": "BodyComponentTransitionHelper.CalcCurrentValue RVA0x2b5420 uses the end directly for zero helper duration. Otherwise non-ping-pong interpolates start to end at fraction and ignores phase. Ping-pong adds normalized phase to fraction, wraps once against [0,1], then interpolates start-to-end at 2*f below 0.5, else end-to-start at 2*(f-0.5).",
+    "ownership": "Helpers belong to each animation Body, with its own duration/fraction. ChildAnimation lifetime ownership does not compose parent animation transforms: attached child and parent consult the same actual Thing Body independently."
+  },
+  "draw_policy": {
+    "angle": "Animation.GetDrawAngle RVA0x2980a0 returns zero for NumAngles>1. Otherwise radians = Rotation component minus own mAngle and own angle helper when UseOwnAngle, minus actual attached Thing Body angle and its helper when AngleFromOwner is Maintain. Constant.PrepDraw calls this same function at RVA0x2b20a4; Book uses the same radians contract.",
+    "scalar_scale": "Animation.GetScale RVA0x298bb0 multiplies own live scalar scale by its helper. Attached Thing scalar scale and its live helper multiply only when ScaleFromOwner is Maintain (enum0). Ignore (enum2) suppresses that scalar inheritance; Take is a distinct initialization operation.",
+    "per_axis_scale": "Animation.GetDrawScaleVector RVA0x298500..0x2985ea multiplies each own live axis by its helper, then the actual Thing Body axis and helper only when ScaleVectorFromOwner is Maintain (enum0). This policy is independent of ScaleFromOwner; scalar Ignore does not suppress live owner per-axis fractions.",
+    "limits": "Material/Ambient/native lighting parity and unsupported owner-transform branches retain their existing explicit reconstruction limits."
+  },
+  "thing_primary_completion": {
+    "procedure_rva": "0x2df5c0",
+    "chain": "Thing.UpdateAnimation RVA0x2df602..0x2df647 selects a nonempty current animation ChainTo through Thing.SetAnimation.",
+    "fallback": "With no ChainTo, RVA0x2df662..0x2df68b selects the nonempty original ThingData.Graphic from Thing+0xc0, rather than the mutable current animation name.",
+    "book_cancel_side_effect": "Book.UpdateInternal writes mCanceled+0x63=1 for a finite frame-end at RVA0x2af725 and for the IsFinished branch at RVA0x2af752. Preserve this cancellation before routing completion through the normal Thing setter.",
+    "constant_difference": "Constant.UpdateInternal RVA0x2b1c45..0x2b1ca1 clears its active-update flag on finite duration completion but does not write mCanceled+0x63. Do not infer Book cancellation behavior for every animation class.",
+    "same_name_setter": "Thing.SetAnimation(Data) RVA0x2df2a9 compares the animation names, then RVA0x2df2b2 tests the old mCanceled byte. Same-name noncanceled animations invoke Restart at RVA0x2df2be; canceled animations proceed toward new allocation. Fallback must use this policy rather than unconditionally releasing or retaining every old primary.",
+    "clear": "Only absent/empty ChainTo and absent/empty source ThingData.Graphic reach the primary-clear write at RVA0x2df6a0.",
+    "lifetime": "Fallback does not create a new Thing lifetime. Pending Thing disposal remains ordered before further animation updates and must not resurrect a disposed owner."
+  },
+  "evidence": [
+    ".local/reports/anim-setup/Animation_InitData.s",
+    ".local/reports/anim-setup/sgg_GetValue_base_min_max.s",
+    ".local/reports/anim-setup/AnimationFractionFromDurationSystem_Execute.s",
+    ".local/reports/anim-setup/ConstantAnimation_UpdateInternal.s",
+    ".local/reports/anim-setup/Animation_UpdateChild.s",
+    ".local/reports/anim-setup/ConstantAnimation_PostUpdate.s",
+    ".local/reports/anim-setup/BookAnimation_PostUpdate.s",
+    ".local/reports/anim-setup/BookAnimation_Loop.asm.json",
+    ".local/reports/anim-setup/BookAnimation_UpdateInternal.asm.json",
+    ".local/reports/anim-setup/Animation_OnLoop.s",
+    ".local/reports/anim-setup/Animation_Loop.s",
+    ".local/reports/anim-setup/Animation_ResetTimeRemaining.s",
+    ".local/reports/anim-setup/BodyComponentTransitionHelper_CalcCurrentValue.s",
+    ".local/reports/hud-motion-BodyComponent-Adjust.json",
+    ".local/reports/hud-draw-AnimationData-ctor.json",
+    ".local/reports/anim-setup/Animation_GetScale.s",
+    ".local/reports/anim-setup/Animation_GetDrawScaleVector.s",
+    ".local/reports/anim-multiangle/Animation_GetDrawAngle.json",
+    ".local/reports/coverage-thing-updateanimation.json",
+    ".local/reports/hud-ft-Thing-SetAnimation-2df130.json",
+    ".local/reports/takeover-animation-manager-update-static.json"
+  ],
+  "unknowns_and_adaptations": [
+    "The exact native EntityCommandBuffer flush boundary between Loop, Duration/TimeRemaining writes, fraction recomputation and presentation has not been fully reconstructed. Immediate portable state writes must be labeled as an adaptation; the already cached helper fraction must remain unchanged on the loop frame.",
+    "Static formulas and file identities do not prove physical-device rendering, frame-exact native phase equivalence or GUI interaction."
+  ]
+}

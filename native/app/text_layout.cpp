@@ -12,7 +12,23 @@ const TextGlyph& glyph(const TextFont&f,uint32_t cp){auto i=f.glyphs.find(cp);if
 // descriptions exceed 16K codepoints; the 16K displayed-item limit belongs
 // to layout(), after markup expansion, not to stored localization records.
 std::vector<uint32_t> textCodepoints(const std::string&s){if(s.size()>65536)throw std::runtime_error("Text byte bound");std::vector<uint32_t> out;for(size_t p=0;p<s.size();){const auto lead=uint8_t(s[p++]);uint32_t cp=lead;unsigned n=0;uint32_t minimum=0;if(lead>=0xc2&&lead<=0xdf){n=1;cp=lead&31;minimum=0x80;}else if(lead>=0xe0&&lead<=0xef){n=2;cp=lead&15;minimum=0x800;}else if(lead>=0xf0&&lead<=0xf4){n=3;cp=lead&7;minimum=0x10000;}else if(lead>=128||!lead)throw std::runtime_error("Invalid text UTF8");if(n>s.size()-p)throw std::runtime_error("Truncated text UTF8");while(n--){auto b=uint8_t(s[p++]);if((b&0xc0)!=0x80)throw std::runtime_error("Invalid text UTF8 continuation");cp=(cp<<6)|(b&63);}if(cp<minimum||cp>0x10ffff||(cp>=0xd800&&cp<=0xdfff))throw std::runtime_error("Noncanonical text UTF8");out.push_back(cp);}return out;}
-std::array<float,4> textSourceColor(const std::vector<double>&a){if(a.size()!=4)throw std::runtime_error("Text color requires four channels");for(double v:a)if(!std::isfinite(v)||std::abs(v)>65536)throw std::runtime_error("Text color bound");bool normalized=true;for(size_t c=0;c<3;++c)normalized&=a[c]>=0&&a[c]<=1;std::array<float,4> out;for(size_t c=0;c<4;++c){const auto value=normalized?int(std::clamp(float(a[c]),0.f,1.f)*255):int(a[c]);out[c]=float(uint8_t(value))/255;}return out;}
+// LuaTableExtensions.GetColor2498f6: RGB alone selects the float constructor
+// (0xa1b60). The byte branch truncates signed32 then retains the low byte.
+std::array<float,4> textSourceColor(const std::vector<double>&a){
+ if(a.size()!=4)throw std::runtime_error("Script color requires four decoded channels");
+ for(double v:a)if(!std::isfinite(v))throw std::runtime_error("Nonfinite script color");
+ bool normalized=true;for(size_t c=0;c<3;++c)normalized&=a[c]>=0&&a[c]<=1;
+ std::array<float,4> out;
+ for(size_t c=0;c<4;++c){
+  // Clamping before float conversion is equivalent for finite normalized
+  // inputs, and avoids an out-of-range double-to-float cast on large alpha.
+  const double value=normalized?std::trunc(float(std::clamp(a[c],0.,1.))*255.f):std::trunc(a[c]);
+  if(value<INT32_MIN||value>INT32_MAX)throw std::runtime_error("Script byte color outside native signed32 conversion");
+  out[c]=float(uint8_t(int32_t(value)))/255.f;
+ }
+ return out;
+}
+
 const TextFont* TextFontBank::font(const std::string&name)const{auto i=fonts_.find(name);return i==fonts_.end()?nullptr:&i->second;}
 std::string textFontName(const std::string&authored,bool emphasized,bool blockEmphasized){
  // Matching DLL/PDB: dynamic initializer 0x180015970..0x180015f31

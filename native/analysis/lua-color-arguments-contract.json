@@ -1,0 +1,55 @@
+{
+  "schema": "hades-lua-color-arguments-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "scope": "Native ScriptArgs and LuaTableExtensions packed-color argument conversion. Static matching DLL/PDB evidence; no original runtime or GPU observation.",
+  "ColorByName": {
+    "rva": "0x282010",
+    "meaning": "The caller supplies an argument-field name and a packed fallback color. This method checks that field in the ScriptArgs table; it does not resolve a color name through a global color dictionary.",
+    "missing": "Null ScriptArgs, absent field or nil field returns the caller's packed fallback at RVA0x2820a0.",
+    "present": "Any nonnil argument invokes LuaTableExtensions.GetColor with the same field key at RVA0x282099.",
+    "white_callers": "Retained Thing.RunScriptAction calls at RVA0x2e3393 and RVA0x2e36e5 pass the Color key and packed0xffffffff fallback."
+  },
+  "LuaTableExtensions_GetColor": {
+    "rva": "0x2496f0",
+    "non_table": "Invalid/absent parent or field, or a field that cannot be obtained as a Lua table, returns packed White0xffffffff (RVA0x2499ad/0x2499f9).",
+    "channels": "RVA0x2497bf..0x249848 reads indices1,2,3 independently using lua_gettable, lua_isnumber and lua_tonumberx. RGB defaults are0. RVA0x249874..0x2498f2 reads optional index4 with default1. Numeric strings are accepted by lua_isnumber; missing/nonnumeric channels keep their defaults. There is no rawlen==4 requirement.",
+    "selector": "RVA0x2498f6..0x249935 compares the three RGB values, still doubles, independently against inclusive[0,1]. All three within that range select normalized conversion. Alpha does not participate in branch selection.",
+    "normalized": "RVA0x24993d..0x24994a converts each channel double to float, then calls the four-float Color constructor RVA0xa1b60 at RVA0x249954.",
+    "byte": "RVA0x24996a..0x249993 uses truncating CVTTSD2SI to signed32-bit integers and packs their low8 bits. Fractional byte-valued inputs truncate toward zero. This branch does not clamp to[0,255] and does not rescale alpha.",
+    "packing": "Packed integer layout is R at bits0..7, G at8..15, B at16..23, A at24..31. Unsigned shifts discard the alpha integer's higher bits.",
+    "default_alpha_consequence": "A three-channel table entering the byte branch retains the default alpha value1 as packed byte1; normalized RGB instead converts that same alpha default to packed255."
+  },
+  "four_float_Color_constructor": {
+    "rva": "0xa1b60",
+    "pdb_length": 149,
+    "operation": "For each float channel, max with0, min with1, multiply by float255, truncate with CVTTSS2SI, then pack the low byte. Clamp-before-multiply and float precision are native operations, not a portable saturation policy for the byte branch.",
+    "precision": "Do not multiply original Lua doubles by255 directly: the native normalized path first rounds each double to float."
+  },
+  "ScriptArgs_GetColor": {
+    "rva": "0x281f00",
+    "Color_present": "A nonnil Color field delegates to LuaTableExtensions.GetColor at RVA0x281f3f.",
+    "Color_absent": "RVA0x281f4f..0x281ff4 reads scalar A with default0, clamps it to[0,1] and converts float(A)*255 with truncation, then reads byte B/G/R and packs the result. This fallback differs from ColorByName's caller-supplied fallback and must not be substituted indiscriminately."
+  },
+  "portable_validation_policy": [
+    "Reject nonfinite source numbers explicitly rather than reproducing native NaN/indefinite conversion artifacts.",
+    "For the byte branch, check trunc(value) is within signed32-bit range before the C++ integer conversion; then convert through int32_t and uint8_t. Do not clamp or directly cast an out-of-range double to uint8_t.",
+    "A narrower supported numeric bound is a reconstruction policy and must not be represented as native byte saturation."
+  ],
+  "evidence": [
+    ".local/reports/anim-setup/LuaTableExtensions_GetColor.s",
+    ".local/reports/anim-setup/LuaTableExtensions_GetColor.asm.json",
+    ".local/reports/anim-setup/Color_ctor_float.s",
+    ".local/reports/anim-setup/ScriptArgs_GetColor.s",
+    ".local/reports/presentation-work/rea-GetColor.json",
+    ".local/reports/native-text-color-by-name-static.json",
+    ".local/reports/hud-draw-Thing-RunScriptAction.json"
+  ],
+  "limits": [
+    "Packed color conversion does not prove subsequent Body transition, gamma, material, renderer blend or physical-device color parity.",
+    "GetColor's indexed Lua lookup can invoke table metamethods. Replacing it with rawgeti is a separate observable restriction."
+  ]
+}

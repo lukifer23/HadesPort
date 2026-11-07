@@ -3,6 +3,52 @@
 Updated 2026-11-06. Read `HANDOFF.md` for commands and `AUDIT.md` for the implementation
 plan. This is an incomplete native ARM64 Android engine driven by the original game.
 
+## Offline boon-shell milestone (2026-11-06)
+
+The device remains unavailable. Original boon-menu movies, symbol transforms,
+lighting and title creation now execute. Strict default autoplay requested 8,000
+frames and completed 5,452 with every-frame presentation and no contained faults:
+
+```
+Original update: Scripts/Main.lua:419: SetInteractProperty screen Interact creation requires actual screen geometry/lifecycle providers: BoonSlot1
+```
+
+Screen16 preserves all 1,967 prior frame records/payloads and 808 serialized clips
+byte for byte, plus prior source metadata/provenance. Source-derived coverage adds
+37 clips, seven actual atlas images and 54 original Bink frames across three movies.
+All added pixels match independent original-source decode/crops. Fourteen damaged
+source/manifest/bank/backend checks reject; publication refuses existing outputs
+and a mismatched decoder. Originals and prior exports remain immutable.
+
+The real registered-action diagnostic decodes all 54 movie frames, exercises
+natural ChainTo/Graphic fallback/HoldLastFrame, ten symbol roots (40 actual screen
+layers and 20 created action FX), three lighting loops and eight color cases. It
+uses genuine shared RNG, audio PCM and providers; it does not advance progression
+or establish GPU/device equivalence. Native scale/angle helpers are shared by screen
+and action consumers. Book completion retains native cancellation and immutable
+ThingData.Graphic fallback. Color parsing uses RGB-selected normalized/byte rules,
+including fractional truncation, byte wrapping, indexed defaults and protected Lua
+channel lookup.
+
+Loop randomization now honors the native default true and native draw predicates/
+order. This changes later engine RNG consumers, including MoveAI repath timing.
+The held 2,950-frame replay still matches all five historical combat hits exactly;
+old/new default world samples match through tick 3,180. The exact first changed RNG
+draw was not traced. The former 4,837-frame route is historical, not current.
+
+ASan/UBSan passes the screen diagnostic and slow ContinueText600 replay through
+6,052 frames to the same geometry blocker, with no findings (leak detection
+disabled). Android ARM64 compilation passes. Material/
+Ambient/SortMode presentation hints, immediate portable ECS writes, exact native
+command-buffer flush and cross-consumer child-update phases retain their limits.
+Actual boon selection and device control/thermal acceptance remain open. No new
+APK was published; candidate18 and rollback17 are preserved. Owned host, sanitized
+and Android build directories and Python bytecode were removed after verification;
+about 960 MiB of allocated scratch blocks, not a measured volume free-space gain.
+
+Receipts: `.local/reports/boon-shell-2026-11-06/`; source/pixel preservation and
+publication checks: `.local/reports/package-loader-2026-11-06/screen16-*.json`.
+
 ## Storage audit (2026-11-06)
 
 Directory-accounted `.local` usage decreased from 44.2 to 35.5 GiB (about 8.7 GiB).
@@ -205,13 +251,16 @@ No mocks, replacement game art, skipped dialogue or forced rewards were introduc
 ## Selected assets and evidence
 
 Build defaults in `scripts/build_native.py` remain authoritative. Canonical assets
-use packages2/text12/screen15/action26/audio31/actor9/weapons25/properties14; only
-RoomOpening and RoomSimple01 are staged. Source/canonical packages2 are ahead of
-the preserved iteration18 candidate and installed iteration17 (packages1). Their
-other selected resource versions match. Device gameplay acceptance is separate.
+use packages2/text12/screen16/action26/audio31/actor9/weapons25/properties14; only
+RoomOpening and RoomSimple01 are staged. Source/canonical packages2/screen16 are ahead
+of the preserved iteration18 candidate (packages1/screen15). Installed iteration17
+remains a separate recorded identity. Device gameplay acceptance is separate.
 
 | Evidence | Local path |
 |---|---|
+| Boon shell final verification | `.local/reports/boon-shell-2026-11-06/final-verification.json` |
+| Boon shell tested source | `.local/reports/boon-shell-2026-11-06/tested-source.json` |
+| Screen16 preservation | `.local/reports/package-loader-2026-11-06/screen16-preservation.json` |
 | Package final verification | `.local/reports/package-loader-2026-11-06/final-verification.json` |
 | Package sanitizer checks | `.local/reports/package-loader-2026-11-06/sanitizer-verification.json` |
 | Android ARM64 identity | `.local/reports/package-loader-2026-11-06/android-native.json` |
@@ -239,9 +288,8 @@ other selected resource versions match. Device gameplay acceptance is separate.
 
 ## Next work
 
-Continue on the host with original BoonSelectIn initialization and its complete
-source material/image/child/owner graph before exporter admission. Then complete
-boon geometry, individual text areas, cursor/highlights and original Interact
+Continue on the host with actual BoonSlot1 screen geometry and lifecycle providers,
+then individual text areas, cursor/highlights and original Interact
 callbacks. Death/DeathArea/House, save/restart/Continue and Android acceptance
 follow. Install/verify the preserved joystick and thermal candidate when hardware
 returns; host progress does not close that device gate. `AUDIT.md` records the

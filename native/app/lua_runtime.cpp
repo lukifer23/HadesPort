@@ -1227,13 +1227,11 @@ bool ScriptRuntime::setColorImpl(lua_State* L,std::string& error){
     options.easeOut=number("EaseOut");options.easeIn=number("EaseIn");options.smoothStep=flag("SmoothStep");
     // GetDuration 0x281bc0: Duration, else DurationSeconds.
     lua_getfield(L,1,"Duration");options.duration=lua_isnil(L,-1)?number("DurationSeconds"):float(lua_tonumber(L,-1));lua_pop(L,1);
-    std::array<uint8_t,4> bytes{255,255,255,255};std::array<float,4> rgba{1,1,1,1};lua_getfield(L,1,"Color");
-    if(!lua_isnil(L,-1)){
-        hades::SourceValue value;if(!hades::readSourceValue(L,-1,value,error)){lua_pop(L,1);return false;}
-        const auto& array=value.array();if(array.size()!=4){lua_pop(L,1);error="Native color requires source RGBA byte array";return false;}
-        for(size_t i=0;i<4;++i){const auto n=array[i].number();if(n<0||n>255||n!=std::trunc(n))throw std::runtime_error("Native color outside byte subset");bytes[i]=uint8_t(n);rgba[i]=float(n)/255.f;}
-    }
-    lua_pop(L,1);
+    std::array<uint8_t,4> bytes{255,255,255,255};std::array<float,4> rgba{1,1,1,1};
+    // Same native GetColor2496f0 as text. RGB in [0,1] selects the float
+    // constructor, including its clamp/truncate behavior for alpha. Other
+    // RGB selects byte truncation; alpha alone never selects the branch.
+    if(readScriptColorArgument(L,1,"Color",rgba))for(size_t i=0;i<4;++i)bytes[i]=uint8_t(std::lround(rgba[i]*255.f));
     for(const auto id:selected){auto* o=findObjectSnapshot(L,id);auto* a=actorWorld_.actor(id);
         if(o&&o->backend==ObjectBackend::Screen&&o->active&&o->alive){
             const bool timed=options.duration!=0||options.easeIn!=0||options.easeOut!=0;

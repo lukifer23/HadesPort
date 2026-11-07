@@ -68,7 +68,7 @@ struct ActionEffectState {
  // ECS PlaySpeedMultiplier component (TR and Book frame step), Book
  // CustomUpdateSystem mode, runtime PlayBackwards, Slide timer.
  float playSpeedMultiplier=1,slideRemaining=0;
- bool customFrames=false,backwards=false;
+ bool customFrames=false,backwards=false,loopedThisUpdate=false;
 };
 // ScriptAction::SetupAnimation 0x180262c50 arguments, in native order.
 struct ActionAnimationSetup {
@@ -102,6 +102,7 @@ class ActionEffectWorld {
  void forChain(uint64_t,const std::function<void(ActionEffectState&,bool)>&);
  bool transferFrame(uint64_t,const ActionEffectState&,std::string&);
  bool loopAnimation(uint64_t,bool force,const ActionEffectProviders&,std::string&);
+ bool loopSound(uint64_t,const ActionEffectProviders&,std::string&);
  bool initialize(const std::string&,int32_t,const EffectOwnerState&,std::array<float,3>,
    uint64_t,bool,const ActionEffectProviders&,uint64_t&,std::string&);
  bool slideFx(uint64_t,const ActionEffectProviders&,std::string&);

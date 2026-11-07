@@ -360,7 +360,7 @@ def main():
     parser.add_argument('--actor-lights',type=Path,default=PROJECT / '.local/native-assets/actor-lights-opening-v1/manifest.json')
     parser.add_argument('--text-resources',type=Path,default=PROJECT / '.local/native-assets/original-text-v12/manifest.json')
     parser.add_argument('--action-effects',type=Path,default=PROJECT / '.local/native-assets/action-effects-v26/manifest.json')
-    parser.add_argument('--screen-animations',type=Path,default=PROJECT / '.local/native-assets/screen-dialogue-v15/manifest.json')
+    parser.add_argument('--screen-animations',type=Path,default=PROJECT / '.local/native-assets/screen-dialogue-v16/manifest.json')
     parser.add_argument('--particle-frames',type=Path,default=PROJECT / '.local/native-assets/cinder-frames-v1/cinder-frames.bin')
     parser.add_argument('--primaries',type=Path,default=PROJECT / '.local/native-assets/opening-primaries-v6/manifest.json')
     parser.add_argument('--bloom-settings',type=Path,default=PROJECT / '.local/native-assets/bloom-settings-v1/manifest.json')

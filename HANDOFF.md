@@ -19,16 +19,19 @@ app files before launch, then perform short repeated release/repress checks and
 health observations. Never count host controls checks as device acceptance.
 Iteration17 rollback and actual app-state backups remain ready. Iteration16 is
 preserved in a lossless archive; restore it explicitly if needed (see below).
-The owner authorized continued offline work; package-loading implementation can
+The owner authorized continued offline work; screen/input implementation can
 advance independently while joystick/thermal device acceptance stays open.
 
-Strict host progression now passes original LoadPackages admission and the reached
-boon config setters. It completes 4,837 frames before unsupported BoonSelectIn
-initialization; slower ContinueText cadence reaches the same boundary at 5,437.
-Native request identities, CPU reads and deferred OnPackageLoaded dispatch use
-actual package data; completion does not establish GPU residency. Next: original
-BoonSelectIn graph/material/resource closure, then boon geometry/text areas/cursor/
-highlights/Interact, death/DeathArea/House and actual save/restart/Continue.
+Strict host progression passes package/config setup and the original boon-shell
+movies, symbol graph and lighting. The current default 8,000-frame request completes
+5,452 frames before SetInteractProperty requires actual screen geometry/lifecycle
+for BoonSlot1. Native loop randomization now honors its default true and consumes
+the genuine shared engine RNG; later path timing differs from the older 4,837-frame
+route. The held 2,950-frame route still matches all five historical hits exactly.
+The isolated --probe-screen-animations diagnostic exercises all 54 new movie frames,
+chain/fallback/hold, ten symbol roots, repeated random lighting and registered colors.
+It is separate from progression. Next: actual boon geometry/text areas/cursor/
+highlights/Interact, then death/DeathArea/House and script-reached save/Continue.
 Do not force progression, skip original dialogue, substitute scenes or drop fields.
 
 The dependency preparer and room pack builder/revision/stager now verify complete
@@ -56,12 +59,12 @@ storage waste from hardlinked file names. Preserve originals, exports, real save
 current APK, signing key, pinned decoder libraries and evidence. Remove only owned
 scratch/build intermediates after recording results.
 
-Build defaults select packages2/text12/screen15/action26/audio31/actor9/weapons25/properties14
+Build defaults select packages2/text12/screen16/action26/audio31/actor9/weapons25/properties14
 and RoomSimple01 in addition to root RoomOpening. `scripts/build_native.py` is the
 selection authority; selected source, staged assets and an installed APK are
-separate identities. Source/canonical assets now use packages2; the preserved
-iteration18 joystick candidate and installed iteration17 use packages1. Other
-selected versions match. No new gameplay APK is published for this host milestone.
+separate identities. Source/canonical assets use packages2/screen16; the preserved
+iteration18 joystick candidate uses packages1/screen15. Installed iteration17 remains
+a separate recorded identity. No new gameplay APK is published for this host milestone.
 Preserve iteration18 before any future APK publication. See STATUS for receipts.
 
 ## Storage cleanup and restoration
@@ -119,13 +122,16 @@ nice -n 15 .local/host-build-next/hades-debug .local/native-build/assets .local/
   --activate-room --world-frames=2950 --validate-live-presentation \
   --input-replay=.local/reports/takeover-mixed-combat-hold.tsv
 nice -n 15 .local/host-build-next/hades-debug .local/native-build/assets .local/reports/NEW-AUTO.json \
-  --activate-room --world-frames=4900 --autoplay --validate-live-presentation
+  --activate-room --world-frames=8000 --autoplay --validate-live-presentation
 # Direct registered-action diagnostic; separate from world progression:
 nice -n 15 .local/host-build-next/hades-debug .local/native-build/assets .local/reports/NEW-PACKAGES.json \
   --probe-packages
-# The current default longer route stops on BoonSelectIn at 4837.
-# To exercise genuine blink looping, use --autoplay-continue-period=600,
-# --world-frames=5550 and HADES_TRACE_SLIDES=1 (expected boundary5437).
+# Isolated genuine screen actions/resources; no progression or device claim:
+nice -n 15 .local/host-build-next/hades-debug .local/native-build/assets .local/reports/NEW-SCREEN.json \
+  --probe-screen-animations
+# The current default route stops on BoonSlot1 interaction geometry at 5452.
+# Slow ContinueText600 reaches the same blocker at 6,052; request 8,500 frames.
+# HADES_TRACE_SLIDES=1 records actual random-slide entry.
 ```
 
 `--survey-blockers` / `--contain-faults` are diagnostic, never strict acceptance.
@@ -137,7 +143,9 @@ Host autoplay supplies actual touch/control input and ContinueText pulses only f
 live original notifications. It must not mutate game progression or call callbacks.
 `--probe-save` is a direct registered-action diagnostic, not a script-reached save.
 `--probe-packages` isolates real registered actions, worker reads and original Lua
-dispatch without advancing the world. It cannot be combined with progression flags.
+dispatch without advancing the world. Both registered-action diagnostics are mutually
+exclusive with progression flags; --probe-screen-animations consumes the genuine
+shared RNG/audio streams in its own process. Neither establishes GPU/device parity.
 The config smoke uses real native APIs and supplies no substitute importer/clock.
 Use fresh temporary build directories and remove them at completion. Run one
 final ASan/UBSan check after runtime changes; leak detection is disabled on the

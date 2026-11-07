@@ -28,7 +28,7 @@ static void jsonString(std::ostream& out,const std::string& text) {
 }
 
 int main(int argc,char** argv) {
-    bool autoplay=false,capture=false,activate=false,probe=false,weaponProbe=false,packageProbe=false,survey=false,contain=false,validatePresentation=false;int worldFrames=120,continuePeriod=60;std::string inputReplay,saveProbeDirectory,loadSaveDirectory;
+    bool autoplay=false,capture=false,activate=false,probe=false,weaponProbe=false,packageProbe=false,screenProbe=false,survey=false,contain=false,validatePresentation=false;int worldFrames=120,continuePeriod=60;std::string inputReplay,saveProbeDirectory,loadSaveDirectory;
     for(int i=3;i<argc;++i){const std::string arg=argv[i];
         if(arg=="--capture-active-room")capture=activate=true;
         else if(arg=="--activate-room")activate=true;
@@ -39,6 +39,7 @@ int main(int argc,char** argv) {
         else if(arg=="--probe-load-callbacks")probe=true;
         else if(arg=="--probe-staged-weapons")weaponProbe=true;
         else if(arg=="--probe-packages")packageProbe=true;
+        else if(arg=="--probe-screen-animations")screenProbe=true;
         else if(arg.starts_with("--probe-save="))saveProbeDirectory=arg.substr(13);
         else if(arg.starts_with("--load-save="))loadSaveDirectory=arg.substr(12);
         else if(arg.starts_with("--autoplay-continue-period=")){const auto value=std::string_view(arg).substr(std::string_view("--autoplay-continue-period=").size());const auto result=std::from_chars(value.data(),value.data()+value.size(),continuePeriod);if(result.ec!=std::errc{}||result.ptr!=value.data()+value.size())continuePeriod=0;}
@@ -49,7 +50,7 @@ int main(int argc,char** argv) {
     try {
         if(std::filesystem::exists(argv[2]))throw std::runtime_error("Trace already exists; choose a new output");
         if(validatePresentation&&!activate)throw std::runtime_error("Live presentation validation requires activation");
-        if(packageProbe&&(activate||autoplay||probe||weaponProbe||survey||validatePresentation||!inputReplay.empty()||!saveProbeDirectory.empty()||!loadSaveDirectory.empty()))throw std::runtime_error("Package diagnostic must run separately from world/progression probes");
+        if((packageProbe||screenProbe)&&(activate||autoplay||probe||weaponProbe||survey||validatePresentation||(packageProbe&&screenProbe)||!inputReplay.empty()||!saveProbeDirectory.empty()||!loadSaveDirectory.empty()))throw std::runtime_error("Registered-action diagnostic must run separately from world/progression probes");
         for(int i=3;i<argc;++i)for(const auto prefix:{"--probe-save=","--load-save=","--input-replay="})
             if(std::string_view(argv[i])==prefix)throw std::runtime_error("Empty debug path: "+std::string(prefix));
         struct ReplayInput {int frame;float x,y;std::vector<std::string> controls;};std::vector<ReplayInput> replay;
@@ -76,6 +77,14 @@ int main(int argc,char** argv) {
             std::ofstream report(argv[2]);report<<"{\"diagnostic_registered_package_probe\":true,\"complete\":"<<(complete?"true":"false")<<",\"world_frames\":0,\"gpu_ready_claim\":false,\"error\":";
             jsonString(report,scripts.error());report<<"}\n";
             if(!report)throw std::runtime_error("Cannot write package diagnostic receipt");
+            return complete?0:2;
+        }
+        if(screenProbe){
+            const bool complete=scripts.probeScreenAnimations();
+            std::ofstream report(argv[2]);
+            report<<"{\"schema\":\"hades-screen-animation-probe-v1\",\"complete\":"<<(complete?"true":"false")<<",\"world_frames\":0,\"device_ready_claim\":false,\"error\":";
+            jsonString(report,scripts.error());report<<"}\n";
+            if(!report)throw std::runtime_error("Cannot write screen animation diagnostic receipt");
             return complete?0:2;
         }
         // Reproduce Continue with an actual captured checkpoint in a private

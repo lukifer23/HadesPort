@@ -35,14 +35,15 @@ owner; the module does not invent an owner, dispatch FX/audio, or modify weapons
 collision, input, movement or animation-control state. It exposes the recovered
 DisableOwnerWeapons property for the weapon's animationBlocksAttack input.
 
-The selected v3 bank has 29 original clips, 6,119 selected source movie frames,
+The historical v3 export has 29 original clips, 6,119 selected source movie frames,
 and 219,918,114 compressed frame bytes. Full cropped RGBA is 515,286,528 bytes;
 largest individual frame is410,000 bytes. Original eight directions are an
 explicit coverage reduction from full32/64 directions. The native frame cache
-is bounded to8MiB and8frames; each decoded frame is capped at4MiB. Every inflate
-checks exact input/output extent and CRC32. Next-frame/chain prefetch precedes
-returning the current frame. The returned pixel span lasts until the next bank
-sample/load/reset and must be uploaded synchronously.
+is currently bounded to 16 MiB and eight frames; each decoded frame is capped
+at 16 MiB. Every inflate
+checks exact input/output extent and CRC32. Frame metadata is sampled without
+inflation; pixels decode lazily on request. Next-frame/chain prefetch is currently
+disabled. Pixel spans must be uploaded synchronously before another decode/reset.
 
 `ActorAnimationImage::worldRect(clip)` preserves original canvas origin,
 symmetric Bink atlas trim, crop and source unit/animation/atlas scale. Dynamic
@@ -86,7 +87,7 @@ across bank sampling. ActorVisual supplies actual immutable bank identity,
 allocation lifetime, source angle, group/order and color. Reloading a bank at the
 same address requires `clearActorTextures` with the GL context current. The GPU
 frame cache shares identical original images across actors, bounds residency at
-64MiB/512 frames and never evicts a frame used by the current draw. A rotated crop
+384 MiB/4,096 frames and never evicts a frame used by the current draw. A rotated crop
 center is projected around the original ground anchor, preserving source pivots.
 
 Multi-actor insertion preserves the existing source group/SortIndex/Y ordering
@@ -99,3 +100,33 @@ alpha/culling never writes native SkipUpdate or other gameplay state.
 original image, scale interpolation, Y shift, base/offset Z and rotation-heading.
 Its caller must supply actual source owner/group/sort/color state. No guessed
 white tint, marker or alternate animation is admitted by this helper.
+
+## Screen movie companion
+
+`export_screen_animations.py` reuses HAA1 for `screen-animation-frames.bin` and
+emits `screen-animations.lua`. Fresh versions preserve prior serialized frames,
+clips and provenance. The Lua catalog keeps resolved source definitions and
+source schedules. New movie rows additionally carry `movie_binding`:
+
+| Field | Meaning |
+|---|---|
+| `video_texture` | Exact original VideoTexture identity |
+| `source_sha256`, `atlas_sha256` | Original movie and atlas identities |
+| `canvas`, `original_size`, `atlas_scale` | Authored decoded canvas and atlas geometry |
+| `source_frame_count`, `exported_source_frames` | Complete ordered original frame window |
+
+Image headers retain zero-based movie frames/angles; slide records retain
+one-based source frames. The stager binds the movie/atlas and pinned alpha-capable
+decoder proof to actual packet dimensions, pivots, frame order and Book timing.
+Unsupported FrameDataFile or unused-tail consumers reject. Legacy movie rows keep
+their previously verified schema. Publication is atomic and requires a fresh path.
+
+Screen Book playback applies atlas/source scale and offsets once, and keeps actual
+Thing lifetime, ChainTo and immutable ThingData.Graphic fallback. Constant helpers
+have independent source durations and share scale/angle math with action effects.
+Delegated child edges explicitly select the bound action consumer; mixed child
+backends for the same name reject. Created manager animations retain separate
+lifetimes. See `screen-animation-helpers-contract.json` in `native/analysis/` for
+native timing, RNG and remaining global phase limits. The host-only
+`--probe-screen-animations` diagnostic uses real registered actions, decoded images,
+RNG and audio separately from game progression; it does not prove device rendering.

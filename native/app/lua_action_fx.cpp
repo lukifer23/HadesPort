@@ -1,6 +1,7 @@
 #include "lua_runtime.hpp"
 #include "recovered_runtime.hpp"
 #include "platform_log.hpp"
+#include "text_runtime.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -94,11 +95,9 @@ bool actionHas(lua_State*L,const char*key){lua_getfield(L,1,key);const bool v=!l
 // [0,1] and scaled by 255 (truncated), otherwise each channel is truncated as
 // a byte without rescaling alpha. Non-table gives White.
 std::array<uint8_t,4> actionColor(lua_State*L,const char*key){
- std::array<uint8_t,4> out{255,255,255,255};lua_getfield(L,1,key);
- if(lua_istable(L,-1)){double c[4]{0,0,0,1};for(int i=0;i<4;++i){lua_rawgeti(L,-1,i+1);int ok=0;const double v=lua_tonumberx(L,-1,&ok);if(ok){if(!std::isfinite(v))throw std::runtime_error("Script animation Color channel");c[i]=v;}lua_pop(L,1);}
-  const bool unit=c[0]>=0&&c[0]<=1&&c[1]>=0&&c[1]<=1&&c[2]>=0&&c[2]<=1;
-  for(int i=0;i<4;++i)out[i]=uint8_t(unit?int(std::clamp(c[i],0.,1.)*255.):int(std::clamp(c[i],0.,255.)));}
- lua_pop(L,1);return out;}
+ std::array<float,4> color{1,1,1,1};readScriptColorArgument(L,1,key,color);
+ std::array<uint8_t,4> out;for(size_t i=0;i<4;++i)out[i]=uint8_t(std::lround(color[i]*255.f));return out;}
+
 }
 // Shared LuaTableExtensions::GetColor reader (also ScriptArgs::GetColor 0x180281f00 Color key).
 std::array<uint8_t,4> luaTableColor(lua_State*L,const char*key){return actionColor(L,key);}

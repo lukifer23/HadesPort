@@ -6,12 +6,14 @@ original obstacle Thing.Graphic sprite path (native Dataless animation). The
 script provenance names the original call site that reaches it. Pixels are
 lossless crops of the original GUI package atlases; no art is synthesized.
 """
-import copy,hashlib,json,struct,zlib
+import copy,hashlib,json,struct,zlib,tempfile
 from io import BytesIO
 from pathlib import Path
+from types import SimpleNamespace
 from build_room_scene import Sjson,identity
 from hades_assets import Package,xnb_image
-from export_actor_animations import string
+from export_actor_animations import string,export as export_movies
+from export_screen_transition import clips as rebase_movie_clips
 
 # Admitted names are not hand-listed: they come from the static animation
 # coverage report (animation_coverage.py) - every original animation
@@ -36,9 +38,15 @@ KEYS={'Name','InheritFrom','FilePath','Type','StartFrame','EndFrame','NumFrames'
  # duration Loop via Animation::Loop 0x180296310).
  'StartRed','StartGreen','StartBlue','EndRed','EndGreen','EndBlue','EaseIn','EaseOut','PingPongColor',
  'StartOffsetX','EndOffsetX','StartOffsetY','EndOffsetY','PingPongShiftOverDuration','PhaseOffsetShiftOverDuration',
- 'StartScale','EndScale','PingPongScale','CancelAllAttached','CreateAnimation','CreateAnimations','TimeModifierFraction'}
+ 'StartScale','EndScale','PingPongScale','CancelAllAttached','CreateAnimation','CreateAnimations','TimeModifierFraction',
+ # Shared helper contract: InitData RVA0x29217d..0x2922fd (axis scale),
+ # RVA0x2928ab..0x292941 (angle), GetValue RVA0x291290 (duration), and
+ # Loop RVA0x296414..0x296476 (duration rerandomization). See the matching
+ # target/PDB identities in screen-animation-helpers-contract.json.
+ 'StartScaleX','EndScaleX','StartScaleY','EndScaleY','StartAngle','EndAngle','PingPongAngle','PhaseOffsetAngle',
+ 'RandomDurationMin','RandomDurationMax','ReRandomizeOnLoop','VideoTexture'}
 # Transition keys driven by the Constant duration fraction only.
-CONSTANT_TRANSITION_KEYS={'Duration','StartAlpha','EndAlpha','StartRed','StartGreen','StartBlue','EndRed','EndGreen','EndBlue','EaseIn','EaseOut','PingPongColor','StartOffsetX','EndOffsetX','StartOffsetY','EndOffsetY','PingPongShiftOverDuration','PhaseOffsetShiftOverDuration','StartScale','EndScale','PingPongScale'}
+CONSTANT_TRANSITION_KEYS={'Duration','StartAlpha','EndAlpha','StartRed','StartGreen','StartBlue','EndRed','EndGreen','EndBlue','EaseIn','EaseOut','PingPongColor','StartOffsetX','EndOffsetX','StartOffsetY','EndOffsetY','PingPongShiftOverDuration','PhaseOffsetShiftOverDuration','StartScale','EndScale','PingPongScale','StartScaleX','EndScaleX','StartScaleY','EndScaleY','StartAngle','EndAngle','PingPongAngle','PhaseOffsetAngle','RandomDurationMin','RandomDurationMax','ReRandomizeOnLoop'}
 TYPES={'Constant','ConstantNoUpdate','Book','Slide'}
 SLIDE_KEYS={'DurationFrames','FilePath','RandomDurationFramesMin','RandomDurationFramesMax'}
 
@@ -138,6 +146,9 @@ def slide_durations(d):
  return out
 
 def image_names(d):
+ if d.get('VideoTexture'):
+  if d.get('Type')!='Book':raise ValueError('Original screen movie requires Book '+d['Name'])
+  return [] # Actual movie frames are appended by their separate validated backend.
  if d.get('Type')=='Slide':
   # Approximation boundary: zero-duration slides are never started (NextSlide
   # skips them), so only positive-duration slide images are exported. The
@@ -168,14 +179,74 @@ def coverage_roots(a,records,origin):
  graphics={g:'; '.join(x if isinstance(x,str)else json.dumps(x,sort_keys=True)for x in p[:3]) for g,p in cov.get('obstacle_graphics',{}).items()}
  return reviewed,graphics,rejected,cov
 
-def admissible(records,origin,names,rejected,action_definitions=None):
+def admissible(records,origin,names,rejected,action_definitions=None,content=None,existing=()):
  """Drop (with reason) names whose own or ChildAnimation-closure record this consumer cannot represent."""
  ok=[]
  for name in names:
   try:
-   d,_,_=resolve_all(records,origin,[name],action_definitions);[image_names(x)for x in d.values()];ok.append(name)
+   d,_,_=resolve_all(records,origin,[name],action_definitions)
+   for child,x in d.items():
+    image_names(x)
+    if x.get('VideoTexture')and child not in existing:movie_source(content,x)
+   ok.append(name)
   except ValueError as e:rejected[name]=str(e)
  return ok
+
+def movie_source(content,d):
+ """Original single-angle Book carrier/atlas facts; no decoding or defaults."""
+ if content is None:raise ValueError('Original screen movie source required')
+ name=d['Name'];video=d.get('VideoTexture');n=d.get('NumFrames',1);start=d.get('StartFrame',1);end=d.get('EndFrame',n)
+ if d.get('FrameDataFile'):raise ValueError('Original screen movie FrameDataFile consumer not reconstructed: '+name)
+ if d.get('Type')!='Book'or d.get('NumAngles',1)!=1 or not isinstance(video,str)or not video or Path(video).name!=video or '\\'in video or '..'in video:raise ValueError('Unreviewed screen movie backend '+name)
+ if any(type(v)is not int for v in[n,start,end])or not 1<=start<=end<=n<=1000:raise ValueError('Unreviewed screen movie frame window '+name)
+ if start!=1 or end!=n:raise ValueError('Screen movie partial frame window not reconstructed: '+name)
+ if d.get('OriginX',0)!=0 or d.get('OriginY',0)!=0:raise ValueError('Screen movie explicit origin not reconstructed: '+name)
+ if d.get('RandomStartFrame')or d.get('RandomPlaySpeedMin',0)or d.get('RandomPlaySpeedMax',0):raise ValueError('Screen movie random frame/speed not reconstructed: '+name)
+ movie=content/'Movies/720p'/(video+'.bik');atlas=movie.with_suffix('.bik_atlas')
+ if not movie.is_file()or not atlas.is_file():raise ValueError('Original screen movie/atlas unavailable: '+name)
+ from hades_assets import Reader
+ raw=atlas.read_bytes();reader=Reader(raw);version=reader.integer();atlas_name=reader.smallstring();w,h,ow,oh=[reader.integer()for _ in range(4)];scale=reader.floating()
+ with movie.open('rb')as stream:header=stream.read(44)
+ if len(header)!=44:raise ValueError('Original screen movie header truncated: '+name)
+ frames=struct.unpack_from('<I',header,8)[0];canvas=struct.unpack_from('<II',header,20)
+ if version!=3 or reader.pos!=len(raw)or atlas_name!=video or header[:4]!=b'KB2j'or canvas!=(w,h)or not 0<w<=2048 or not 0<h<=2048 or not 0<scale<=8 or min(ow,oh)<=0:raise ValueError('Original screen movie/atlas identity or bounds mismatch: '+name)
+ if frames!=n:raise ValueError('Original screen movie frame count differs from authored Book: '+name+f' actual={frames} authored={n}')
+ sources=[identity(movie),identity(atlas)]
+ binding={'video_texture':video,'source_sha256':sources[0]['sha256'],'atlas_sha256':sources[1]['sha256'],'canvas':[w,h],'original_size':[ow,oh],'atlas_scale':scale,'source_frame_count':frames,'exported_source_frames':list(range(start,end+1))}
+ return binding,sources
+
+def append_movie_definitions(a,m,definitions,provenance,reviewed):
+ if not definitions:return m
+ decoder=identity(a.decoder)
+ if decoder['sha256']!=m['decoder']['sha256']:raise ValueError('Screen movie decoder differs from retained verified decoder')
+ source=Path(a.decoder).resolve().parent/'libavcodec/bink2.c';patch=Path(__file__).with_name('bink2-alpha-normalization.patch')
+ if not source.is_file()or 'c->has_alpha = !!(c->flags & BINK_FLAG_ALPHA);'not in source.read_text():raise ValueError('Original Bink2 decoder alpha normalization source unavailable')
+ proof={'decoder':decoder,'alpha_source':identity(source),'alpha_patch':identity(patch),'source_variant':'KB2j','pixel_format':'rgba','decoder_matches_retained_bank':True,'movies':{}}
+ _,_,anim_sources=load_records(a.content)
+ bindings={};inputs=[]
+ for name,d in definitions.items():
+  bindings[name],rows=movie_source(a.content,d);inputs.extend(rows);proof['movies'][name]=bindings[name]
+ with tempfile.TemporaryDirectory(prefix='movie-decode-',dir=a.output)as temporary:
+  args=SimpleNamespace(content=a.content,decoder=a.decoder,output=Path(temporary)/'source',sources=anim_sources,names=list(definitions),existing_names=set(definitions)|{c['name']for c in m['clips']},unit_scale=1.,directions=1,movie_directory=a.content/'Movies/720p')
+  export_movies(args);extra=json.loads((args.output/'manifest.json').read_text());raw=Path(m['packet']['path']).read_bytes();fresh=Path(extra['packet']['path']).read_bytes();nf,nc,cut=split(raw);xf,xc,xcut=split(fresh)
+  if set(c['name']for c in extra['clips'])!=set(definitions):raise ValueError('Original movie decode escaped reviewed resource closure')
+  target=a.output/'actor-animations.bin';target.write_bytes(b'HAA1'+struct.pack('<II',nf+xf,nc+xc)+raw[12:cut]+fresh[12:xcut]+raw[cut:]+rebase_movie_clips(fresh,xcut,xc,nf,set()))
+  new_clips=copy.deepcopy(extra['clips']);new_frames=copy.deepcopy(extra['frames'])
+  for row in new_frames:row['index']+=nf
+  for clip in new_clips:
+   name=clip['name'];clip['definition']=definitions[name];clip['movie_binding']=bindings[name];clip['provenance']=provenance[name];clip['script']=reviewed.get(name,'original movie dependency closure')
+   for step in clip['source_sequence']:step['frame_indices']=[value+nf for value in step['frame_indices']]
+  m['clips']+=new_clips;m['frames']+=new_frames;m['movies']+=extra['movies'];m['packet']=identity(target)
+  st=m['statistics'];st['clips']=nc+xc;st['movie_frames']=nf+xf
+  for key in['cropped_raw_bytes','zlib_bytes']:st[key]+=extra['statistics'][key]
+  st['max_frame_rgba_bytes']=max(st['max_frame_rgba_bytes'],extra['statistics']['max_frame_rgba_bytes'])
+  inputs+=extra['sources']
+ m.setdefault('movie_decode_proofs',[]).append(proof)
+ old={(str(Path(row['path']).resolve()),row['sha256'],row['bytes'])for row in m['sources']}
+ for row in inputs+[decoder,proof['alpha_source'],proof['alpha_patch']]:
+  key=(str(Path(row['path']).resolve()),row['sha256'],row['bytes'])
+  if key not in old:m['sources'].append(row);old.add(key)
+ return m
 
 def append_gui(a,m):
  retained_review=copy.deepcopy(m.get('gui_review',{}))
@@ -192,15 +263,17 @@ def append_gui(a,m):
   action_binding={'manifest':identity(selected),'catalog':am['catalog'],'lua':am['lua'],'packet_sha256':am['packet']['sha256']}
  records,origin,anim_sources=load_records(a.content)
  reviewed,graphics,rejected,cov=coverage_roots(a,records,origin)
- names=admissible(records,origin,sorted(reviewed),rejected,action_definitions)
- definitions,provenance,edges=resolve_all(records,origin,names,action_definitions)
  existing={c['name']for c in m['clips']}
+ names=admissible(records,origin,sorted(reviewed),rejected,action_definitions,a.content,existing)
+ definitions,provenance,edges=resolve_all(records,origin,names,action_definitions)
  # Movie/static base clips keep their retained definitions.
  for n in list(definitions):
   if n in existing:rejected[n]='already in retained base screen bank';del definitions[n]
  graphics={g:p for g,p in graphics.items()if g not in existing and g not in definitions}
+ movie_definitions={n:d for n,d in definitions.items()if d.get('VideoTexture')}
  clips=[]
- for name,d in definitions.items():clips.append((name,d,image_names(d)))
+ for name,d in definitions.items():
+  if name not in movie_definitions:clips.append((name,d,image_names(d)))
  for path in graphics:clips.append((path,{'Name':path,'Type':'Dataless','FilePath':path,'NumFrames':1,'Loop':False},[(1,path)]))
  wanted={s for _,_,rows in clips for _,s in rows};matches={};variant=set();manifests=[];packages=a.content/'Win/Packages'
  for package in ['GUI','RoomManager','Dev','Fx']:
@@ -217,16 +290,19 @@ def append_gui(a,m):
   if any(r in missing for _,r in rows):rejected[name]='original image absent from GUI packages: '+next(r for _,r in rows if r in missing);continue
   ratios={tuple(matches[r]['sprite']['scale_ratio'])for _,r in rows}
   if len(ratios)!=1 or len(set(next(iter(ratios))))!=1:rejected[name]='nonuniform/anisotropic original atlas ratio'
- if any(c[0]in rejected for c in clips):
+ clips=[c for c in clips if c[0]not in rejected]
+ # Pixel admission must retain the complete child AND completion-chain graph,
+ # including movie parents. A dropped atlas dependency cannot leave a shell
+ # whose failure is deferred until its final source frame.
+ while True:
+  kept={c[0]for c in clips}|set(movie_definitions)
+  bad=[e for e in edges if e['parent']in kept and e.get('backend')!='action'and e['child']not in kept|existing]
+  if not bad:break
+  for e in bad:rejected[e['parent']]=e['field']+' not representable: '+e['child']
   clips=[c for c in clips if c[0]not in rejected]
-  # A parent whose ChildAnimation was dropped cannot be represented either.
-  while True:
-   kept={c[0]for c in clips};bad=[c for c in clips if c[1].get('ChildAnimation')not in (None,'null')and c[1].get('ChildAnimation')not in kept and c[1].get('ChildAnimation')not in existing and not any(e['parent']==c[0]and e['field']=='ChildAnimation'and e.get('backend')=='action'for e in edges)]
-   if not bad:break
-   for c in bad:rejected[c[0]]='ChildAnimation not representable: '+c[1]['ChildAnimation']
-   clips=[c for c in clips if c[0]not in rejected]
-  definitions={c[0]:c[1]for c in clips if c[0]in definitions};graphics={g:p for g,p in graphics.items()if g in{c[0]for c in clips}}
-  edges=[e for e in edges if e['parent']in definitions]
+  movie_definitions={n:d for n,d in movie_definitions.items()if n not in rejected}
+ definitions={**{c[0]:c[1]for c in clips if c[0]in definitions},**movie_definitions};graphics={g:p for g,p in graphics.items()if g in{c[0]for c in clips}}
+ edges=[e for e in edges if e['parent']in definitions]
  used={r for _,_,rows in clips for _,r in rows};matches={k:v for k,v in matches.items()if k in used}
  atlases={};payloads=[]
  for package in sorted({v['package']for v in matches.values()}):
@@ -301,4 +377,5 @@ def append_gui(a,m):
  review['coverage_history']=list(dict.fromkeys(retained_review.get('coverage_history',[])+([retained_review['coverage']]if retained_review.get('coverage')else[])+[review['coverage']]))
  admitted=set(review['reviewed_animations'])|set(review['reviewed_graphics'])|{e['child']for e in review['closure_edges']if e.get('backend')!='action'}
  review['rejected']={n:reason for n,reason in {**retained_review.get('rejected',{}),**review['rejected']}.items()if n not in admitted}
+ m=append_movie_definitions(a,m,movie_definitions,provenance,reviewed)
  return m

@@ -128,15 +128,22 @@ float argFloat(lua_State*L,int t,const char*key,float fallback){lua_getfield(L,t
 int32_t argInt(lua_State*L,int t,const char*key,int32_t fallback){lua_getfield(L,t,key);int32_t out=fallback;if(lua_isnumber(L,-1)){const double v=std::trunc(lua_tonumber(L,-1));if(!(v>=INT32_MIN&&v<=INT32_MAX)){lua_pop(L,1);throw std::runtime_error(std::string("Text integer argument bound: ")+key);}out=int32_t(v);}lua_pop(L,1);return out;}
 bool argBool(lua_State*L,int t,const char*key,bool fallback){return hades::luaArgumentBool(L,t,key,fallback);}
 // LuaTableExtensions::GetColor / ScriptArgs::ColorByName over original arrays.
+// Keep potentially scripted indexed lookups inside a protected Lua frame, so
+// an __index error cannot longjmp over the caller's C++ containers.
+int colorChannels(lua_State*L){
+ for(int i=1;i<=4;++i){lua_pushinteger(L,i);lua_gettable(L,1);if(lua_isnumber(L,-1)){const auto value=lua_tonumber(L,-1);lua_pop(L,1);lua_pushnumber(L,value);}else{lua_pop(L,1);lua_pushnumber(L,i==4?1:0);}}
+ return 4;
+}
 bool argColor(lua_State*L,int t,const char*key,Color&out){
  lua_getfield(L,t,key);if(lua_isnil(L,-1)){lua_pop(L,1);return false;}
- if(!lua_istable(L,-1)){lua_pop(L,1);throw std::runtime_error(std::string("Original named/packed text color unreconstructed: ")+key);}
- // LuaTableExtensions.GetColor2497bf..2498f6 reads RGB independently with
- // default0, then optional alpha with default1. A three-channel source table
- // is valid; RGB selects normalized/byte conversion independently of alpha.
- const int a=lua_absindex(L,-1);std::vector<double>c{0,0,0,1};
- for(int i=1;i<=4;++i){lua_rawgeti(L,a,i);if(lua_isnumber(L,-1))c[size_t(i-1)]=lua_tonumber(L,-1);lua_pop(L,1);}
- lua_pop(L,1);out=hades::textSourceColor(c);return true;
+ // GetColor2496f0 returns white for a present non-table value. ColorByName
+ // is the ScriptArgs argument-key lookup, not a global named-color resolver.
+ if(!lua_istable(L,-1)){lua_pop(L,1);out={1,1,1,1};return true;}
+ // GetColor2497bf..2498f6 reads RGB independently (default0), optional alpha
+ // (default1). RGB selects normalized/byte conversion independently of alpha.
+ lua_pushcfunction(L,colorChannels);lua_pushvalue(L,-2);
+ if(lua_pcall(L,1,4,0)!=LUA_OK){const char*message=lua_tostring(L,-1);std::string error=message?message:"Indexed script color lookup failed";lua_pop(L,2);throw std::runtime_error(error);}
+ std::vector<double>c;for(int i=-4;i<0;++i)c.push_back(lua_tonumber(L,i));lua_pop(L,5);out=hades::textSourceColor(c);return true;
 }
 hades::TextJustification horizontalJustification(const std::string&v){std::string u=v;std::transform(u.begin(),u.end(),u.begin(),[](unsigned char c){return char(std::toupper(c));});if(u=="LEFT")return hades::TextJustification::Start;if(u=="RIGHT")return hades::TextJustification::End;if(u=="UNKNOWN")throw std::runtime_error("Original UNKNOWN text justification unreconstructed");return hades::TextJustification::Center;}
 hades::TextJustification verticalJustification(const std::string&v){std::string u=v;std::transform(u.begin(),u.end(),u.begin(),[](unsigned char c){return char(std::toupper(c));});if(u=="TOP")return hades::TextJustification::Start;if(u=="BOTTOM")return hades::TextJustification::End;return hades::TextJustification::Center;}
@@ -424,6 +431,7 @@ int hasDisplayName(lua_State*state){
 int guardedHasDisplayName(lua_State*s){char m[1024]{};try{return hasDisplayName(s);}catch(const std::exception&e){std::snprintf(m,sizeof m,"%s",e.what());}return luaL_error(s,"%s",m);}
 int finalize(lua_State* state) {static_cast<TextState*>(lua_touserdata(state,1))->~TextState();return 0;}
 }
+bool readScriptColorArgument(lua_State*state,int table,const char*key,std::array<float,4>&out){return argColor(state,table,key,out);}
 void registerTextRuntime(lua_State* state) {
     const int top=lua_gettop(state);
     new(lua_newuserdata(state,sizeof(TextState))) TextState();

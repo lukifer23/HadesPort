@@ -1,4 +1,5 @@
 #include "screen_animation.hpp"
+#include "animation_transitions.hpp"
 #include "effect_particle.hpp"
 #include "physics_runtime.hpp"
 #include "platform_log.hpp"
@@ -26,11 +27,11 @@ const std::set<std::string> guiKeys{"Name","InheritFrom","FilePath","Type","Star
  // GetXShift/GetYShift 0x180297b40/0x180297a50, Animation::Loop 0x180296310).
  "StartRed","StartGreen","StartBlue","EndRed","EndGreen","EndBlue","EaseIn","EaseOut","PingPongColor",
  "StartOffsetX","EndOffsetX","StartOffsetY","EndOffsetY","PingPongShiftOverDuration","PhaseOffsetShiftOverDuration",
- "StartScale","EndScale","PingPongScale","CancelAllAttached","CreateAnimation","CreateAnimations","TimeModifierFraction"};
+ "StartScale","EndScale","PingPongScale","CancelAllAttached","CreateAnimation","CreateAnimations","TimeModifierFraction","StartScaleX","EndScaleX","StartScaleY","EndScaleY","StartAngle","EndAngle","PingPongAngle","PhaseOffsetAngle","RandomDurationMin","RandomDurationMax","ReRandomizeOnLoop","VideoTexture"};
 // Keys whose transition fraction is the Constant duration fraction
 // (AnimationFractionFromDurationSystem 0x180152ce0). Book/Slide frame
 // fractions for these helpers are not reviewed for screen records.
-const char* const constantTransitionKeys[]{"Duration","StartAlpha","EndAlpha","StartRed","StartGreen","StartBlue","EndRed","EndGreen","EndBlue","EaseIn","EaseOut","PingPongColor","StartOffsetX","EndOffsetX","StartOffsetY","EndOffsetY","PingPongShiftOverDuration","PhaseOffsetShiftOverDuration","StartScale","EndScale","PingPongScale"};
+const char* const constantTransitionKeys[]{"Duration","StartAlpha","EndAlpha","StartRed","StartGreen","StartBlue","EndRed","EndGreen","EndBlue","EaseIn","EaseOut","PingPongColor","StartOffsetX","EndOffsetX","StartOffsetY","EndOffsetY","PingPongShiftOverDuration","PhaseOffsetShiftOverDuration","StartScale","EndScale","PingPongScale","StartScaleX","EndScaleX","StartScaleY","EndScaleY","StartAngle","EndAngle","PingPongAngle","PhaseOffsetAngle","RandomDurationMin","RandomDurationMax","ReRandomizeOnLoop"};
 // AnimationData ctor 0x180093c70 sets Alpha(+0x214)=1 but leaves the
 // Start/End Red..Alpha pairs (+0x22c..+0x248, SGD_Deserialize 0x18008f020)
 // at 0. InitData 0x180292566..0x1802926e3 creates a channel helper only when
@@ -40,7 +41,10 @@ float colorTransition(const SourceValue&d,const char*a,const char*z,float f){con
 float shiftValue(const SourceValue&d,const char*a,const char*z,float f){const float s=num(d,a),e=num(d,z);if(s==e)return 0;float x=num(d,"PhaseOffsetShiftOverDuration")/360.f+f;if(x>1)x-=1;else if(x<0)x+=1;const float in=num(d,"EaseIn"),out=num(d,"EaseOut");if(flag(d,"PingPongShiftOverDuration"))return x<.5f?EffectParticleWorld::interpolate(s,e,x*2,in,out):EffectParticleWorld::interpolate(e,s,(x-.5f)*2,in,out);return EffectParticleWorld::interpolate(s,e,x,in,out);}
 // InitData 0x18029217d..0x1802922fd scale helper (default Start=End=1),
 // BodyComponentTransitionHelper::CalcCurrentValue 0x1802b5420.
-float scaleTransition(const SourceValue&d,float f){const float s=num(d,"StartScale",1),e=num(d,"EndScale",1);if(s==e)return 1;const float in=num(d,"EaseIn"),out=num(d,"EaseOut");if(flag(d,"PingPongScale"))return f<.5f?EffectParticleWorld::interpolate(s,e,f*2,in,out):EffectParticleWorld::interpolate(e,s,(f-.5f)*2,in,out);return EffectParticleWorld::interpolate(s,e,f,in,out);}
+float scaleTransition(const SourceValue&d,float f,const char*start="StartScale",const char*end="EndScale"){return animationScaleTransition(num(d,start,1),num(d,end,1),f,num(d,"EaseIn"),num(d,"EaseOut"),flag(d,"PingPongScale"));}
+// InitData291dc6 and GetValue291290. Duration is selected before child,
+// created-manager animations and audio; Loop2963ea reselects only for min>0.
+
 // APPROXIMATION: Material/Ambient/SortMode remain renderer presentation hints,
 // as in ActionEffectWorld::pendingFieldsSet; exporter receipts enumerate every
 // admitted definition that has one. This does not rebuild native lighting.
@@ -94,6 +98,13 @@ bool ScreenAnimationWorld::initializeSlide(ScreenLayer&l,const SourceValue&d,std
  l.playback.play(*bank_,l.name,[&](const auto&,const auto&){if(!startSlide(l,d,e))throw std::runtime_error(e);});
  l.frame=int32_t(l.playback.originalFrame());l.frac=float(l.frame);return true;
  }catch(const std::exception&x){e=x.what();return false;}}
+bool ScreenAnimationWorld::initializeDuration(ScreenLayer&l,const SourceValue&d,std::string&e){
+ l.durationBound=num(d,"Duration")>0||num(d,"RandomDurationMin")>0||num(d,"RandomDurationMax")>0;
+ l.duration=num(d,"Duration");
+ const float lo=num(d,"RandomDurationMin"),hi=num(d,"RandomDurationMax");
+ if(lo!=0||hi!=0){double r=0;if(!random_||!random_(r,e)||!std::isfinite(r)||r<0||r>=1){if(e.empty())e="Actual screen animation duration RNG unavailable";return false;}const volatile float product=float(r)*(hi-lo);l.duration=product+lo;}
+ l.remaining=l.duration;return true;
+}
 bool ScreenAnimationWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimationBank>bank,std::shared_ptr<AnimationRegistry>registry,std::string&e){try{
  if(!things_.empty()||!bank||!registry||text(catalog,"schema")!="hades-screen-animations-v1"||text(catalog,"target_sha256")!="d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254")throw std::runtime_error("Original screen animation resource identity");
  if(const auto*children=catalog.get("action_children"))for(const auto&child:children->array())if(!actionChildren_.insert(child.text()).second)throw std::runtime_error("Duplicate delegated screen ChildAnimation");
@@ -107,15 +118,34 @@ bool ScreenAnimationWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimati
    if(t=="Slide"){const auto clip=bank->find(name);if(!clip||!validateSlide(*definition,bank->clips().at(*clip),e))throw std::runtime_error(e.empty()?"Original screen Slide bank missing: "+name:e);}
    if(t!="Constant")for(const char*k:constantTransitionKeys)if(definition->get(k))throw std::runtime_error("Unreviewed non-Constant screen duration/transition "+name+"."+k);
    if(t=="Book"&&(startFrame(*definition)<1||endFrame(*definition)<startFrame(*definition)))throw std::runtime_error("Unreviewed native Book frame range "+name);
+   const float duration=num(*definition,"Duration"),lo=num(*definition,"RandomDurationMin"),hi=num(*definition,"RandomDurationMax");
+   if(!std::isfinite(duration)||duration<0||!std::isfinite(lo)||!std::isfinite(hi)||lo<0||hi<lo)throw std::runtime_error("Native screen duration range invalid: "+name);
+   if(!text(*definition,"VideoTexture").empty()){
+    const auto*binding=row.get("movie_binding");const auto index=bank->find(name);
+    if(t!="Book"||!binding||!index||text(*binding,"video_texture")!=text(*definition,"VideoTexture"))throw std::runtime_error("Original screen movie binding unavailable: "+name);
+    const auto digest=[](const std::string&v){return v.size()==64&&std::all_of(v.begin(),v.end(),[](char c){return (c>='0'&&c<='9')||(c>='a'&&c<='f');});};
+    if(!digest(text(*binding,"source_sha256"))||!digest(text(*binding,"atlas_sha256")))throw std::runtime_error("Original screen movie identity invalid: "+name);
+    if(!binding->get("canvas")||!binding->get("original_size")||!binding->get("exported_source_frames"))throw std::runtime_error("Original screen movie metadata incomplete: "+name);
+    const auto&canvas=binding->get("canvas")->array();const auto&original=binding->get("original_size")->array();const auto&frames=binding->get("exported_source_frames")->array();const auto&clip=bank->clips().at(*index);
+    const float atlasScale=num(*binding,"atlas_scale"),sourceScale=num(*definition,"Scale",1);const int32_t first=startFrame(*definition),last=endFrame(*definition);
+    if(canvas.size()!=2||original.size()!=2||!(atlasScale>0)||!std::isfinite(atlasScale)||!(sourceScale>0)||!std::isfinite(sourceScale)||clip.originalAngles!=1||clip.originalAngleIndices!=std::vector<uint32_t>{0}||!(clip.flags&ActorBook)||clip.slides.size()!=size_t(last-first+1)||frames.size()!=clip.slides.size()||num(*binding,"source_frame_count")!=last||first!=1||num(*definition,"OriginX")!=0||num(*definition,"OriginY")!=0||std::abs(clip.worldScale-sourceScale/atlasScale)>1e-5f||clip.offsetX!=num(*definition,"OffsetX")||clip.offsetY!=num(*definition,"OffsetY"))throw std::runtime_error("Original screen movie geometry/range mismatch: "+name);
+    for(size_t axis=0;axis<2;++axis)for(const auto*pair:{&canvas,&original}){const auto value=pair->at(axis).number();if(!std::isfinite(value)||value<=0||value>8192||value!=std::trunc(value))throw std::runtime_error("Original screen movie dimensions invalid: "+name);}
+    for(size_t at=0;at<frames.size();++at){const auto image=bank->sample(*index,at,0,false);if(frames[at].number()!=first+int32_t(at)||clip.slides[at].originalFrame!=first+at||image.originalMovieFrame!=first+at-1||image.canvasWidth!=canvas[0].number()||image.canvasHeight!=canvas[1].number())throw std::runtime_error("Original screen movie frame binding mismatch: "+name);}
+    movies_.insert(name);
+   }
+
   }
-  if(actionChildren_.contains(name))throw std::runtime_error("Ambiguous screen/action child backend: "+name);
+  // A source definition may have both a screen-primary resource and an
+  // explicitly delegated action-child resource. Child edges select their
+  // bound consumer; primary admission always selects this screen bank.
+
   if(!bank->find(name))throw std::runtime_error("Screen original pixels unavailable: "+name);definitions_[name]=*definition;}
  for(const char*required:{"RemBGIntro","RemBG","Backgrounds\\rectangle_01","Blank","VignetteOverlay"})if(!definitions_.contains(required))throw std::runtime_error("Incomplete screen original resource graph");
  for(const auto&[name,d]:definitions_){for(const auto*field:{"ChildAnimation","ChainTo"}){const auto child=text(d,field);if(!child.empty()&&child!="null"&&!definitions_.contains(child)&&!(std::string(field)=="ChildAnimation"&&actionChildren_.contains(child)))throw std::runtime_error(std::string("Original screen ")+field+" closure missing: "+child);}}
  bank_=std::move(bank);registry_=std::move(registry);return true;
  }catch(const std::exception&x){e=x.what();return false;}}
 bool ScreenAnimationWorld::create(ObjectSnapshot&body,std::array<float,4>color,const ScreenAnimationSound&sound,std::string&e,float ownParallax,float mapParallax){
- if(!body.entityHandle||!body.screenSpace||things_.contains(body.id)||!std::isfinite(ownParallax)||!std::isfinite(mapParallax)){e="Actual selected screen Thing allocation unavailable";return false;}ScreenThing s;s.body=&body;s.baseColor=color;s.ownParallax=ownParallax;s.mapParallax=mapParallax;body.backend=ObjectBackend::Screen;things_.emplace(body.id,std::move(s));return body.animation.empty()?true:setAnimation(body.id,body.animation,sound,e);
+ if(!body.entityHandle||!body.screenSpace||things_.contains(body.id)||!std::isfinite(ownParallax)||!std::isfinite(mapParallax)){e="Actual selected screen Thing allocation unavailable";return false;}ScreenThing s;s.body=&body;s.sourceGraphic=body.animation;s.baseColor=color;s.ownParallax=ownParallax;s.mapParallax=mapParallax;body.backend=ObjectBackend::Screen;things_.emplace(body.id,std::move(s));return body.animation.empty()?true:setAnimation(body.id,body.animation,sound,e);
 }
 bool ScreenAnimationWorld::releasePrimary(ScreenThing&s,const ScreenAnimationSound&sound,std::string&e){
  if(!s.primary)return true;
@@ -145,11 +175,12 @@ bool ScreenAnimationWorld::allocateLayers(int32_t id,ScreenThing&s,const std::st
   if(const auto*list=d.get("CreateAnimations"))for(const auto&row:list->array()){if(row.object().size()!=1||!row.get("Name")){e="Native screen CreateAnimations record not reconstructed";return false;}if(!prepare(text(row,"Name")))return false;}
   const auto cue=text(d,"Sound");if(!cue.empty()&&!s.suppressSounds&&sound.worldFrame>=uint64_t(num(d,"SoundAllowedAfterFrame",2))){if(!sound.prepare||!sound.play){e="Actual screen sound preparation/playback provider unavailable: "+cue;return false;}if(!sound.prepare(cue,e))return false;}
   if(typeOf(d)==NativeAnimationType::Slide&&!boundedRandom_)for(const auto&slide:d.get("Slides")->array())if(num(slide,"RandomDurationFramesMin")>0&&num(slide,"RandomDurationFramesMax")>num(slide,"RandomDurationFramesMin")){e="Actual screen Slide deterministic RNG unavailable";return false;}
+  if((num(d,"RandomDurationMin")!=0||num(d,"RandomDurationMax")!=0)&&!random_){e="Actual screen animation duration RNG unavailable: "+next;return false;}
   next=text(d,"ChildAnimation");
   if(actionChildren_.contains(next)){if(!graph_.prepareChild||!graph_.child||!graph_.releaseChild){e="Actual screen ChildAnimation graph provider unavailable: "+next;return false;}if(!graph_.prepareChild(id,next,e))return false;break;}
  }
  std::function<bool(const std::string&,uint64_t)> initialize=[&](const std::string&next,uint64_t parent){
-  const auto&d=definitions_.at(next);const size_t index=out.size();ScreenLayer layer;layer.name=next;layer.clip=*bank_->find(next);
+  const auto&d=definitions_.at(next);const size_t index=out.size();ScreenLayer layer;layer.name=next;layer.clip=*bank_->find(next);layer.movie=movies_.contains(next);
   AnimationAllocation a;a.name=next;a.sourceDefinition=d;a.ownerId=id;a.ownerLifetime=s.body->entityHandle;a.manager=0;a.ownership=parent?AnimationOwnership::Child:AnimationOwnership::ThingPrimary;a.parent=parent;a.type=typeOf(d);a.onlyWhenVisible=flag(d,"OnlyWhenVisible");a.loop=flag(d,"Loop");
   if(!registry_->allocate(a,layer.handle,e))return false;out.push_back(std::move(layer));const auto handle=out[index].handle;
   // Constant.Init2b1b27 attaches before base Init291bf7/InitData. InitData
@@ -159,6 +190,7 @@ bool ScreenAnimationWorld::allocateLayers(int32_t id,ScreenThing&s,const std::st
    if(!cancelAllAttached_(id,s.body->entityHandle,s.primary,e))return false;
    for(const auto&old:s.layers)if(old.handle!=s.primary&&!registry_->cancel(old.handle,e))return false;
   }
+  if(a.type==NativeAnimationType::Constant&&!initializeDuration(out[index],d,e))return false;
   const auto child=text(d,"ChildAnimation");if(!child.empty()&&child!="null"){
    if(actionChildren_.contains(child)){uint64_t external=0;if(!graph_.child(id,child,handle,{s.body->x,s.body->y,0},external,e))return false;out[index].externalChild=external;}
    else if(!initialize(child,handle))return false;
@@ -173,7 +205,7 @@ bool ScreenAnimationWorld::allocateLayers(int32_t id,ScreenThing&s,const std::st
   const auto cue=text(d,"Sound");if(!cue.empty()&&!s.suppressSounds&&sound.worldFrame>=uint64_t(num(d,"SoundAllowedAfterFrame",2)))if(!sound.play(cue,out[index].sound,e))return false;
   auto&l=out[index];if(a.type==NativeAnimationType::Book){l.speed=num(d,"PlaySpeed");if(l.speed==0)l.speed=60;l.frac=float(startFrame(d));l.frame=startFrame(d);}
   else if(a.type==NativeAnimationType::Slide){if(!initializeSlide(l,d,e))return false;}
-  else{l.duration=num(d,"Duration");l.durationBound=l.duration>0;l.remaining=l.duration;}
+
   if(!registry_->commitInitialization(handle,false,e))return false;
   if(!parent&&s.timeMultiplier!=1&&!registry_->linkTimeMultiplier(handle,id,s.body->entityHandle,e))return false;
   return true;
@@ -270,15 +302,16 @@ bool ScreenAnimationWorld::advance(float dt,const ScreenAnimationSound&sound,std
   // Thing visibility bit here; wider renderer-cull/group scheduling remains
   // a separate provider rather than a fabricated camera visibility test.
   const bool onlyVisible=definition.get("OnlyWhenVisible")&&definition.get("OnlyWhenVisible")->boolean();
-  if(!onlyVisible||s.body->visible){float elapsed=0;const auto*life=registry_->find(s.primary);if(!life||!physicsComponentElapsed(dt,worldSpeed,num(definition,"TimeModifierFraction",-1)>=0?num(definition,"TimeModifierFraction"):1,life->attachedToTimeMultiplier?s.timeMultiplier:1,elapsed,e))return false;auto chain=s.playback.advance(elapsed);if(chain){if(!setAnimation(i->first,*chain,sound,e))return false;}else if(s.playback.finished()&&!(s.playback.clip()->flags&ActorHoldLastFrame)){
+  if(!onlyVisible||s.body->visible){float elapsed=0;const auto*life=registry_->find(s.primary);if(!life||!physicsComponentElapsed(dt,worldSpeed,num(definition,"TimeModifierFraction",-1)>=0?num(definition,"TimeModifierFraction"):1,life->attachedToTimeMultiplier?s.timeMultiplier:1,elapsed,e))return false;auto chain=s.playback.advance(elapsed);if(s.playback.finished()&&!(s.playback.clip()->flags&ActorHoldLastFrame)&&!registry_->cancel(s.primary,e))return false;if(chain){if(!setAnimation(i->first,*chain,sound,e))return false;}else if(s.playback.finished()&&!(s.playback.clip()->flags&ActorHoldLastFrame)){
    // Native Book.UpdateInternal marks canceled on finite completion unless
    // HoldLastFrame; Thing.UpdateAnimation clears a no-Graphic/no-ChainTo
    // primary. BlankObstacle remains a genuine screen Thing anchor.
-   if(!releasePrimary(s,sound,e))return false;s.body->animation.clear();s.body->frame=0;s.body->numFrames=0;
+   if(!s.sourceGraphic.empty()){if(!setAnimation(i->first,s.sourceGraphic,sound,e))return false;}else{if(!releasePrimary(s,sound,e))return false;s.body->animation.clear();s.body->frame=0;s.body->numFrames=0;}
   }else{s.body->frame=s.playback.originalFrame();}s.body->graphicsDirty=true;}
  }else if(s.primary){
   bool finished=false;
-  for(size_t k=0;k<s.layers.size();++k){auto&l=s.layers[k];const auto&d=definitions_.at(l.name);float elapsed=0;const auto*life=registry_->find(l.handle);if(!life||!physicsComponentElapsed(dt,worldSpeed,num(d,"TimeModifierFraction",-1)>=0?num(d,"TimeModifierFraction"):1,life->attachedToTimeMultiplier?s.timeMultiplier:1,elapsed,e))return false;
+  // UpdateChild295900: actual child layers update before their parent.
+  for(size_t k=s.layers.size();k-->0;){auto&l=s.layers[k];const auto&d=definitions_.at(l.name);float elapsed=0;const auto*life=registry_->find(l.handle);if(!life||!physicsComponentElapsed(dt,worldSpeed,num(d,"TimeModifierFraction",-1)>=0?num(d,"TimeModifierFraction"):1,life->attachedToTimeMultiplier?s.timeMultiplier:1,elapsed,e))return false;
    if(typeOf(d)==NativeAnimationType::Slide){
     if(l.playback.finished())continue;
     // Slide PostUpdate 0x1802b4a26: one positive-duration slide per update.
@@ -293,11 +326,17 @@ bool ScreenAnimationWorld::advance(float dt,const ScreenAnimationSound&sound,std
     }
     continue;
    }
-   if(typeOf(d)==NativeAnimationType::Constant){if(l.durationBound){l.remaining-=elapsed*l.multiplier;l.progress=std::clamp(1.f-l.remaining/l.duration,0.f,1.f);if(l.remaining<0&&!flag(d,"HoldLastFrame")){
+   if(typeOf(d)==NativeAnimationType::Constant){if(l.durationBound){l.remaining-=elapsed*l.multiplier;l.progress=l.duration>0?std::clamp(1.f-l.remaining/l.duration,0.f,1.f):1.f;if(l.remaining<0&&!flag(d,"HoldLastFrame")){
     // ConstantAnimation::UpdateInternal 0x1802b1bb0: a looping duration
     // record loops (Animation::Loop 0x180296310 ResetTimeRemaining sets
     // TimeRemaining=Duration) instead of finishing.
-    if(flag(d,"Loop"))l.remaining=l.duration;
+    if(flag(d,"Loop")){
+     l.remaining=l.duration;
+     // Portable adaptation: apply queued native component writes immediately;
+     // their exact command-buffer flush phase remains unresolved. Keep this
+     // frame's cached fraction; only the next ECS pass updates it.
+     if((!d.get("ReRandomizeOnLoop")||flag(d,"ReRandomizeOnLoop"))&&num(d,"RandomDurationMin")>0){const float cached=l.progress;if(!initializeDuration(l,d,e))return false;l.progress=cached;}
+    }
     else{if(k!=0)throw std::runtime_error("Native finished screen child Constant not reconstructed: "+l.name);finished=true;}}}continue;}
    if(typeOf(d)!=NativeAnimationType::Book)continue;
    // PlaySpeedUpdateSystem::Execute 0x153b80: step toward a positive target
@@ -308,16 +347,19 @@ bool ScreenAnimationWorld::advance(float dt,const ScreenAnimationSound&sound,std
    // BookAnimation::UpdateInternal 0x2af530.
    const int32_t start=startFrame(d),end=endFrame(d);l.frame=std::clamp(int32_t(std::trunc(l.frac)),start,end);
    if(!flag(d,"HoldLastFrame")&&(l.frac>=float(end)+1||l.frac<float(start))){
-    if(flag(d,"Loop"))throw std::runtime_error("Native GUI Book Loop() wrap not reconstructed: "+l.name);
+    if(flag(d,"Loop")){l.frac=float(start);l.frame=start;if(num(d,"PlaySpeed")!=0){l.speed=num(d,"PlaySpeed");l.target=0;}continue;}
     if(k!=0)throw std::runtime_error("Native finished screen child Book not reconstructed: "+l.name);
-    finished=true;
+    // Book.UpdateInternal2af725/2af752 marks canceled before Thing completion;
+    // unlike Constant expiration this affects same-name Graphic fallback.
+    if(!registry_->cancel(l.handle,e))return false;finished=true;
    }
   }
   if(finished){
    // Thing::UpdateAnimation 0x2df602..652: finite primary completion
-   // selects ChainTo through Thing::SetAnimation, otherwise clears primary.
+   // selects ChainTo, then immutable ThingData.Graphic, through the normal setter.
    const auto chain=text(definitions_.at(s.body->animation),"ChainTo");
    if(!chain.empty()&&chain!="null"){if(!setAnimation(i->first,chain,sound,e))return false;}
+   else if(!s.sourceGraphic.empty()){if(!setAnimation(i->first,s.sourceGraphic,sound,e))return false;}
    else{if(!releasePrimary(s,sound,e))return false;s.body->animation.clear();s.body->frame=0;s.body->numFrames=0;}
   }
   else s.body->frame=uint32_t(s.layers.front().frame);s.body->graphicsDirty=true;
@@ -329,11 +371,13 @@ bool ScreenAnimationWorld::layerVisual(const ScreenThing&s,const ScreenLayer&l,A
  const auto&d=definitions_.at(l.name);const auto&clip=bank_->clips().at(l.clip);const bool book=typeOf(d)==NativeAnimationType::Book,sourceSlide=typeOf(d)==NativeAnimationType::Slide;
  const size_t slide=book?size_t(l.frame-startFrame(d)):(sourceSlide?l.playback.slideIndex():0);if(slide>=clip.slides.size()){e="Actual screen frame outside original resource: "+l.name;return false;}
  out.frame=bank_->sample(l.clip,slide,0);out.localRect=out.frame.worldRect(clip);
+ if(l.movie){const float sourceScale=num(d,"Scale",1);out.localRect[0]=(out.localRect[0]-clip.offsetX)/sourceScale;out.localRect[1]=(out.localRect[1]-clip.offsetY)/sourceScale;out.localRect[2]/=sourceScale;out.localRect[3]/=sourceScale;if(out.flipX)out.localRect[0]=-out.localRect[0]-out.localRect[2];}
+ out.angle=-animationAngleTransition(animationRadians(num(d,"StartAngle")),animationRadians(num(d,"EndAngle")),l.progress,num(d,"EaseIn"),num(d,"EaseOut"),flag(d,"PingPongAngle"),num(d,"PhaseOffsetAngle"))-(maintain(d,"AngleFromOwner")?s.body->angle:0.f);
  // GetScale 0x298bb0: Data.Scale x own transition x (Maintain) Thing body
  // mScale x Thing ScaleTransition. GetDrawScaleVector 0x298500: Data.ScaleX/Y
  // x (Maintain) Thing ScaleX/ScaleY transitions. Drawable scale = (v.x s, v.y s).
  const float scale=num(d,"Scale",1)*scaleTransition(d,l.progress)*(maintain(d,"ScaleFromOwner")?s.body->scale*s.body->scaleFraction:1.f);
- float vx=num(d,"ScaleX",1)*s.modifier(2),vy=num(d,"ScaleY",1)*s.modifier(3);
+ float vx=num(d,"ScaleX",1)*scaleTransition(d,l.progress,"StartScaleX","EndScaleX")*s.modifier(2),vy=num(d,"ScaleY",1)*scaleTransition(d,l.progress,"StartScaleY","EndScaleY")*s.modifier(3);
  // GetDrawScaleVector 0x2985ef..6e8: largest attached textbox width/height
  // divided by the corresponding scalar, independently of text opacity.
  if(num(d,"AttachedTextScalarX")>0||num(d,"AttachedTextScalarY")>0){

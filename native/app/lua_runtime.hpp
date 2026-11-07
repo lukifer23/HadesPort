@@ -586,6 +586,9 @@ public:
 #ifndef __ANDROID__
     // Isolated registered-action diagnostic; never advances game progression.
     bool probePackageRequests();
+    // Actual source screen movies/helpers with registered creation/actions;
+    // isolated host diagnostic, never combined with game progression.
+    bool probeScreenAnimations();
 #endif
     const std::string& error() const { return error_; }
     std::string sceneGroupsDump() const;

@@ -30,6 +30,9 @@ struct TextFormatSnapshot {
 // nonempty text through source glyphs. Unknown fonts/macros/character fades
 // remain explicit errors. Presentation is sampled from actual live owners.
 void registerTextRuntime(lua_State*);
+// Shared LuaTableExtensions.GetColor2496f0/2497bf: RGB chooses normalized
+// versus byte conversion; indexed defaults are {0,0,0,1}. Absent => false.
+bool readScriptColorArgument(lua_State*,int table,const char* key,std::array<float,4>&);
 void configureTextRuntime(lua_State*,std::shared_ptr<const hades::TextFontBank>);
 using TextControlLabelProvider=std::function<bool(const std::string&,std::string&,std::string&)>;
 // Platform input presentation: labels must describe an actual available input.

@@ -18,6 +18,7 @@ bool ScriptRuntime::loadScreenAnimationDefinitions(){try{
  const auto*bound=data.get("action_bank_sha256");if((crossBank&&!bound)||(bound&&bound->text()!=actionEffects_.imageBankSha256()))throw std::runtime_error("Screen graph action bank identity differs from actual manager resources");
  screenAnimationBank_=std::make_shared<hades::ActorAnimationBank>();screenAnimationBank_->load(*assets_,"screen-animation-frames.bin");if(!screenAnimations_.load(std::move(data),screenAnimationBank_,effects_.registry(),error_))return false;
  screenAnimations_.setBoundedRandomProvider([this](uint32_t bound,uint32_t&value,std::string&e){if(nextRecoveredEngineBoundedRandom(state_,bound,value))return true;e="Actual screen Slide deterministic RNG unavailable";return false;});
+ screenAnimations_.setRandomProvider([this](double&value,std::string&e){if(nextRecoveredEngineRandom(state_,value))return true;e="Actual screen animation uniform RNG unavailable";return false;});
  hades::ScreenAnimationGraph graph;
  graph.prepare=[this](int32_t id,const std::string&name,std::string&e){return actionEffects_.prepare(name,id,actionEffectProviders(),e);};
  graph.prepareChild=[this](int32_t id,const std::string&name,std::string&e){return actionEffects_.prepareExternalChild(name,id,actionEffectProviders(),e);};
@@ -86,10 +87,8 @@ bool ScriptRuntime::screenAnimationArgs(int32_t id,const std::string&name,lua_St
  for(const auto&[key,fallback]:std::initializer_list<std::pair<const char*,double>>{{"Scale",1},{"Duration",0},{"MinDuration",0},{"MaxDuration",0},{"OffsetX",0},{"OffsetY",0},{"SoundId",0}})if(const auto*x=v.get(key);x&&x->number()!=fallback)throw std::runtime_error(std::string("Screen SetAnimation option not reconstructed: ")+name+"."+key);
  if((v.get("SuppressSounds")&&v.get("SuppressSounds")->boolean())||(v.get("SuppressSoundsIfInvisible")&&!v.get("SuppressSoundsIfInvisible")->boolean()))throw std::runtime_error("Screen SetAnimation SuppressSounds options not reconstructed: "+name);
  if(v.get("FrameTarget"))r.frameTarget=screenArg(v,"FrameTarget",-1);if(v.get("StartFrameFraction"))r.startFrameFraction=screenArg(v,"StartFrameFraction");r.instant=screenFlag(v,"Instant");r.playSpeed=screenArg(v,"PlaySpeed",1);
- if(const auto*c=v.get("Color")){
-  // Native SetAnimation forwards Color to the Thing SetColor action (0x6c):
-  // source byte RGBA, SetBase/Duration absent => immediate body colour.
-  const auto&bytes=c->array();if(bytes.size()!=4)throw std::runtime_error("Native SetAnimation Color requires source RGBA byte array");std::array<float,4>rgba{};for(size_t i=0;i<4;++i){const double n=bytes[i].number();if(n<0||n>255||n!=std::trunc(n))throw std::runtime_error("Native SetAnimation Color outside byte subset");rgba[i]=float(n)/255.f;}r.color=rgba;}
+ std::array<float,4>rgba{};if(readScriptColorArgument(L,1,"Color",rgba))r.color=rgba;
+
  return screenAnimations_.setAnimation(id,name,r,screenAnimationSound(),e);
  }catch(const std::exception&x){e=x.what();return false;}}
 // Screen branch of ScriptAction::Move 0x274230 -> Obstacle::MoveTo 0x2c5bf0.

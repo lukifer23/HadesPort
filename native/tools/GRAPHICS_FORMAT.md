@@ -295,7 +295,7 @@ GetDrawLocation applies attached-body scale to animation offsets even where
 ScaleFromOwner Ignore excludes that body scale from image geometry. Do not merge
 these into one guessed scale.
 
-The GPU frame cache remains bounded at64MiB/512textures. The lossless full original
+The GPU frame cache is currently bounded at 384 MiB/4,096 textures. The lossless full original
 1920x1080 vignette requires8,294,400RGBA bytes, so streamed HAA CPU frames/cache
 are bounded at16MiB/8frames. Original packet bytes remain unchanged. See
 `native/analysis/scene-primary-runtime-contract-v2.json` for evidence, diagnostic

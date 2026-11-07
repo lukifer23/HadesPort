@@ -1,4 +1,5 @@
 #include "action_effect.hpp"
+#include "animation_transitions.hpp"
 #include <algorithm>
 #include <cmath>
 #include <set>
@@ -37,10 +38,10 @@ float shift(const SourceValue&d,const char*start,const char*end,float fraction){
 // InitData 0x18029217d..0x1802922fd: BodyComponent::Adjust transition when
 // Start!=End (AnimationData ctor default 1), PingPongScale, EaseIn/EaseOut;
 // BodyComponentTransitionHelper::CalcCurrentValue 0x1802b5420 at mFraction.
-float scaleHelper(const SourceValue&d,const char*start,const char*end,float f){const float a=n(d,start,1),z=n(d,end,1);if(a==z)return 1;const float in=n(d,"EaseIn"),out=n(d,"EaseOut");if(b(d,"PingPongScale"))return f<.5f?EffectParticleWorld::interpolate(a,z,f*2,in,out):EffectParticleWorld::interpolate(z,a,(f-.5f)*2,in,out);return EffectParticleWorld::interpolate(a,z,f,in,out);}
+float scaleHelper(const SourceValue&d,const char*start,const char*end,float f){const float a=n(d,start,1),z=n(d,end,1);if(a==z)return 1;const float in=n(d,"EaseIn"),out=n(d,"EaseOut");return animationScaleTransition(a,z,f,in,out,b(d,"PingPongScale"));}
 // AnimationData::Read 0x180090212/0x18009026d: StartAngle/EndAngle are
 // float(double(degrees) x 0.017453292519943295) (constant 0x180610e80).
-float radD(float v){return float(double(v)*0.017453292519943295);}
+float radD(float v){return animationRadians(v);}
 // BodyComponent mAngleTransition (body+0x80): InitData 0x1802928ab..0x180292941
 // adjusts it only when StartAngle!=EndAngle, start unwrapped, end wrapped
 // End-floor(End/tau)*tau; Adjust 0x1802b7440 wraps PhaseOffsetAngle into
@@ -51,12 +52,8 @@ float radD(float v){return float(double(v)*0.017453292519943295);}
 // (GetDrawAngle 0x1802980a0 subtracts mAngle + CalcCurrentValue).
 float angleModifier(const SourceValue&d,float fraction){
  const float a=radD(n(d,"StartAngle")),z0=radD(n(d,"EndAngle"));if(a==z0)return 0;
- const float tau=6.2831854820251465f;const volatile float q=z0/tau;const volatile float m=std::floor(float(q))*tau;const float z=z0-m;
  const float in=n(d,"EaseIn"),out=n(d,"EaseOut");
- if(!b(d,"PingPongAngle"))return EffectParticleWorld::interpolate(a,z,fraction,in,out);
- float phase=n(d,"PhaseOffsetAngle");if(0.f>phase)phase=360.f-(0.f-phase);else if(phase>360.f)phase=phase-360.f+0.f;phase*=0.0027777778450399637f;
- float f=phase+fraction;if(0.f>f)f=1.f-(0.f-f);else if(f>1.f)f=f-1.f+0.f;
- return .5f>f?EffectParticleWorld::interpolate(a,z,f+f,in,out):EffectParticleWorld::interpolate(z,a,(f-.5f)+(f-.5f),in,out);}
+ const bool pingPong=b(d,"PingPongAngle");return animationAngleTransition(a,z0,fraction,in,out,pingPong,pingPong?n(d,"PhaseOffsetAngle"):0);}
 bool maintainsOwnerAngle(const SourceValue&d){return t(d,"AngleFromOwner").empty()||t(d,"AngleFromOwner")=="Maintain";}
 float wrapAngle(float a){const volatile float q=a/6.2831854820251465f;const volatile float m=std::floor(float(q))*6.2831854820251465f;return a-m;}
 // Property coverage review (replaces the former reviewed-name allowlist).
@@ -123,9 +120,9 @@ bool ActionEffectWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimationB
    // BookAnimation::UpdateInternal 0x1802af62f: HoldLastFrame skips the frame
    // end loop/finish block; IsFinished 0x1802959f0 ignores TimeRemaining.
    if(key=="HoldLastFrame"){if(value.boolean()&&type!=NativeAnimationType::Constant&&type!=NativeAnimationType::ConstantNoUpdate&&type!=NativeAnimationType::Book)unsupported.push_back("HoldLastFrame on "+t(d,"Type"));continue;}
-   // AnimationData ctor 0x18009425b default ReRandomizeOnLoop=true; Animation::Loop
-   // 0x1802963ea skips re-randomization when false (exact); true is not rebuilt.
-   if(key=="ReRandomizeOnLoop"){if(value.boolean())unsupported.push_back("ReRandomizeOnLoop=true");continue;}
+   // AnimationData ctor09425b defaults true. Loop2963ea..296639 consumes
+   // duration, play speed, scale, attachment offsets and random start frame.
+   if(key=="ReRandomizeOnLoop"){(void)value.boolean();continue;}
    // GetAngleNum mirror (data+0x6e) and isometric (data+0x9d) branches.
    if(key=="Mirror"){if(value.boolean()&&movies_.contains(name))unsupported.push_back("Movie Mirror UV policy");else if(value.boolean()&&n(d,"NumAngles",1)<=1)unsupported.push_back("Mirror on single-angle");continue;}
    if(key=="UseIsometricAngle"){if(value.boolean()&&!movies_.contains(name))unsupported.push_back("UseIsometricAngle");continue;}
@@ -363,8 +360,13 @@ bool ActionEffectWorld::transferFrame(uint64_t target,const ActionEffectState&so
 }
 bool ActionEffectWorld::slideFx(uint64_t handle,const ActionEffectProviders&p,std::string&error){auto&source=states_.at(handle);const auto&clip=bank_->clips().at(source.imageClip);const auto&step=source.definition.get("Slides")->array().at(clip.slides.at(source.slide).originalFrame-1);const auto fx=t(step,"VisualFx");if(fx.empty())return true;EffectOwnerState owner;if(!p.owner(source.ownerId,owner,error))return false;uint64_t h;if(!initialize(fx,source.ownerId,owner,source.position,0,false,p,h,error))return false;if(!h)return true;auto&spawned=states_.at(h);spawned.heading+=-1.5707963705062866f+source.heading;if(t(spawned.definition,"ScaleFromOwner")!="Ignore")spawned.ownScale*=source.ownScale*owner.scale;source.created.push_back(h);return true;}
 bool ActionEffectWorld::advance(float dt,const ActionEffectProviders&p,std::string&error){try{
- if(faulted_){error=fault_;return false;}if(mutating_||!std::isfinite(dt)||dt<0||dt>1){error="Invalid/faulted original action FX world";return false;}const auto snapshot=handles(true);std::vector<uint64_t>dead;
+ if(faulted_){error=fault_;return false;}if(mutating_||!std::isfinite(dt)||dt<0||dt>1){error="Invalid/faulted original action FX world";return false;}const auto snapshot=handles(true);std::vector<uint64_t>dead;std::map<uint64_t,float> elapsedByHandle;
+ // Portable main-thread ECS integration pass: preserve its allocation order
+ // independently of the child-first class updates below. Parent-linked light
+ // positions therefore see their parent's current component motion. Full
+ // proprietary ECS job/command-buffer scheduling remains a separate boundary.
  for(auto h:snapshot){auto& s=states_.at(h);auto*life=registry_->find(h);if(!life||!life->initialized){error="Actual action FX lifetime lost";return false;}
+  s.loopedThisUpdate=false;
   // ShiftFractionSystem::Execute153390: phase+=rate*dt (rate stays 0), one wrap.
   if(s.shiftFraction){float f=*s.shiftFraction+0.f*dt;if(0.f>f)f=1.f-(0.f-f);else if(f>1.f)f=f-1.f+0.f;s.shiftFraction=f;}
   if(life->skipUpdate||s.done)continue;if(life->canceled){dead.push_back(h);continue;}const auto&d=s.definition;EffectOwnerState owner=s.ownerSnapshot;if(!s.detached){if(!p.owner(s.ownerId,owner,error)||owner.lifetime!=s.ownerLifetime)return false;s.ownerSnapshot=owner;}float elapsed=dt;if(p.elapsed&&!p.elapsed(s.ownerId,s.preferUnmodified?0:n(d,"TimeModifierFraction",-1),!s.detached&&life->attachedToTimeMultiplier,dt,elapsed,error))return false;if(!std::isfinite(elapsed)||elapsed<0||elapsed>1){error="Invalid actual action FX modified time";return false;}
@@ -372,7 +374,7 @@ bool ActionEffectWorld::advance(float dt,const ActionEffectProviders&p,std::stri
  if(!s.detached&&!t(d,"UseAttachedMarkerLocation").empty()){std::array<float,3> marker;if(!p.marker(s.ownerId,t(d,"UseAttachedMarkerLocation"),marker,error))return false;s.position[0]=marker[0]+s.randomX;s.position[1]=marker[1]+s.randomY;}
  if(s.isLight&&state(s.parent))s.position=state(s.parent)->position;
  // TimeRemainingSystem 0x180189140: TR -= dt x PlaySpeedMultiplier.
- if(s.type==NativeAnimationType::ConstantNoUpdate)continue;if(s.durationBound)s.remaining-=elapsed*s.playSpeedMultiplier;s.rotation+=s.rotationSpeed*elapsed;s.upwardVelocity-=s.gravity*elapsed;s.ownZ+=s.upwardVelocity*elapsed;s.position[2]=s.ownZ+(!s.detached&&(t(d,"LocationZFromOwner").empty()||t(d,"LocationZFromOwner")=="Maintain")?owner.z:0);s.speed=std::max(0.f,s.speed+s.acceleration*elapsed);s.heading+=s.headingSpeed*elapsed;s.position[0]+=std::cos(s.heading)*s.speed*elapsed;s.position[1]-=std::sin(s.heading)*s.speed*elapsed;
+ if(s.type==NativeAnimationType::ConstantNoUpdate)continue;elapsedByHandle.emplace(h,elapsed);if(s.durationBound)s.remaining-=elapsed*s.playSpeedMultiplier;s.rotation+=s.rotationSpeed*elapsed;s.upwardVelocity-=s.gravity*elapsed;s.ownZ+=s.upwardVelocity*elapsed;s.position[2]=s.ownZ+(!s.detached&&(t(d,"LocationZFromOwner").empty()||t(d,"LocationZFromOwner")=="Maintain")?owner.z:0);s.speed=std::max(0.f,s.speed+s.acceleration*elapsed);s.heading+=s.headingSpeed*elapsed;s.position[0]+=std::cos(s.heading)*s.speed*elapsed;s.position[1]-=std::sin(s.heading)*s.speed*elapsed;
  // RotateWithGravitySystem::RunJobs 0x180150ee0: three EntityManager queries
  // (AnimHandle, RotateWithGravity, Rotation + Speed/UpwardVelocity), jobs
  // 0x180151ac0 (both), 0x1801518a0 (Speed only), 0x180151740 (UpwardVelocity
@@ -387,6 +389,26 @@ bool ActionEffectWorld::advance(float dt,const ActionEffectProviders&p,std::stri
  // Animation::IsFinished: canceled || (!HoldLastFrame && mTimeRemaining<0).
  // AnimationFractionFromDurationSystem 0x180152ce0 for any animation with a Duration.
  if(s.durationBound)s.fraction=std::clamp(1-s.remaining/s.duration,0.f,1.f);
+ if(s.type==NativeAnimationType::Book){
+  const float start=n(d,"StartFrame",1),end=n(d,"EndFrame",n(d,"NumFrames"));
+  if(s.customFrames){const float f=s.backwards?1-s.fraction:s.fraction;s.frame=start+(end-start)*f;}
+  else{
+   // PlaySpeedUpdateSystem153b80 runs before class UpdateInternal; no loop
+   // RNG or deferred OnLoop callback can change this frame's component step.
+   const float step=s.playSpeed*s.playSpeedMultiplier*elapsed;
+   if(s.frameTarget>0){if(step>=std::abs(s.frameTarget-s.frame))s.frame=s.frameTarget;else if(s.frameTarget>s.frame)s.frame+=step;else if(s.frameTarget<s.frame)s.frame-=step;}
+   else s.frame+=(s.backwards?-1.f:1.f)*step;
+  }
+ }
+ }
+ // UpdateChild295900 calls each child's UpdateInternal before the parent's
+ // own class update (Constant2b1bb9 / Book2af539). Traverse only actual child
+ // edges; independently manager-created animations keep their root order.
+ const std::set<uint64_t> initial(snapshot.begin(),snapshot.end());std::set<uint64_t> visited;std::vector<uint64_t> postorder;
+ std::function<void(uint64_t)> updateOrder=[&](uint64_t h){if(!initial.contains(h)||!visited.insert(h).second)return;const auto* s=state(h);if(s&&s->child)updateOrder(s->child);postorder.push_back(h);};
+ for(auto h:snapshot){const auto*s=state(h);if(s&&s->parent&&!s->isLight&&initial.contains(s->parent))continue;updateOrder(h);}
+ for(auto h:snapshot)updateOrder(h);
+ for(auto h:postorder){if(!elapsedByHandle.contains(h))continue;auto&s=states_.at(h);const auto&d=s.definition;const float elapsed=elapsedByHandle.at(h);
  const bool hold=b(d,"HoldLastFrame"),loop=b(d,"Loop"),framesOnly=b(d,"LoopFramesOnly");
  if(s.type==NativeAnimationType::Constant){
   // ConstantAnimation::UpdateInternal 0x1802b1bb0 / IsFinished.
@@ -395,14 +417,6 @@ bool ActionEffectWorld::advance(float dt,const ActionEffectProviders&p,std::stri
  else if(s.type==NativeAnimationType::Book){
   // BookAnimation::UpdateInternal 0x1802af530.
   const float start=n(d,"StartFrame",1),end=n(d,"EndFrame",n(d,"NumFrames"));
-  if(s.customFrames){const float f=s.backwards?1-s.fraction:s.fraction;s.frame=start+(end-start)*f;}
-  else{
-   // PlaySpeedUpdateSystem.Execute153b80 approaches a positive target;
-   // Book.UpdateInternal2af530 then consumes the resulting fractional frame.
-   const float step=s.playSpeed*s.playSpeedMultiplier*elapsed;
-   if(s.frameTarget>0){if(step>=std::abs(s.frameTarget-s.frame))s.frame=s.frameTarget;else if(s.frameTarget>s.frame)s.frame+=step;else if(s.frameTarget<s.frame)s.frame-=step;}
-   else s.frame+=(s.backwards?-1.f:1.f)*step;
-  }
   if(!s.durationBound)s.fraction=std::clamp((s.frame-start+1)/(end-start+1),0.f,1.f);
   bool finished=false;
   if(s.durationBound&&s.remaining<0){if(loop){if(!loopAnimation(h,true,p,error))return false;}else if(!hold)finished=true;}
@@ -412,12 +426,12 @@ bool ActionEffectWorld::advance(float dt,const ActionEffectProviders&p,std::stri
  }
  else {if(!hold&&s.durationBound&&s.remaining<0){dead.push_back(h);continue;}s.slideRemaining-=elapsed;if(s.slideRemaining<.0001f){const auto&clip=bank_->clips()[s.imageClip];if(++s.slide>=clip.slides.size())dead.push_back(h);else{s.slideRemaining+=float(clip.slides[s.slide].ticks)/60;s.frame=float(clip.slides[s.slide].originalFrame);if(!slideFx(h,p,error))return false;}}s.fraction=std::clamp((s.frame-n(d,"StartFrame",1)+1)/(n(d,"EndFrame",n(d,"NumFrames"))-n(d,"StartFrame",1)+1),0.f,1.f);}
  }
- // Native Book/Constant.PostUpdate2b0870/2b1cb0 finishes descendants before
- // their parent's manager death, even when both finish on this update.
- const std::set<uint64_t> completed(dead.begin(),dead.end());std::set<uint64_t> visited;std::vector<uint64_t> postorder;
- std::function<void(uint64_t)> finishOrder=[&](uint64_t h){if(!visited.insert(h).second)return;const auto* s=state(h);if(s&&s->child)finishOrder(s->child);if(completed.contains(h))postorder.push_back(h);};
- for(auto h:dead)finishOrder(h);dead=std::move(postorder);
- for(auto h:dead)if(state(h)){const auto old=*state(h);
+ // Book/Constant.PostUpdate finishes a child's PostUpdate/completion before
+ // its own OnLoop callback (2b08ff/2b1cee), then the manager may release self.
+ const std::set<uint64_t> completed(dead.begin(),dead.end());
+ for(auto h:postorder)if(state(h)){
+  if(state(h)->loopedThisUpdate&&!loopSound(h,p,error))return false;
+  if(!completed.contains(h))continue;const auto old=*state(h);
   if(old.parent&&!old.isLight){
    // Animation.OnChildFinished295780 releases its finished child, then
    // AddChild293ae0 creates ChainTo UNDER THE SAME PARENT. There is no
@@ -702,6 +716,45 @@ bool ActionEffectWorld::loopAnimation(uint64_t h,bool force,const ActionEffectPr
  if(s.type==NativeAnimationType::Book)s.frame=s.backwards?n(d,"EndFrame",n(d,"NumFrames")):n(d,"StartFrame",1);
  // ResetTimeRemaining: TimeRemaining = current Duration component.
  if((!b(d,"LoopFramesOnly")||force)&&s.durationBound)s.remaining=s.duration;
+ // AnimationData ctor09425b defaults ReRandomizeOnLoop to true. Base
+ // Loop2963ea..296639 reselects these properties in this exact RNG order.
+ // Book.Loop2b1480 resets Start/End before calling this base branch, so
+ // RandomStartFrame below deliberately overrides that normal frame reset.
+ if(!d.get("ReRandomizeOnLoop")||b(d,"ReRandomizeOnLoop")){
+  if(n(d,"RandomDurationMin")>0&&(!b(d,"LoopFramesOnly")||force)){
+   // Deterministic.RandomFloat66850 always draws, including equal bounds.
+   float duration;if(!rng(p,n(d,"RandomDurationMin"),n(d,"RandomDurationMax"),duration,error))return false;
+   s.duration=duration;s.remaining=duration;
+  }
+  if(n(d,"PlaySpeed")!=0||n(d,"RandomPlaySpeedMin")!=0||n(d,"RandomPlaySpeedMax")!=0){
+   float speed=n(d,"PlaySpeed");if(n(d,"RandomPlaySpeedMin")!=0||n(d,"RandomPlaySpeedMax")!=0)if(!rng(p,n(d,"RandomPlaySpeedMin"),n(d,"RandomPlaySpeedMax"),speed,error))return false;
+   // EntityCommandBuffer.SetValue(DataPlaySpeed)2964cc..2964f2 writes
+   // both the selected speed and a zero target; multiplier is unchanged.
+   s.playSpeed=speed;s.frameTarget=0;
+  }
+  float scale=n(d,"Scale",1);if(n(d,"ScaleMin")!=0||n(d,"ScaleMax")!=0)if(!rng(p,n(d,"ScaleMin"),n(d,"ScaleMax"),scale,error))return false;
+  s.ownScale=scale; // BodyComponent.mScale(+158), then MarkDirty29652a.
+  const float randomX=n(d,"RandomOffsetX"),randomY=n(d,"RandomOffsetY");
+  if(randomX>0||randomY>0){
+   auto offset=s.attachOffset.value_or(std::array<float,2>{s.randomX,s.randomY});
+   if(randomX>0&&!rng(p,-randomX,randomX,offset[0],error))return false;
+   if(randomY>0&&!rng(p,-randomY,randomY,offset[1],error))return false;
+   s.attachOffset=offset; // Raw +a0/a4, independent of source draw +90/94.
+  }
+  if(b(d,"RandomStartFrame")){
+   const int32_t start=int32_t(n(d,"StartFrame",1)),end=int32_t(n(d,"EndFrame",n(d,"NumFrames",1)));
+   if(end<start){error="Native random loop frame bounds invalid: "+s.name;return false;}
+   uint32_t offset=0;
+   if(end!=start&&(!p.bounded||!p.bounded(uint32_t(end-start),offset,error)||offset>=uint32_t(end-start))){if(error.empty())error="Actual random loop frame draw unavailable";return false;}
+   s.frame=float(start+int32_t(offset)); // SetFractionalFrame296639.
+  }
+ }
+ // Loop changes Duration/TimeRemaining, not the fraction already sampled by
+ // UpdateInternal earlier this frame. The next duration-system pass updates it.
+ s.loopedThisUpdate=true;return true;
+}
+bool ActionEffectWorld::loopSound(uint64_t h,const ActionEffectProviders&p,std::string&error){
+ auto&s=states_.at(h);const auto&d=s.definition;
  // OnLoop 0x1802966a6: StopSoundOnFinishFade>0 first StopCue(mSound, fade).
  if(b(d,"ReplaySoundOnLoop")&&!t(d,"Sound").empty()&&n(d,"StopSoundOnFinishFade")>0&&s.sound){if(!stopSound_){error="Actual action FX StopCue fade provider unavailable";return false;}if(!stopSound_(s.sound,n(d,"StopSoundOnFinishFade"),error))return false;s.sound=0;}
  if(b(d,"ReplaySoundOnLoop")&&!t(d,"Sound").empty()){if(!p.sound){error="Actual action FX loop sound provider unavailable";return false;}if(!p.sound(t(d,"Sound"),s.ownerId,s.position,uint32_t(n(d,"SoundManagerCap")),s.sound,error))return false;}

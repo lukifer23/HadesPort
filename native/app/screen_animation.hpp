@@ -28,7 +28,7 @@ struct ScreenAnimationGraph {
 // separate animation on the same Thing, drawn after its parent).
 struct ScreenLayer {
  std::string name;uint64_t handle=0;size_t clip=0;
- bool legacy=false; // Reviewed v6 movie/rectangle closure keeps its earlier playback.
+ bool legacy=false,movie=false; // Reviewed v6 closure keeps its earlier playback.
  uint64_t externalChild=0;uint32_t sound=0;
  std::vector<uint64_t> created; // Non-owning InitData+0x728 manager references.
  ActorAnimationPlayback playback;
@@ -42,6 +42,7 @@ struct ScreenLayer {
 struct ScreenMoveAxis {bool active=false;float start=0,end=0,duration=0,remaining=0,fraction=0;};
 struct ScreenThing {
  ObjectSnapshot* body=nullptr;
+ std::string sourceGraphic; // Immutable ThingData.Graphic; body.animation is mutable.
  // Thing ctor 2daac6: own +22c=1, optional MapThing +240=null. These
  // factors describe destination parallax independently of render ownership.
  float ownParallax=1,mapParallax=1;
@@ -70,12 +71,15 @@ class ScreenAnimationWorld {
  std::shared_ptr<ActorAnimationBank> bank_;std::shared_ptr<AnimationRegistry> registry_;
  std::map<std::string,SourceValue> definitions_;
  std::set<std::string> actionChildren_;
+ std::set<std::string> movies_;
  ScreenAnimationGraph graph_;
  std::function<bool(int32_t,std::string&)> preDisposeOwner_;
  std::map<int32_t,ScreenThing> things_;
  std::function<bool(int32_t,std::array<float,2>&,std::string&)> textDimensions_;
  std::function<bool(int32_t,uint64_t,uint64_t,std::string&)> cancelAllAttached_;
  EffectBoundedRandom boundedRandom_;
+ EffectAnimationRandom random_;
+ bool initializeDuration(ScreenLayer&,const SourceValue&,std::string&);
  bool validateSlide(const SourceValue&,const ActorAnimationClip&,std::string&)const;
  bool startSlide(ScreenLayer&,const SourceValue&,std::string&);
  bool initializeSlide(ScreenLayer&,const SourceValue&,std::string&);
@@ -88,6 +92,7 @@ public:
  void setPreDisposeOwnerProvider(std::function<bool(int32_t,std::string&)> provider){preDisposeOwner_=std::move(provider);}
  bool childFinished(uint64_t parent,uint64_t child,std::string&);
  void setBoundedRandomProvider(EffectBoundedRandom provider){boundedRandom_=std::move(provider);}
+ void setRandomProvider(EffectAnimationRandom provider){random_=std::move(provider);}
  void setTextDimensionsProvider(std::function<bool(int32_t,std::array<float,2>&,std::string&)> provider){textDimensions_=std::move(provider);}
  // Animation.Attach299ea0 cancels other actual attachments before inserting
  // this animation; the old Thing primary is expressly excluded.
