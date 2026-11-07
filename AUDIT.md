@@ -5,8 +5,8 @@ verified pipeline batch `86b0344`, Athena graph, package/config and current boon
 The scope is HadesPort: native engine, host drivers, exporters/stagers,
 build/dependencies, recovered contracts, delivery evidence and storage hygiene.
 The sibling REA checkout is supporting tooling; its existing bridge edit is
-preserved. The designated device reached RoomOpening on iteration17, then disconnected before
-the iteration18 joystick/thermal repair could be installed.
+preserved. The designated device now runs the verified iteration18 joystick/thermal repair
+over wireless ADB; USB transport was not enumerated.
 This is a bounded source, host-runtime and launch review,
 not evidence that every original-engine branch has been executed.
 
@@ -37,16 +37,18 @@ Iteration18 repairs responsive placement and visible-control acquisition, cancel
 old-panel input before simulation and refreshes platform status on resume. Its
 production controls regression check fails on the old code, passes the repair,
 and passes ASan/UBSan. The signed candidate is built from clean source `4381770`,
-with all 30 resource manifests unchanged. USB disconnected before install; device
-release/repress acceptance remains open. STATUS records exact identity and receipts.
+with all 30 resource manifests unchanged. Installation, actual APK identity and four
+save-file contents were verified. Three genuine release/repress cycles passed on the
+inner display; cover/fold acceptance remains open. STATUS records the receipts.
 
-At the last connected inspection, no current Hades crash/ANR was found. Memory
+At the earlier pre-repair inspection, no current Hades crash/ANR was found. Memory
 snapshots showed available headroom and low PSI, but Android reported severe thermal throttling. The app was
 stopped and backed up; the phone cooled to light status. The candidate reads actual
 PowerManager thermal status and caps rendering while retaining fixed simulation,
 adds a 60 FPS fresh default and 30 FPS menu cap. Existing profiles/saves remain
-preserved. These changes require short device observation; no stress test or thermal
-override is justified. Sustained memory/thermal stability remains unproven.
+preserved. A fresh bounded check stayed at thermal status 0, observed 60 FPS and
+about 4.2 GiB available memory; no new crash/ANR was found. Hades was stopped after
+the check. Sustained memory/thermal stability and actual cap response remain unproven.
 
 ## Architecture and gaps
 
@@ -60,7 +62,7 @@ override is justified. Sustained memory/thermal stability remains unproven.
 | Rendering | Actor/scene/UI pipelines and camera/blur state exist. Visible Shroud still throws in `fullscreen_blur_renderer.cpp`; radial sampling, text layout and some material/sort behavior retain documented approximations. |
 | Persistence | Original SGB1/Luabins/LZ4 and profile formats exist. `save_runtime.cpp` backs up then directly truncates/writes the primary. A direct host round trip does not establish script-reached saves, interrupted-write recovery or Android Continue. |
 | Content delivery | APK publication has identity/permission checks and an immutable receipt. ZIP32 and the already large APK cannot be the full-game packaging strategy. Content expansion needs a real local-content delivery implementation. |
-| Platform/performance | Joystick regression repair is packaged but uninstalled; severe thermals were observed and cooled after stopping Hades. Thermal-aware pacing is implemented, awaiting hardware observation. Physical controls, controller loss/remap, pause/resume, surface changes, audio routes and sustained thermal/frame-time/memory behavior require hardware. The 384 MiB actor GPU cache is a measurement target, not a measured defect. |
+| Platform/performance | Iteration18 is installed; three actual inner-display joystick cycles passed. Fresh thermal status stayed 0; no new scoped crash/ANR. Cover/fold and actual throttling response remain open. Physical controls, controller loss/remap, pause/resume, surface changes, audio routes and sustained thermal/frame-time/memory behavior require hardware. The 384 MiB actor GPU cache is a measurement target, not a measured defect. |
 
 Source consumers and specialized recovered contracts take precedence over broad
 historical contract summaries. Some older summaries still describe subsequently
@@ -135,7 +137,7 @@ remain documented; additional unrelated audio playlist branches remain unsupport
 
 | Order | Concrete implementation | Acceptance before moving on |
 |---|---|---|
-| 0 | Deliver the iteration18 joystick/thermal repair after USB reconnect. | Verify actual installed identity, app-file preservation, repeated visible-stick release/repress, no current faults and short thermal/memory observations. Stop on severe throttling. Device acceptance remains open; host package work can proceed independently. |
+| 0 | Iteration18 delivered over wireless ADB; short inner-display controls and health checks passed. | Preserve verified APK/saves. Next check cover/fold transitions and bounded longer play, monitoring actual faults/thermal/memory. Stop on severe throttling. |
 | 1 | Athena portrait graph — implemented and host-verified. | Strict default route passes the former 4,748 boundary through 4,837; slower real input reaches 5,437 after repeated blink loops. Preserve held-combat and final sanitizer/platform checks. Physical rendering/audio acceptance remains pending. |
 | 2 | Original LoadPackages admission and reached config storage — implemented and host-verified. Source-derived mappings, manifest-first admission, actual worker reads and deferred callbacks replace the former Interactables.lua:826 stop. | Native Lua5.2/worker tests, preserved original atlas bytes, strict progression to BoonSelectIn, held combat and final sanitizer/platform checks. GPU residency and actual boon selection remain separate. |
 | 3 | Boon shell is implemented and host-verified; implement actual boon selection next. Derive actual transformed screen polygons and individual text areas with original integer/justification rules; retain owner lifetimes, cursor ordering and floating-highlight FX/audio. Route real Select/touch through Interact.Use and NotifyOnInteract. | Original menu appears and a real input selects a boon via the original callback. Exercise disposal/ambiguity rejection. No fixed bounds, forced reward state or direct Lua callback. Device touch/controller acceptance remains separate. |
@@ -144,7 +146,7 @@ remain documented; additional unrelated audio playlist branches remain unsupport
 | 6 | Implement full-game local content delivery before broad room expansion. Retain immutable payload identity and offline import while removing single-APK size limits. | Complete identity checks, bounded reads and explicit missing-content errors. No network permission or uploaded game files. |
 | 7 | Validate Android behavior, then expand full runs. Preserve current APK/app files, install a milestone candidate non-incrementally, verify actual hash/size, then exercise controls/lifecycle/audio/thermal and frame-time behavior. Expand from original script/resource requirements. | Source/pack/APK/device identities and real manual play per milestone. Host-only evidence never closes a device gate. |
 
-The joystick/thermal repair is the next device delivery gate when hardware returns.
+The next device gates are cover/fold behavior, lifecycle and bounded longer play.
 The owner authorized independent offline progress; the next host deliverable is
 actual BoonSlot1 geometry/lifecycle, then cursor/highlights and boon selection.
 The held historical screen patch remains reference

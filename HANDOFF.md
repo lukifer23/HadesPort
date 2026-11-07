@@ -7,20 +7,17 @@ session evidence under ignored `.local/`.
 
 ## Current continuation
 
-**The device is currently unavailable. Iteration18 joystick/thermal repair is built
-but uninstalled; continue host implementation and verification.**
-Iteration17 remains the last verified installed APK and has an owner-reported
-joystick acquisition regression during RoomOpening play. Hades was stopped after
-Android reported severe throttling; app state was backed up, then temperature
-cooled to light throttling. Source `4381770` fixes visible-stick acquisition/rest,
-resize timing and thermal-aware pacing. See STATUS for candidate identity, checks
-and limits. Reconnect, install non-incrementally, verify actual APK and unchanged
-app files before launch, then perform short repeated release/repress checks and
-health observations. Never count host controls checks as device acceptance.
-Iteration17 rollback and actual app-state backups remain ready. Iteration16 is
-preserved in a lossless archive; restore it explicitly if needed (see below).
-The owner authorized continued offline work; screen/input implementation can
-advance independently while joystick/thermal device acceptance stays open.
+**Iteration18 is now installed and verified over wireless ADB.** USB debugging
+transport was not enumerated. Fresh app-file backup and installed APK verification
+passed; all four existing save files were unchanged before launch. Real Continue
+loaded RoomOpening. Three visible-stick press/move/release/repress cycles passed on
+the inner display at the observed 60 FPS; the control stayed in the lower screen.
+Thermal status stayed 0; no new crash/ANR was found in scoped logs/exit history.
+About 4.2 GiB memory was available; memory PSI avg10 was 0.11%, so this is a bounded
+health observation, not sustained stability. Hades was deliberately stopped after
+the check. Cover display, fold transitions, controllers and longer play remain open.
+See STATUS for installed identity and private receipts. Preserve the current APK,
+rollback17, saves and backups before any new gameplay APK publication.
 
 Strict host progression passes package/config setup and the original boon-shell
 movies, symbol graph and lighting. The current default 8,000-frame request completes
@@ -63,7 +60,7 @@ Build defaults select packages2/text12/screen16/action26/audio31/actor9/weapons2
 and RoomSimple01 in addition to root RoomOpening. `scripts/build_native.py` is the
 selection authority; selected source, staged assets and an installed APK are
 separate identities. Source/canonical assets use packages2/screen16; the preserved
-iteration18 joystick candidate uses packages1/screen15. Installed iteration17 remains
+iteration18 joystick candidate uses packages1/screen15. Installed iteration18 remains
 a separate recorded identity. No new gameplay APK is published for this host milestone.
 Preserve iteration18 before any future APK publication. See STATUS for receipts.
 
@@ -74,7 +71,7 @@ preserving all 3,938 paths. Shared export/capture payloads are read-only. Do not
 edit them in place or make a shared inode writable; export a fresh version or use
 an independent copy for changes. Metadata before linking is retained privately.
 
-The joystick candidate18 and installed-build rollback17 remain ready to install.
+The installed iteration18 APK and rollback17 remain preserved locally.
 Older iteration16, 17 retired standalone probes, and historical bulk logs/raw
 renders are preserved in 108 SHA-verified lossless gzip archives. Original game/
 installer files, all versioned export paths, saves/backups, signing key, pinned

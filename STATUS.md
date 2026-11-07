@@ -5,7 +5,7 @@ plan. This is an incomplete native ARM64 Android engine driven by the original g
 
 ## Offline boon-shell milestone (2026-11-06)
 
-The device remains unavailable. Original boon-menu movies, symbol transforms,
+This historical host milestone preceded device reconnection. Original boon-menu movies, symbol transforms,
 lighting and title creation now execute. Strict default autoplay requested 8,000
 frames and completed 5,452 with every-frame presentation and no contained faults:
 
@@ -119,13 +119,24 @@ Removed 900.2 MiB of owned build/probe scratch and redundant preliminary snapsho
 operations are part of this milestone; the signed joystick-only candidate remains
 preserved for hardware acceptance. Boon selection is still unproven.
 
-## Joystick and thermal repair — iteration18 candidate (2026-11-06)
+## Joystick and thermal repair — iteration18 installed (2026-11-06)
 
-**The device is currently unavailable. Iteration18 is built and signed but
-uninstalled; iteration17 remains the last verified installed build.** The owner
-reported the visible joystick jumping upward and becoming unresponsive after
-release during actual RoomOpening play. This is an open device regression until
-installation and repeated physical-input checks pass.
+**Iteration18 is installed and verified on the designated device over wireless ADB.**
+USB ADB transport was not enumerated. The owner-reported acquisition/release defect
+passed three real press/move/release/repress cycles on the inner display. Captures
+show movement and the joystick remaining in its lower-screen position. This closes
+the bounded inner-display regression check; cover display, fold transitions,
+controller behavior and sustained play remain unverified.
+
+Before launch, all four actual save files were backed up and verified byte-identical
+after installation. The actual installed base APK matches the SHA/size below. Real
+Continue loaded RoomOpening, with observed 60 FPS and platform thermal status 0
+through the short control check. Available memory was 4,405,772 kB (about 4.2 GiB);
+memory PSI some/full avg10 was 0.11%, avg60 0.25%. Scoped PID logs and exit history
+showed no new crash or ANR. This does not establish sustained health or thermal-cap
+behavior under throttling. Hades was deliberately stopped after the bounded check.
+Receipts/captures remain private under
+`.local/reports/device-2026-11-06/boon-interaction/`.
 
 Root cause: at 2520×1080 / density 420, the old 45 mm bottom offset placed the stick
 at y=336 while floating acquisition required y>486. Bottom touches acquired it;
@@ -148,7 +159,7 @@ resource manifests match iteration17. Candidate SHA-256 / size:
 
 ### Device health
 
-During the last connected inspection, the crash buffer was empty and app exit
+During the earlier pre-repair inspection, the crash buffer was empty and app exit
 history contained no Hades crash or ANR from that session. An older background
 LOW_MEMORY exit on October 27 predates this session.
 At inspection, about 4.2 GiB memory was available, app PSS was about 1.65 GiB and
@@ -180,14 +191,11 @@ under the owner's full authorization; no progression/callback state was injected
 Current candidate: `.local/build/native/hades-native-engine-preview.apk`.
 Iteration17 rollback is ready; iteration16 is retained as a lossless archive
 (restore instructions in HANDOFF). The signing key, canonical assets and actual
-app-state backups are retained privately. Reconnect the designated device,
-verify previous identity, install iteration18 non-incrementally, verify installed
-hash/size and unchanged app files before launch, then exercise repeated visible-stick
-press/move/release/repress and check faults, memory and thermals. Keep tests bounded;
-stop Hades if severe throttling recurs. USB disappeared before installation began;
-no iteration18 device success is claimed. Build/probe intermediates and the clean
-worktree were removed after recording results (5.08 GiB allocated); the candidate,
-rollbacks, app backups, canonical assets and signing key remain preserved.
+app-state backups are retained privately. The fresh install, identity, save-file
+preservation and short inner-display control checks have passed. Preserve iteration18
+before publishing another APK; keep future play bounded and stop on severe thermal
+status. The earlier host/build cleanup removed only rebuildable intermediates;
+the candidate, rollbacks, app backups, canonical assets and signing key remain.
 
 ## Earlier Athena portrait milestone (2026-11-06)
 
@@ -253,7 +261,7 @@ No mocks, replacement game art, skipped dialogue or forced rewards were introduc
 Build defaults in `scripts/build_native.py` remain authoritative. Canonical assets
 use packages2/text12/screen16/action26/audio31/actor9/weapons25/properties14; only
 RoomOpening and RoomSimple01 are staged. Source/canonical packages2/screen16 are ahead
-of the preserved iteration18 candidate (packages1/screen15). Installed iteration17
+of the preserved iteration18 candidate (packages1/screen15). Installed iteration18
 remains a separate recorded identity. Device gameplay acceptance is separate.
 
 | Evidence | Local path |
@@ -272,6 +280,7 @@ remains a separate recorded identity. Device gameplay acceptance is separate.
 | Iteration18 immutable build | `.local/reports/native-builds/4265c2a52f6014c114bfb35babc62005a2161a913ab915d5ce3549e8b1a53f0c.json` |
 | Joystick host verification | `.local/reports/joystick-2026-11-06/host-verification.json` |
 | Device health and fresh app backup | `.local/reports/device-2026-11-06/joystick-health/` |
+| Iteration18 installation/control/health | `.local/reports/device-2026-11-06/boon-interaction/` |
 | Iteration17 installation/launch | `.local/reports/device-2026-11-06/iteration17-installed.json` |
 | Immutable iteration17 build | `.local/reports/native-builds/b913b9681a4924203eeb5fb3f81d7aac1e24de8168e97b1d00c6807714be21fa.json` |
 | Athena milestone | `.local/reports/athena-graph-2026-11-06/final-verification.json` |
@@ -291,6 +300,6 @@ remains a separate recorded identity. Device gameplay acceptance is separate.
 Continue on the host with actual BoonSlot1 screen geometry and lifecycle providers,
 then individual text areas, cursor/highlights and original Interact
 callbacks. Death/DeathArea/House, save/restart/Continue and Android acceptance
-follow. Install/verify the preserved joystick and thermal candidate when hardware
-returns; host progress does not close that device gate. `AUDIT.md` records the
+follow. Iteration18 inner-display controls passed a bounded physical check; cover/fold
+and sustained play acceptance remain open. `AUDIT.md` records the
 concrete acceptance boundaries.

@@ -5,15 +5,13 @@ An unofficial, work-in-progress **native ARM64 Android engine** for **Hades (Sup
 purchased PC copy** — on a C++/OpenGL ES engine reconstructed from the PC engine binary.
 No emulation, Wine, CPU translation, ads, accounts or network access.
 
-> **Status: prototype; full gameplay remains incomplete** (2026-11-06). Iteration17
-> reached RoomOpening on the designated device, where the owner reported a joystick
-> regression. A verified host/Android repair and thermal-aware frame pacing are
-> packaged as iteration18. The device is currently unavailable, so installation and
-> device acceptance remain pending. Host progression clears the first encounter,
-> advances Athena's portrait/dialogue graph and passes the original package request
-> and menu config setup. The original boon-menu movies, symbol helpers and lighting
-> now initialize; the next explicit blocker is real BoonSlot1 interaction geometry. Boon
-> selection, death/House recovery and later-room progression remain incomplete.
+> **Status: prototype; full gameplay remains incomplete** (2026-11-06). Iteration18
+> is installed and verified on the designated phone over wireless ADB. Three real
+> joystick release/repress cycles passed on the inner display; thermal status stayed
+> at 0 and no new crash or ANR was found in the scoped check. Fold/cover behavior and
+> sustained play remain unverified. Host progression clears the first encounter and
+> initializes the original boon menu; actual selection is under active implementation.
+> Death/House recovery and later-room progression remain incomplete.
 > See [`AUDIT.md`](AUDIT.md) for the plan and [`STATUS.md`](STATUS.md) for exact
 > build, runtime and device verification boundaries.
 
