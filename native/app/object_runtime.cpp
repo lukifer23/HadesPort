@@ -74,7 +74,10 @@ bool boolean(lua_State* state, const char* name, bool fallback = false) {
 int32_t idAt(lua_State* state, int at) {
     if (lua_type(state, at) != LUA_TNUMBER) throw std::runtime_error("Object ID requires integer");
     const auto value = lua_tonumber(state, at);
-    if (!std::isfinite(value) || value <= 0 || value > INT32_MAX || value != std::trunc(value)) throw std::runtime_error("Object ID outside positive signed32-bit range");
+    // ScriptArgs::IDs2818f0 supplies signed32 selectors, including absent
+    // sentinels. Resolve membership in each actual consumer; allocation and
+    // stored object identity validation are separate from action selection.
+    if (!std::isfinite(value) || value < INT32_MIN || value > INT32_MAX || value != std::trunc(value)) throw std::runtime_error("Object ID outside signed32-bit range");
     return static_cast<int32_t>(value);
 }
 std::vector<int32_t> ids(lua_State* state, const char* singular, const char* plural) {
@@ -304,8 +307,14 @@ int addToGroup(lua_State* state) {
     const bool drawGroup=boolean(state,"DrawGroup");
     for(const auto& group:groups){
         if(group.empty())throw std::runtime_error("Empty native None-group mutation is not reconstructed");
+        // Execute252156 resolves/creates each group BEFORE reading IDs at
+        // 252168. Even an empty or entirely absent selection creates the group.
         ensureGroup(state,group);
         for(const auto id:selected){
+            // Execute252165..2521dd passes each signed ID to World.AddToGroup.
+            // World314228..31422b returns if neither map contains that ID.
+            // Retained but unsupported object states still use active() below.
+            if(!registry.objects.contains(id))continue;
             auto& object=active(registry,id);
             if(object.groups.empty()&&!object.group.empty())object.groups.push_back(object.group);
             auto at=std::find(object.groups.begin(),object.groups.end(),group);

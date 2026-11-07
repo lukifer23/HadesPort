@@ -26,12 +26,20 @@ void axisSetNewTarget(hades::ObstacleMoveAxis&a,float end,float duration){if(a.e
 // Obstacle::UpdateTransitionHelper 0x2c6760: tmf<1 -> dt/=((1-W20)*tmf+W20);
 // remaining-=dt/rate; fraction=minss(maxss(1-remaining/duration,0),1).
 void axisUpdate(hades::ObstacleMoveAxis&a,float dt,float worldModifier){if(a.tmf<1.f)dt/=((1.f-worldModifier)*a.tmf+worldModifier);a.remaining-=dt/a.rate;float f=1.f-a.remaining/a.duration;f=f>0.f?f:0.f;f=f<1.f?f:1.f;a.fraction=f;}
-int32_t motionId(const hades::SourceValue&v){const double n=v.number();if(!std::isfinite(n)||n<1||n>INT32_MAX||n!=std::trunc(n))throw std::runtime_error("Actual script motion Thing ID bounds");return int32_t(n);}
+// ScriptArgs::IDs2818f0 is signed32; selection below resolves actual
+// registered actors and excludes missing owners (World.GetActiveMapThings3146c0).
+int32_t motionId(const hades::SourceValue&v){const double n=v.number();if(!std::isfinite(n)||n<INT32_MIN||n>INT32_MAX||n!=std::trunc(n))throw std::runtime_error("Actual script motion Thing ID bounds");return int32_t(n);}
 }
 void ScriptRuntime::registerActorMotionActions(){const char*names[]{"Teleport","AdjustZLocation","Move","Stop","AngleTowardTarget","SetAngle","SetGoalAngle","Shift","Unattach"};for(int mode=0;mode<9;++mode){lua_pushlightuserdata(state_,this);lua_pushinteger(state_,mode);lua_pushcclosure(state_,actorMotionAction,2);lua_setglobal(state_,names[mode]);}}
 int ScriptRuntime::actorMotionAction(lua_State*L){char message[2048]{};bool ok=false;{auto*self=runtime(L);std::string error;ok=self&&self->actorMotionActionImpl(L,int(lua_tointeger(L,lua_upvalueindex(2))),error);if(!ok)std::snprintf(message,sizeof(message),"%s",error.empty()?"Native actor motion runtime unavailable":error.c_str());}if(!ok){lua_pushstring(L,message);return lua_error(L);}return 0;}
 bool ScriptRuntime::actorMotionActionImpl(lua_State*L,int mode,std::string&error){try{
  hades::SourceValue args;if(!hades::readSourceValue(L,1,args,error))return false;
+ // ScriptArgs plural selector takes precedence; share parsing across screen/world.
+  const auto ids=[&](const char* one,const char* many){
+   std::vector<int32_t> out;
+   if(const auto* value=args.get(many)){for(const auto& v:value->array())out.push_back(motionId(v));}
+   else if(const auto* value=args.get(one))out.push_back(motionId(*value));
+   std::sort(out.begin(),out.end());out.erase(std::unique(out.begin(),out.end()),out.end());return out;};
  if(mode==8){
   // Thing.RunScriptAction2e4166..4255: AttachedToId is the optional parent
   // filter; DestinationId is not read. Native Detach is virtual slot0x110.
@@ -74,11 +82,6 @@ bool ScriptRuntime::actorMotionActionImpl(lua_State*L,int mode,std::string&error
  // raw location through ShiftLocationWithChildren. Screen bodies have no
  // structural children/grid membership, so that shift changes the raw XY only.
  if(mode==0){
-  const auto ids=[&](const char* one,const char* many){
-   std::vector<int32_t> out;const auto* value=args.get(many);
-   if(!value)value=args.get(one);
-   if(value){if(const auto* list=std::get_if<hades::SourceValue::Array>(&value->value)){for(const auto& v:*list)out.push_back(motionId(v));}else out.push_back(motionId(*value));}
-   std::sort(out.begin(),out.end());out.erase(std::unique(out.begin(),out.end()),out.end());return out;};
   std::vector<int32_t> screenSources;bool screen=false,world=false;
   for(const auto id:ids("Id","Ids")){const auto* body=findObjectSnapshot(L,id);if(!body)continue;
    if(body->backend!=ObjectBackend::Screen){world=true;continue;}screen=true;
@@ -101,8 +104,8 @@ bool ScriptRuntime::actorMotionActionImpl(lua_State*L,int mode,std::string&error
  }
  // Move takes the Obstacle::MoveTo screen branch; other modes still fail.
  {bool screen=false;if(mode==2){if(!screenMoveImpl(args,screen,error))return false;if(screen){error.clear();return true;}}
-  else for(const char*k:{"Id","Ids"})if(const auto*p=args.get(k)){const auto check=[&](const hades::SourceValue&v){const auto*o=findObjectSnapshot(L,int32_t(v.number()));if(o&&o->backend==ObjectBackend::Screen)throw std::runtime_error("Native screen Thing motion action not reconstructed");};if(std::string(k)=="Id")check(*p);else for(const auto&v:p->array())check(v);}}
- const auto select=[&](const char*single,const char*plural){std::vector<int32_t>out;const auto add=[&](const hades::SourceValue&v){const int32_t id=motionId(v);const auto*a=actorWorld_.actor(id);if(a&&a->registered&&a->object)out.push_back(id);};if(const auto*p=args.get(single))add(*p);if(const auto*p=args.get(plural))for(const auto&v:p->array())add(v);std::sort(out.begin(),out.end());out.erase(std::unique(out.begin(),out.end()),out.end());return out;};
+  else for(const auto id:ids("Id","Ids")){const auto*o=findObjectSnapshot(L,id);if(o&&o->backend==ObjectBackend::Screen)throw std::runtime_error("Native screen Thing motion action not reconstructed");}}
+ const auto select=[&](const char*single,const char*plural){auto out=ids(single,plural);std::erase_if(out,[&](int32_t id){const auto*a=actorWorld_.actor(id);return !a||!a->registered||!a->object;});return out;};
  auto sources=select("Id","Ids");const auto targets=select("DestinationId","DestinationIds");
  if(mode==1){const float distance=motionNumber(args,"Distance"),duration=motionNumber(args,"Duration");if(duration<0)throw std::runtime_error("Negative native Z transition duration");for(auto id:sources){auto*a=actorWorld_.actor(id);if(duration==0){if(!shiftActorZ(id,distance,error))return false;}else{hades::ActorZTransition z;z.ownerId=id;z.lifetime=a->entityHandle;hades::BodyTransitionOptions options;options.duration=duration;bool changed=false;if(!z.transition.adjust(a->object->z+distance,a->object->z,options,changed,error))return false;actorMotion_.heights[z.lifetime]=std::move(z);}}error.clear();return true;}
  // Thing::RunScriptAction 0x72 SetAngle / 0x73 SetGoalAngle (VA1802e22f9..):

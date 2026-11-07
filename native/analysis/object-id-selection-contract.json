@@ -1,0 +1,51 @@
+{
+  "schema": "hades-object-id-selection-v1",
+  "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+  "pdb_age": 1,
+  "evidence": [
+    {
+      "path": ".local/reports/native-execute-groups.json",
+      "sha256": "21b05d7e3dca59cd9b8ad4945d49fabeba05242729cf297fa1c2aad3455c0b12"
+    },
+    {
+      "path": ".local/reports/notify-distance/script-args-ids-rea.json",
+      "sha256": "2cd7d7f63384c3c47e278b06ca0eaa75e73098d1211728778f23f176b06b1a9b"
+    },
+    {
+      "path": ".local/reports/notify-distance/world-get-active-map-things-rea.json",
+      "sha256": "e6ed9f4510d575f2ca2df811e14055b8aa24c37f09b6e46efe5d99c57bc219d9"
+    },
+    {
+      "path": ".local/reports/boon-completion-2026-11-07/danger-input-review/world-add-to-group.json",
+      "sha256": "620456ca07ca1d2f846386e7830b8cba97439c18296d77b0add043c9ee3e7ff6"
+    },
+    {
+      "path": ".local/reports/native-script-motion-destination-static.json",
+      "sha256": "ecff1338d7bdda0885d1422410b83f5b48c3795846aaf22add33b775936d01f4"
+    }
+  ],
+  "signed_selector": {
+    "source": "ScriptArgs::IDs RVA0x2818f0; ScriptAction.Execute0x252165..0x2521dd reads each four-byte ID and forwards it without a positive-ID check.",
+    "portable_validation": "Action selectors accept finite integral signed32 numbers, including 0 and -1. Type, fractional, finite, range and array-size validation remain. Storage and allocation identity guards are separate.",
+    "plural_precedence": "Ids replaces Id when present; DestinationIds replaces DestinationId for destination selection."
+  },
+  "active_selection": {
+    "source": "World.GetActiveMapThings RVA0x3146c0, ID lookup0x314740..0x3147a1.",
+    "policy": "Resolve selected IDs against actual manager membership and skip absent owners; retained diagnostic disposal snapshots are not active targets.",
+    "implementation": "Existing object_runtime targets() owns active-target resolution after signed ID parsing."
+  },
+  "add_to_group": {
+    "source": "ScriptAction.Execute case VA0x18025208b; World.AddToGroup RVA0x314110.",
+    "policy": "The action reads Names with Name fallback, creates named group, then forwards raw IDs. World.AddToGroup searches map records then active Things; if neither contains the ID, null pointer test at0x314228 and jump0x31422b return without mutation/error. Applies to any absent signed32 selector, not only zero.",
+    "portable_boundary": "Skip absent registry IDs. Extant retained/unsupported states still pass through existing active() validation and reject where required. Empty None-group mutation remains unsupported.",
+    "group_creation_order": "ScriptAction.Execute0x252156 calls GroupManager.Add0x30c9d0 before reading ScriptArgs.Ids at0x252168 and before calling World.AddToGroup at0x2521dd. Thus an empty or all-missing ID selection still creates/resolves each nonempty named group. The World helper itself performs no mutation for missing ID, but that does not undo the enclosing action group creation."
+  },
+  "other_consumers": "Parsing is shared; direct consumers retain their existing resolution checks. This recovery does not claim every direct object action ignores missing owners.",
+  "implementation": [
+    "native/app/object_runtime.cpp",
+    "native/app/lua_actor_motion.cpp"
+  ],
+  "verification_boundary": "Recovered matching native static behavior. Coordinator owns real-input and sanitizer validation; no scalar return semantics for blocked SpawnObstacle inferred from this contract.",
+  "motion_selection": "One validated signed32 decoder supplies screen Teleport, screen guards and registered world-actor selection. Plural selectors take precedence, including empty Lua tables represented by SourceValue empty objects; scalar or non-array plural data rejects. Missing owners are filtered against actual registration before mutation. Source runWithDestination RVA0x25eea0 resolves through actual World membership. Existing sorting/unique and unsupported name/motion branches remain."
+}
