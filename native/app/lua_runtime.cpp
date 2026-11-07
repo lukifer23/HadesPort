@@ -275,8 +275,11 @@ void ScriptRuntime::initialize() {
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,setThingProperty,1);lua_setglobal(state_,"SetThingProperty");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,setObstacleProperty,1);lua_setglobal(state_,"SetObstacleProperty");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,getUnitDataValue,1);lua_setglobal(state_,"GetUnitDataValue");
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,setEffectProperty,1);lua_setglobal(state_,"SetEffectProperty");
     {const char* names[]{"SetWeaponProperty","GetWeaponDataValue","GetWeaponProperty","SetProjectileProperty"};
      for(int mode=0;mode<4;++mode){lua_pushlightuserdata(state_,this);lua_pushinteger(state_,mode);lua_pushcclosure(state_,weaponProperty,2);lua_setglobal(state_,names[mode]);}}
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,getProjectilePropertyAction,1);lua_setglobal(state_,"GetProjectileProperty");
+    for(const bool enabled:{true,false}){lua_pushlightuserdata(state_,this);lua_pushboolean(state_,enabled);lua_pushcclosure(state_,useableAction,2);lua_setglobal(state_,enabled?"UseableOn":"UseableOff");}
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,createAnimation,1);lua_setglobal(state_,"CreateAnimation");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,rumbleAction,1);lua_setglobal(state_,"Rumble");
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,playerInputNotifyAction,1);lua_setglobal(state_,"NotifyOnPlayerInput");
@@ -665,6 +668,9 @@ bool ScriptRuntime::advanceWorld(float dt,double screenDt){
     if(!advanceSpeech(dt,error_)){if(!containStage("speech-update"))return false;}
     if(!consumeSpeechText(drainSpeechPresentation(),error_)){if(!containStage("speech-text-update"))return false;}
     if(!advanceText(dt,float(screenDt),error_)){if(!containStage("text-update"))return false;}
+    // Portable cursor phase follows live Body/text updates and actual disposal,
+    // before notification checks and the original script scheduler.
+    if(!advanceScreenCursor(float(screenDt),error_)){if(!containStage("screen-cursor-update"))return false;}
     if(!advanceNativeNotifies(dt,error_)){if(!containStage("native-notify-update"))return false;}
     if(!advanceCamera(dt,error_)){if(!containStage("camera-update"))return false;}
     // A package or delayed-action gap must never skip the script scheduler

@@ -83,8 +83,9 @@ struct ActionAnimationSetup {
 };
 class ActionEffectWorld {
  SourceValue catalog_;std::map<std::string,SourceValue> definitions_;
- std::shared_ptr<ActorAnimationBank> bank_,movieBank_;std::shared_ptr<AnimationRegistry> registry_;
- std::set<std::string> movies_;
+ std::shared_ptr<ActorAnimationBank> bank_,movieBank_,embeddedMovieBank_;std::shared_ptr<AnimationRegistry> registry_;
+ std::set<std::string> movies_,embeddedMovies_;
+ const std::shared_ptr<ActorAnimationBank>& imageBank(const std::string&)const;
  std::string fault_;
  void retainFault(std::string& error){if(!faulted_){fault_=error.empty()?"Action FX failed after native allocation/mutation":error;faulted_=true;}error=fault_;}
  std::map<uint64_t,ActionEffectState> states_;bool faulted_=false,mutating_=false,primaryRequest_=false,guiLineRequest_=false;
@@ -108,7 +109,7 @@ class ActionEffectWorld {
  bool slideFx(uint64_t,const ActionEffectProviders&,std::string&);
  bool preflight(const std::string&,const ActionEffectProviders&,std::vector<std::string>&,std::string&,bool guiLine=false)const;
 public:
- bool load(SourceValue,std::shared_ptr<ActorAnimationBank>,std::shared_ptr<AnimationRegistry>,std::string&,std::shared_ptr<ActorAnimationBank> movieBank={});
+ bool load(SourceValue,std::shared_ptr<ActorAnimationBank>,std::shared_ptr<AnimationRegistry>,std::string&,std::shared_ptr<ActorAnimationBank> movieBank={},std::shared_ptr<ActorAnimationBank> embeddedMovieBank={});
  bool movie(const std::string& name)const{return movies_.contains(name);}
  void setSoundStop(std::function<bool(uint32_t,float,std::string&)> f){stopSound_=std::move(f);}
  bool admits(const std::string& name)const{return definitions_.contains(name);}

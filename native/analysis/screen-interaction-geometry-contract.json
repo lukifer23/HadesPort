@@ -1,0 +1,60 @@
+{
+  "schema": "hades-screen-interaction-geometry-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "evidence_kind": "Matching PE/PDB static instruction evidence; no original runtime or device geometry observation.",
+  "source_geometry": {
+    "entry_rva": "0x2dc890",
+    "priority": "Actual map Points, then nonempty ThingData.Points, then nonzero ThingData.Size, then actual primary.GetDrawBounds; only absent primary falls back to the native minimal rectangle.",
+    "native_size_default": "ThingData constructor RVA0xeb72f writes zero qword at full+0x174, clearing both Size coordinates after base-definition assignment. Empty authored Size is not a guessed GUI extent.",
+    "primary_call": "RVA0x2dcd48 calls actual primary vtable+0xa8 with actual owner location, z0, unit world scale, then Polygon.FromRectangle; r12b is cleared on this branch so the later owner-scalar geometry pass is skipped.",
+    "later_transforms": "Body squash precedes optional owner scaling; body flips and optional RotateGeometry use actual owner location. These are distinct from animation draw scale.",
+    "area": "Thing.GetArea RVA0x2c6e0 returns cached mRectangle at Thing+0x98. SetupGeometry stores Polygon.AABB into this field after its transforms."
+  },
+  "constant_bounds": {
+    "entry_rva": "0x2b2ba0",
+    "atlas": "Calls EnsureTextureAtlasEntry; reads actual atlas rectangle/origin and atlas X/Y scale. Missing atlas returns zero rectangle, never a synthetic full-screen sprite.",
+    "scale_order": "RVA0x2b2cf3..0x2b2d01: atlas scale multiplied by GetDrawScale(true), then actual GetDrawScaleVector. Shared native scale helper formulas and actual owner scalar/axis state apply.",
+    "integer_order": "RVA0x2b2d21..0x2b2d50 independently truncates float(drawLocation-origin*scale) to signed32 x/y, and float(atlasWidth/Height)*scale to signed32 width/height. Do not infer x/y by centering already-truncated dimensions.",
+    "rotated_branch": "RVA0x2b2dba..0x2b2e1d checks own angle/angle helper and maintained owner angle/helper. It conservatively pads to a square rather than simply rotating the unpadded atlas rectangle.",
+    "draw_location": "Animation.GetDrawLocation RVA0x297d60 applies actual source offsets/shifts, shake and owner scalar; primary-derived SetupGeometry supplies zero z.",
+    "owner_scalar_order": "GetScale RVA0x298c12 multiplies the current own scalar by attached Body.mScale, then RVA0x298c28 multiplies the owner helper. Do not precombine those owner factors when the own scalar is nonunit; float association is observable."
+  },
+  "rectangle_polygon": {
+    "entry_rva": "0x120620",
+    "point_order": [
+      "bottom-left",
+      "bottom-right",
+      "top-right",
+      "top-left"
+    ],
+    "numeric_order": "First bottom-left y uses float(y)+float(height); other corner sums use signed32 integer additions before float conversion. Preserve this distinction when admitting large coordinates.",
+    "aabb_rva": "0x2c1730",
+    "aabb": "Min x/y are rounded by the native roundf import then truncated to signed32; dimensions are abs(float(max-min)) truncated to signed32."
+  },
+  "implementation_domain": [
+    "Actual source-bound screen World Thing with live matching primary registry lifetime and no MapThing geometry.",
+    "One-frame nonmovie GUI Constant primary with retained full atlas rectangle/origin, unit parallax and positive scalar/axis extents.",
+    "Source scalar/axis animation helpers and live owner scalar/axis fractions are consumed; no extra body scale is applied after the primary rectangle.",
+    "Unsupported source Points/Size, nonzero original Thing.Offset, positive extent adjustments, body flips/rotation, angle padding, animated shifts, attached-text scalar and alternate primary types reject when interaction geometry is requested. Noninteractive source Things keep their deferred limitation without a fabricated rectangle.",
+    "Integer conversion/addition overflow and nonfinite values reject explicitly rather than reproducing native indefinite/wrapped geometry."
+  ],
+  "evidence": [
+    ".local/reports/gui-interact/thing-setupgeometry-static-2026-10-26.json",
+    ".local/reports/gui-interact/thing-getarea-static-2026-10-26.json",
+    ".local/reports/gui-interact/constant-drawbounds-static-2026-10-26.json",
+    ".local/reports/gui-interact/polygon-fromrectangle-static-2026-11-06.json",
+    ".local/reports/gui-interact/polygon-aabb-static-2026-10-26.json",
+    ".local/reports/native-collision-thing-data-defaults.json",
+    ".local/reports/anim-setup/Animation_GetDrawScale.s",
+    ".local/reports/anim-setup/Animation_GetScale.s",
+    ".local/reports/anim-setup/Animation_GetDrawLocation.s"
+  ],
+  "limits": [
+    "Interaction geometry is requested from the current portable source/component state; the exact native geometry dirty-update/ECS scheduling phase remains unproven.",
+    "This contract establishes integer construction within the admitted domain, not full native material rendering or physical-device hit-test equivalence."
+  ]
+}

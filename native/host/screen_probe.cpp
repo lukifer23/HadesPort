@@ -27,7 +27,7 @@ bool ScriptRuntime::probeScreenAnimations(){
         error_="Screen probe requires initialized original scripts and a fresh unbooted screen world";return false;
     }
     lua_State* const L=state_;const int top=lua_gettop(L);const uint64_t savedFrame=worldFrame_;const double savedTime=screenTime_;
-    std::vector<int32_t> owners;uint32_t steps=0,movieCases=0,movieFrames=0,chainCases=0,fallbackCases=0,holdCases=0,symbolCases=0,helperLayers=0,createdFx=0,randomCases=0,randomLoops=0,colorCases=0;
+    std::vector<int32_t> owners;uint32_t steps=0,movieCases=0,movieFrames=0,chainCases=0,fallbackCases=0,holdCases=0,symbolCases=0,helperLayers=0,createdFx=0,randomCases=0,randomLoops=0,colorCases=0,layoutCases=0;
     uint64_t decodedBytes=0;std::string detail;
     ScreenProbeCleanup cleanup{[&]{
         // Use the real disposal route, including foreign child/owner teardown.
@@ -157,7 +157,47 @@ bool ScriptRuntime::probeScreenAnimations(){
             for(size_t k=0;k<4;++k){const float value=float(c.expected[k])/255.f;requireScreen(near(state->baseColor[k],base?value:1.f)&&near(state->fractionColor[k],base?1.f:value),std::string("Registered color channel storage mismatch: ")+c.label);requireScreen(std::lround(shown.color[k]*255.f)==c.expected[k],std::string("Actual screen visual color byte mismatch: ")+c.label);}
             requireScreen(near(state->body->alpha,base?1.f:float(c.expected[3])/255.f),"Registered color Body alpha mismatch");dispose(id);++colorCases;
         }
-        hades::log(hades::Severity::Info,"HadesScreenProbe","SCREEN_PROBE_OK scope=host_registered_actions movie_cases=%u decoded_frames=%u decoded_bytes=%llu chain=%u fallback=%u hold=%u symbol_roots=%u helper_layers=%u created_fx=%u random_cases=%u random_loops=%u color_cases=%u component_steps=%u progression=0 gpuClaim=0 deviceClaim=0 anchor=%s sourceGraphic=%s",movieCases,movieFrames,(unsigned long long)decodedBytes,chainCases,fallbackCases,holdCases,symbolCases,helperLayers,createdFx,randomCases,randomLoops,colorCases,steps,obstacle.c_str(),sourceGraphic.c_str());
+        // Native horizontal line controls using real exported font metrics and
+        // glyphs. Standalone glyph samples remove bearing/cropping assumptions.
+        requireScreen(bool(textFonts_),"Text controls require the actual loaded font bank");const hades::TextFont*controlFont=nullptr;
+        for(const auto&[name,font]:textFonts_->fonts()){
+            bool complete=font.nativeSize>0&&font.nativeSize<=512;
+            for(uint32_t cp:{uint32_t('A'),uint32_t('B'),uint32_t('C'),uint32_t(' '),uint32_t(0xe9)})complete=complete&&font.glyphs.contains(cp);
+            if(complete&&font.glyphs.at('A').rect[2]>0&&font.glyphs.at('B').rect[2]>0&&font.glyphs.at('C').rect[2]>0&&font.glyphs.at(0xe9).rect[2]>0){controlFont=&font;break;}(void)name;
+        }
+        requireScreen(controlFont,"No actual font covers the native line-control diagnostic glyphs");
+        const auto layout=[&](std::vector<hades::TextPiece> pieces,float scale=1.f,std::vector<hades::TextLayoutStyle> styles=std::vector<hades::TextLayoutStyle>{}){
+            hades::TextLayoutRequest request;request.font=controlFont->name;request.size=float(controlFont->nativeSize);request.scale=scale;request.horizontal=request.vertical=hades::TextJustification::Start;request.pieces=std::move(pieces);request.styles=std::move(styles);return textFonts_->layout(request);
+        };
+        using C=hades::TextControl;const auto a=layout({{false,"A",0}}),b=layout({{false,"B",0}}),c=layout({{false,"C",0}});
+        requireScreen(a.size()==1&&b.size()==1&&c.size()==1,"Original standalone glyph sample differs");
+        const auto&ag=controlFont->glyphs.at('A');const float aWidth=ag.abc[0]+ag.abc[1]+ag.abc[2],aAdvance=aWidth+controlFont->spacing;
+        auto positioned=layout({{false,"AB",0}});requireScreen(positioned.size()==2&&near(positioned[0].x,a[0].x)&&near(positioned[1].x,b[0].x+aAdvance),"Ordinary source glyph layout changed around control support");++layoutCases;
+        positioned=layout({{false,"A",0},{false,"",0,C::Column,100.25f},{false,"B",0}});
+        requireScreen(positioned.size()==2&&near(positioned[1].x,b[0].x+100.25f)&&near(positioned[1].y-b[0].y,positioned[0].y-a[0].y),"Native Column did not start a same-row unscaled float-offset segment");++layoutCases;
+        const auto b2=layout({{false,"B",0}},2);positioned=layout({{false,"A",0},{false,"",0,C::Column,100.25f},{false,"B",0}},2);
+        requireScreen(positioned.size()==2&&b2.size()==1&&near(positioned[1].x,b2[0].x+100.25f),"Native Column offset was incorrectly multiplied by font scale");++layoutCases;
+        positioned=layout({{false,"A",0},{false,"",0,C::Column,20},{false,"B",0},{false,"",0,C::Column,30},{false,"C",0}});
+        requireScreen(positioned.size()==3&&near(positioned[1].x,b[0].x+20)&&near(positioned[2].x,c[0].x+50),"Native successive Column segment-origin offsets differ");++layoutCases;
+        positioned=layout({{false,"",0,C::Column,20},{false,"",0,C::Column,40},{false,"B",0}});
+        requireScreen(positioned.size()==1&&near(positioned[0].x,b[0].x+40),"Native empty outgoing Column offset was retained");++layoutCases;
+        positioned=layout({{false,"A",0},{false,"",1,C::FormatBreak},{false,"B",1}},1,{{controlFont->name,float(controlFont->nativeSize)},{controlFont->name,float(controlFont->nativeSize)*2}});
+        requireScreen(positioned.size()==2&&near(positioned[1].x,b2[0].x+aWidth),"Native formatter break did not continue at the source-measured previous segment width");++layoutCases;
+        positioned=layout({{false,"\xc3\xa9",0},{false,"",0,C::Pad,4},{false,"B",0}});const auto padded=layout({{false,"\xc3\xa9  B",0}});
+        requireScreen(positioned.size()==padded.size()&&std::equal(positioned.begin(),positioned.end(),padded.begin(),[](const auto&x,const auto&y){return x.codepoint==y.codepoint&&near(x.x,y.x)&&near(x.y,y.y);}),"Native Pad counted glyphs instead of current UTF8 line bytes");++layoutCases;
+        // Consume genuine local-input snapshots through the production player
+        // input stage. No room/actor is fabricated or activated by this probe.
+        requireScreen(setLocalInput(0,0,{},detail)&&advanceLocalPlayerInput(0,detail),detail);
+        requireScreen(setLocalCursor(0,0,false,detail)&&setLocalInput(0,0,{"Select"},detail),detail);
+        requireScreen(!screenCursor_.pointerInput,"Fresh hardware Select edge did not select non-pointer input");
+        requireScreen(advanceLocalPlayerInput(0,detail),detail);
+        requireScreen(setLocalCursor(1,1,false,detail)&&setLocalInput(0,0,{"Select"},detail),detail);
+        requireScreen(screenCursor_.pointerInput,"Held hardware Select overwrote the newer real pointer input source");
+        requireScreen(advanceLocalPlayerInput(0,detail)&&setLocalInput(0,0,{},detail)&&advanceLocalPlayerInput(0,detail),detail);
+        requireScreen(setLocalInput(0,0,{"Select"},detail),detail);
+        requireScreen(!screenCursor_.pointerInput,"Released/repressed hardware Select did not select non-pointer input");
+        requireScreen(advanceLocalPlayerInput(0,detail)&&setLocalInput(0,0,{},detail)&&advanceLocalPlayerInput(0,detail),detail);cancelLocalCursor();
+        hades::log(hades::Severity::Info,"HadesScreenProbe","SCREEN_PROBE_OK scope=host_registered_actions movie_cases=%u decoded_frames=%u decoded_bytes=%llu chain=%u fallback=%u hold=%u symbol_roots=%u helper_layers=%u created_fx=%u random_cases=%u random_loops=%u color_cases=%u layout_cases=%u input_mode_cases=3 component_steps=%u progression=0 gpuClaim=0 deviceClaim=0 anchor=%s sourceGraphic=%s",movieCases,movieFrames,(unsigned long long)decodedBytes,chainCases,fallbackCases,holdCases,symbolCases,helperLayers,createdFx,randomCases,randomLoops,colorCases,layoutCases,steps,obstacle.c_str(),sourceGraphic.c_str());
         error_.clear();return true;
     }catch(const std::exception& e){error_=std::string("Screen action probe: ")+e.what();return false;}
 }

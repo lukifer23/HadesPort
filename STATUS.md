@@ -3,6 +3,53 @@
 Updated 2026-11-06. Read `HANDOFF.md` for commands and `AUDIT.md` for the implementation
 plan. This is an incomplete native ARM64 Android engine driven by the original game.
 
+## Paused boon-input checkpoint (2026-11-06)
+
+Work stopped at the owner's request. The checkpoint adds source-derived screen
+polygons and individual text areas, actual pointer ownership/selection, retained
+floating highlights/audio fades, and the original Interact/Notify callback path.
+It also adds native text Column/Pad/format breaks, bracket/dotted tooltip-value
+lookup, current projectile-property queries, effect-property mutation and
+UseableOn/Off. Unsupported paths continue to fail explicitly.
+
+The last strict input audit requested 6,000 frames and completed 5,578 with zero
+contained faults and every completed frame's presentation validated. It hovered
+all three original choices, checked real highlight lifetimes and fades, then sent
+a genuine quick pointer press/release. Original Interact.Use/Notify executed the
+trait callback and created the real BoonGet movie. Close then stopped at:
+
+```
+Original notify: Scripts/Main.lua:419: Scripts/UIScripts.lua:2650: Native engine action not reconstructed yet: HideTopMenuScreenTooltips
+```
+
+Boon close/teardown and full selection acceptance remain incomplete. Recovery
+proved that native InGameUI is an actual MenuScreen with six tooltip slots; real
+Attack/Deflect keyword producers can populate them. An empty hide replacement is
+not valid. Next: parsed text keyword/BlockTooltip state, actual MenuScreen source
+templates and original AutoTooltip image, native queue/update/render/fade/hide,
+then ClearUseTarget's recovered callback/cancel/cache lifecycle. Interrupted,
+unwired interfaces were removed; their exact patch and source research are private.
+
+Build defaults and canonical host assets now select packages2/text12/screen17/
+action27/audio32/actor9/weapons25/properties14, with the same two rooms. Screen17's
+845 clips and 2,028 bank frames are byte-identical to screen16; its action binding
+changed. Action27 preserves prior banks and adds a separate 26-frame authored
+BoonGet movie window from the original carrier. Audio32 preserves all 2,199 event
+semantics, 3,642 samples and mixing values; two named parameter arrays changed
+order only. Old exports remain immutable. No text13/tooltip resource export exists.
+
+The hotfix ASan/UBSan suite below covers the input/text/marker work through the
+5,500-frame pre-selection route and exact held combat. It preceded the later
+SetEffectProperty/Useable additions. Those additions have fast build/replay evidence;
+final full-checkpoint sanitizer and Android validation remain pending. A final
+syntax check passes after removing interrupted interfaces. No new APK includes
+this checkpoint: iteration19 remains installed. Owned temporary builds were removed;
+no project build/replay/analysis/device-test workers remain running.
+
+Receipts: `.local/reports/boon-interaction-2026-11-06/`; paused source/cleanup and
+process receipts are recorded there. Private restart notes retain the exact next
+steps and interrupted patch. Earlier host milestones below are historical.
+
 ## Installed joystick/reward hotfix — iteration19 (2026-11-06)
 
 Clean source `5b54c0d`; actual installed SHA-256
@@ -298,12 +345,11 @@ No mocks, replacement game art, skipped dialogue or forced rewards were introduc
 
 ## Selected assets and evidence
 
-Build defaults in `scripts/build_native.py` remain authoritative. Canonical assets
-use packages2/text12/screen16/action26/audio31/actor9/weapons25/properties14; only
-RoomOpening and RoomSimple01 are staged. Source/canonical packages2/screen16 are ahead
-of historical iteration18 (packages1/screen15). APK19 uses the committed default
-selection. The active local menu candidate has screen17/action27/audio32; its
-implementation and host staging remain separate from APK19. Device gameplay acceptance is separate.
+Build defaults in `scripts/build_native.py` remain authoritative. Current source and
+canonical host assets use packages2/text12/screen17/action27/audio32/actor9/weapons25/
+properties14. Only RoomOpening/RoomSimple01 are staged. Installed APK19 is the
+separate verified source5b54c0d identity with screen16/action26/audio31. No checkpoint
+APK was built or installed. Tooltip resources are the next required fresh export.
 
 | Evidence | Local path |
 |---|---|
@@ -339,9 +385,10 @@ implementation and host staging remain separate from APK19. Device gameplay acce
 
 ## Next work
 
-Continue on the host with actual BoonSlot1 screen geometry and lifecycle providers,
-then individual text areas, cursor/highlights and original Interact
-callbacks. Death/DeathArea/House, save/restart/Continue and Android acceptance
-follow. Iteration19 lower placement and alternating controls passed on the phone; cover/fold
-and sustained play acceptance remain open. `AUDIT.md` records the
-concrete acceptance boundaries.
+Resume native tooltip production and lifecycle at the explicit close-screen blocker,
+then complete actual boon teardown and repeat strict/sanitized/Android checks.
+Keep APK19 and fresh backups protected. Actual phone reward replay, cover/fold,
+controllers and longer play remain open. DeathArea content/runtime delivery is
+required before death/House recovery; the phone reproduced its missing asset.
+`AUDIT.md` records the acceptance boundaries. Do not force progression or substitute
+rooms, callbacks, fonts or tooltip art.

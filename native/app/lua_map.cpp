@@ -64,7 +64,7 @@ bool ScriptRuntime::beginRequestedMap(bool restoreAssetsOnly){try{
  reconstruct(screenAnimations_);reconstruct(scenePrimaries_);reconstruct(actionEffects_);reconstruct(particles_);reconstruct(effects_);reconstruct(actorLights_,actorWorld_);reconstruct(lifeSystem_,actorWorld_);reconstruct(selfEffects_,actorWorld_);reconstruct(projectileWorld_);
  if(!actorWorld_.resetForMap(error_)||!resetObjectRuntimeForMap(state_,error_))return false;
  actorMotion_={};localMovement_.clear();flashes_.clear();shakes_.clear();shakeOrder_.clear();retainedArsenalOwners_.clear();projectileFxOwners_.clear();projectileFxOwnerIds_.clear();nextProjectileFxOwner_=-0x1000000;
- interactions_={};useTargets_.clear();interactionGridReady_=false;previousUseDown_=false;interactUserPrimaryUnknown_=false;
+ interactions_={};useTargets_.clear();cursorHighlights_.clear();screenCursor_.target={};screenCursor_.checked=false;screenCursor_.forceUseCheck=true;interactionGridReady_=false;previousUseDown_=false;interactUserPrimaryUnknown_=false;
  presentationBases_.clear();sceneSpriteOwners_.clear();originalSceneGroupNames_.clear();presentationGroupFrame_=UINT64_MAX;presentationGroups_.clear();presentationGroupIndices_.clear();presentationShadowFrame_=UINT64_MAX;presentationShadows_.reset();
  primarySpawnerRecipes_.clear();primarySpawnerGraphics_.clear();sceneCorners_.reset();occlusionBaseAnims_.clear();unitCollisionSets_.clear();polygonAxisCache_.fill(0);lastLocationBlocker_=0;
  inactiveMap_.clear();mapMetadata_.clear();creationPlan_={};stagedUnitArsenals_.clear();roomBooted_=roomActivated_=activationStarted_=mapProbeInstalled_=false;physicsFaulted_=false;physicsFault_.clear();

@@ -24,6 +24,8 @@ class WeaponReloadExecution;
 using WeaponScalar = std::variant<bool,double,std::string>;
 enum class WeaponValueChange : uint8_t { Absolute=0,Multiply=1,MultiplyBase=2,Add=3,ReplaceIfNull=4 };
 struct WeaponSoundCue { std::string name;bool valid=false,validityKnown=false; };
+// Descriptor lookup only: actual namespace validity, no playback/channel allocation.
+using WeaponEffectCueResolver=std::function<bool(const std::string&,WeaponSoundCue&,std::string&)>;
 struct WeaponEffectDefinition {
     std::string name; int32_t type=12, trigger=1;
     std::string sourceJson; // normalized source/default record; no effect execution
@@ -202,6 +204,11 @@ public:
     // fallback fields remain explicit errors, rather than partial fake support.
     bool setScriptProjectileProperty(const std::string& weapon,const std::string& property,
         std::optional<WeaponScalar>,WeaponValueChange,std::string& error);
+    // Native EffectData writes across weapon, primary and ordered spawned copies.
+    // Unknown reflection keys keep native no-write behavior; known DTO gaps fail.
+    bool setScriptEffectProperty(const std::string& weapon,const std::string& effect,
+        const std::string& property,std::optional<WeaponScalar>,WeaponValueChange,
+        std::string& error,const WeaponEffectCueResolver& resolveCue={});
     bool dataProperty(const std::string& weapon,const std::string& property,WeaponScalar&,std::string& error)const;
     bool stateProperty(const std::string& weapon,const std::string& property,WeaponScalar&,std::string& error)const;
     // Return false with empty error for a recovered native request gate.

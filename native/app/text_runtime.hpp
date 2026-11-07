@@ -43,6 +43,10 @@ std::vector<hades::TextVisual> snapshotTextVisuals(lua_State*);
 // No component: {-1,-1}; retained empty component: {0,0}. Independent of
 // visibility/opacity; dimensions use the same source glyph layout as drawing.
 bool attachedTextDimensions(lua_State*,int32_t ownerId,std::array<float,2>&,std::string&);
+// Individual actual component rectangles (x,y,width,height) for Interact text
+// hit tests. Includes hidden/transparent/empty boxes and checks owner lifetime;
+// native integer placement wraps the same source layout measurements as drawing.
+bool attachedTextAreas(lua_State*,int32_t ownerId,std::vector<std::array<int32_t,4>>&,std::string&);
 std::vector<TextFormatSnapshot> snapshotTextFormats(lua_State*);
 std::string dumpTextRuntime(lua_State*);
 // Subtitles::SUPPRESS_LYRICS as last set by the original ModifySubtitles action.

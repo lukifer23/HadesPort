@@ -1,0 +1,119 @@
+{
+  "schema": "hades-cursor-interaction-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "evidence_kind": "Matching native PE/PDB static instructions and retained REA pseudocode; no original-engine execution.",
+  "selector": {
+    "procedure": "PlayerUnitInput.FindUseable RVA0x20fa20, called by Cursor.CheckUseTarget RVA0x191a80",
+    "eligibility": "Current actual owner and Interact; first actual group visible; Interact.IsUseableBy with the real player. CursorOnly and UseExtents select the supported screen polygon path.",
+    "projection": "Screen UseExtents uses actual screen cursor XY, owner parallax, source polygon and owner Z projection. Current consumer admits parallax1 and Z0; other branches reject explicitly.",
+    "polygon_priority": "Higher signed draw-group index wins; for the same group only strictly smaller float squared distance to Interact.GetUseLocation wins. Exact ties depend on native pointer-hash traversal order.",
+    "text_order": "In the CursorOnly UseExtents branch, the UseTextBoxes component-rectangle checks occur after and outside the polygon priority gate. Any matching text rectangle writes the current owner, distance and group as winner. Treating all text matches as polygon-priority matches changes native behavior.",
+    "portable_ambiguity_policy": "Reject multiple matching text owners. With one matching text owner, reject another polygon hit with strictly higher group/distance priority because result depends on which candidate native hash traversal visits last. Otherwise that sole text owner wins. With polygon-only hits, reject exact best-priority ties.",
+    "location": "GetUseLocation RVA0x2c0270 honors Body/primary flip for offsets. Its CursorOnly branch uses actual GetZLocation times float0.8660254 plus OffsetY, not an inferred screen-center Y. The consumer reuses the existing actual InteractionWorld.useLocation.",
+    "indexing_limit": "The portable selector scans actual registered source records and performs actual geometry predicates. It does not reconstruct the proprietary cursor-grid container/hash layout. Global UseableOffScreen cursor records and nonextent range paths reject."
+  },
+  "polygon_point": {
+    "rva": "0x2ceaf0",
+    "operation": "Initialize previous vertex from the final polygon point; compare each vertexY>=pointY. When previous/current comparisons differ, compare float(previousX-currentX)*(currentY-pointY) >= float(currentX-pointX)*(previousY-currentY). Toggle parity when that comparison equals currentAbove. Separate float products; no contraction.",
+    "boundary": "Do not replace these >= comparisons with a generic half-open ray or a rectangle predicate: polygon-edge membership is a distinct native policy."
+  },
+  "text_rectangle": {
+    "rva": "0x20ed30",
+    "operation": "Integer x+width and y+height are converted to float after addition. Left/top inclusive, right/bottom exclusive. Portable malformed negative/overflowing extents reject."
+  },
+  "cursor_state": {
+    "procedure": "Cursor.CheckUseTarget RVA0x191a80",
+    "previous_target": "Resolve current public owner ID in actual World lookup; a missing positive cached ID is cleared and forces reevaluation. Portable keys also retain the actual entity lifetime.",
+    "repeat": "Only RepeatDelay>0 activates this branch. When Select flags bit2 is absent, reset actual Interact repeatTimer to RepeatDelay. Otherwise subtract the input elapsed; strict timer<0 sets repeat and adds RepeatInterval once. Exactly zero is not expiration.",
+    "reevaluate": "Previous owner missing, Select pressed bit4, repeat expiration, either actual cursor coordinate differs from previous coordinate, or ForceUseCheck. ForceUseCheck is cleared before the GUI-blocker/query branch.",
+    "input_clock": "InputHandler.HandleInput RVA0x194b49 preserves its second float argument and forwards it unchanged to Cursor.HandleInput at RVA0x194ce1/0x194ce7. Cursor forwards it to CheckUseTarget. No owner/world multiplier is applied inside the cursor repeat branch; the exact top-level native clock producer remains outside this retained evidence.",
+    "enabled_candidate": "Call HighlightOn first. Then CursorOnly and (Select pressed or repeat or AutoActivate or (!native UseMouse and AutoActivateWithGamepad)) calls actual Interact.Use with null Unit user.",
+    "order": "New candidate HighlightOn and possible Use occur before processing old-target HighlightOff/OnMouseOff and writing the new cached target. A GUI blocker still routes target change to null and old-target cleanup.",
+    "old_highlight_off": "On target change, requires actual old Interact, actual old primary, old Interact.enabled, and (old primary name differs from HighlightOnAnimation or FloatHighlightAnimation). Disabled-old-target behavior is not equivalent to unconditional HighlightOff.",
+    "callbacks": "Old target ScriptManager.OnMouseOff RVA0x28b7d0 is gated by Thing.IsPhysicallyVisible RVA0x2e62d0. New visible target dispatches actual OnMouseOver source matches with fresh CreatedThisFrame=(World.time<=Thing.creationTime), then writes cursor target ID. These are distinct from PlayerUnitInput OnActiveUseTarget callbacks.",
+    "reevaluation_scope": "FindUseable, enabled-target HighlightOn and possible Use all execute only inside the reevaluation predicate. They still execute when the selected target is the same as the previous target. Old/new callbacks and cached-ID change are separately gated on new!=old.",
+    "OnMouseOff_payload": "ScriptManager.OnMouseOff RVA0x28b7d0 invokes matching Script.run(owner,emptyString,defaultLuaTable). No UserId, AttachedTable or CreatedThisFrame field is added by this event producer; generic Script.run source fields remain separate.",
+    "physical_visibility": "Thing.IsPhysicallyVisible RVA0x2e62d0 requires Body base-color alpha byte>0, Body scalar scale at+0x48>0, actual primary, primary.GetScale(true)>0, and primary.GetDrawColor alpha byte>0. It does not itself test group visibility, renderer cull or a guessed viewport.",
+    "callback_payload_source_fields": "Script.run RVA0x24f610 adds triggeredById/TriggeredByTable for the actual owner. It adds name only for a nonempty string argument (RVA0x24f6dc..0x24f6fa, repeated alternate branch). Cursor OnMouseOver and OnMouseOff both pass the empty string, so neither event should inject name=typeName; source matching remains actual Thing matching.",
+    "portable_input_source": "Android/host adaptation: a newly pressed logical hardware Select edge changes input mode to non-pointer. An actual setLocalCursor sample changes it to pointer. Repeated held hardware snapshots retain that newer pointer mode; they must not relabel it every simulation tick. The edge uses consumed local-action history, which excludes pointer-injected Select snapshots."
+  },
+  "highlight": {
+    "on_rva": "0x2bfb80",
+    "floating_on": "When FloatHighlightAnimation is true and actual retained highlight pointer is null, MANAGERS[0].Create RVA0x29e350 receives HighlightOnAnimation and the actual owner Thing. Retain the returned actual animation. If owner UseScreenLocation is true, call Animation.SetUseScreenLocation RVA0x297830. An existing retained pointer suppresses recreation/restart.",
+    "ordinary_on": "With FloatHighlightAnimation false, call normal Thing.SetAnimation(HighlightOnAnimation,false,true,false).",
+    "off_rva": "0x2bfc00",
+    "floating_off": "If retained highlight exists, set Animation.mCanceled at+0x63; mark attached Thing dirty when the actual native attachment/animation flag requires it; clear retained Interact highlight pointer. Actual manager completion owns deferred finish/fade; do not replace this with immediate destruction.",
+    "ordinary_off": "With FloatHighlightAnimation false, call normal Thing.SetAnimation(HighlightOffAnimation,false,true,false)."
+  },
+  "evidence": [
+    {
+      "path": ".local/reports/gui-interact/dec-0x180191a80.json",
+      "evidence_id": "ev_49bc5d06e22f3483cd73a5fcb73d4433a63b3690adbac39a8ec4e154f6d1bea8",
+      "sha256": "d38edbbd56f9a71dc2b7b53bab9348d27a01c52336e3bc10c329302b6c6b293e"
+    },
+    {
+      "path": ".local/reports/gui-interact/dec-0x18020fa20.json",
+      "evidence_id": "ev_7d499f25ee6f3837401374ee17d870da58ef721443ecc332e8ad470a8697cd51",
+      "sha256": "d7223d2b122a2f493756dafdbf5fb11a22ac1f00ce6f12982373951b7ba9647f"
+    },
+    {
+      "path": ".local/reports/gui-interact/dec-0x1801916e0.json",
+      "evidence_id": "ev_a5faede29a2bbf84aabfe661a1ed6cb78c2d431609d22ff138f8f2669135cd12",
+      "sha256": "b51cfcaca8179462fa1f6103f844e80012e58ae4638da593b36634dad778cb5d"
+    },
+    {
+      "path": ".local/reports/gui-interact/polygon-point-static-2026-10-26.json",
+      "sha256": "e89e7aa9ad7f183bfa817bd438cf4cf3176c7021f766a7db6410ff750f66a395"
+    },
+    {
+      "path": ".local/reports/gui-interact/rectangle-contains-static-2026-10-26.json",
+      "sha256": "fee25d72e9cd2b52a03d768f21273d37b11af1a0e8cfefc11df54096a3dd2d32"
+    },
+    {
+      "path": ".local/reports/gui-interact/interact-highlighton-static-2026-10-26.json",
+      "sha256": "4d425e176e1be4fc54ed50d24051e0d42e993fc39e4d49d40c1aa4f2186d736e"
+    },
+    {
+      "path": ".local/reports/gui-interact/interact-highlightoff-static-2026-10-26.json",
+      "sha256": "463e35131b44bed9acf8271ed708ef1ff1229c1dacae0712e8dadc4bb33d078b"
+    },
+    {
+      "path": ".local/reports/gui-interact/input-handler-static-2026-10-26.json",
+      "sha256": "7b10b1949decda6b6c4ed2dd6e210b3a86c5da824b9fc433cde77bcc2fa3081a"
+    },
+    {
+      "path": ".local/reports/native-interaction-location-pseudocode-v1.txt",
+      "sha256": "8ccd78e692751f6e19dd961129b793b3faa7775700fdd36066410630cb133882"
+    },
+    {
+      "path": ".local/reports/native-interaction-is-useable-by-pseudocode-v1.txt",
+      "sha256": "397dbc6c56b9cd8743d7efb4474f711a1cb94285f77bf9311f7d9ed05a9e7032"
+    },
+    {
+      "path": ".local/reports/gui-interact/cursor-onmouseoff-static-2026-11-06.json",
+      "sha256": "375748a202bc4fb3c14925fb8ee75cbc52bc9667757196841480846e65551df1"
+    },
+    {
+      "path": ".local/reports/gui-interact/cursor-physical-visibility-static-2026-11-06.json",
+      "sha256": "42911fe0cc4e32a910d1b51217cea0f66806bb634b48c070525feaaf799018e8"
+    },
+    {
+      "path": ".local/reports/native-script-run-annotated.json",
+      "sha256": "cd3ad9182c8a1bf846dcc649cc68c6f99b5c7e40fd9b87c89144fa6c14c6797b"
+    }
+  ],
+  "implementation_scope": [
+    "native/app/cursor_interaction.hpp",
+    "native/app/cursor_interaction.cpp"
+  ],
+  "limitations": [
+    "Static evidence does not establish physical touch/controller behavior or native GPU geometry parity.",
+    "Candidate hit rectangles depend on the actual retained text-layout provider; its existing documented paragraph-layout approximation remains separate.",
+    "Gamepad free-form navigation, native mouse scaling/camera/parallax branches, global cursor useables and exact pointer-hash order remain unsupported.",
+    "Exact native arbitration between multiple distinct hardware/pointer events arriving inside one fixed simulation interval is not established by this edge-based input-source adaptation."
+  ]
+}

@@ -12,7 +12,8 @@ No emulation, Wine, CPU translation, ads, accounts or network access.
 > against the actual source animation chain on the host, including ASan/UBSan.
 > Its phone replay remains open. Death currently fails because DeathArea is not
 > bundled; boon selection and later rooms remain incomplete. Cover/fold transitions
-> and sustained play still need validation.
+> and sustained play still need validation. The paused host checkpoint reaches real
+> boon selection; closing it remains blocked on native tooltip implementation.
 > See [`AUDIT.md`](AUDIT.md) for the plan and [`STATUS.md`](STATUS.md) for exact
 > build, runtime and device verification boundaries.
 

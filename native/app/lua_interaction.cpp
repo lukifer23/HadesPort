@@ -28,6 +28,7 @@
 #include "object_runtime.hpp"
 #include "scene_runtime.hpp"
 #include "input_runtime.hpp"
+#include "text_runtime.hpp"
 #include "platform_log.hpp"
 #include <algorithm>
 #include <cmath>
@@ -108,9 +109,9 @@ int ScriptRuntime::setInteractPropertyAction(lua_State* L){
             if(object->backend==ObjectBackend::Screen){
                 const auto* screen=self->screenAnimations_.thing(id);
                 if(!screen||!screen->body||screen->body->entityHandle!=object->entityHandle)continue;
-                hades::InteractionSnapshot snapshot;
-                if(!self->interactions_.snapshot({id,object->entityHandle},snapshot,error))
-                    throw std::runtime_error("SetInteractProperty screen Interact creation requires actual screen geometry/lifecycle providers: "+object->name);
+                hades::InteractionOwnerFrame frame;
+                if(!self->interactionOwnerFrame({id,object->entityHandle},frame,error)||!frame.present)
+                    throw std::runtime_error(error.empty()?"SetInteractProperty actual screen owner unavailable":error);
             }else{
                 const auto* actor=self->actorWorld_.actor(id);
                 if(!actor||!actor->registered||actor->entityHandle!=object->entityHandle)continue;
@@ -157,6 +158,13 @@ bool ScriptRuntime::initializeInteraction(int32_t id,std::string& error){
 
 bool ScriptRuntime::removeInteraction(int32_t id,std::string& error){
     for(const auto& s:interactions_.snapshots())if(s.key.id==id){
+        // Actual Interact destruction cancels its retained manager highlight;
+        // manager completion owns finish audio/fade. Clear cursor lifetime too.
+        if(const auto h=cursorHighlights_.find(s.key);h!=cursorHighlights_.end()){
+            if(effects_.registry()->find(h->second)&&!effects_.registry()->cancel(h->second,error))return false;cursorHighlights_.erase(h);
+        }
+        if(screenCursor_.target==s.key){screenCursor_.target={};screenCursor_.forceUseCheck=true;}
+
         for(auto it=useTargets_.begin();it!=useTargets_.end();){if(it->second==s.key)it=useTargets_.erase(it);else ++it;}
         return interactions_.remove(s.key,error);
     }
@@ -165,6 +173,18 @@ bool ScriptRuntime::removeInteraction(int32_t id,std::string& error){
 
 bool ScriptRuntime::interactionOwnerFrame(hades::InteractionKey key,hades::InteractionOwnerFrame& f,std::string& error){
     f={};f.key=key;
+    if(const auto* screen=screenAnimations_.thing(key.id);screen&&screen->body&&screen->body->backend==ObjectBackend::Screen){
+        const auto& o=*screen->body;if(!o.entityHandle||o.entityHandle!=key.lifetime){error.clear();return true;}
+        f.present=true;f.hasBody=true;f.typeName=o.name;f.x=o.x;f.y=o.y;f.z=o.z;f.angle=o.angle;
+        f.alpha=uint8_t(std::clamp(std::lround(screen->baseColor[3]*255.f),0L,255L));f.bodyFlips=o.flipHorizontal?1:0;
+        std::vector<std::array<float,2>> polygon;std::array<int32_t,4> bounds;
+        if(!screenAnimations_.interactionGeometry(key.id,polygon,bounds,error))return false;f.area={bounds[0],bounds[1],bounds[2],bounds[3]};
+        const std::string group=!o.groups.empty()?o.groups.front():(!o.group.empty()?o.group:o.name);
+        for(const auto& g:snapshotSceneGroups(state_))if(g.name==group){f.firstGroupVisible=g.visible;break;}
+        std::vector<std::array<int32_t,4>> areas;if(!attachedTextAreas(state_,key.id,areas,error))return false;
+        for(const auto& a:areas)f.textAreas.push_back({a[0],a[1],a[2],a[3]});error.clear();return true;
+    }
+
     auto* a=actorWorld_.actor(key.id);
     if(!a||!a->registered||a->isDisposed||a->entityHandle!=key.lifetime||!a->object){error.clear();return true;} // present=false
     const auto& o=*a->object;
@@ -185,7 +205,7 @@ bool ScriptRuntime::interactionOwnerFrame(hades::InteractionKey key,hades::Inter
         for(const auto& p:a->geometry){x0=std::min(x0,p.x);x1=std::max(x1,p.x);y0=std::min(y0,p.y);y1=std::max(y1,p.y);}
         f.area={int32_t(x0),int32_t(y0),int32_t(x1-x0),int32_t(y1-y0)};
     }
-    if(a->hasText){error="Interact UseTextBoxes owner text-box bounds not reconstructed: "+o.name;return false;}
+    if(a->hasText){std::vector<std::array<int32_t,4>> areas;if(!attachedTextAreas(state_,key.id,areas,error))return false;for(const auto& r:areas)f.textAreas.push_back({r[0],r[1],r[2],r[3]});}
     error.clear();return true;
 }
 
@@ -226,18 +246,18 @@ bool ScriptRuntime::consumeInteractionOperation(const hades::InteractionUseOpera
     const auto number=[&]{return std::holds_alternative<double>(op.value.value)?op.value.number():0.0;};
     switch(op.kind){
     case K::UserAnimation:{const auto n=text();if(n.empty())break;if(!setActorAnimation(op.user.id,n,error))return false;break;}
-    case K::OwnerAnimation:{const auto n=text();if(n.empty())break;if(!setActorAnimation(op.owner.id,n,error))return false;break;}
+    case K::OwnerAnimation:{const auto n=text();if(n.empty())break;if(const auto* o=findObjectSnapshot(state_,op.owner.id);o&&o->backend==ObjectBackend::Screen){if(!setScreenAnimation(op.owner.id,n,error))return false;}else if(!setActorAnimation(op.owner.id,n,error))return false;break;}
     case K::UserPlanarForce:case K::UserUpwardForce:
         if(number()!=0){error="Interact UserVelocity/UserUpwardVelocity force not reconstructed";return false;}
         break; // zero-magnitude PhysicsComponent::ApplyForce/ApplyUpwardForce adds nothing
     case K::UserFaceTarget:{auto* a=actorWorld_.actor(op.user.id);if(!a){error="UserFaceTarget user unavailable";return false;}
         error="Interact UserFaceTarget (Unit::SetGoalAngle 0x2f85f0) not wired";return false;}
-    case K::UnuseableAnimation:{const auto name=text();if(!name.empty()&&!setActorAnimation(op.owner.id,name,error))return false;break;}
+    case K::UnuseableAnimation:{const auto name=text();if(!name.empty()){const auto* o=findObjectSnapshot(state_,op.owner.id);if(o&&o->backend==ObjectBackend::Screen){if(!setScreenAnimation(op.owner.id,name,error))return false;}else if(!setActorAnimation(op.owner.id,name,error))return false;}break;}
     case K::UserFx:case K::VisualFx:case K::UsedFrontFx:case K::UsedBackFx:{
         const auto name=text();if(name.empty())break;
         const bool userFx=op.kind==K::UserFx,grouped=op.kind==K::UsedFrontFx||op.kind==K::UsedBackFx;
-        const auto key=userFx?op.user:op.owner;const auto* actor=actorWorld_.actor(key.id);
-        if(!actor||!actor->registered||actor->entityHandle!=key.lifetime||!actor->object){error="Interact FX actual owner lifetime expired";return false;}
+        const auto key=userFx?op.user:op.owner;const auto* object=findObjectSnapshot(state_,key.id);hades::EffectOwnerState body;
+        if(!object||object->entityHandle!=key.lifetime||!effectOwner(key.id,body,error)||body.lifetime!=key.lifetime){if(error.empty())error="Interact FX actual owner lifetime expired";return false;}
         // Interact.Use2bfcd0: UserFx/VisualFx use the explicit XY factory
         // (29e410); UsedFront/BackFx use the owner factory29e350 then set
         // that allocation's draw group to the owner's actual first group.
@@ -247,9 +267,9 @@ bool ScriptRuntime::consumeInteractionOperation(const hades::InteractionUseOpera
         uint64_t handle=0;if(!createActionEffect(name,key.id,position,handle,error))return false;
         if(handle&&userFx&&!actionEffects_.preferUnmodifiedTime(handle,error))return false;
         if(handle&&grouped){
-            if(actor->object->groups.empty()){error="Interact UsedFront/BackFx first GroupId0 adapter unavailable";return false;}
+            if(object->groups.empty()){error="Interact UsedFront/BackFx first GroupId0 adapter unavailable";return false;}
             const auto* state=actionEffects_.state(handle);if(!state){error="Interact FX factory lost its actual animation";return false;}
-            if(!actionEffects_.configureCreated(handle,state->ownZ,actor->object->groups.front(),false,error))return false;
+            if(!actionEffects_.configureCreated(handle,state->ownZ,object->groups.front(),false,error))return false;
         }
         break;}
     case K::OnHeal:
@@ -266,20 +286,21 @@ bool ScriptRuntime::consumeInteractionOperation(const hades::InteractionUseOpera
         const auto& v=op.value;
         std::string cue;if(std::holds_alternative<std::string>(v.value))cue=v.text();else if(const auto* name=v.get("name"))cue=name->text();
         if(cue.empty()||cue=="null")break;
-        const auto* owner=actorWorld_.actor(op.owner.id);if(!owner||!owner->registered||owner->entityHandle!=op.owner.lifetime){error="Interact UseSound owner lifetime expired";return false;}
+        hades::EffectOwnerState owner;if(!effectOwner(op.owner.id,owner,error)||owner.lifetime!=op.owner.lifetime){if(error.empty())error="Interact UseSound owner lifetime expired";return false;}
         // Native Use copies Cue by value and calls PlayCue3D4a690(owner,
         // empty parameter list, play=true, managerCap=0). The caller does
         // not test descriptor.valid or attach a synthetic completion callback.
-        std::array<float,3> location{};if(!actorWorld_.location(op.owner.id,location[0],location[1],error))return false;
+        std::array<float,3> location{owner.x,owner.y,owner.z};
         uint32_t channel=0;if(!playAudioCue(cue,op.owner.id,location,channel,error))return false;break;}
     case K::DestroyOwner:{
         // Interact::Use2bfcd0 invokes owner virtual Destroy (slot0xc0) only
         // on first use, before UserFireWeapon/DisableOnUse. Thing.Destroy
         // queues genuine death FX and deferred manager disposal; it does not
         // erase this retained Interact while Use is still executing.
-        const auto* owner=actorWorld_.actor(op.owner.id);
-        if(!owner||!owner->registered||owner->entityHandle!=op.owner.lifetime){error="Interact DestroyOnUse owner lifetime expired";return false;}
-        if(!markThingDead(op.owner.id,false,error))return false;
+        const auto* owner=findObjectSnapshot(state_,op.owner.id);
+        if(!owner||owner->entityHandle!=op.owner.lifetime){error="Interact DestroyOnUse owner lifetime expired";return false;}
+        if(owner->backend==ObjectBackend::Screen){if(!screenDestroy(op.owner.id,error))return false;}
+        else if(!markThingDead(op.owner.id,false,error))return false;
         break;}
     case K::UserFireWeapon:error="Interact UserFireWeapon not reconstructed";return false;
     }

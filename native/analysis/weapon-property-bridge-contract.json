@@ -326,7 +326,7 @@
       "property": "live Weapon reflection"
     },
     "SetEffectProperty": {
-      "rva": "0x2725b0",
+      "rva": "0x2725a0",
       "selector_keys": {
         "ids": [
           "DestinationIds",
@@ -346,7 +346,8 @@
       ],
       "target": "owned weapon selected through active Unit",
       "normalization": "literal null -> empty any",
-      "delegate": "Weapon.SetEffectProperty; complete effect mutation not implemented in weapon module"
+      "delegate": "Weapon.SetEffectProperty RVA0x84890; implemented in native/app/weapon_effect_property.cpp",
+      "contract": "native/analysis/effect-property-contract.json"
     },
     "GetEffectDataValue": {
       "rva": "0x267f20",

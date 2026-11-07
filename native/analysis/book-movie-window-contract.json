@@ -1,0 +1,41 @@
+{
+  "schema": "hades-book-movie-window-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "evidence_kind": "Matching PE/PDB static instruction facts; original movie pixels are independently decoded locally, not committed.",
+  "native_frame_window": {
+    "fields": "AnimationData full offsets: NumFrames+0x310, StartFrame+0x330, EndFrame+0x334.",
+    "post_read": "AnimationData.PostRead RVA0x97550: default frame-count substitution at RVA0x977ae..0x977e1 only enters when current NumFrames==0, StartFrame==1 and EndFrame==0. Explicit positive NumFrames bypasses that substitution. Book type0 at RVA0x977ee..0x977f0 enters the Book frame-range branch.",
+    "book_end": "RVA0x9787c..0x978b1: when EndFrame==0, derive EndFrame=StartFrame+NumFrames-1; an explicitly positive NumFrames is not replaced by carrier frame count.",
+    "init": "Book.Init RVA0x2af3cf reads source StartFrame (or EndFrame for backwards) and initializes current frame.",
+    "update": "Book.UpdateInternal RVA0x2af5a5/0x2af65a/0x2af6cc/0x2af70a reads source StartFrame/EndFrame for displayed clamp and finite completion; it does not extend the authored window merely because the decoded Bink carrier has more frames.",
+    "bounded_prefix_policy": "A complete positive single-angle Book window StartFrame1..NumFrames can retain the first authored frames of a longer original carrier. Require actual carrier count>=NumFrames and record the exact unused tail count. This is a source-defined window, not a synthetic shorter animation. FrameDataFile, other windows, unsupported origin and unreviewed timing consumers reject."
+  },
+  "portable_resource_binding": {
+    "schema": "Optional EmbeddedMovieDefinitions and EmbeddedMovieBankSha256 in the action catalog; embedded_movie_bank and embedded_movie_source_manifest identities in its resource manifest. Existing atlas Definitions and actor-bank MovieDefinitions stay separate and retain prior identities.",
+    "runtime": "All three image banks use native Book/Constant/action lifecycle consumers. A centralized immutable name-to-bank lookup selects actual pixels; embedded Books keep movie geometry normalization and native source timing.",
+    "pack_policy": "Small dedicated HAA1 companion avoids rewriting large original atlas/actor banks and avoids their aggregate decoded-frame budgets. Pack roles and HAA layout are portable delivery policy, not recovered proprietary engine file layout.",
+    "verification": "Stage validates original source definition/inheritance, movie/atlas identity, complete frame window, unused tail, pinned alpha-capable decoder, HAA geometry/order/timing, and every compressed frame extent/CRC/source crop hash. Source inputs and prior banks remain immutable."
+  },
+  "evidence": [
+    {
+      "path": ".local/reports/hud-draw-AnimationData-PostRead.json",
+      "sha256": "36c6d7c4576af9b366554af1a2d73a973d3f39ebe1bf1b15ad7b4fa1a7e35443"
+    },
+    {
+      "path": ".local/reports/anim-setup/BookAnimation_Init.asm.json",
+      "sha256": "ac08ac7a412cbf3e0c9abdda98ba4ae9264532f72907ae339b065dfd93a954a1"
+    },
+    {
+      "path": ".local/reports/anim-setup/BookAnimation_UpdateInternal.asm.json",
+      "sha256": "a4afac789fd1fa761096e5fdf149a8bdbec3f25552c6b254d034237ebb6e8d71"
+    }
+  ],
+  "limitations": [
+    "Static source-window facts do not establish physical-device rendering or native material/lighting parity.",
+    "New binding admits only complete authored single-angle Book windows without FrameDataFile; existing legacy movie bindings retain their established limits."
+  ]
+}

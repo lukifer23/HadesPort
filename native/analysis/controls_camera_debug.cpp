@@ -1,6 +1,7 @@
 #include "../app/camera_rig.hpp"
 #include "../app/hardware_input.hpp"
 #include "../app/frame_pacing.hpp"
+#include "../app/screen_pointer.hpp"
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
@@ -12,6 +13,29 @@ int main(){try{
     require(hades::displayFrameCap(0,3,0,true)==60&&hades::displayFrameCap(120,3,0,true)==60,"Battery mode did not bound frame rate");
     require(hades::displayFrameCap(120,1,2,true)==60&&hades::displayFrameCap(0,1,3,true)==30&&hades::displayFrameCap(60,1,4,true)==15,"Platform thermal status did not bound rendering");
     require(hades::displayFrameCap(30,1,2,true)==30&&hades::displayFrameCap(0,1,0,false)==30,"Frame limiter raised a lower cap or left menu uncapped");
+    // Production Android scene pointer transform and ownership. These are
+    // reference/physical coordinates, not fabricated game button bounds.
+    {
+        using P=hades::ScreenPointer;P pointer;P::Sample sample;
+        const auto near=[](float a,float b){return std::abs(a-b)<.001f;};
+        require(pointer.configure({0,0,2520,1080},1080),"First pointer viewport was not configured");
+        require(pointer.pointer(hades::UiPointer::Down,1,1260,540,sample)==P::Result::Updated&&near(sample.x,960)&&near(sample.y,540)&&sample.down,"Cover center did not invert rendered screen transform");
+        require(pointer.pointer(hades::UiPointer::Down,2,1000,500,sample)==P::Result::Ignored&&pointer.pointer(hades::UiPointer::Up,2,1000,500,sample)==P::Result::Ignored&&pointer.owner()==1,"Second finger stole/released source menu pointer");
+        require(!pointer.configure({0,0,2520,1080},1080)&&pointer.owner()==1,"Unchanged viewport cancelled source pointer");
+        require(pointer.pointer(hades::UiPointer::Move,1,300,0,sample)==P::Result::Updated&&near(sample.x,0)&&near(sample.y,0),"Cover centered reference origin mapped incorrectly");
+        require(pointer.pointer(hades::UiPointer::Up,1,300,0,sample)==P::Result::Updated&&!sample.down&&pointer.owner()<0,"Source pointer release retained ownership");
+        require(pointer.pointer(hades::UiPointer::Move,1,300,0,sample)==P::Result::Ignored,"Released finger reacquired source pointer without a new press");
+        pointer.configure({0,0,2184,1968},1968);
+        require(pointer.pointer(hades::UiPointer::Down,3,1092,984,sample)==P::Result::Updated&&near(sample.x,960)&&near(sample.y,540),"Inner center did not use uniform fit");
+        require(pointer.pointer(hades::UiPointer::Move,3,0,369.75f,sample)==P::Result::Updated&&near(sample.x,0)&&near(sample.y,0),"Inner reference origin stretched instead of fitting");
+        require(pointer.configure({0,60,1920,1080},1201)&&pointer.owner()<0,"Resize retained source pointer ownership");
+        require(pointer.pointer(hades::UiPointer::Move,3,0,61,sample)==P::Result::Ignored,"Resize admitted stale finger movement");
+        require(pointer.pointer(hades::UiPointer::Down,4,0,61,sample)==P::Result::Updated&&near(sample.x,0)&&near(sample.y,0),"GL bottom-origin viewport did not invert to Android top-origin coordinates");
+        require(pointer.pointer(hades::UiPointer::Cancel,-1,0,0,sample)==P::Result::Cancelled&&pointer.owner()<0,"Android cancellation retained source pointer");
+        pointer.configure({300,0,1920,1080},1080);
+        require(pointer.pointer(hades::UiPointer::Down,5,299,500,sample)==P::Result::Ignored,"Physical letterbox bar acquired source pointer");
+        pointer.cancel();require(pointer.pointer(hades::UiPointer::Move,4,960,540,sample)==P::Result::Ignored,"Context cancellation admitted stale menu movement");
+    }
     // Use the production touch policy at actual cover/inner panel geometry.
     // The cover's old 45 mm bottom offset put its visible rest ABOVE the
     // floating acquisition zone: bottom touches worked only until release.

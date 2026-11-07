@@ -27,17 +27,23 @@ memory PSI avg10 was 0.00%, with about 4.1 GiB available. Hades was stopped afte
 the checks. Cover/fold, controller and sustained play acceptance remain open.
 Preserve APK19, rollback18/17, saves, backups and signing key. STATUS indexes receipts.
 
-Strict host progression passes package/config setup and the original boon-shell
-movies, symbol graph and lighting. The current default 8,000-frame request completes
-5,452 frames before SetInteractProperty requires actual screen geometry/lifecycle
-for BoonSlot1. Native loop randomization now honors its default true and consumes
-the genuine shared engine RNG; later path timing differs from the older 4,837-frame
-route. The held 2,950-frame route still matches all five historical hits exactly.
-The isolated --probe-screen-animations diagnostic exercises all 54 new movie frames,
-chain/fallback/hold, ten symbol roots, repeated random lighting and registered colors.
-It is separate from progression. Next: actual boon geometry/text areas/cursor/
-highlights/Interact, then death/DeathArea/House and script-reached save/Continue.
-Do not force progression, skip original dialogue, substitute scenes or drop fields.
+**Work is paused at the owner's request.** All workers stopped; owned temporary
+builds were removed. The committed checkpoint is incomplete and is not APK19.
+The latest strict --audit-screen-input request6000 completes5578 at original
+UIScripts.lua2650 / HideTopMenuScreenTooltips. Three actual boon targets, floating
+highlight/audio lifecycle and genuine pointer Select/Interact/Notify execute; the
+original trait callback creates BoonGet. Menu close/teardown remains unverified.
+
+Next implement real native InGameUI/MenuScreen tooltips, including retained parsed
+keyword producers and BlockTooltip, six live slots, source GUI templates, original
+AutoTooltip pixels and normal fade/hide. Native empty-state assumptions were disproved
+by actual Attack/Deflect keyword source. Then implement the recovered ClearUseTarget
+lifecycle. Unfinished declarations/wiring were removed; exact interrupted changes,
+raw evidence and next seams are retained privately. No tooltip/text13 export exists.
+
+Fast compilation and actual replay cover effect properties and UseableOn/Off. The
+previous final hotfix ASan/UBSan suite predates those additions; repeat the full
+checkpoint sanitizer/Android gates after resuming. Installed19 stays protected.
 
 The dependency preparer and room pack builder/revision/stager now verify complete
 sources/closures before publication. Native and Python room consumers share
@@ -64,13 +70,10 @@ storage waste from hardlinked file names. Preserve originals, exports, real save
 current APK, signing key, pinned decoder libraries and evidence. Remove only owned
 scratch/build intermediates after recording results.
 
-Build defaults select packages2/text12/screen16/action26/audio31/actor9/weapons25/properties14
-and RoomSimple01 in addition to root RoomOpening. `scripts/build_native.py` is the
-selection authority; selected source, staged assets and an installed APK are
-separate identities. Installed iteration19 uses packages2/screen16/action26/audio31.
-The active local boon-input work has candidate screen17/action27/audio32 exports and
-host staging, with defaults unchanged until its milestone passes. APK19 excludes
-that unfinished menu work. Preserve it before any future publication.
+Build defaults select packages2/text12/screen17/action27/audio32/actor9/weapons25/
+properties14 and RoomSimple01 in addition to RoomOpening. Source and canonical host
+staging agree. Installed APK19 remains source5b54c0d with screen16/action26/audio31;
+it excludes the unfinished input checkpoint. Preserve it before any new publication.
 
 ## Storage cleanup and restoration
 
@@ -127,15 +130,16 @@ nice -n 15 .local/host-build-next/hades-debug .local/native-build/assets .local/
   --activate-room --world-frames=2950 --validate-live-presentation \
   --input-replay=.local/reports/takeover-mixed-combat-hold.tsv
 nice -n 15 .local/host-build-next/hades-debug .local/native-build/assets .local/reports/NEW-AUTO.json \
-  --activate-room --world-frames=8000 --autoplay --validate-live-presentation
+  --activate-room --world-frames=6000 --autoplay --audit-screen-input --validate-live-presentation
 # Direct registered-action diagnostic; separate from world progression:
 nice -n 15 .local/host-build-next/hades-debug .local/native-build/assets .local/reports/NEW-PACKAGES.json \
   --probe-packages
 # Isolated genuine screen actions/resources; no progression or device claim:
 nice -n 15 .local/host-build-next/hades-debug .local/native-build/assets .local/reports/NEW-SCREEN.json \
   --probe-screen-animations
-# The current default route stops on BoonSlot1 interaction geometry at 5452.
-# Slow ContinueText600 reaches the same blocker at 6,052; request 8,500 frames.
+# The verified input-audit route stops on native tooltip close at 5,578.
+# Full close/teardown and the final full-checkpoint sanitizer gate remain open.
+# Slower real ContinueText input uses --autoplay-continue-period=600.
 # HADES_TRACE_SLIDES=1 records actual random-slide entry.
 ```
 

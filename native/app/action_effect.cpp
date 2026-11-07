@@ -94,7 +94,8 @@ const std::set<std::string>& pendingFieldsSet(){static const std::set<std::strin
  "Material","Ambient","SortMode","SortFromOwner","UseBoundsForSortArea","DrawBehindOwner","OverlayVfx",
  "KeepVisualFxAttached","TransferAngle","TransferChildren"};return v;}
 }
-bool ActionEffectWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimationBank> bank,std::shared_ptr<AnimationRegistry> registry,std::string&error,std::shared_ptr<ActorAnimationBank> movieBank){try{
+const std::shared_ptr<ActorAnimationBank>& ActionEffectWorld::imageBank(const std::string&name)const{return embeddedMovies_.contains(name)?embeddedMovieBank_:(movies_.contains(name)?movieBank_:bank_);}
+bool ActionEffectWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimationBank> bank,std::shared_ptr<AnimationRegistry> registry,std::string&error,std::shared_ptr<ActorAnimationBank> movieBank,std::shared_ptr<ActorAnimationBank> embeddedMovieBank){try{
  if(!states_.empty()||!bank||!registry||t(catalog,"Schema")!="HadesActionEffectResources1"||t(catalog,"Target")!="d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254")throw std::runtime_error("Source action FX catalog/bank/registry mismatch");
  if(const auto*rejected=catalog.get("Rejected"))for(const auto&[name,reason]:rejected->object())rejected_.emplace(name,reason.text());
  auto definitions=catalog.get("Definitions")->object();
@@ -103,8 +104,18 @@ bool ActionEffectWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimationB
   if(t(d,"Type")!="Book"||t(d,"VideoTexture").empty()||!clip||!(movieBank->clips()[*clip].flags&ActorBook)||!definitions.emplace(name,d).second)throw std::runtime_error("Actual movie Book definition/image binding unavailable: "+name);
   movies_.insert(name);rejected_.erase(name);
  }
+ // Small independent movie banks preserve the atlas and actor banks' identities
+ // and decoded-size budgets. Native Book semantics do not depend on pack role.
+ if(const auto* movies=catalog.get("EmbeddedMovieDefinitions"))for(const auto&[name,d]:movies->object()){
+  const auto clip=embeddedMovieBank?embeddedMovieBank->find(name):std::optional<size_t>{};
+  if(t(d,"Type")!="Book"||t(d,"VideoTexture").empty()||!t(d,"FrameDataFile").empty()||!clip||!(embeddedMovieBank->clips()[*clip].flags&ActorBook)||!definitions.emplace(name,d).second)throw std::runtime_error("Actual embedded movie Book definition/image binding unavailable: "+name);
+  const auto& resource=embeddedMovieBank->clips()[*clip];const int32_t count=int32_t(n(d,"NumFrames",1));
+  if(n(d,"NumAngles",1)!=1||resource.originalAngles!=1||resource.originalAngleIndices!=std::vector<uint32_t>{0}||count<1||n(d,"StartFrame",1)!=1||n(d,"EndFrame",float(count))!=count||resource.slides.size()!=size_t(count))throw std::runtime_error("Original embedded movie Book frame window unsupported: "+name);
+  for(size_t at=0;at<resource.slides.size();++at)if(resource.slides[at].originalFrame!=at+1||embeddedMovieBank->sample(*clip,at,0,false).originalMovieFrame!=at)throw std::runtime_error("Original embedded movie source frame order mismatch: "+name);
+  movies_.insert(name);embeddedMovies_.insert(name);rejected_.erase(name);
+ }
  for(const auto&[name,d]:definitions){
-  if(t(d,"Type")!="Random"&&!(movies_.contains(name)?movieBank:bank)->find(name))throw std::runtime_error("Exported original action FX has no bank clip: "+name);
+  if(t(d,"Type")!="Random"&&!(embeddedMovies_.contains(name)?embeddedMovieBank:(movies_.contains(name)?movieBank:bank))->find(name))throw std::runtime_error("Exported original action FX has no bank clip: "+name);
   const auto type=nativeType(d);auto&unsupported=unsupported_[name];auto&pending=pending_[name];
   for(const auto&[key,value]:d.object()){
    // VideoTexture selects the hash-bound original movie image backend;
@@ -143,7 +154,7 @@ bool ActionEffectWorld::load(SourceValue catalog,std::shared_ptr<ActorAnimationB
   }
   definitions_.emplace(name,d);
  }
- if(definitions_.empty())throw std::runtime_error("Empty original action FX catalog");catalog_=std::move(catalog);bank_=std::move(bank);movieBank_=std::move(movieBank);registry_=std::move(registry);return true;
+ if(definitions_.empty())throw std::runtime_error("Empty original action FX catalog");catalog_=std::move(catalog);bank_=std::move(bank);movieBank_=std::move(movieBank);embeddedMovieBank_=std::move(embeddedMovieBank);registry_=std::move(registry);return true;
  }catch(const std::exception&e){error=e.what();return false;}}
 bool ActionEffectWorld::preflight(const std::string&name,const ActionEffectProviders&p,std::vector<std::string>&path,std::string&error,bool guiLine)const{
  auto i=definitions_.find(name);if(i==definitions_.end()){const auto*why=rejection(name);error="Original action FX not exported: "+name+(why?" ("+*why+")":" (outside animation coverage)");return false;}
@@ -194,7 +205,7 @@ bool ActionEffectWorld::initialize(const std::string&name,int32_t ownerId,const 
   if(blocked){handle=0;return true;}
  }
  const bool primary=primaryRequest_&&!parent&&!light;primaryRequest_=false;
- ActionEffectState s;s.name=name;s.definition=d;s.primary=primary;s.detached=owner.lifetime==0;s.guiLine=guiLineRequest_;guiLineRequest_=false;s.ownerId=ownerId;s.ownerLifetime=owner.lifetime;s.parent=parent;s.isLight=light;s.type=nativeType(d);s.movie=movies_.contains(name);s.imageClip=*(s.movie?movieBank_:bank_)->find(name);s.position=s.spawnPosition=position;s.ownerSnapshot=owner;if(t(d,"LocationZFromOwner")=="Ignore")s.position[2]=0;s.flipX=b(d,"FlipHorizontal");s.flipY=b(d,"FlipVertical");
+ ActionEffectState s;s.name=name;s.definition=d;s.primary=primary;s.detached=owner.lifetime==0;s.guiLine=guiLineRequest_;guiLineRequest_=false;s.ownerId=ownerId;s.ownerLifetime=owner.lifetime;s.parent=parent;s.isLight=light;s.type=nativeType(d);s.movie=movies_.contains(name);s.imageClip=*imageBank(name)->find(name);s.position=s.spawnPosition=position;s.ownerSnapshot=owner;if(t(d,"LocationZFromOwner")=="Ignore")s.position[2]=0;s.flipX=b(d,"FlipHorizontal");s.flipY=b(d,"FlipVertical");
  AnimationAllocation a;a.name=name;a.sourceDefinition=d;a.type=s.type;a.ownerId=light?0:ownerId;a.ownerLifetime=light?parent:owner.lifetime;a.manager=light?1:0;a.ownership=s.guiLine?AnimationOwnership::GuiComponent:(light?AnimationOwnership::LightController:(primary?AnimationOwnership::ThingPrimary:(parent?AnimationOwnership::Child:AnimationOwnership::ManagerCreate)));a.parent=light?0:parent;a.cancelOverCap=b(d,"CancelOverCap");a.loop=b(d,"Loop");a.onlyWhenVisible=b(d,"OnlyWhenVisible");if(!registry_->allocate(a,s.handle,error))return false;
  // InitData 0x180291dc6: HasDuration (Duration/DurationFrames/RandomDuration >0);
  // D = GetValue(max(DurationFrames/60,Duration),RandMin,RandMax).
@@ -554,7 +565,7 @@ bool ActionEffectWorld::preDisposeOwner(int32_t id,const EffectOwnerState&owner,
 std::vector<uint64_t> ActionEffectWorld::handles(bool lights)const{std::vector<uint64_t>out;for(const auto&[h,s]:states_)if((lights||!s.isLight)&&!s.done)out.push_back(h);return out;}
 bool ActionEffectWorld::visual(uint64_t h,const EffectOwnerState&owner,const std::array<uint8_t,4>&ownerFraction,ActorVisual&out,std::string&error){try{
  const auto*s=state(h);if(!s||s->done||!registry_->find(h)||owner.lifetime!=s->ownerLifetime){error="Actual action FX draw lifetime unavailable";return false;}const auto&d=s->definition;
- const auto imageBank=s->movie?movieBank_:bank_;if(!imageBank){error="Actual action Movie/image bank unavailable: "+s->name;return false;}const auto&clip=imageBank->clips().at(s->imageClip);
+ const auto imageBank=this->imageBank(s->name);if(!imageBank){error="Actual action Movie/image bank unavailable: "+s->name;return false;}const auto&clip=imageBank->clips().at(s->imageClip);
  size_t slide=0;const float originalFrame=std::clamp(std::trunc(s->frame),n(d,"StartFrame",1),n(d,"EndFrame",n(d,"NumFrames",1)));
  if(s->movie){
   const auto found=std::lower_bound(clip.slides.begin(),clip.slides.end(),uint32_t(originalFrame),[](const ActorAnimationSlide& value,uint32_t frame){return value.originalFrame<frame;});
@@ -785,11 +796,11 @@ bool ActionEffectWorld::preferUnmodifiedTime(uint64_t h,std::string&error){if(!s
 // Maintain), NumAngles<=1 -> 0, interval tau/N, - AngleNumAngleOffset (not
 // admitted), + interval/2, truncate, + AngleNumOffset, one wrap, Mirror fold.
 uint32_t ActionEffectWorld::angleNum(const ActionEffectState&s,const EffectOwnerState&owner)const{
- const auto&d=s.definition;const int angles=int((s.movie?movieBank_:bank_)->clips().at(s.imageClip).originalAngles);if(angles<=1)return 0;
+ const auto&d=s.definition;const int angles=int(imageBank(s.name)->clips().at(s.imageClip).originalAngles);if(angles<=1)return 0;
  float angle=s.heading;if(!s.detached&&maintainsOwnerAngle(d)){if(owner.isUnit&&!owner.bookOwnerAngle)throw std::runtime_error("Actual Unit Book cosmetic angle unavailable: "+s.name);angle+=owner.isUnit?*owner.bookOwnerAngle:owner.angle;}
  // AnimationData ctor094170 sets UseIsometricAngle(full+0x9d)=true. Movie
  // Book children use the same exact native LUT as Thing HAA primaries.
- if(s.movie&&(!d.get("UseIsometricAngle")||b(d,"UseIsometricAngle")))angle=movieBank_->inverseIsometricAngle(angle);
+ if(s.movie&&(!d.get("UseIsometricAngle")||b(d,"UseIsometricAngle")))angle=imageBank(s.name)->inverseIsometricAngle(angle);
  const float interval=6.2831854820251465f/float(angles),half=interval*.5f;
  const volatile float scaled=(angle+half)/interval;int index=int(float(scaled))+int(n(d,"AngleNumOffset"));
  if(angles-1==0)index=0;else if(index<0)index+=angles;else if(index>angles-1)index=index-(angles-1)-1;

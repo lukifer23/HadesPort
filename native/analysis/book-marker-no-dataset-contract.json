@@ -106,5 +106,20 @@
     "Inspect all actual live child handles/definitions and assert no dataset at each node; repeat across real simulation Book frame advances.",
     "Retain original HMR actor marker checks to ensure sampled marker transform unchanged.",
     "Run clean Android build and on-device touch/real reward follow-up under root owner."
-  ]
+  ],
+  "host_diagnostic": {
+    "path": "native/host/cursor_probe.cpp",
+    "entry": "existing --audit-screen-input, sampled before menu phase gate",
+    "real_source_owner": "AthenaUpgrade with current BoonDropAthena primary",
+    "assertions": [
+      "actual five-node instantiated Book child chain follows source ChildAnimation names",
+      "registry/current owner lifetimes and no FrameDataFile at every node",
+      "repaired effectMarker weapon_2_TRACKING result equals actual owner location/Z for observed zero raw attachment branch",
+      "at least four distinct world updates and at least two actual terminal Book integer frames"
+    ],
+    "evidence_log": "REWARD_MARKER_AUDIT_OK owner/lifetime/primary/samples/child-node-count/frame-count/world-frame range",
+    "completion_guard": "Screen audit cannot complete unless reward marker coverage passed",
+    "state_writes": "diagnostic counters only; no reward, animation, callback, progression, or provider substitution",
+    "status": "implemented; root owns host build/replay evidence"
+  }
 }

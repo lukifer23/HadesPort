@@ -101,6 +101,8 @@ public:
     // adaptation; native pointer-hash traversal/tie order is not recovered.
     bool update(const InteractionProviders&,std::string&);
     bool setEnabled(InteractionKey,bool,std::string&);
+    bool setPreviousUseable(InteractionKey,bool,std::string&);
+    bool advanceCursorRepeat(InteractionKey,bool selectHeld,float elapsed,bool& repeated,std::string&);
     bool replaceDefinition(InteractionKey,const SourceValue& original,std::string&);
     // ScriptAction::SetInteractProperty 0x180273550 mutates owned InteractData,
     // creating a default Interact first if absent. Constructor-copied runtime

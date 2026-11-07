@@ -81,6 +81,9 @@ class ScriptRuntime {
     hades::LifeSystemRuntime lifeSystem_{actorWorld_};
     hades::ActorLightWorld actorLights_{actorWorld_};
     hades::InteractionWorld interactions_;
+#ifndef __ANDROID__
+    struct ScreenInputProbe;std::shared_ptr<ScreenInputProbe> screenInputProbe_;
+#endif
     std::map<uint32_t,hades::InteractionKey> useTargets_;
     bool interactionGridReady_=false,previousUseDown_=false,interactUserPrimaryUnknown_=false;
     hades::InteractionProviders interactionProviders();
@@ -241,6 +244,10 @@ class ScriptRuntime {
     bool checkControlNotify(const WorldNotify&,bool&,std::string&,std::string&);
     static int interactNotifyAction(lua_State*);
     static int setInteractPropertyAction(lua_State*);
+    static int useableAction(lua_State*);
+    bool useableImpl(lua_State*,bool,std::string&);
+    static int getProjectilePropertyAction(lua_State*);
+    bool getProjectilePropertyImpl(lua_State*,std::string&);
     static int drawScreenRelative(lua_State*);
     bool drawScreenRelativeImpl(lua_State*,std::string&);
     bool thingLocationAndParallax(int32_t,float&,float&,float&,std::string&) const;
@@ -295,6 +302,8 @@ class ScriptRuntime {
     bool fadeImpl(lua_State*,bool in,std::string&);
     bool setColorImpl(lua_State*,std::string&);
     bool createAnimationImpl(lua_State*,std::string&);
+    static int setEffectProperty(lua_State*);
+    bool setEffectPropertyImpl(lua_State*,std::string&);
     static int weaponProperty(lua_State*);
     bool weaponPropertyImpl(lua_State*,int mode,std::string&);
     static int runWeaponMethod(lua_State*);
@@ -410,10 +419,17 @@ class ScriptRuntime {
     bool screenActionImpl(lua_State*,int,std::string&);
     bool screenMoveImpl(const hades::SourceValue&,bool& handled,std::string&);
     bool screenAnimationArgs(int32_t,const std::string&,lua_State*,std::string&);
-    // CursorManager::Cursors[player] location written by TeleportCursor 0x25e3d0
-    // (+0x14/+0x18 current, +0x1c previous x, +0xa ForceUseCheck). Android has
-    // no free-form cursor consumer; the state is retained, not drawn.
-    struct ScreenCursor{float x=0,y=0,previousX=0;bool forceUseCheck=false;} screenCursor_;
+    // CursorManager retained local slot; coordinates are original1920x1080.
+    // Native TeleportCursor25e3d0 and platform pointer input share this state.
+    struct ScreenCursor {
+        float x=0,y=0,previousX=0,checkedX=0,checkedY=0;
+        bool forceUseCheck=false,checked=false,pointerDown=false,pointerPressed=false,pointerInput=false;
+        hades::InteractionKey target;
+    } screenCursor_;
+    std::map<hades::InteractionKey,uint64_t> cursorHighlights_;
+    bool advanceScreenCursor(float,std::string&);
+    bool cursorHighlight(hades::InteractionKey,bool,std::string&);
+    bool initializeScreenInteraction(int32_t,const hades::SourceValue&,std::string&);
 
     bool setActorAnimation(int32_t,const std::string&,std::string&);
     float actorAnimationFacing(const hades::ActorComponents&)const;
@@ -509,7 +525,7 @@ public:
     struct AutoplayTarget {int32_t id=0;float x=0,y=0;std::string name;};
     // Read-only input affordance from actual queued NotifyOnControlPressed requests.
     std::vector<std::string> pendingControlPresses() const;
-    struct AutoplayView {bool hero=false;float x=0,y=0;bool inputAllowed=false;std::vector<AutoplayTarget> enemies,usables;std::vector<std::string> pendingControls;std::string map;};
+    struct AutoplayView {bool hero=false;float x=0,y=0;bool inputAllowed=false,cursorUseReady=false;std::vector<AutoplayTarget> enemies,usables;std::vector<std::string> pendingControls;std::string map;};
     AutoplayView autoplayView();
     // Host autoplay navigation: native A* from the hero with its own node
     // validator, shortened to the furthest node with clear line of movement.
@@ -589,6 +605,7 @@ public:
     // Actual source screen movies/helpers with registered creation/actions;
     // isolated host diagnostic, never combined with game progression.
     bool probeScreenAnimations();
+    bool probeLiveScreenInput(std::vector<std::string>& controls,bool& complete,std::string&);
 #endif
     const std::string& error() const { return error_; }
     std::string sceneGroupsDump() const;
@@ -600,6 +617,11 @@ public:
     std::string stagedWeaponsDump() const;
     bool inputAllowed(int playerIndex=1) const;
     bool setLocalInput(float dx,float dy,const std::vector<std::string>& actionDownNames,std::string&);
+    // Android/host input adapter: actual logical pointer, not a script callback.
+    bool setLocalCursor(float x,float y,bool down,std::string&);
+    void cancelLocalCursor(){screenCursor_.pointerDown=false;screenCursor_.pointerPressed=false;screenCursor_.pointerInput=false;}
+    bool screenInputRequested()const;
+
     std::optional<ObjectSnapshot> localPlayerBody()const;
     // Save API. The directory is the app-private save folder (Android:
     // internalDataPath based); without it saves are skipped like the original

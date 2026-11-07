@@ -28,7 +28,7 @@ static void jsonString(std::ostream& out,const std::string& text) {
 }
 
 int main(int argc,char** argv) {
-    bool autoplay=false,capture=false,activate=false,probe=false,weaponProbe=false,packageProbe=false,screenProbe=false,survey=false,contain=false,validatePresentation=false;int worldFrames=120,continuePeriod=60;std::string inputReplay,saveProbeDirectory,loadSaveDirectory;
+    bool autoplay=false,capture=false,activate=false,probe=false,weaponProbe=false,packageProbe=false,screenProbe=false,cursorAudit=false,survey=false,contain=false,validatePresentation=false;int worldFrames=120,continuePeriod=60;std::string inputReplay,saveProbeDirectory,loadSaveDirectory;
     for(int i=3;i<argc;++i){const std::string arg=argv[i];
         if(arg=="--capture-active-room")capture=activate=true;
         else if(arg=="--activate-room")activate=true;
@@ -40,6 +40,7 @@ int main(int argc,char** argv) {
         else if(arg=="--probe-staged-weapons")weaponProbe=true;
         else if(arg=="--probe-packages")packageProbe=true;
         else if(arg=="--probe-screen-animations")screenProbe=true;
+        else if(arg=="--audit-screen-input")cursorAudit=true;
         else if(arg.starts_with("--probe-save="))saveProbeDirectory=arg.substr(13);
         else if(arg.starts_with("--load-save="))loadSaveDirectory=arg.substr(12);
         else if(arg.starts_with("--autoplay-continue-period=")){const auto value=std::string_view(arg).substr(std::string_view("--autoplay-continue-period=").size());const auto result=std::from_chars(value.data(),value.data()+value.size(),continuePeriod);if(result.ec!=std::errc{}||result.ptr!=value.data()+value.size())continuePeriod=0;}
@@ -55,6 +56,7 @@ int main(int argc,char** argv) {
             if(std::string_view(argv[i])==prefix)throw std::runtime_error("Empty debug path: "+std::string(prefix));
         struct ReplayInput {int frame;float x,y;std::vector<std::string> controls;};std::vector<ReplayInput> replay;
         if(continuePeriod!=60&&!autoplay)throw std::runtime_error("ContinueText cadence requires autoplay");
+        if(cursorAudit&&(!autoplay||!activate||survey||packageProbe||screenProbe))throw std::runtime_error("Live screen audit requires strict activated autoplay");
         if(autoplay&&(!activate||!inputReplay.empty()))throw std::runtime_error("Autoplay requires activation and replaces --input-replay");
         if(!inputReplay.empty()){
             if(!activate)throw std::runtime_error("Input replay requires actual room activation");
@@ -111,7 +113,7 @@ int main(int argc,char** argv) {
         std::ofstream weaponDump(std::string(argv[2])+".weapons.txt");weaponDump<<scripts.stagedWeaponsDump();
         for(size_t i=0;scripts.assetsPending()&&i<128;++i)if(!scripts.serviceAssets())break;
         bool updateComplete=activationComplete;
-        hades::Autoplay autoplayDriver(continuePeriod);std::string autoplayMap;
+        hades::Autoplay autoplayDriver(continuePeriod);std::string autoplayMap;bool cursorAuditComplete=false;
         std::ostringstream worldTrace;size_t replayAt=0;int worldFramesCompleted=0;uint64_t pcmSamples=0;double pcmSquared=0;float pcmPeak=0;bool firstWorldSample=true;std::string mixerError;
         size_t presentationSamples=0,validatedPresentationFrames=0;std::string presentationError;
         // Fullscreen BlurComponent/vignette state sampled every validated frame;
@@ -120,7 +122,7 @@ int main(int argc,char** argv) {
         using Clock=std::chrono::steady_clock;std::vector<double> frameMilliseconds;double updateMilliseconds=0,mixMilliseconds=0;
         if(activationComplete)for(int i=0;i<worldFrames;++i){
             const auto frameStart=Clock::now();
-            if(autoplay){const auto view=scripts.autoplayView();const auto input=autoplayDriver.step(i,view,[&](float gx,float gy,float& wx,float& wy,std::string& e){return scripts.autoplayWaypoint(gx,gy,wx,wy,e);});if(!scripts.setLocalInput(input.x,input.y,input.controls,mixerError)){updateComplete=false;break;}
+            if(autoplay){const auto view=scripts.autoplayView();auto input=autoplayDriver.step(i,view,[&](float gx,float gy,float& wx,float& wy,std::string& e){return scripts.autoplayWaypoint(gx,gy,wx,wy,e);});if(cursorAudit&&!scripts.probeLiveScreenInput(input.controls,cursorAuditComplete,mixerError)){updateComplete=false;break;}if(!scripts.setLocalInput(input.x,input.y,input.controls,mixerError)){updateComplete=false;break;}
                 if(i%60==0||view.map!=autoplayMap){autoplayMap=view.map;std::cout<<"AUTOPLAY frame="<<i<<" allowed="<<view.inputAllowed<<" hero="<<int(view.x)<<','<<int(view.y)<<' '<<input.summary<<" map="<<view.map<<'\n';}}
             if(replayAt<replay.size()&&replay[replayAt].frame==i){const auto& input=replay[replayAt++];if(!scripts.setLocalInput(input.x,input.y,input.controls,mixerError)){updateComplete=false;break;}}
             if(!scripts.advanceWorld(1.f/60,1./60)){if(survey){scripts.surveyRecordWorldFault();continue;}updateComplete=false;break;}
@@ -179,7 +181,7 @@ int main(int argc,char** argv) {
              <<",\"diagnostic_staged_weapon_probe\":"<<(weaponProbe?"true":"false")
              <<",\"diagnostic_staged_weapon_complete\":"<<(weaponProbeComplete?"true":"false")<<",\"native_map_begin_complete\":"<<(activationComplete?"true":"false")
              <<",\"native_world_phase_coverage_complete\":false,\"native_world_updates_complete\":false,\"native_supported_world_replay_complete\":"<<(replayComplete?"true":"false")<<",\"diagnostic_fault_survey\":"<<(survey?"true":"false")<<",\"contained_faults\":"<<scripts.containedFaults()<<",\"initialization_error\":";
-        jsonString(trace,scripts.error());trace<<",\"world_frames_completed\":"<<worldFramesCompleted<<",\"source_pcm_samples\":"<<pcmSamples<<",\"source_pcm_rms\":"<<(pcmSamples?std::sqrt(pcmSquared/pcmSamples):0)<<",\"source_pcm_peak\":"<<pcmPeak<<",\"mixer_or_input_error\":";jsonString(trace,mixerError);
+        jsonString(trace,scripts.error());trace<<",\"live_screen_input_audit_requested\":"<<(cursorAudit?"true":"false")<<",\"live_screen_input_audit_complete\":"<<(cursorAuditComplete?"true":"false")<<",\"world_frames_completed\":"<<worldFramesCompleted<<",\"source_pcm_samples\":"<<pcmSamples<<",\"source_pcm_rms\":"<<(pcmSamples?std::sqrt(pcmSquared/pcmSamples):0)<<",\"source_pcm_peak\":"<<pcmPeak<<",\"mixer_or_input_error\":";jsonString(trace,mixerError);
         const auto& nativeCamera=scripts.cameraState();trace<<",\"source_camera\":{\"initialized\":"<<(nativeCamera.initialized?"true":"false")<<",\"x\":"<<nativeCamera.x<<",\"y\":"<<nativeCamera.y<<",\"zoom\":"<<nativeCamera.zoom<<",\"goal_zoom\":"<<nativeCamera.goalZoom<<",\"viewport_width\":"<<nativeCamera.viewportWidth<<",\"viewport_height\":"<<nativeCamera.viewportHeight<<",\"target_count\":"<<nativeCamera.targets.size()<<",\"clamp_count\":"<<nativeCamera.clampTargets.size()<<'}';
         std::sort(frameMilliseconds.begin(),frameMilliseconds.end());const auto percentile=[&](double fraction){return frameMilliseconds.empty()?0:frameMilliseconds[size_t(std::ceil(fraction*frameMilliseconds.size()))-1];};
         trace<<",\"host_cpu_timing\":{\"scope\":\"Actual successful world updates and source PCM mixer; excludes rendering, asset setup and failed frame\",\"update_mean_ms\":"<<(worldFramesCompleted?updateMilliseconds/worldFramesCompleted:0)<<",\"mixer_mean_ms\":"<<(worldFramesCompleted?mixMilliseconds/worldFramesCompleted:0)<<",\"combined_p50_ms\":"<<percentile(.5)<<",\"combined_p95_ms\":"<<percentile(.95)<<",\"combined_p99_ms\":"<<percentile(.99)<<",\"combined_max_ms\":"<<percentile(1)<<'}';

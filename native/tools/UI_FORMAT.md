@@ -112,3 +112,29 @@ Its complete ring is bounded to the surface. The visible ring remains an input
 target; floating movement also accepts the lower movement side. Releasing or
 canceling restores the bottom rest immediately and clears the movement vector.
 Physical placement remains an Android control policy, separate from original Lua UI.
+
+## Original screen input
+
+Original screen interactions use their actual Thing lifetime, atlas canvas/pivot,
+source scale, current body transform and individual retained text areas. The
+Android pointer inverts the renderer's centered uniform 1920×1080 fit; it uses the
+physical scene viewport, including its vertical origin. A live CursorOnly
+NotifyOnInteract request selects this context. Pointer ownership is canceled on
+context/surface/focus changes. A genuine quick down/up retains one Select edge
+through the next simulation tick. Cursor highlights are real source action FX;
+selection runs Interact.Use and the original notification/callback path.
+
+Text Column controls start a horizontal segment at the original numeric offset;
+Pad counts current UTF-8 line bytes using the actual font space advance.
+FormatBreak continues at the measured width. Tooltip dotted/bracket paths read
+actual Lua values; percent decoration follows the native formatting contract.
+Paragraph measurement/wrapping remains a portable adaptation. Nonempty geometry
+Points/Size, unsupported transforms, ambiguous selection order and unreconstructed
+text/property branches fail explicitly. See the screen geometry, attached text,
+text controls and cursor contracts in `native/analysis/` for exact supported bounds.
+
+
+The paused checkpoint reaches the original trait callback but does not complete
+menu close: native InGameUI tooltip producers/components remain unimplemented.
+Parsed keyword links, BlockTooltip and native tooltip projection are the next work;
+no empty hide action or placeholder GUI component is registered.

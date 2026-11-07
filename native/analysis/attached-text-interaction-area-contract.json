@@ -1,0 +1,57 @@
+{
+  "schema": "hades-attached-text-interaction-area-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "scope": "Individual attached ScriptAction.CreateTextBox component rectangles. Static matched DLL/PDB facts; no original runtime or physical-device observation.",
+  "native": {
+    "get_area": "GUIComponentTextBox.GetArea RVA0x1787b0 tests UseTextArea full+0xd2. True calls GetTextArea0x177d50; false calls GUIComponentBox.GetArea0x16b890.",
+    "factory": "ScriptAction.CreateTextBox RVA0x270e79 sets UseTextArea=true after text setup. The portable CreateTextBox factory uses this branch.",
+    "location": "GetTextArea RVA0x177da4..0x177dee adds TextOffsetX/Y full+0x188/+0x18c to GUIComponent.GetLocation0x169a70 when an attached owner exists. GetLocation adds component offset+0x110/+0x114 and component transient offset to actual Thing location. Source CreateTextBox OffsetX/Y reads at0x270a88/0x270aab write component offsets at0x270a94/0x270ab7; text offsets retain zero defaults in the admitted branch. GetLocation does not subtract owner Z.",
+    "dimensions": "RVA0x177df2/0x177e04 converts actual width+0xb90 and height+0xb8c separately with CVTTSS2SI before origin justification.",
+    "horizontal": "RVA0x177e0d..0x177e73 selects TextJustification+0x50a, falling back from UNKNOWN3 to box Justification+0x508. Left0 leaves trunc(originX); Center2 subtracts float(integerWidth)*0.5 from float originX then truncates; Right1 subtracts float(integerWidth) then truncates.",
+    "vertical": "RVA0x177e73..0x177e99 treats both Bottom1 and Center2 as float originY minus float(integerHeight)*0.5, then truncation. Top0 uses the already truncated baseY.",
+    "top_correction": "For nonempty text, RVA0x177ea7..0x177edd checks the actual stored text string and adds trunc(-0.5f*ComponentDataDef.LineSpacingBottom full+0x5a4) to integer baseY. This field is distinct from runtime integer LineSpacingBottom full+0xb48. ComponentData.Defaults zeroes the relevant numeric template at RVA0xa2e71; AutoSetDataProperties reflection can replace the data field.",
+    "empty": "With no line records, RVA0x177d8e returns stored GUIComponent.mArea full+0x20 verbatim. The new-component constructor initializes all four rectangle integers to zero at RVA0x1681ee/0x1681f5. Empty component areas are not inferred from glyphs, owner coordinates or text Width/Height constraints.",
+    "visibility": "Neither GetTextArea nor its area dispatch tests Hide, FadeOpacity, owner alpha or owner visibility. Those draw gates do not erase interaction text areas."
+  },
+  "portable_consumer": {
+    "api": "attachedTextAreas(lua_State*,ownerId,vector<array<int32_t,4>>&,error)",
+    "identity": "Matches the actual current owner entity lifetime against the retained component and each body; skips destroyed bodies and expired lifetimes. Preserves separate components rather than unioning maximum extents.",
+    "measurement": "Uses the same real original font/glyph/symbol paragraph layout as draw and attachedTextDimensions. Maximum extents and individual areas share one measurement helper.",
+    "empty_storage": "Retains the genuine new-component mArea default as separate body storage. The admitted script factory exposes no independent mArea mutation operation.",
+    "publication": "Returns rectangles atomically on successful measurement/conversion; failures leave an empty result and explicit error."
+  },
+  "limits": [
+    "Original native mActualWidth/mActualHeight paragraph computation is not newly reconstructed. Current source-glyph word wrapping and block measurement remain the existing portable policy; integer placement rules do not establish full native text metric parity.",
+    "Nondefault native TextOffset, transient GUI move offset, ScaleWithOwner and independent mArea mutation require actual retained component consumers before admission.",
+    "The existing text runtime rejects UNKNOWN authored justification and unadmitted reflection fields. Its default unknown TextJustification falls back to the admitted box justification.",
+    "Nonempty control-only/markup-only paragraphs with no retained text/symbol content reject because exact native line-presence behavior has not been established.",
+    "Nonfinite or out-of-signed32 float conversion, and overflowing top-offset addition, reject rather than fabricate native indefinite conversion artifacts."
+  ],
+  "evidence": [
+    ".local/reports/gui-interact/textbox-getarea-static-2026-10-26.json",
+    ".local/reports/gui-interact/textbox-textarea-static-2026-10-26.json",
+    ".local/reports/gui-interact/gui-location-static-2026-10-26.json",
+    ".local/reports/gui-interact/component-data-defaults-static-2026-10-26.json",
+    ".local/reports/textbox-v2/inspect-CreateTextBox.json",
+    ".local/reports/boon-interaction-2026-11-06/gui-component-ctor.json",
+    ".local/reports/boon-interaction-2026-11-06/gui-component-clear.json",
+    ".local/reports/boon-interaction-2026-11-06/gui-box-area.json",
+    ".local/reports/boon-interaction-2026-11-06/component-propertyinfo.json",
+    ".local/reports/boon-interaction-2026-11-06/component-setproperty.json"
+  ],
+  "auto_set_reflection": {
+    "create_loop": "CreateTextBox RVA0x2708fc converts each source value, then RVA0x270930 calls ReflectionHelper.SetProperty<ComponentData>; the returned success byte is not tested before continuing enumeration.",
+    "unknown": "SetProperty RVA0x27fc91 calls GetPropertyInfo0xaa0c0. Property type0 reaches RVA0x27fca6, returns false without modifying ComponentData, and the CreateTextBox loop continues.",
+    "inventory": "Complete GetPropertyInfo RVA0xaa0c0..0xad3b2 contains264 distinct multi-character property-name references and two single-character names X/Y. Compiled runtime inventory is componentReflectionFields in native/app/text_runtime.cpp. Name fallback at0xad344 compares the whole five-byte NUL-terminated spelling. Hash and strcmp selection are case-sensitive.",
+    "inventory_count": 266,
+    "inventory_sha256": "3284130464010f21fc386bcd9eafb1d316b12ef384222f407b6461e703b1acde",
+    "helper_metadata": "Unknown Lua helper keys have no native ComponentData effect. In particular a forwarded helper Format key is not in the complete compiled inventory; the original Lua helper has already selected/merged the requested format before the native action.",
+    "boundary": "Only truly unknown properties skip. Recognized compiled fields without an implemented portable reader/consumer still reject through propertyAt. This is not a blanket unsupported-field fallback.",
+    "supported_variable_format": "VariableAutoFormat is a real reflected string property: GetPropertyInfo0xab343..0xab368 returns type5 and ComponentDataDef+0x3b0. The portable AutoSet branch retains it and reuses its existing original formatter-switch consumer.",
+    "font_size": "FontSize is a real reflected integer property, not float: GetPropertyInfo0xabfc1 returns type2, field at ComponentDataDef+0x78; matching PDB mFontSize has builtin type0x74 (signed32). Both reflected conversion and explicit CreateTextBox Int reading retain truncation toward zero."
+  }
+}

@@ -130,3 +130,22 @@ lifetimes. See `screen-animation-helpers-contract.json` in `native/analysis/` fo
 native timing, RNG and remaining global phase limits. The host-only
 `--probe-screen-animations` diagnostic uses real registered actions, decoded images,
 RNG and audio separately from game progression; it does not prove device rendering.
+
+
+## Embedded action movie companion
+
+`append_action_movies.py` adds a fresh `action-movie-frames.bin` HAA1 companion,
+leaving the existing action atlas/movie banks byte-identical. The action catalog
+uses `EmbeddedMovieDefinitions` and `EmbeddedMovieBankSha256`; staging publishes
+the corresponding raw hash sidecar. Each definition selects one actual bank.
+All existing actor-facing and marker bindings retain their original identities.
+
+The exporter supports an explicitly proven Book prefix: source NumFrames and
+PostRead's default EndFrame determine the authored window, even when the original
+Bink carrier contains unused tail frames. Source/atlas/decoder identities and all
+selected frame dimensions, CRCs and window order are validated before fresh atomic
+publication. This is a general source-window policy, not an animation-name override.
+The new selection adds the original 26-frame BoonGet movie. Its screen-coordinate
+flag is set by actual screen-owner creation and retained through normal detachment;
+owner disposal does not manufacture that flag. Audio closure includes embedded
+movie definitions alongside existing definition classes.

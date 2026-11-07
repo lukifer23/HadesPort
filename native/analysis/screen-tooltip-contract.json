@@ -1,0 +1,119 @@
+{
+  "schema": "hades-screen-tooltip-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+  "pdb_age": 1,
+  "evidence": [
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/screen-manager-ctor-static.json",
+      "sha256": "deff13bcbfdad764f1e30e3dd12ff1d65941d9a9f8ed1ae3dc5910539fbfe892"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/top-menu-screen-static.json",
+      "sha256": "1c8bfba5fa59064dc75cc9d4caaa51f41d580f1a4f59fc4783f7855a81ab55ad"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/hide-menu-tooltip-static.json",
+      "sha256": "950a0dcbff74659077704cb1d9505228184ec96355070d14d3a17ceeee6260af"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/menu-screen-ctor-static.json",
+      "sha256": "ff91f891e1a341d7378763e39bb9053d98a1d26a0b722b547b7065f1c4b750bc"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/menu-screen-init-static.json",
+      "sha256": "3f50e48885f5bc84a09feaa9435b6cd139551534293e443108dd559cdfccb265"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/menu-screen-load-static.json",
+      "sha256": "4a1df2aad894c30aa1f7282cb49fd50ebe05ea08738f948d38e38a228aa6b795"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/ingame-ui-ctor-static.json",
+      "sha256": "c0f0e5f678c6cbe9dfdee0843c482165a70ace175a9d3efe65574d9781000488"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/ingame-ui-type-static.json",
+      "sha256": "2276ae1515d919b05b6e0d2aa192f97e65473d7a4fc602245829f60b527b0454"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/gameplay-screen-type-static.json",
+      "sha256": "6f1d144cacafc3788aaea1c000176f632ffad906e86a3b56573139206dbd66c4"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/ingame-ui-tooltip-static.json",
+      "sha256": "40a7e455f983f81a84c5f4410523326d3e56bc159f1c804cbc50a76750c0c78c"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/menu-screen-tooltip-static.json",
+      "sha256": "4fc2cf336e6fd0a3bf19061aa517a6d64d3442b8399eb3c525f74ab822321175"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/queue-menu-tooltip-static.json",
+      "sha256": "e5d69f13bca5f8a9646e34129a3be33fdc59d61009bbf9c89cf5d94fd6520d43"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/textbox-tooltip-id-static.json",
+      "sha256": "55fb9438cd47b91d902169484429624bd39db4a4e5733964891aba14ae32cf1f"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/tooltip-pdb-fields.json",
+      "sha256": "ad2d553a8bc4186bf603dc2888957a36e03894af95d541266c2d079bc76ceace"
+    }
+  ],
+  "action": {
+    "id": 130,
+    "name": "HideTopMenuScreenTooltips",
+    "Execute_rva": "0x252452",
+    "args": "Action reads no Id/Ids, delays, ownership flags or payload fields. It hides top native MenuScreen, not selected World Thing text directly.",
+    "selection": "Scan native ScreenManager mScreens+48..50 backwards, choose first virtual GetType whose low class bits satisfy(type&3)==3.",
+    "null_boundary": "Action still calls MenuScreen.HideTooltip on nullptr when no matching screen; HideTooltip immediately dereferences this+280. No safe native empty-stack no-op is present."
+  },
+  "actual_gameplay_screen": {
+    "creator": "App.createGameplayScreen036257 constructs InGameUI1d7d30; ScreenManager.AddScreen at036329.",
+    "base_ctor": "InGameUI constructor calls MenuScreen.MenuScreen at1d7d6c.",
+    "type": "InGameUI.GetType1d7bb0 returns7, qualifies low-mask3. GameplayScreen.GetType1afe10 returns0x101, does not qualify.",
+    "android_adaptation": "Custom GameUi screens are not native MenuScreen lifetimes. Lua screens use actual World screen Things; InGameUI tooltip ownership remains a separate native subsystem."
+  },
+  "state": {
+    "constructor": "MenuScreen19ca60 clears tooltip vectors, mZero(+d0), show/hide remaining timers(+208/+20c).",
+    "load": "MenuScreen.Load19d709..19d751 resizes six active-tooltip strings and six backing/header/body component pointers.19d756..19d7d2 clears all eighteen pointer slots.",
+    "fields": {
+      "mTooltippedTextbox": "0x270",
+      "mTooltippedTargetId": "0x278",
+      "mActiveTooltips": "0x280",
+      "mTooltipBackings": "0x298",
+      "mTooltipHeaders": "0x2b0",
+      "mTooltipBodys": "0x2c8",
+      "mTooltipStartLocation": "0x368",
+      "mTooltipShowTimeRemaining": "0x208",
+      "mTooltipHideTimeRemaining": "0x20c",
+      "mZero": "0xd0"
+    },
+    "HideTooltip19e0b0": [
+      "For each active-tooltip SLOT, clear string, then call actual GUIComponent.Hide169340 on nonnull backing, header, body pointers. Slot vectors are retained.",
+      "Copy actual mZero Vector2 to mTooltipStartLocation. This is not a clock.",
+      "Clear mTooltippedTextbox and mTooltippedTargetId.",
+      "If showTimeRemaining>0, replace it with actual ConfigOptions.TooltipShowDelay; otherwise retain current value. HideTimeRemaining is untouched."
+    ]
+  },
+  "writers": {
+    "QueueTooltip19f7c0": "Requires actual HelpText data and nonempty Description. A different target invokes real HideTooltip first. Updates textbox, Thing ID, start XY, HideTimeRemaining from actual TooltipHideDelay; existing same ID or free slot receives string; at most six slots.",
+    "InGameUI.UpdateTooltip1d99f0": "Can read current World cursor Thing/TextComponent, each actual GUIComponentTextBox mParsedLuaKeys(+d38), map keys through original Keywords table, and call MenuScreen.QueueTooltip. This reaches World Thing text, so native MenuScreen tooltip state cannot be assumed separate/empty just because Lua used CreateTextBox.",
+    "MenuScreen.UpdateTooltip19eaf0": "Native MenuScreen component candidates are another producer.",
+    "text_guard": "Explicit TooltipKey currently fails; ordinary supported {$Keywords.*} substitution currently renders strings without retaining full native tooltip metadata. That existing gap prevents claiming native empty lifecycle."
+  },
+  "actual_selected_route": {
+    "owner": "Original boon purchase button current World Thing",
+    "localized_description_evidence": "Actual Athena attack description contains $Keywords.Attack and $Keywords.Deflect substitutions. Both resolve original keyword records with actual nonempty HelpText descriptions.",
+    "source_privacy": "Original source retained privately; no definitions or text copied here.",
+    "empty_native_tooltip_state_proven": false
+  },
+  "implementation_status": "Recovery complete; no dummy action registered. Stateful six-slot consumer and real producer/eligibility integration are required before original current hovered-menu completion can claim native tooltip behavior.",
+  "next_implementation": [
+    "Expose actual text parsed keyword/explicit tooltip candidates, runtime BlockTooltip, owner lifetime, source positions.",
+    "Track true native InGameUI six-slot state; preserve actual TooltipShowDelay/HideDelay and pointer/owner lifetime.",
+    "Create/render/hide tooltip components from actual selected MenuScreen source templates and original backing/text resources; no invented popups.",
+    "Bind action130 to actual top MenuScreen HideTooltip. Reject unresolved producer/resource cases, never claim null stack as safe no-op."
+  ]
+}

@@ -20,8 +20,10 @@ struct TextGlyphQuad {float x=0,y=0,w=0,h=0,u0=0,v0=0,u1=0,v1=0;uint32_t codepoi
 // Inline original atlas image placed by GUIComponentTextBox::ParseImage ("@path").
 struct TextSymbolQuad {float x=0,y=0,w=0,h=0;std::string texture;uint32_t style=0;};
 struct TextSymbol {std::string texture;uint32_t width=0,height=0,originalWidth=0,originalHeight=0,trimX=0,trimY=0;std::vector<uint8_t> rgba;};
-// Parsed text run: plain text or one inline symbol (original texture path).
-struct TextPiece {bool symbol=false;std::string text;uint32_t style=0;};
+// Parsed source stream: plain text, original atlas symbol, or native line
+// control. Column is an unscaled float offset; Pad counts UTF8 line bytes.
+enum class TextControl {None,Column,Pad,FormatBreak,NewLine};
+struct TextPiece {bool symbol=false;std::string text;uint32_t style=0;TextControl control=TextControl::None;float argument=0;};
 // GUIComponentTextBox Line::mFormatter: a format break continues the same
 // physical line with a different font, size and symbol advance.
 struct TextLayoutStyle {

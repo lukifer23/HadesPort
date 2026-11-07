@@ -1,0 +1,1342 @@
+{
+  "schema": "hades-projectile-property-query-v1",
+  "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "functions": {
+    "ScriptAction.GetProjectileProperty": "0x266fa0",
+    "ScriptArgs.Ids": "0x2818f0",
+    "ScriptArgs.Names": "0x2817f0",
+    "World.GetActiveMapThings": "0x3146c0",
+    "WeaponArsenal.GetWeapon": "0x2feae0",
+    "ProjectileData.GetPropertyInfo": "0xe14b0",
+    "GameData.GetPropertyInfo": "0xb42b0",
+    "ReflectionHelper.GetPropertyValue": "0x2027f0"
+  },
+  "selection": {
+    "selectors": [
+      "Ids",
+      "Id",
+      "Names",
+      "Name"
+    ],
+    "plural_precedence": true,
+    "unit_cast_mask": "0x221 at Thing+8",
+    "arsenal_offset": "0x428",
+    "primary_projectile_pointer": "Weapon+0x68",
+    "selection_order": "Native pointer hash set first qualifying Unit/owned Weapon/nonnull primary pointer. Validity byte is NOT part of getter eligibility. Portable rejects multiple qualifying owners rather than inventing order.",
+    "missing_qualifying_target": "nullptr any at 0x2671ed..0x2671f8 -> Lua nil",
+    "no_life_filter": "Numeric native map lookup tests current membership. Getter validates current registered actor/object lifetime; no extra alive/active gate.",
+    "native_allocated_default_storage": "Weapon constructor allocates primary ProjectileData and writes pointer at RVA88891 even when byte+120 remains false. Portable default-storage DTO is unavailable, so querying that modeled case fails explicitly with WeaponName/Property; it does not return nil."
+  },
+  "reflection": {
+    "type_ids": {
+      "1": "bool",
+      "2": "int32",
+      "3": "int64",
+      "4": "float32",
+      "5": "string",
+      "6": "empty any",
+      "7": "Color",
+      "8": "SoundCue",
+      "9": "enum32 (same four-byte load as int32)"
+    },
+    "unknown_key": "ProjectileData falls back to GameData(Name,Organization,InheritFrom); absent info type0 -> empty any -> Lua nil",
+    "case_sensitive": true,
+    "projectile_fields": [
+      {
+        "name": "ProjectileNumOpacityMultiplier",
+        "type": 4,
+        "comparison_rva": "0xe1557"
+      },
+      {
+        "name": "SpawnGroup",
+        "type": 5,
+        "comparison_rva": "0xe1581"
+      },
+      {
+        "name": "JumpDamageMultiplier",
+        "type": 4,
+        "comparison_rva": "0xe15ab"
+      },
+      {
+        "name": "Gravity",
+        "type": 4,
+        "comparison_rva": "0xe15d7"
+      },
+      {
+        "name": "SkyTime",
+        "type": 4,
+        "comparison_rva": "0xe1625"
+      },
+      {
+        "name": "PlayerImpactScreenFx",
+        "type": 5,
+        "comparison_rva": "0xe165a"
+      },
+      {
+        "name": "ExpireIfFirstCollisionIsBounce",
+        "type": 1,
+        "comparison_rva": "0xe1684"
+      },
+      {
+        "name": "UnpauseResetLocation",
+        "type": 1,
+        "comparison_rva": "0xe16a7"
+      },
+      {
+        "name": "JumpScaleMultiplier",
+        "type": 4,
+        "comparison_rva": "0xe16f4"
+      },
+      {
+        "name": "RandomSpawnOffset",
+        "type": 4,
+        "comparison_rva": "0xe171e"
+      },
+      {
+        "name": "RequireHitCenter",
+        "type": 1,
+        "comparison_rva": "0xe1748"
+      },
+      {
+        "name": "BounceSpeedMultiplier",
+        "type": 4,
+        "comparison_rva": "0xe176b"
+      },
+      {
+        "name": "ClearOnAttackEffects",
+        "type": 1,
+        "comparison_rva": "0xe17ae"
+      },
+      {
+        "name": "CheckObstacleImpact",
+        "type": 1,
+        "comparison_rva": "0xe17d1"
+      },
+      {
+        "name": "DetonateSound",
+        "type": 8,
+        "comparison_rva": "0xe17f4"
+      },
+      {
+        "name": "Speed",
+        "type": 4,
+        "comparison_rva": "0xe1820"
+      },
+      {
+        "name": "IgnoreOwnerAllegiance",
+        "type": 1,
+        "comparison_rva": "0xe1895"
+      },
+      {
+        "name": "DestroySpawnsIfBlocked",
+        "type": 1,
+        "comparison_rva": "0xe18b8"
+      },
+      {
+        "name": "ArcEnd",
+        "type": 4,
+        "comparison_rva": "0xe18dd"
+      },
+      {
+        "name": "InvincibleImpactSound",
+        "type": 8,
+        "comparison_rva": "0xe190e"
+      },
+      {
+        "name": "ReturnToOwnerSpeed",
+        "type": 4,
+        "comparison_rva": "0xe1951"
+      },
+      {
+        "name": "MaxDetonations",
+        "type": 2,
+        "comparison_rva": "0xe197b"
+      },
+      {
+        "name": "BeamStartAnimSkipsImpact",
+        "type": 1,
+        "comparison_rva": "0xe19a5"
+      },
+      {
+        "name": "UnpauseAnimation",
+        "type": 5,
+        "comparison_rva": "0xe19c5"
+      },
+      {
+        "name": "StartDelay",
+        "type": 4,
+        "comparison_rva": "0xe1a19"
+      },
+      {
+        "name": "PenetrateJumpTargets",
+        "type": 1,
+        "comparison_rva": "0xe1a43"
+      },
+      {
+        "name": "SpawnsInheritGroups",
+        "type": 1,
+        "comparison_rva": "0xe1a66"
+      },
+      {
+        "name": "PenetrateFinalJumpUnitRangeModifier",
+        "type": 4,
+        "comparison_rva": "0xe1a89"
+      },
+      {
+        "name": "ImpactFxInterval",
+        "type": 4,
+        "comparison_rva": "0xe1acc"
+      },
+      {
+        "name": "TotalFuse",
+        "type": 4,
+        "comparison_rva": "0xe1af6"
+      },
+      {
+        "name": "ArmorDamageMultiplier",
+        "type": 4,
+        "comparison_rva": "0xe1b20"
+      },
+      {
+        "name": "DeflectProjectiles",
+        "type": 1,
+        "comparison_rva": "0xe1b4a"
+      },
+      {
+        "name": "ExpireWhenOutOfJumps",
+        "type": 1,
+        "comparison_rva": "0xe1bb9"
+      },
+      {
+        "name": "AddControlOnDeath",
+        "type": 5,
+        "comparison_rva": "0xe1bdc"
+      },
+      {
+        "name": "CanBeProjectileDefenseDestroyed",
+        "type": 1,
+        "comparison_rva": "0xe1c06"
+      },
+      {
+        "name": "OnDeathImpactForce",
+        "type": 4,
+        "comparison_rva": "0xe1c29"
+      },
+      {
+        "name": "AffectsFriends",
+        "type": 1,
+        "comparison_rva": "0xe1c6c"
+      },
+      {
+        "name": "IgnoreCoverageAngles",
+        "type": 1,
+        "comparison_rva": "0xe1c8f"
+      },
+      {
+        "name": "HomingAllegiance",
+        "type": 9,
+        "comparison_rva": "0xe1cb2"
+      },
+      {
+        "name": "DamageRadius",
+        "type": 4,
+        "comparison_rva": "0xe1cdc"
+      },
+      {
+        "name": "ImpactSound",
+        "type": 8,
+        "comparison_rva": "0xe1d30"
+      },
+      {
+        "name": "SkipSpawnsIfBlocked",
+        "type": 1,
+        "comparison_rva": "0xe1d5a"
+      },
+      {
+        "name": "InvulnerableToProjectileDefenseDuringPause",
+        "type": 1,
+        "comparison_rva": "0xe1d7d"
+      },
+      {
+        "name": "SpawnSnapToNearestAngle",
+        "type": 4,
+        "comparison_rva": "0xe1da0"
+      },
+      {
+        "name": "UnlimitedObstaclePenetration",
+        "type": 1,
+        "comparison_rva": "0xe1de3"
+      },
+      {
+        "name": "RoundDamageDown",
+        "type": 1,
+        "comparison_rva": "0xe1e06"
+      },
+      {
+        "name": "Damage",
+        "type": 4,
+        "comparison_rva": "0xe1e2b"
+      },
+      {
+        "name": "LifeSteal",
+        "type": 4,
+        "comparison_rva": "0xe1e5c"
+      },
+      {
+        "name": "AngleFromMarker",
+        "type": 5,
+        "comparison_rva": "0xe1ec1"
+      },
+      {
+        "name": "DamageHigh",
+        "type": 4,
+        "comparison_rva": "0xe1eeb"
+      },
+      {
+        "name": "MaxSpeed",
+        "type": 4,
+        "comparison_rva": "0xe1f15"
+      },
+      {
+        "name": "UnitCollisionCheck",
+        "type": 9,
+        "comparison_rva": "0xe1f3f"
+      },
+      {
+        "name": "MaxVictimZ",
+        "type": 4,
+        "comparison_rva": "0xe1f82"
+      },
+      {
+        "name": "SpawnOnDetonate",
+        "type": 5,
+        "comparison_rva": "0xe1fac"
+      },
+      {
+        "name": "ReflectionSpread",
+        "type": 4,
+        "comparison_rva": "0xe1fd6"
+      },
+      {
+        "name": "DestroyOnReflect",
+        "type": 1,
+        "comparison_rva": "0xe2000"
+      },
+      {
+        "name": "DangerDistance",
+        "type": 1,
+        "comparison_rva": "0xe204d"
+      },
+      {
+        "name": "TriggerEffect",
+        "type": 5,
+        "comparison_rva": "0xe2070"
+      },
+      {
+        "name": "TriggerHitSound",
+        "type": 1,
+        "comparison_rva": "0xe209a"
+      },
+      {
+        "name": "ProjectileDefenseRadius",
+        "type": 4,
+        "comparison_rva": "0xe20bd"
+      },
+      {
+        "name": "StartAtMarker",
+        "type": 5,
+        "comparison_rva": "0xe20f9"
+      },
+      {
+        "name": "ImpactFilterOpacity",
+        "type": 4,
+        "comparison_rva": "0xe2123"
+      },
+      {
+        "name": "ClearWeaponBonusesOnHit",
+        "type": 1,
+        "comparison_rva": "0xe214d"
+      },
+      {
+        "name": "HideDetonateGraphic",
+        "type": 1,
+        "comparison_rva": "0xe21cd"
+      },
+      {
+        "name": "InvulnerableImpactOwnerVelocity",
+        "type": 4,
+        "comparison_rva": "0xe21f0"
+      },
+      {
+        "name": "DamageMultiplier",
+        "type": 4,
+        "comparison_rva": "0xe221a"
+      },
+      {
+        "name": "UseDetonationForProjectileDefense",
+        "type": 1,
+        "comparison_rva": "0xe2244"
+      },
+      {
+        "name": "BlastSpeed",
+        "type": 4,
+        "comparison_rva": "0xe2280"
+      },
+      {
+        "name": "SpeedMultiplierOfEnemyProjectilesInside",
+        "type": 4,
+        "comparison_rva": "0xe22aa"
+      },
+      {
+        "name": "MultipleObstacleCollisions",
+        "type": 1,
+        "comparison_rva": "0xe22d4"
+      },
+      {
+        "name": "BlastDuration",
+        "type": 4,
+        "comparison_rva": "0xe22f7"
+      },
+      {
+        "name": "DetonateArcStart",
+        "type": 4,
+        "comparison_rva": "0xe234b"
+      },
+      {
+        "name": "DescentGraphic",
+        "type": 5,
+        "comparison_rva": "0xe2375"
+      },
+      {
+        "name": "AutoAdjustForTarget",
+        "type": 1,
+        "comparison_rva": "0xe239f"
+      },
+      {
+        "name": "ImpactVelocity",
+        "type": 4,
+        "comparison_rva": "0xe23c2"
+      },
+      {
+        "name": "ReticleGraphic",
+        "type": 5,
+        "comparison_rva": "0xe2405"
+      },
+      {
+        "name": "MaxAdjustRate",
+        "type": 4,
+        "comparison_rva": "0xe242f"
+      },
+      {
+        "name": "SpawnVelocity",
+        "type": 4,
+        "comparison_rva": "0xe2459"
+      },
+      {
+        "name": "IncreaseAdjustRateOfFriendlyProjectilesInside",
+        "type": 4,
+        "comparison_rva": "0xe2483"
+      },
+      {
+        "name": "ImpactLineOfSight",
+        "type": 1,
+        "comparison_rva": "0xe24e8"
+      },
+      {
+        "name": "CharmDuration",
+        "type": 4,
+        "comparison_rva": "0xe250b"
+      },
+      {
+        "name": "NumJumps",
+        "type": 2,
+        "comparison_rva": "0xe2535"
+      },
+      {
+        "name": "DamageFalloff",
+        "type": 4,
+        "comparison_rva": "0xe255f"
+      },
+      {
+        "name": "ObstacleCollisionCheck",
+        "type": 9,
+        "comparison_rva": "0xe25a2"
+      },
+      {
+        "name": "SpawnOnInvulnerableImpact",
+        "type": 1,
+        "comparison_rva": "0xe25cc"
+      },
+      {
+        "name": "ImpactUpwardVelocity",
+        "type": 4,
+        "comparison_rva": "0xe25ef"
+      },
+      {
+        "name": "SpawnsKeepAngle",
+        "type": 1,
+        "comparison_rva": "0xe2619"
+      },
+      {
+        "name": "TimingMultiplierBonus",
+        "type": 4,
+        "comparison_rva": "0xe2666"
+      },
+      {
+        "name": "ImpactLineOfSightFromOwner",
+        "type": 1,
+        "comparison_rva": "0xe2690"
+      },
+      {
+        "name": "CriticalHitMultiplier",
+        "type": 4,
+        "comparison_rva": "0xe26b3"
+      },
+      {
+        "name": "ReviveDormantSpawns",
+        "type": 1,
+        "comparison_rva": "0xe26dd"
+      },
+      {
+        "name": "DamageLow",
+        "type": 4,
+        "comparison_rva": "0xe2719"
+      },
+      {
+        "name": "DissipateGraphic",
+        "type": 5,
+        "comparison_rva": "0xe2743"
+      },
+      {
+        "name": "UseStartLocation",
+        "type": 1,
+        "comparison_rva": "0xe276d"
+      },
+      {
+        "name": "DamageRadiusFalloff",
+        "type": 4,
+        "comparison_rva": "0xe2790"
+      },
+      {
+        "name": "DescentStartZ",
+        "type": 4,
+        "comparison_rva": "0xe2806"
+      },
+      {
+        "name": "SpawnVelocityVariance",
+        "type": 4,
+        "comparison_rva": "0xe2830"
+      },
+      {
+        "name": "AffectsEnemies",
+        "type": 1,
+        "comparison_rva": "0xe285a"
+      },
+      {
+        "name": "ActiveBlinkSpeedMultiplier",
+        "type": 4,
+        "comparison_rva": "0xe287d"
+      },
+      {
+        "name": "SpawnAtVictimLocation",
+        "type": 1,
+        "comparison_rva": "0xe28c0"
+      },
+      {
+        "name": "OffsetFromOwnerZ",
+        "type": 1,
+        "comparison_rva": "0xe28e3"
+      },
+      {
+        "name": "CanHitWithoutDamage",
+        "type": 1,
+        "comparison_rva": "0xe2906"
+      },
+      {
+        "name": "NoJumpTargetRandomSpread",
+        "type": 4,
+        "comparison_rva": "0xe2929"
+      },
+      {
+        "name": "AllowTargetInvulnerable",
+        "type": 1,
+        "comparison_rva": "0xe297d"
+      },
+      {
+        "name": "DetonateAtVictimLocation",
+        "type": 1,
+        "comparison_rva": "0xe29a0"
+      },
+      {
+        "name": "VacuumStrength",
+        "type": 4,
+        "comparison_rva": "0xe29c3"
+      },
+      {
+        "name": "ForceSpawnsToValidLocation",
+        "type": 1,
+        "comparison_rva": "0xe29ed"
+      },
+      {
+        "name": "GroupName",
+        "type": 5,
+        "comparison_rva": "0xe2a29"
+      },
+      {
+        "name": "InvulnerableToProjectileDefenseBeforeStart",
+        "type": 1,
+        "comparison_rva": "0xe2a50"
+      },
+      {
+        "name": "FinalJumpToOwner",
+        "type": 1,
+        "comparison_rva": "0xe2a73"
+      },
+      {
+        "name": "HollowBlastRadiusBand",
+        "type": 4,
+        "comparison_rva": "0xe2a96"
+      },
+      {
+        "name": "Acceleration",
+        "type": 4,
+        "comparison_rva": "0xe2afb"
+      },
+      {
+        "name": "Fuse",
+        "type": 4,
+        "comparison_rva": "0xe2b27"
+      },
+      {
+        "name": "SpawnCapOnCamera",
+        "type": 1,
+        "comparison_rva": "0xe2b5a"
+      },
+      {
+        "name": "BeamDrawTime",
+        "type": 4,
+        "comparison_rva": "0xe2b7d"
+      },
+      {
+        "name": "CounterImpactOnSelf",
+        "type": 4,
+        "comparison_rva": "0xe2bbd"
+      },
+      {
+        "name": "NumBounces",
+        "type": 2,
+        "comparison_rva": "0xe2be7"
+      },
+      {
+        "name": "ReturnToOwnerAfterInactiveSeconds",
+        "type": 4,
+        "comparison_rva": "0xe2c11"
+      },
+      {
+        "name": "HasActiveBlinkTriggers",
+        "type": 1,
+        "comparison_rva": "0xe2c3b"
+      },
+      {
+        "name": "VulnerabilityDamageMultiplier",
+        "type": 4,
+        "comparison_rva": "0xe2c88"
+      },
+      {
+        "name": "VacuumDistance",
+        "type": 4,
+        "comparison_rva": "0xe2cb2"
+      },
+      {
+        "name": "SpawnRadius",
+        "type": 4,
+        "comparison_rva": "0xe2cdc"
+      },
+      {
+        "name": "SpawnCap",
+        "type": 2,
+        "comparison_rva": "0xe2d06"
+      },
+      {
+        "name": "DetonateOnTouchdown",
+        "type": 1,
+        "comparison_rva": "0xe2d42"
+      },
+      {
+        "name": "AffectsSelf",
+        "type": 1,
+        "comparison_rva": "0xe2d65"
+      },
+      {
+        "name": "BeamEndFx",
+        "type": 5,
+        "comparison_rva": "0xe2d88"
+      },
+      {
+        "name": "ReflectOnObstacleImpact",
+        "type": 1,
+        "comparison_rva": "0xe2e20"
+      },
+      {
+        "name": "CriticalHitChance",
+        "type": 4,
+        "comparison_rva": "0xe2e43"
+      },
+      {
+        "name": "SpawnCount",
+        "type": 2,
+        "comparison_rva": "0xe2e6d"
+      },
+      {
+        "name": "AddControlOnDeath2",
+        "type": 5,
+        "comparison_rva": "0xe2e97"
+      },
+      {
+        "name": "DetonateScreenShakeSpeed",
+        "type": 4,
+        "comparison_rva": "0xe2eda"
+      },
+      {
+        "name": "ImpactTargetUnitOnly",
+        "type": 1,
+        "comparison_rva": "0xe2f04"
+      },
+      {
+        "name": "UnpauseFx",
+        "type": 5,
+        "comparison_rva": "0xe2f27"
+      },
+      {
+        "name": "StartFx2",
+        "type": 5,
+        "comparison_rva": "0xe2f51"
+      },
+      {
+        "name": "PerfectChargeGraphic",
+        "type": 5,
+        "comparison_rva": "0xe2fa5"
+      },
+      {
+        "name": "CanCrit",
+        "type": 1,
+        "comparison_rva": "0xe2fd1"
+      },
+      {
+        "name": "ImpactFx",
+        "type": 5,
+        "comparison_rva": "0xe3003"
+      },
+      {
+        "name": "DetonateArcEnd",
+        "type": 4,
+        "comparison_rva": "0xe302d"
+      },
+      {
+        "name": "ResetCollisionOutsideDetonation",
+        "type": 1,
+        "comparison_rva": "0xe3070"
+      },
+      {
+        "name": "MultipleUnitCollisions",
+        "type": 1,
+        "comparison_rva": "0xe3093"
+      },
+      {
+        "name": "MultipleCollisionPerFrame",
+        "type": 1,
+        "comparison_rva": "0xe30b6"
+      },
+      {
+        "name": "JumpDamageMultiplierAddition",
+        "type": 4,
+        "comparison_rva": "0xe30d9"
+      },
+      {
+        "name": "ScaleGeometryAlongRange",
+        "type": 1,
+        "comparison_rva": "0xe313e"
+      },
+      {
+        "name": "DetonateAtTarget",
+        "type": 1,
+        "comparison_rva": "0xe3161"
+      },
+      {
+        "name": "CheckUnitImpact",
+        "type": 1,
+        "comparison_rva": "0xe3184"
+      },
+      {
+        "name": "AttachedPowershotAnimation",
+        "type": 5,
+        "comparison_rva": "0xe31a7"
+      },
+      {
+        "name": "FlashBeforeExpireMax",
+        "type": 4,
+        "comparison_rva": "0xe31ea"
+      },
+      {
+        "name": "TrippedGraphic",
+        "type": 5,
+        "comparison_rva": "0xe3214"
+      },
+      {
+        "name": "ImmunityDuration",
+        "type": 4,
+        "comparison_rva": "0xe323e"
+      },
+      {
+        "name": "ReflectOnUnitImpact",
+        "type": 1,
+        "comparison_rva": "0xe3268"
+      },
+      {
+        "name": "UseArmor",
+        "type": 1,
+        "comparison_rva": "0xe32b5"
+      },
+      {
+        "name": "MinVictimZ",
+        "type": 4,
+        "comparison_rva": "0xe32d8"
+      },
+      {
+        "name": "ContinouslyRetarget",
+        "type": 1,
+        "comparison_rva": "0xe3302"
+      },
+      {
+        "name": "AlphaOverride",
+        "type": 4,
+        "comparison_rva": "0xe3325"
+      },
+      {
+        "name": "Deceleration",
+        "type": 4,
+        "comparison_rva": "0xe3368"
+      },
+      {
+        "name": "UnlimitedUnitPenetration",
+        "type": 1,
+        "comparison_rva": "0xe3392"
+      },
+      {
+        "name": "StartFx",
+        "type": 5,
+        "comparison_rva": "0xe33b7"
+      },
+      {
+        "name": "AdjustRateAcceleration",
+        "type": 4,
+        "comparison_rva": "0xe33ea"
+      },
+      {
+        "name": "DetonateLineOfSight",
+        "type": 1,
+        "comparison_rva": "0xe3460"
+      },
+      {
+        "name": "RequireUniqueTarget",
+        "type": 1,
+        "comparison_rva": "0xe3483"
+      },
+      {
+        "name": "Range",
+        "type": 4,
+        "comparison_rva": "0xe34a8"
+      },
+      {
+        "name": "DetonateLineOfSightFromOwner",
+        "type": 1,
+        "comparison_rva": "0xe34da"
+      },
+      {
+        "name": "FinalShotGraphic",
+        "type": 5,
+        "comparison_rva": "0xe3516"
+      },
+      {
+        "name": "LandingZ",
+        "type": 4,
+        "comparison_rva": "0xe3540"
+      },
+      {
+        "name": "ConsumeTriggerEffect",
+        "type": 1,
+        "comparison_rva": "0xe356a"
+      },
+      {
+        "name": "IgnoreNoCollisionAnimData",
+        "type": 1,
+        "comparison_rva": "0xe358d"
+      },
+      {
+        "name": "DamageRadiusScaleX",
+        "type": 4,
+        "comparison_rva": "0xe35da"
+      },
+      {
+        "name": "SelfImpactVelocityMultiplier",
+        "type": 4,
+        "comparison_rva": "0xe3604"
+      },
+      {
+        "name": "SpawnsSpeedModifierScaleY",
+        "type": 4,
+        "comparison_rva": "0xe362e"
+      },
+      {
+        "name": "ImmunityKey",
+        "type": 5,
+        "comparison_rva": "0xe3658"
+      },
+      {
+        "name": "FizzleOldSpawns",
+        "type": 1,
+        "comparison_rva": "0xe369b"
+      },
+      {
+        "name": "DrawAsBeam",
+        "type": 1,
+        "comparison_rva": "0xe36be"
+      },
+      {
+        "name": "DamageRadiusScaleY",
+        "type": 4,
+        "comparison_rva": "0xe36de"
+      },
+      {
+        "name": "SpinRate",
+        "type": 4,
+        "comparison_rva": "0xe3708"
+      },
+      {
+        "name": "AllowRepeatedJumpHit",
+        "type": 1,
+        "comparison_rva": "0xe376d"
+      },
+      {
+        "name": "ImpactVelocityCap",
+        "type": 4,
+        "comparison_rva": "0xe3790"
+      },
+      {
+        "name": "ExcludeLastHitThing",
+        "type": 1,
+        "comparison_rva": "0xe37ba"
+      },
+      {
+        "name": "InflictedDamageSound",
+        "type": 8,
+        "comparison_rva": "0xe37dd"
+      },
+      {
+        "name": "AttachToMarker",
+        "type": 5,
+        "comparison_rva": "0xe3820"
+      },
+      {
+        "name": "Heal",
+        "type": 4,
+        "comparison_rva": "0xe384c"
+      },
+      {
+        "name": "ConsecutiveHitWindow",
+        "type": 4,
+        "comparison_rva": "0xe387d"
+      },
+      {
+        "name": "BounceWhenOutOfJumpTargets",
+        "type": 1,
+        "comparison_rva": "0xe38a7"
+      },
+      {
+        "name": "MultiDetonate",
+        "type": 1,
+        "comparison_rva": "0xe38f4"
+      },
+      {
+        "name": "ImpactVelocityFalloff",
+        "type": 4,
+        "comparison_rva": "0xe3917"
+      },
+      {
+        "name": "ImpactFilterDuration",
+        "type": 4,
+        "comparison_rva": "0xe3941"
+      },
+      {
+        "name": "HitVulnerabilityFx",
+        "type": 5,
+        "comparison_rva": "0xe396b"
+      },
+      {
+        "name": "NumPenetrations",
+        "type": 2,
+        "comparison_rva": "0xe39a7"
+      },
+      {
+        "name": "RequireCharmable",
+        "type": 1,
+        "comparison_rva": "0xe39d1"
+      },
+      {
+        "name": "ArcSize",
+        "type": 4,
+        "comparison_rva": "0xe39f6"
+      },
+      {
+        "name": "FuseMin",
+        "type": 4,
+        "comparison_rva": "0xe3a89"
+      },
+      {
+        "name": "SpawnOffsetY",
+        "type": 4,
+        "comparison_rva": "0xe3aba"
+      },
+      {
+        "name": "FlashBeforeExpireDuration",
+        "type": 4,
+        "comparison_rva": "0xe3ae4"
+      },
+      {
+        "name": "StartFuseOnTouchdown",
+        "type": 1,
+        "comparison_rva": "0xe3b0e"
+      },
+      {
+        "name": "SpawnUpwardVelocity",
+        "type": 4,
+        "comparison_rva": "0xe3b4a"
+      },
+      {
+        "name": "AttachToOwner",
+        "type": 1,
+        "comparison_rva": "0xe3b74"
+      },
+      {
+        "name": "SpeedVariance",
+        "type": 4,
+        "comparison_rva": "0xe3b97"
+      },
+      {
+        "name": "MinRange",
+        "type": 4,
+        "comparison_rva": "0xe3bc1"
+      },
+      {
+        "name": "DamagePerConsecutiveProjectileHit",
+        "type": 4,
+        "comparison_rva": "0xe3c15"
+      },
+      {
+        "name": "DetonateOnImpact",
+        "type": 1,
+        "comparison_rva": "0xe3c3f"
+      },
+      {
+        "name": "SpawnType",
+        "type": 9,
+        "comparison_rva": "0xe3c62"
+      },
+      {
+        "name": "MoveInterval",
+        "type": 4,
+        "comparison_rva": "0xe3c8c"
+      },
+      {
+        "name": "IgnoreDodge",
+        "type": 1,
+        "comparison_rva": "0xe3ccf"
+      },
+      {
+        "name": "SetAnimRadialOffset",
+        "type": 1,
+        "comparison_rva": "0xe3cf2"
+      },
+      {
+        "name": "SkipFireCancelIfFiring",
+        "type": 1,
+        "comparison_rva": "0xe3d15"
+      },
+      {
+        "name": "JumpRange",
+        "type": 4,
+        "comparison_rva": "0xe3d38"
+      },
+      {
+        "name": "Type",
+        "type": 9,
+        "comparison_rva": "0xe3d9f"
+      },
+      {
+        "name": "AscentEndZ",
+        "type": 4,
+        "comparison_rva": "0xe3dda"
+      },
+      {
+        "name": "TipFx",
+        "type": 5,
+        "comparison_rva": "0xe3e06"
+      },
+      {
+        "name": "FuseMax",
+        "type": 4,
+        "comparison_rva": "0xe3e3c"
+      },
+      {
+        "name": "DamageBonusToImpactedUnit",
+        "type": 4,
+        "comparison_rva": "0xe3e86"
+      },
+      {
+        "name": "ExpireWhenOutOfObstacleJumps",
+        "type": 1,
+        "comparison_rva": "0xe3eb0"
+      },
+      {
+        "name": "HomingIgnoreHits",
+        "type": 1,
+        "comparison_rva": "0xe3ed3"
+      },
+      {
+        "name": "ManuallySetTarget",
+        "type": 1,
+        "comparison_rva": "0xe3ef6"
+      },
+      {
+        "name": "DamagePerConsecutiveHit",
+        "type": 4,
+        "comparison_rva": "0xe3f43"
+      },
+      {
+        "name": "SpawnOnDeath",
+        "type": 5,
+        "comparison_rva": "0xe3f6d"
+      },
+      {
+        "name": "UseRadialImpact",
+        "type": 1,
+        "comparison_rva": "0xe3f97"
+      },
+      {
+        "name": "ReflectFx",
+        "type": 5,
+        "comparison_rva": "0xe3fba"
+      },
+      {
+        "name": "CriticalFx",
+        "type": 5,
+        "comparison_rva": "0xe3ffd"
+      },
+      {
+        "name": "PlayerImpactScreenFxInterval",
+        "type": 4,
+        "comparison_rva": "0xe4027"
+      },
+      {
+        "name": "AllEffectsProcChance",
+        "type": 4,
+        "comparison_rva": "0xe4051"
+      },
+      {
+        "name": "SilentImpactOnInvulnerable",
+        "type": 1,
+        "comparison_rva": "0xe407b"
+      },
+      {
+        "name": "SpawnsEvenlySpaced",
+        "type": 1,
+        "comparison_rva": "0xe40ea"
+      },
+      {
+        "name": "SpawnChance",
+        "type": 4,
+        "comparison_rva": "0xe410d"
+      },
+      {
+        "name": "DamageAddition",
+        "type": 4,
+        "comparison_rva": "0xe4137"
+      },
+      {
+        "name": "BeamDieOnTargetLost",
+        "type": 1,
+        "comparison_rva": "0xe4161"
+      },
+      {
+        "name": "JumpSpeedMultiplier",
+        "type": 4,
+        "comparison_rva": "0xe419a"
+      },
+      {
+        "name": "SpawnOnKillDamageThreshold",
+        "type": 2,
+        "comparison_rva": "0xe41c4"
+      },
+      {
+        "name": "BeamStartupFx",
+        "type": 5,
+        "comparison_rva": "0xe41ee"
+      },
+      {
+        "name": "LaunchAngle",
+        "type": 4,
+        "comparison_rva": "0xe4218"
+      },
+      {
+        "name": "DetonateGraphic",
+        "type": 5,
+        "comparison_rva": "0xe426c"
+      },
+      {
+        "name": "FollowOwner",
+        "type": 1,
+        "comparison_rva": "0xe4296"
+      },
+      {
+        "name": "JumpRequiresLos",
+        "type": 1,
+        "comparison_rva": "0xe42b6"
+      },
+      {
+        "name": "TrackIn3D",
+        "type": 1,
+        "comparison_rva": "0xe42d9"
+      },
+      {
+        "name": "ExpandBlastDuringDetonation",
+        "type": 1,
+        "comparison_rva": "0xe4315"
+      },
+      {
+        "name": "MaxRange",
+        "type": 4,
+        "comparison_rva": "0xe4338"
+      },
+      {
+        "name": "MatchOwnerBody",
+        "type": 1,
+        "comparison_rva": "0xe4362"
+      },
+      {
+        "name": "SpawnOnImpact",
+        "type": 5,
+        "comparison_rva": "0xe4385"
+      },
+      {
+        "name": "InflictedDamageFx",
+        "type": 5,
+        "comparison_rva": "0xe43ea"
+      },
+      {
+        "name": "MaxJumpDamageMultiplier",
+        "type": 4,
+        "comparison_rva": "0xe4414"
+      },
+      {
+        "name": "OnDeathFiredByAnimation",
+        "type": 5,
+        "comparison_rva": "0xe443e"
+      },
+      {
+        "name": "ProjectileDefenseAngle",
+        "type": 4,
+        "comparison_rva": "0xe4468"
+      },
+      {
+        "name": "UseVulnerability",
+        "type": 1,
+        "comparison_rva": "0xe44ab"
+      },
+      {
+        "name": "CanBeReflected",
+        "type": 1,
+        "comparison_rva": "0xe44ce"
+      },
+      {
+        "name": "CanBeProjectileDefenseDestroyedByName",
+        "type": 5,
+        "comparison_rva": "0xe44f1"
+      },
+      {
+        "name": "FizzleOldSpawnsOnDetonate",
+        "type": 1,
+        "comparison_rva": "0xe451b"
+      },
+      {
+        "name": "ArcStart",
+        "type": 4,
+        "comparison_rva": "0xe4568"
+      },
+      {
+        "name": "DieWithOwner",
+        "type": 1,
+        "comparison_rva": "0xe4592"
+      },
+      {
+        "name": "InheritOwnerElapsedTimeMultiplier",
+        "type": 1,
+        "comparison_rva": "0xe45b5"
+      },
+      {
+        "name": "SkipAscent",
+        "type": 1,
+        "comparison_rva": "0xe45d1"
+      },
+      {
+        "name": "ActiveBlinkRangeMultiplier",
+        "type": 4,
+        "comparison_rva": "0xe45fb"
+      },
+      {
+        "name": "GaussianSpawnDistribution",
+        "type": 1,
+        "comparison_rva": "0xe461e"
+      }
+    ],
+    "inherited_fields": [
+      "Name",
+      "Organization",
+      "InheritFrom"
+    ]
+  },
+  "portable": {
+    "source": "Current WeaponSnapshot.projectileData fields and fieldTypes, including actual preceding SetProjectileProperty writes. Never global source defaults in place of an instance.",
+    "types": [
+      "bool",
+      "float32",
+      "int32",
+      "string",
+      "int32-backed reflected enum"
+    ],
+    "Name": "actual primary ProjectileDefinition.name",
+    "unsupported": [
+      "Color/SoundCue/other complex reflected members",
+      "int64 not represented by current WeaponScalar catalog",
+      "uint8-backed enum reflection reads adjacent native bytes; portable DTO cannot reproduce pointer/string packing",
+      "Organization/InheritFrom unless actual typed catalog members exist",
+      "sparse/named/string-converting IntList or StringList forms",
+      "multiple qualifying owner native hash iteration order",
+      "DangerDistance and HasActiveBlinkTriggers are native bool reflection pointers to float32 fields; raw-byte conversion not claimed",
+      "pending-disposal named-group members require recovered group-set membership; getter fails explicitly",
+      "Getter on an owned weapon with false validity: native default primary storage is allocated but portable DTO not serialized; explicit context error"
+    ],
+    "readonly": true,
+    "no_target_mutation": true
+  },
+  "retained_evidence": [
+    ".local/reports/boon-interaction-2026-11-06/get-projectile-property-static.json",
+    ".local/reports/boon-interaction-2026-11-06/projectile-property-info-static.json",
+    ".local/reports/boon-interaction-2026-11-06/game-data-property-info-static.json",
+    ".local/reports/boon-interaction-2026-11-06/get-property-value-static.json",
+    ".local/reports/native-player-weapon-live-ctor.json"
+  ]
+}

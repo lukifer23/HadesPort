@@ -22,6 +22,10 @@ std::vector<std::string> controlNamesArgument(lua_State* L) {
 }
 void ScriptRuntime::snapshotControlFrame(){
     auto next=localActionDown_;
+    // A real pointer press may arrive and release between fixed ticks. Retain
+    // its Select edge for one input snapshot, as for queued touch buttons.
+    if(screenCursor_.pointerDown||screenCursor_.pointerPressed)next.push_back("Select");
+    screenCursor_.pointerPressed=false;
     // Android joystick directions map into original directional control
     // states; the original Move notification also observes continuous input.
     if(localMoveX_<0)next.push_back("Left");if(localMoveX_>0)next.push_back("Right");

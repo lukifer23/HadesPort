@@ -76,32 +76,87 @@ std::vector<TextGlyphQuad> TextFontBank::layout(const TextLayoutRequest&r,std::v
  struct Style{const TextFont*font;float scale,symbolUnits;int32_t top,bottom;};std::vector<Style>styles;
  auto addStyle=[&](const std::string&name,float size,float symbolScale,int32_t top,int32_t bottom,bool emphasized,bool blockEmphasized){const auto selected=textFontName(name,emphasized,blockEmphasized);const auto*f=font(selected);if(!f)throw std::runtime_error("Original font has not been loaded: "+selected);if(!std::isfinite(size)||size<=0||size>1024||!std::isfinite(symbolScale)||symbolScale<0||symbolScale>64)throw std::runtime_error("Text style numeric bound");styles.push_back({f,size/float(f->nativeSize)*r.scale,symbolScale*float(f->nativeSize)/float(f->remapSize?f->remapSize:f->nativeSize),top,bottom});};
  if(r.styles.empty())addStyle(r.font,r.size,r.textSymbolScale,r.lineSpacingTop,r.lineSpacingBottom,r.emphasized,r.blockEmphasized);else{if(r.styles.size()>1024)throw std::runtime_error("Text formatter count bound");for(const auto&style:r.styles)addStyle(style.font,style.size,style.textSymbolScale,style.lineSpacingTop,style.lineSpacingBottom,style.emphasized,style.blockEmphasized);}
- // ParseFormatting17c690 emits Line::mFormatBreak, not a newline. Keep each
- // glyph's real formatter in the combined paragraph, including wrap/centering.
- struct Item{uint32_t cp=0,style=0;const TextSymbol*symbol=nullptr;};std::vector<Item>items;
- if(r.pieces.empty()){for(auto cp:textCodepoints(r.text))items.push_back({cp,0,nullptr});}
- else for(const auto&piece:r.pieces){if(piece.style>=styles.size())throw std::runtime_error("Text formatter index outside paragraph");if(!piece.symbol){for(auto cp:textCodepoints(piece.text))items.push_back({cp,piece.style,nullptr});continue;}auto i=symbols_.find(piece.text);if(i==symbols_.end())throw std::runtime_error("Original text symbol texture not exported: "+piece.text);if(!symbolsOut)throw std::runtime_error("Original text symbol consumer unavailable");if(!styles[piece.style].font->remapSize)throw std::runtime_error("Original font remap size unavailable");items.push_back({0,piece.style,&i->second});}
- if(items.size()>16384)throw std::runtime_error("Text glyph bound");
- auto advance=[&](const Item&it){const auto&s=styles[it.style];if(it.symbol)return std::trunc(float(it.symbol->originalWidth)*s.symbolUnits*s.scale);const auto&g=glyph(*s.font,it.cp);return(g.abc[0]+g.abc[1]+g.abc[2]+s.font->spacing)*s.scale;};
- auto extent=[&](const std::vector<Item>&line){float x=0;for(const auto&it:line)x+=advance(it);if(!line.empty()&&!line.back().symbol){const auto&s=styles[line.back().style];x-=s.font->spacing*s.scale;}return x;};
- std::vector<std::vector<Item>>lines(1);std::vector<Item>word;
- auto flush=[&](){if(word.empty())return;auto candidate=lines.back();candidate.insert(candidate.end(),word.begin(),word.end());if(r.width>0&&!lines.back().empty()&&extent(candidate)>r.width){for(const auto&it:word)if(it.symbol)throw std::runtime_error("Original symbol line wrap unreconstructed");lines.emplace_back();}lines.back().insert(lines.back().end(),word.begin(),word.end());word.clear();};
- // Portable word wrapping remains the existing policy; native ABC/crop,
- // formatter-specific size, symbol advance and line height are source-based.
- for(const auto&it:items){if(it.symbol){flush();word.push_back(it);flush();continue;}if(it.cp=='\r')continue;if(it.cp=='\n'){flush();lines.emplace_back();}else if(it.cp==' '){flush();if(!lines.back().empty())lines.back().push_back(it);}else word.push_back(it);}flush();
+ // Native line records distinguish physical rows from horizontal segments.
+ // ParseFormatting17caca offsets the next segment by the measured current
+ // text width; Column180672 instead stores its authored unscaled float.
+ struct Item{uint32_t cp=0,style=0;const TextSymbol*symbol=nullptr;bool padding=false;};
+ struct Segment{TextControl entry=TextControl::None;float offset=0;std::vector<Item>items;float parseColumn=0;};
+ using Row=std::vector<Segment>;
+ const auto advance=[&](const Item&it){const auto&style=styles[it.style];if(it.symbol)return std::trunc(float(it.symbol->originalWidth)*style.symbolUnits*style.scale);const auto&g=glyph(*style.font,it.cp);return(g.abc[0]+g.abc[1]+g.abc[2]+style.font->spacing)*style.scale;};
+ const auto extent=[&](const std::vector<Item>&items,bool parsed){
+  float width=0;const Item*last=nullptr;for(const auto&it:items){if(parsed&&it.padding)continue;width+=advance(it);last=&it;}
+  if(last&&!last->symbol){const auto&style=styles[last->style];width-=style.font->spacing*style.scale;}return width;
+ };
+ const auto rowWidth=[&](const Row&row){
+  // ParseEscape returns Column's new parse X, and Pad leaves parse X
+  // unchanged. CalcNextActualWidth175bae takes the max actual segment width.
+  float x=0,width=0;for(const auto&segment:row){if(segment.entry==TextControl::Column)x=segment.parseColumn;x+=extent(segment.items,true);width=std::max(width,x);}return width;
+ };
+ const auto hasText=[](const Row&row){return std::any_of(row.begin(),row.end(),[](const auto&segment){return !segment.items.empty();});};
+ const auto newRow=[](){return Row{Segment{}};};
+ std::vector<Row>lines{newRow()};std::vector<Item>word;size_t itemCount=0;
+ const auto flush=[&](){
+  if(word.empty())return;auto candidate=lines.back();candidate.back().items.insert(candidate.back().items.end(),word.begin(),word.end());
+  // Paragraph word wrapping remains the existing portable policy. Controls
+  // retain their native segment offsets and do not become synthetic glyphs.
+  if(r.width>0&&hasText(lines.back())&&rowWidth(candidate)>r.width){for(const auto&it:word)if(it.symbol)throw std::runtime_error("Original symbol line wrap unreconstructed");lines.push_back(newRow());}
+  lines.back().back().items.insert(lines.back().back().items.end(),word.begin(),word.end());word.clear();
+ };
+ const auto addItem=[&](Item item){if(++itemCount>16384)throw std::runtime_error("Text glyph bound");word.push_back(item);};
+ const auto text=[&](const std::string&value,uint32_t style){
+  for(auto cp:textCodepoints(value)){
+   if(cp=='\r')continue;
+   if(cp=='\n'){flush();lines.push_back(newRow());}
+   else if(cp==' '){flush();if(hasText(lines.back())){if(++itemCount>16384)throw std::runtime_error("Text glyph bound");lines.back().back().items.push_back({cp,style,nullptr});}}
+   else addItem({cp,style,nullptr});
+  }
+ };
+ if(r.pieces.empty())text(r.text,0);
+ else for(const auto&piece:r.pieces){
+  if(piece.style>=styles.size())throw std::runtime_error("Text formatter index outside paragraph");
+  if(piece.control!=TextControl::None){
+   flush();auto&segment=lines.back().back();
+   if(piece.control==TextControl::NewLine){lines.push_back(newRow());continue;}
+   if(piece.control==TextControl::FormatBreak){const float width=extent(segment.items,false);lines.back().push_back({piece.control,width,{}});continue;}
+   if(!std::isfinite(piece.argument)||piece.argument<0||piece.argument>100000)throw std::runtime_error("Native text control argument bound");
+   if(piece.control==TextControl::Column){
+    // Column180638..659 clears the outgoing offset only for empty text or
+    // exactly one ASCII space, before pushing the current native line record.
+    if(segment.items.empty()||(segment.items.size()==1&&!segment.items[0].symbol&&segment.items[0].cp==' '))segment.offset=0;
+    lines.back().push_back({piece.control,piece.argument,{},piece.argument});continue;
+   }
+   if(piece.control==TextControl::Pad){
+    if(piece.argument!=std::trunc(piece.argument)||piece.argument>16384)throw std::runtime_error("Native text Pad byte count bound");
+    size_t bytes=0;for(const auto&it:segment.items){if(it.symbol)throw std::runtime_error("Native Pad UTF8 line encoding after an inline symbol not reconstructed");bytes+=it.cp<0x80?1:it.cp<0x800?2:it.cp<0x10000?3:4;}
+    const size_t target=size_t(piece.argument);for(;bytes<target;++bytes){if(++itemCount>16384)throw std::runtime_error("Text glyph bound");segment.items.push_back({' ',piece.style,nullptr,true});}continue;
+   }
+   throw std::runtime_error("Unknown native text control");
+  }
+  if(!piece.symbol){text(piece.text,piece.style);continue;}
+  auto image=symbols_.find(piece.text);if(image==symbols_.end())throw std::runtime_error("Original text symbol texture not exported: "+piece.text);
+  if(!symbolsOut)throw std::runtime_error("Original text symbol consumer unavailable");if(!styles[piece.style].font->remapSize)throw std::runtime_error("Original font remap size unavailable");
+  flush();addItem({0,piece.style,&image->second});flush();
+ }
+ flush();
  if(lines.size()>1024)throw std::runtime_error("Text line bound");std::vector<float>lineHeights;float height=0;
- // Draw 0x18017672c..0x1801767b0 compares the base box's pitch with
- // each Line::mFormatter's pitch. Top and Bottom are signed runtime ints,
- // added AFTER font line spacing * TextScale; they are not glyph offsets
- // or multiplied by the font/box scale. The existing portable paragraph
- // wrapping and vertical-origin policy remains unchanged.
- const auto pitch=[](const Style&s){return s.font->lineSpacing*s.scale+float(s.top)+float(s.bottom);};
- for(const auto&line:lines){float h=pitch(styles.front());for(const auto&it:line)h=std::max(h,pitch(styles[it.style]));lineHeights.push_back(h);height+=h;}
+ // Runtime Top/Bottom are signed pixel additions after TextScale. Horizontal
+ // native segments share one physical row; no Column/format-break line pitch.
+ const auto pitch=[](const Style&style){return style.font->lineSpacing*style.scale+float(style.top)+float(style.bottom);};
+ for(const auto&row:lines){float h=pitch(styles.front());for(const auto&segment:row)for(const auto&it:segment.items)h=std::max(h,pitch(styles[it.style]));lineHeights.push_back(h);height+=h;}
  const float y0=r.vertical==TextJustification::Center?-height*.5f:r.vertical==TextJustification::End?-height:0;std::vector<TextGlyphQuad>out;
- if(measured){float width=0;for(const auto&line:lines)width=std::max(width,extent(line));*measured={width,height};}
- float y=0;for(size_t line=0;line<lines.size();++line){float x=0;const float width=extent(lines[line]);const float x0=r.horizontal==TextJustification::Center?-width*.5f:r.horizontal==TextJustification::End?-width:0;
-  for(const auto&it:lines[line]){const auto&s=styles[it.style];const auto&f=*s.font;if(it.symbol){const auto&symbol=*it.symbol;const float unit=s.symbolUnits*s.scale,cx=x0+x+advance(it)*.5f,cy=y0+y+lineHeights[line]*.5f;symbolsOut->push_back({cx+(float(symbol.trimX)-float(symbol.originalWidth)*.5f)*unit,cy+(float(symbol.trimY)-float(symbol.originalHeight)*.5f)*unit,float(symbol.width)*unit,float(symbol.height)*unit,symbol.texture,it.style});x+=advance(it);continue;}
-   const auto&g=glyph(f,it.cp);if(g.rect[2]&&g.rect[3])out.push_back({x0+x+(g.abc[0]+g.crop[0])*s.scale,y0+y+g.crop[1]*s.scale,g.rect[2]*s.scale,g.rect[3]*s.scale,float(g.rect[0])/f.width,float(g.rect[1])/f.height,float(g.rect[0]+g.rect[2])/f.width,float(g.rect[1]+g.rect[3])/f.height,it.cp,it.style});x+=advance(it);}y+=lineHeights[line];}
+ if(measured){float width=0;for(const auto&row:lines)width=std::max(width,rowWidth(row));*measured={width,height};}
+ float y=0;
+ for(size_t line=0;line<lines.size();++line){
+  const auto&row=lines[line];const float width=rowWidth(row),x0=r.horizontal==TextJustification::Center?-width*.5f:r.horizontal==TextJustification::End?-width:0;float origin=0;
+  for(const auto&segment:row){origin+=segment.offset;float x=origin;
+   for(const auto&it:segment.items){const auto&style=styles[it.style];const auto&font=*style.font;
+    if(it.symbol){const auto&symbol=*it.symbol;const float unit=style.symbolUnits*style.scale,cx=x0+x+advance(it)*.5f,cy=y0+y+lineHeights[line]*.5f;symbolsOut->push_back({cx+(float(symbol.trimX)-float(symbol.originalWidth)*.5f)*unit,cy+(float(symbol.trimY)-float(symbol.originalHeight)*.5f)*unit,float(symbol.width)*unit,float(symbol.height)*unit,symbol.texture,it.style});x+=advance(it);continue;}
+    const auto&g=glyph(font,it.cp);if(g.rect[2]&&g.rect[3])out.push_back({x0+x+(g.abc[0]+g.crop[0])*style.scale,y0+y+g.crop[1]*style.scale,g.rect[2]*style.scale,g.rect[3]*style.scale,float(g.rect[0])/font.width,float(g.rect[1])/font.height,float(g.rect[0]+g.rect[2])/font.width,float(g.rect[1]+g.rect[3])/font.height,it.cp,it.style});x+=advance(it);
+   }
+  }
+  y+=lineHeights[line];
+ }
+
  return out;
 }
 }

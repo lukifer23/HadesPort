@@ -251,11 +251,16 @@ bool WeaponArsenal::editProjectileData(const std::string& name,bool spawned,
 }
 bool WeaponArsenal::setScriptProjectileProperty(const std::string& name,const std::string& property,
         std::optional<WeaponScalar> requested,WeaponValueChange change,std::string& error){
+    const auto apply=[&]()->bool {
     // Weapon::SetProjectileProperty RVA844a0 -> setProjectileData RVA84770.
     // ScriptAction RVA272030 normalizes exact lowercase literal "null" to any().
     error.clear();WeaponSnapshot* w=nullptr;for(auto& value:weapons_)if(value.definition.name==name){w=&value;break;}
     if(!w){error="No owned weapon named "+name;return false;}
-    if(!w->validProjectileData){error="Weapon has no native-valid projectile data";return false;}
+    // ScriptAction::SetProjectileProperty checks native Weapon+0x120 before
+    // either its filtered or unfiltered dispatch (RVA27237d and 272497).
+    // False advances to the next target without reflecting or mutating the
+    // allocated default storage. This differs from the getter's pointer test.
+    if(!w->validProjectileData)return true;
     if(static_cast<unsigned>(change)>4)return reject(error,"unknown projectile value change mode");
     if(property=="Type"||property=="DetonateChildGraphics"||property=="SpawnOnDetonate"||property=="SpawnOnImpact"||property=="SpawnOnDeath")
         return reject(error,"projectile property requires dedicated native enum/vector/dependency-copy handler: "+property);
@@ -301,6 +306,10 @@ bool WeaponArsenal::setScriptProjectileProperty(const std::string& name,const st
     w->projectileData=std::move(primary);w->projectileSource=std::move(frozenPrimary);
     if(applySpawned){w->spawnedProjectileData=std::move(spawned);w->spawnedProjectileSource=std::move(frozenSpawned);}
     return true;
+    };
+    if(apply())return true;
+    error="SetProjectileProperty WeaponName="+name+" Property="+property+": "+error;
+    return false;
 }
 bool WeaponArsenal::dataProperty(const std::string& name,const std::string& property,WeaponScalar& output,std::string& error)const{
     error.clear();for(const auto& w:weapons_)if(w.definition.name==name){auto f=w.definition.fields.find(property);if(f==w.definition.fields.end())return reject(error,"unknown/complex weapon data property "+property);output=f->second;return true;}error="No staged weapon named "+name;return false;

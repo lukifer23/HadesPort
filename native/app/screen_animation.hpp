@@ -40,9 +40,19 @@ struct ScreenLayer {
 };
 // Native ObstacleManager TransitionHelper<float> pair (Obstacle+0x5a0/0x5f0).
 struct ScreenMoveAxis {bool active=false;float start=0,end=0,duration=0,remaining=0,fraction=0;};
+// Compact original ThingData geometry inputs. Unsupported branches are retained
+// for admission diagnostics, not replaced by an invented interaction rectangle.
+struct ScreenGeometrySource {
+ bool known=false,hasPoints=false,rotate=false;
+ std::array<float,2> size{},offset{};
+ float extentScale=0,relativeExtentScale=0;
+ std::string unavailable;
+};
 struct ScreenThing {
  ObjectSnapshot* body=nullptr;
  std::string sourceGraphic; // Immutable ThingData.Graphic; body.animation is mutable.
+ float creationTime=0; // Actual World.time at Thing construction (cursor callbacks).
+ ScreenGeometrySource geometrySource;
  // Thing ctor 2daac6: own +22c=1, optional MapThing +240=null. These
  // factors describe destination parallax independently of render ownership.
  float ownParallax=1,mapParallax=1;
@@ -101,6 +111,11 @@ public:
  bool admits(const std::string& name)const{return definitions_.contains(name);}
  const SourceValue* definition(const std::string& name)const{const auto it=definitions_.find(name);return it==definitions_.end()?nullptr:&it->second;}
  bool create(ObjectSnapshot&,std::array<float,4>,const ScreenAnimationSound&,std::string&,float ownParallax=1,float mapParallax=1);
+ // Called with the actual resolved original owner properties after creation.
+ // Geometry admission is deferred until a real interaction needs this owner.
+ bool setGeometryDefinition(int32_t,const SourceValue&,std::string&);
+ bool interactionGeometry(int32_t,std::vector<std::array<float,2>>& polygon,
+     std::array<int32_t,4>& rectangle,std::string&)const;
  bool setAnimation(int32_t,const std::string&,const ScreenAnimationSound&,std::string&);
  bool setAnimation(int32_t,const std::string&,const ScreenAnimationRequest&,const ScreenAnimationSound&,std::string&);
  // ScriptAction::SetAnimationFrameTarget 0x263770: matching attached animations.
@@ -113,6 +128,7 @@ public:
  bool markDead(int32_t,std::string&);
  bool disposePending(const ScreenAnimationSound&,std::string&);
  bool advance(float,const ScreenAnimationSound&,std::string&,float worldSpeed=1);
+ bool physicallyVisible(int32_t,uint64_t ownerLifetime,bool&,std::string&)const;
  bool visual(int32_t,ActorVisual&,std::string&);
  bool visual(int32_t,uint64_t layerHandle,ActorVisual&,std::string&);
  ScreenThing* thing(int32_t id){auto i=things_.find(id);return i==things_.end()?nullptr:&i->second;}

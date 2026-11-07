@@ -1,0 +1,42 @@
+{
+  "schema": "hades-projectile-property-validity-v1",
+  "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "evidence": [
+    {
+      "path": ".local/reports/native-player-action-set-projectile-property.json",
+      "sha256": "3e25efb6c81b62bd9782771ce77b0a4cb838a9b550cbee49079de91e700257d3"
+    },
+    {
+      "path": ".local/reports/native-player-weapon-set-projectile-property.json",
+      "sha256": "890e8adbde83354d5bbde56a7cee1a1c10b2564a394923eac7563d6069e02ddc"
+    },
+    {
+      "path": ".local/reports/native-player-weapon-live-ctor.json",
+      "sha256": "f31a397addb0115dd5fceb1c85f9f85e3db938b299ea13b26fb0b23b82af0c75"
+    }
+  ],
+  "native": {
+    "ScriptAction.SetProjectileProperty": "0x272030",
+    "unfiltered": "0x272497 compares Weapon+0x120 with zero; 0x27249f jumps to next target at0x2724bb when false; otherwise calls Weapon.SetProjectileProperty at0x2724b0",
+    "filtered": "0x27237d checks same byte before primary/spawned name selection; false jumps to next target at0x2724b7",
+    "meaning": "Validity is actual source ProjectileData successfully copied by Weapon.Init. Native default storage/pointer and native validity are separate.",
+    "Weapon.SetProjectileProperty": "0x844a0 assumes valid caller; general path at0x84573 reads primary+68 then setProjectileData84770; no dummy default mutation when ScriptAction validity gate skips dispatch.",
+    "GetProjectileProperty": "0x267137 checks Weapon+68 pointer only; no +120 validity check. Constructor allocates default ProjectileData and writes +68 at0x88891. Do not reuse setter validity condition as getter nil."
+  },
+  "portable": {
+    "method": "WeaponArsenal::setScriptProjectileProperty",
+    "invalid_primary": "returns success with no mutation, before property/reflection checks, reproducing caller native+120 guard",
+    "valid_primary": "existing real typed mutation/dependency boundaries unchanged",
+    "failure_context": "Every failure adds WeaponName and Property. Unrecovered native cases remain errors.",
+    "getter_invalid_primary": "explicit missing default-storage error; never fabricated nil/default fields",
+    "no_source_change": true
+  },
+  "source_route": {
+    "selected_native_path": "Original Athena attack trait -> original UpgradeManager.ApplyWeaponPropertyChange -> native SetProjectileProperty including linked weapons",
+    "evidence": "Original source is retained privately in .local/native-build/assets/Scripts; no Lua source modifications or content copied into contract."
+  }
+}

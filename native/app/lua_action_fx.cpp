@@ -22,7 +22,15 @@ bool ScriptRuntime::loadActionEffectDefinitions(){try{
   std::string hex;for(auto b:bytes){char part[3];std::snprintf(part,sizeof(part),"%02x",unsigned(b));hex+=part;}
   if(movieHash->text()!=hex)throw std::runtime_error("Movie action Book bindings differ from actual actor bank");
  }
- return actionEffects_.load(std::move(catalog),actionEffectBank_,effects_.registry(),error_,animationBank_);
+ std::shared_ptr<hades::ActorAnimationBank> embedded;
+ if(const auto* hash=catalog.get("EmbeddedMovieBankSha256")){
+  auto identity=assets_->open("action-movie-sha256.bin");std::array<unsigned char,32> bytes{};
+  if(!identity||identity->size()!=bytes.size()||identity->read(bytes.data(),bytes.size())!=bytes.size())throw std::runtime_error("Embedded movie action bank identity unavailable");
+  constexpr char digits[]="0123456789abcdef";std::string hex;for(auto b:bytes){hex+=digits[b>>4];hex+=digits[b&15];}
+  if(hex!=hash->text())throw std::runtime_error("Embedded movie action catalog/bank identity differs");
+  embedded=std::make_shared<hades::ActorAnimationBank>();embedded->load(*assets_,"action-movie-frames.bin");
+ }else if(catalog.get("EmbeddedMovieDefinitions"))throw std::runtime_error("Embedded movie definitions lack original bank identity");
+ return actionEffects_.load(std::move(catalog),actionEffectBank_,effects_.registry(),error_,animationBank_,std::move(embedded));
  }catch(const std::exception&e){error_=e.what();return false;}}
 hades::ActionEffectProviders ScriptRuntime::actionEffectProviders(){hades::ActionEffectProviders p;
  p.owner=[this](int32_t id,hades::EffectOwnerState&o,std::string&e){return effectOwner(id,o,e);};p.marker=[this](int32_t id,const std::string&name,std::array<float,3>&point,std::string&e){return effectMarker(id,name,point,e);};

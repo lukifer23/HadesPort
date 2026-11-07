@@ -36,7 +36,10 @@ def export(a):
    if version!=3 or aname!=movie or r.pos!=len(r.data)or not 0<w<=2048 or not 0<h<=2048 or not 0<atlas_scale<=8:raise ValueError('Unsupported original Bink atlas')
    with path.open('rb')as f:header=f.read(44)
    total,fw,fh=struct.unpack_from('<I',header,8)[0],struct.unpack_from('<I',header,20)[0],struct.unpack_from('<I',header,24)[0]
-   if header[:4]!=b'KB2j'or(fw,fh)!=(w,h)or (total!=d['NumFrames']*d['NumAngles']and not(getattr(a,'allow_unused_movie_tail',False)and d['NumAngles']==1 and d['NumFrames']<=total<=d['NumFrames']+1)):raise ValueError('Original movie identity/dimension mismatch')
+   # PostRead978a0..978b1 derives EndFrame from explicit NumFrames. Book
+   # Update2af65a/6cc uses that authored end, independently of carrier tails.
+   prefix=(getattr(a,'allow_book_movie_prefix',False)and d['Type']=='Book'and d['NumAngles']==1 and not d.get('FrameDataFile')and d.get('StartFrame',1)==1 and d.get('EndFrame',d['NumFrames'])==d['NumFrames']and d['NumFrames']>0 and total>=d['NumFrames'])
+   if header[:4]!=b'KB2j'or(fw,fh)!=(w,h)or (total!=d['NumFrames']*d['NumAngles']and not(prefix or(getattr(a,'allow_unused_movie_tail',False)and d['NumAngles']==1 and d['NumFrames']<=total<=d['NumFrames']+1))):raise ValueError('Original movie identity/dimension mismatch')
    movie_info={'name':movie,'path':path,'width':w,'height':h,'original_width':ow,'original_height':oh,'atlas_scale':atlas_scale,'num_frames':d['NumFrames'],'actual_movie_frames':total,'num_angles':d['NumAngles'],'selected':set(),'frame_ids':{}};movies[movie]=movie_info;sources.extend([identity(path),identity(atlas)])
   info=movies[movie]
   if(info['num_frames'],info['num_angles'])!=(d['NumFrames'],d['NumAngles']):raise ValueError('Shared movie definitions disagree')

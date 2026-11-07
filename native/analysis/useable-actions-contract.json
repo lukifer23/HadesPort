@@ -1,0 +1,102 @@
+{
+  "schema": "hades-script-useable-actions-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+  "pdb_age": 1,
+  "evidence": [
+    {
+      "path": ".local/reports/native-thing-script-actions.json",
+      "sha256": "8e0902dd1d9cff5c20fc92041ef3be234ac7170c698b5c8b45271b6b47a832d2"
+    },
+    {
+      "path": ".local/reports/native-interaction-set-unuseable-pseudocode-v2.txt",
+      "sha256": "97cc7ec42386951138685a84a203a72e34e26fcfa9a79ed5f7f50d84487c4b44"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/useable-targets-static.json",
+      "sha256": "736029d4279059a5c6faed62b88a9360e429a9b8cdce63e9015c0728a7886d19"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/useable-set-off-static.json",
+      "sha256": "d9ab53dc8bb3913a6f1d203ba28658a9050c07a04a82146aa9f97f2742b2c41d"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/useable-set-animation-static.json",
+      "sha256": "44292ec71c2827d2d97cf7dbd6c945a049ba08ba019d02ee08e094ba0386b988"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/useable-interval-static.json",
+      "sha256": "826bb9d299738875560557307cbbfe9d668f64765fe8017a70d93881489358fb"
+    },
+    {
+      "path": ".local/reports/gui-interact/interact-highlightoff-static-2026-10-26.json",
+      "sha256": "463e35131b44bed9acf8271ed708ef1ff1229c1dacae0712e8dadc4bb33d078b"
+    },
+    {
+      "path": ".local/reports/gui-interact/cursor-onmouseoff-static-2026-11-06.json",
+      "sha256": "375748a202bc4fb3c14925fb8ee75cbc52bc9667757196841480846e65551df1"
+    }
+  ],
+  "dispatch": {
+    "UseableOn": {
+      "action": 150,
+      "thing_target_rva": "0x2e3d56"
+    },
+    "UseableOff": {
+      "action": 151,
+      "thing_target_rva": "0x2e3dcd"
+    },
+    "jump_table_proof": "Thing.RunScriptAction2e2260 decrements action ID; byte dispatch index at RVA2e44b4+(action-1), target uint32 RVA at2e4410+index*4. On index34 and Off index35 resolve exact targets above.",
+    "targets": "ScriptAction.runActionOnThings27f4e0 current World ID-map membership; singular Id numeric conversion branch27f584..27f662 has priority; fallback Ids sequential Lua array27f667..27f7da preserves order and duplicates."
+  },
+  "UseableOn": {
+    "gate": "Missing Interact or already enabled -> no action. No Interact allocation.",
+    "order": [
+      "Write Interact+30 enabled=true at2e3d70.",
+      "If UnuseableAnimation string length at InteractData+d0 is nonzero AND owner ThingData pointer+0xc0 exists, SetAnimation(owner immutable ThingData.Graphic+8,false,true,false) at2e3dbf.",
+      "Write Interact+3 previousUseable=true at2e3dc4."
+    ],
+    "not_used": "No UseableAnimation alias; current mutable primary is not the restore source. No forced highlight, callback, use-counter or repeat/cooldown reset."
+  },
+  "UseableOff": {
+    "gate": "Missing Interact or already disabled -> no action. ForceHighlightOff not read for skipped components.",
+    "force_arg": "LuaTableExtensions.Bool247fe0 ForceHighlightOff defaultfalse at2e3de7..2e3df4.",
+    "function": "Interact.SetUnuseable2bfc70",
+    "order": [
+      "Write Interact+30 enabled=false at2bfc7d.",
+      "When attached owner exists, SetAnimation(UnuseableAnimation,false,true,false) at2bfca3, then previousUseable=false at2bfca8.",
+      "When ForceHighlightOff true, real Interact.HighlightOff2bfc00 at2bfcb4, then ScriptManager.OnMouseOff28b7d0 at2bfcbd."
+    ],
+    "empty_animation": "Thing.SetAnimation2ded10 returns immediately for zero string length; previousUseable still changes. Nonempty names go through actual primary backend.",
+    "callback": "OnMouseOff direct default args, no UserId/CreatedThisFrame payload, source Script.run adds actual triggeredById/TriggeredByTable; empty name suppressed by adapter. No physical-visibility or cursor-selected-owner gate.",
+    "highlight": "Float=true cancels retained actual manager allocation and leaves normal manager completion/sound fade; Float=false applies actual HighlightOffAnimation via primary backend."
+  },
+  "component_grid_lifetime": {
+    "membership": "Native branches only write enabled/previousUseable plus actual animation/highlight/callback effects. No UseableManager add/remove call. Existing registered component/grid records remain.",
+    "admission": "InteractionWorld.isUseable filters enabled flag immediately. Future normal UseableManager update and actual geometry changes keep existing ownership.",
+    "lifetime": "Current actual ScreenThing/body or registered Actor/body entity lifetime, including pending-disposal membership; no extra alive/active predicate. Missing current owner or Interact is native no-op. Repeated Off/On same state no effects.",
+    "cursor_cache": "No target cache clear or forced reevaluation invented by these actions."
+  },
+  "portable": {
+    "file": "native/app/lua_useable.cpp",
+    "closure": "self pointer upvalue1, enabled bool upvalue2",
+    "supported_selectors": "Signed32 singular numeric Id, or dense sequential numeric Ids; Id wins when both supplied. Missing/empty selection is native no-op.",
+    "supported_owners": [
+      "actual ScreenAnimationWorld ScreenThing",
+      "actual ActorWorld registered ActorComponents"
+    ],
+    "Screen_restore": "ScreenThing.sourceGraphic immutable real ThingData.Graphic",
+    "Actor_restore": "ActorDefinition.properties Thing.Graphic immutable normalized source",
+    "component_method": "setPreviousUseable only writes previousUseable. Existing setEnabled only writes enabled.",
+    "boundaries": [
+      "Named/group preprocessing not reconstructed: explicit failure",
+      "Sparse/named/converting selector forms: explicit failure",
+      "Nonzero Interval/MinInterval/MaxInterval RNG branch: explicit failure",
+      "Nonboolean ForceHighlightOff: explicit failure",
+      "Unavailable original immutable Graphic/backend/animation: explicit failure"
+    ],
+    "no_stub": true,
+    "no_asset_or_source_change": true
+  },
+  "actual_original_route": "UpgradeChoice original close path uses sequential purchase-button Ids and ForceHighlightOff=true after real choice; original scripts remain unchanged."
+}

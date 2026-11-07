@@ -18,17 +18,26 @@ original assets are exported locally. Unsupported behavior fails explicitly in
 strict host mode. Device containment records gaps and skips failed work; it does
 not implement that work and cannot count as acceptance.
 
-Strict progression passes Athena's portrait/dialogue graph, LoadPackages/config and
-the original boon-menu movie/symbol/lighting shell. The default 8,000-frame request
-completes 5,452 frames before BoonSlot1 interaction requires actual screen geometry
-and lifecycle providers. The held 2,950-frame route retains its exact historical five
-hits. Source-bound screen16 preserves every old frame/clip and adds 54 independently
-decoded original movie frames and seven GUI images. Isolated registered actions
-exercise movie completion, ten symbol roots, lighting loops and native color parsing.
-ASan/UBSan passes the component diagnostic and slower 6,052-frame strict route
-without findings (leak detection disabled); Android ARM64 compilation passes.
-STATUS indexes receipts and their limits. Actual boon
-selection, native material/lighting parity and physical-device acceptance remain open.
+The paused input checkpoint passes original Athena dialogue and boon construction,
+then hovers all three real choices and selects through actual pointer/Interact/
+Notify. Effect changes and UseableOff execute; the original callback creates the
+real BoonGet movie. The strict request6000 completes5578 at missing native
+HideTopMenuScreenTooltips (UIScripts2650). Full close/teardown is still open.
+
+Native InGameUI owns six MenuScreen tooltip slots. Parsed Attack/Deflect keys are
+real producers, so an empty/no-op hide is invalid. Reconstruct actual queue/update,
+source-template GUI components, original backing/glyph resources and fade/hide.
+ModifyTextBox BlockTooltip and ClearUseTarget follow. The latter dispatches target
+loss, restores immutable Graphic only on the native matching primary, then clears
+the player target; it does not clear the separate cursor target.
+
+Source/default/canonical assets select screen17/action27/audio32. All prior pixels,
+clips, audio samples and semantic values are preserved; the new action companion
+contains 26 actual BoonGet frames. Fast build/replay covers the later effect/useable
+classes. Hotfix ASan/UBSan input/marker5500, exact held2950 and component checks pass,
+but final sanitizer/Android verification for the entire checkpoint remains pending.
+No new gameplay APK was published for that checkpoint. The user requested a stop;
+workers and temporary builds were closed, with exact research/restart notes retained.
 
 Iteration19 (`5b54c0d`) is installed with actual APK identity and four pre-launch
 save files verified. The owner rejected iteration18's still-high stick placement.
@@ -50,7 +59,7 @@ Cover/fold behavior, throttling response and sustained play remain unproven.
 | Original script execution | `lua_runtime`, scheduler, notifications and Lua action units share the native world between host and Android. Control notification advancement is working on the verified route; unsupported script calls must remain explicit. |
 | World/combat | Actor lifecycle, movement/pathing, effects, weapons, projectiles, collision and audio support the initial encounter. Beam/Lob/Sky and specialized delayed/live-target branches remain incomplete. Keep shared and projectile hit consumers aligned. |
 | Animation ownership | `animation_registry` owns allocation/lifecycle; screen and action-effect worlds supply different owner state. Screen layers now initialize actual local/delegated children and independent created manager roots. Reached Athena FX/emitter ownership and disposal execute. External-child ChainTo/TransferChildren still reject explicitly. |
-| Boon UI | Original shell movies, symbol transforms and random lighting initialize. The first explicit blocker is BoonSlot1 interaction geometry/lifecycle. Screen animation, text and input infrastructure exist. `lua_interaction.cpp` rejects missing actual screen geometry/lifecycle and individual text-box bounds. Cursor selection/highlights and original screen Interact use must be completed before choice works. |
+| Boon UI | Actual geometry/text areas, three-choice cursor/highlights, pointer Interact/Notify and original trait changes execute. Close stops at native tooltip production/lifecycle. Complete native six-slot tooltips, BlockTooltip and ClearUseTarget, then verify teardown; phone/controller acceptance remains open. |
 | Maps/resources | Native transitions check 26 room-bound files before retiring the current map. Only RoomOpening/RoomSimple01 are staged. Original boon package admission now implements source-derived exact-case unit mapping, all-manifest preflight, real CPU reads and deferred OnPackageLoaded. GPU readiness remains separate. DeathArea is absent. Generic room staging still assumes `HeroEnd` and a unique `CameraIntroEnd`; inspect actual House geometry before exporting. |
 | Rendering | Actor/scene/UI pipelines and camera/blur state exist. Visible Shroud still throws in `fullscreen_blur_renderer.cpp`; radial sampling, text layout and some material/sort behavior retain documented approximations. |
 | Persistence | Original SGB1/Luabins/LZ4 and profile formats exist. `save_runtime.cpp` backs up then directly truncates/writes the primary. A direct host round trip does not establish script-reached saves, interrupted-write recovery or Android Continue. |
@@ -133,7 +142,7 @@ remain documented; additional unrelated audio playlist branches remain unsupport
 | 0 | Iteration19 delivered over wireless ADB; lower joystick placement and four alternating cycles passed. | Preserve verified APK/saves. Next check cover/fold transitions and bounded longer play, monitoring actual faults/thermal/memory. Stop on severe throttling. |
 | 1 | Athena portrait graph — implemented and host-verified. | Strict default route passes the former 4,748 boundary through 4,837; slower real input reaches 5,437 after repeated blink loops. Preserve held-combat and final sanitizer/platform checks. Physical rendering/audio acceptance remains pending. |
 | 2 | Original LoadPackages admission and reached config storage — implemented and host-verified. Source-derived mappings, manifest-first admission, actual worker reads and deferred callbacks replace the former Interactables.lua:826 stop. | Native Lua5.2/worker tests, preserved original atlas bytes, strict progression to BoonSelectIn, held combat and final sanitizer/platform checks. GPU residency and actual boon selection remain separate. |
-| 3 | Boon shell is implemented and host-verified; implement actual boon selection next. Derive actual transformed screen polygons and individual text areas with original integer/justification rules; retain owner lifetimes, cursor ordering and floating-highlight FX/audio. Route real Select/touch through Interact.Use and NotifyOnInteract. | Original menu appears and a real input selects a boon via the original callback. Exercise disposal/ambiguity rejection. No fixed bounds, forced reward state or direct Lua callback. Device touch/controller acceptance remains separate. |
+| 3 | Resume the paused boon close path: native InGameUI keyword tooltip producers, source GUI components and fade/hide; BlockTooltip; recovered ClearUseTarget. Existing input reaches the original trait callback. | Complete original callback/teardown through genuine input; sanitizer and Android gates; actual phone touch/controller acceptance. No fixed bounds, forced rewards or direct callbacks. |
 | 4 | Restore death/House and the script-selected next room. Reconstruct low-health FX, AllowAnyFire/Graphic side effects, camera clamp clearing and Stop/Halt/death voice resources. Implement the proven disabled analytics/email branch. Review actual DeathArea MapGroups/anchors before export. | Strict original death reaches actual House/DeathArea and normal control. Normal progression loads the map selected by scripts. No invented room, injected damage or forced encounter clear. |
 | 5 | Implement save durability while retaining original wire formats. Document Android atomic publication/recovery and complete script-reached checkpoint/restart/Continue across actual maps. | Compatibility, interrupted/truncated writes and recovery verified using copies of actual saves. Device process death/relaunch resumes without resetting saves. |
 | 6 | Implement full-game local content delivery before broad room expansion. Retain immutable payload identity and offline import while removing single-APK size limits. | Complete identity checks, bounded reads and explicit missing-content errors. No network permission or uploaded game files. |
@@ -143,7 +152,7 @@ The next device gates are actual reward replay, cover/fold behavior and lifecycl
 DeathArea delivery is required before death/House acceptance; the phone reproduced
 that missing asset. Keep later play bounded and pause before unattended work.
 The owner authorized independent offline progress; the next host deliverable is
-actual BoonSlot1 geometry/lifecycle, then cursor/highlights and boon selection.
+native tooltip production/lifecycle and actual boon close/teardown.
 The held historical screen patch remains reference
 material; the integrated implementation was independently reviewed and verified.
 STATUS indexes resource preservation, source evidence and exact input routes.

@@ -14,7 +14,7 @@ extern "C" {
 }
 
 ScriptRuntime::AutoplayView ScriptRuntime::autoplayView(){
-    AutoplayView view;view.map=mapName_;view.inputAllowed=inputAllowed();view.pendingControls=pendingControlPresses();
+    AutoplayView view;view.map=mapName_;view.inputAllowed=inputAllowed();view.pendingControls=pendingControlPresses();view.cursorUseReady=screenInputRequested()&&screenCursor_.target.id>=0;
     if(const auto hero=localPlayerBody()){view.hero=true;view.x=hero->x;view.y=hero->y;}
     if(!state_)return view;
     lua_getglobal(state_,"RequiredKillEnemies"); // original encounter kill set (excludes breakables)
@@ -26,7 +26,7 @@ ScriptRuntime::AutoplayView ScriptRuntime::autoplayView(){
         lua_pop(state_,1);}}
     lua_pop(state_,1);
     for(const auto& s:interactions_.snapshots()){
-        if(!s.enabled||s.key.id<0)continue;const auto* object=findObjectSnapshot(state_,s.key.id);if(!object||!object->alive)continue;
+        if(!s.enabled||s.key.id<0)continue;const auto* object=findObjectSnapshot(state_,s.key.id);if(!object||!object->alive||object->backend==ObjectBackend::Screen)continue;
         AutoplayTarget t{s.key.id,object->x,object->y,object->name};std::string error;actorWorld_.location(s.key.id,t.x,t.y,error);view.usables.push_back(t);
     }
     return view;
@@ -61,6 +61,9 @@ AutoplayInput Autoplay::step(int frame,const ScriptRuntime::AutoplayView& view,c
         if(frame%continuePeriod_==0)input.controls.push_back("ContinueText");
         input.summary="queued ContinueText";stall_=0;return input;
     }
+    // The real source ScreenInput notification and native cursor target are
+    // ready. Supply a normal Select press; no choice/callback is invoked here.
+    if(view.cursorUseReady){if(frame%60==0)input.controls.push_back("Select");input.summary="cursor Select";stall_=0;return input;}
     if(!view.hero||!view.inputAllowed){stall_=0;return input;}
     if(view.map!=map_){map_=view.map;tried_.clear();}
     const ScriptRuntime::AutoplayTarget* target=nullptr;float best=1e30f;bool enemy=false;

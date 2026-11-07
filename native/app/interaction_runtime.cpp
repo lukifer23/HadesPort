@@ -126,7 +126,16 @@ bool InteractionWorld::update(const InteractionProviders& p,std::string& error){
     }catch(const std::exception& e){return fail(error,e.what());}
     cells_=std::move(updated);for(auto key:dirty){auto& s=records_.at(key)->state;s.dirty=false;s.global=boolean(s.definition,"UseableOffScreen");}error.clear();return true;
 }
+// CursorManager.CheckUseable191b3a..191bb8 updates the OLD target's Interact
+// repeat timer. Only a positive RepeatDelay enables this path; strict<0 fires.
+bool InteractionWorld::advanceCursorRepeat(InteractionKey key,bool held,float elapsed,bool& repeated,std::string& error){
+ repeated=false;auto i=records_.find(key);if(i==records_.end())return fail(error,"Cursor repeat target lifetime unavailable");
+ if(!finite(elapsed)||elapsed<0||elapsed>1)return fail(error,"Invalid cursor repeat elapsed");auto& s=i->second->state;
+ const float delay=number(s.definition,"RepeatDelay");if(delay>0){if(!held)s.repeatTimer=delay;else{s.repeatTimer-=elapsed;if(s.repeatTimer<0){repeated=true;s.repeatTimer+=number(s.definition,"RepeatInterval");}}}
+ error.clear();return true;
+}
 bool InteractionWorld::setEnabled(InteractionKey key,bool enabled,std::string& error){auto it=records_.find(key);if(it==records_.end())return fail(error,"Unknown Interact lifetime");it->second->state.enabled=enabled;error.clear();return true;}
+bool InteractionWorld::setPreviousUseable(InteractionKey key,bool value,std::string& error){auto it=records_.find(key);if(it==records_.end())return fail(error,"Unknown Interact lifetime");it->second->state.previousUseable=value;error.clear();return true;}
 bool InteractionWorld::replaceDefinition(InteractionKey key,const SourceValue& original,std::string& error){auto it=records_.find(key);if(it==records_.end())return fail(error,"Unknown Interact lifetime");SourceValue def;if(!resolveDefinition(original,def,error))return false;it->second->state.definition=std::move(def);it->second->state.dirty=true;error.clear();return true;}
 bool InteractionWorld::setProperty(InteractionKey key,const std::string& property,const PropertyInput& input,PropertyChange change,InteractionClock clock,std::string& error){
     const auto existing=records_.find(key);

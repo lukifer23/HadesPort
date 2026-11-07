@@ -32,6 +32,7 @@
 #include "game_ui.hpp"
 #include "ui_renderer.hpp"
 #include "touch_controls.hpp"
+#include "screen_pointer.hpp"
 #include "camera_rig.hpp"
 #include "input_bindings.hpp"
 #include "control_bindings.hpp"
@@ -60,6 +61,7 @@ class Engine {
     hades::AndroidAssets assets_;
     std::chrono::steady_clock::time_point lastFrame_ = std::chrono::steady_clock::now();
     hades::TouchControls controls_;
+    hades::ScreenPointer screenPointer_;bool screenPointerContext_=false;
     hades::CameraRig camera_;
     // Graphics settings: offscreen scene target for render-resolution scaling
     // (UI stays native resolution) and sleep-based frame-rate capping.
@@ -190,8 +192,33 @@ public:
     }
     ~Engine() { shutdown(); }
     bool active() const { return focused_ && display_ != EGL_NO_DISPLAY && !failed_; }
-    void releaseMovement(){controls_.setContinueTextRequested(false);controls_.cancel();hardware_.clear();stickX_=stickY_=0;stickDevice_=0;}
+    void cancelScreenPointer(){screenPointer_.cancel();screenPointerContext_=false;if(scripts_)scripts_->cancelLocalCursor();}
+    void releaseMovement(){cancelScreenPointer();controls_.setContinueTextRequested(false);controls_.cancel();hardware_.clear();stickX_=stickY_=0;stickDevice_=0;}
+    void syncScreenPointerContext(){
+        const bool requested=ui_.playing()&&sceneReady_&&scripts_&&scripts_->screenInputRequested();
+        const bool resized=screenPointer_.configure(sceneRect(),height_);
+        if(requested!=screenPointerContext_||(resized&&requested)){
+            // A held gameplay finger cannot become a menu click, and a held
+            // menu finger cannot become movement when its source context ends.
+            // Hardware bindings retain their existing independent ownership.
+            screenPointer_.cancel();if(scripts_)scripts_->cancelLocalCursor();controls_.cancel();
+        }
+        screenPointerContext_=requested;
+    }
+    void screenPointer(hades::UiPointer phase,int id,float x,float y){
+        hades::ScreenPointer::Sample sample;
+        const auto result=screenPointer_.pointer(phase,id,x,y,sample);
+        if(result==hades::ScreenPointer::Result::Ignored)return;
+        if(result==hades::ScreenPointer::Result::Cancelled){scripts_->cancelLocalCursor();return;}
+        std::string error;
+        if(!scripts_->setLocalCursor(sample.x,sample.y,sample.down,error)){
+            // Malformed/out-of-domain platform input cancels ownership rather
+            // than throwing across Android's native input callback.
+            ERROR("SCREEN_POINTER_REJECTED detail=%s",error.c_str());screenPointer_.cancel();scripts_->cancelLocalCursor();
+        }
+    }
     void syncTouchContext(){
+        syncScreenPointerContext();
         bool requested=false;
         if(ui_.playing()&&scripts_&&scripts_->roomActivated()){
             // Read the original live NotifyOnControlPressed request, rather
@@ -346,6 +373,9 @@ public:
             syncTouchContext();
             controls_.configure(width_,height_,ui_.settings,dpi_);
             if(phase==hades::UiPointer::Down){if(scripts_)scripts_->notePlayerInput();usingController_=false;}
+            // The live original interaction notification selects this context.
+            // Direct screen input remains available when gameplay buttons hide.
+            if(screenPointerContext_){if(focused_)screenPointer(phase,id,x,y);return;}
             if(ui_.settings.touchMode==2)return; // touch controls hidden by setting
             const bool wasMoving=controls_.active();
             controls_.pointer(phase,id,x,y);
@@ -356,7 +386,7 @@ public:
             }
         };
         if(action==AMOTION_EVENT_ACTION_MOVE){for(size_t i=0;i<count;++i)point(i,hades::UiPointer::Move);}
-        else {
+        else if(action==AMOTION_EVENT_ACTION_DOWN||action==AMOTION_EVENT_ACTION_UP||action==AMOTION_EVENT_ACTION_POINTER_DOWN||action==AMOTION_EVENT_ACTION_POINTER_UP){
             const size_t index=(packed&AMOTION_EVENT_ACTION_POINTER_INDEX_MASK)>>AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT;
             if(index<count)point(index,(action==AMOTION_EVENT_ACTION_UP||action==AMOTION_EVENT_ACTION_POINTER_UP)?hades::UiPointer::Up:hades::UiPointer::Down);
         }
@@ -594,7 +624,8 @@ public:
         try {
             if (cmd == APP_CMD_INIT_WINDOW && app_->window && display_ == EGL_NO_DISPLAY) { failed_ = false; initialize(); }
             else if (cmd == APP_CMD_TERM_WINDOW) shutdown();
-            else if (cmd == APP_CMD_CONFIG_CHANGED) { readDensity(); INFO("DISPLAY_DENSITY dpi=%.0f",dpi_); }
+            else if (cmd == APP_CMD_CONFIG_CHANGED) { cancelScreenPointer();readDensity(); INFO("DISPLAY_DENSITY dpi=%.0f",dpi_); }
+            else if (cmd == APP_CMD_WINDOW_RESIZED || cmd == APP_CMD_CONTENT_RECT_CHANGED) { cancelScreenPointer(); }
             else if (cmd == APP_CMD_GAINED_FOCUS) { focused_ = true;controllerProbe_=0;nextPresent_={};if(scripts_&&scripts_->roomActivated()&&!scripts_->startAudio())throw std::runtime_error(scripts_->error());lastFrame_=std::chrono::steady_clock::now();interval_=lastFrame_;frames_=0;metricCount_=metricAt_=0;metricFrames_=0;updateMs_=submitMs_=presentMs_=0; INFO("Resumed"); }
             else if (cmd == APP_CMD_LOST_FOCUS) { focused_ = false;if(scripts_)scripts_->stopAudio();ui_.cancel();releaseMovement(); INFO("Paused"); }
         } catch (const std::exception& failure) {

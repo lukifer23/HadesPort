@@ -1,0 +1,83 @@
+{
+  "schema": "hades-text-line-controls-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "scope": "Native English text escape line controls and formatter segment continuation. Static matched DLL/PDB evidence; no original engine execution or device observation.",
+  "line_record": {
+    "size": 120,
+    "fields": {
+      "new_line_byte": 0,
+      "format_break_byte": 1,
+      "tooltip_link_int": 4,
+      "column_offset_float": 8,
+      "actual_width_float": 12,
+      "text_utf8_string": 24,
+      "formatter_pointer": 96
+    },
+    "provenance": ".local/reports/takeover-text-line-type.txt"
+  },
+  "syntax": {
+    "entry": "Parse181a00 case0x13 calls ParseEscapeSequence180050 with the next lexer token.",
+    "argument": "Pad18030c..1803ae and Column1804f9..180597 eat whitespace, read one token, eat whitespace again, require numeric token0x19, convert the token through strtof. Other argument-token types consume without modifying the current line.",
+    "float_vs_int": "Column keeps float result in xmm6; Pad applies CVTTSS2SI at1803ae and uses the signed32 result as the requested string byte count. Fractional Pad counts truncate toward zero.",
+    "scope": "The existing reconstructed English lexer handles ASCII whitespace and digit/decimal tokens; unrelated CJK/non-ASCII whitespace branches retain their explicit limits."
+  },
+  "padding": {
+    "append_pending_word": "RVA0x1803c7..0x180421 converts the pending UTF32 word with getutf8, appends it to current Line.mText, and clears the word.",
+    "byte_count": "RVA0x180426..0x180477 reads the UTF8 string byte length and appends one literal ASCII space per missing byte until length reaches trunc(argument). It is not a pixel-width target and not a Unicode-codepoint count.",
+    "parse_x": "RVA0x180479 returns the incoming parse X unchanged; added padding is part of actual string drawing rather than a synthetic pixel offset."
+  },
+  "column": {
+    "flush": "RVA0x1805b1..0x18060b appends/clears the pending UTF32 word as UTF8.",
+    "empty_outgoing_offset": "RVA0x180610..0x180659 clears the outgoing Line.mColumnOffset only when its UTF8 text is empty or exactly one ASCII space.",
+    "segment": "RVA0x180665 stores incoming parse X as outgoing actual width and pushes the current line record. RVA0x180672 stores the authored float as the next line column offset. New record flags at180698 are NewLine=false and FormatBreak=false; formatter at1806c6 is the actual root text box.",
+    "result": "RVA0x180243/180253 returns the new float column value as parse X. The portable representation retains separate draw offset and parse column so clearing an empty outgoing draw offset does not erase its parsed extent."
+  },
+  "format_break": {
+    "offset": "ParseFormatting RVA0x17ca46..0x17ca60 obtains current formatter TextScale and actual current line string width. RVA0x17cac0 creates NewLine=false/FormatBreak=true; RVA0x17cac6..0x17caca stores width times scale as the next segment column offset.",
+    "meaning": "Formatter changes retain horizontal continuation at the source-measured previous segment width and do not create another physical text row."
+  },
+  "draw": {
+    "offset": "GUIComponentTextBox.Draw RVA0x17724a adds current Line.mColumnOffset directly to the retained row/segment origin. No TextScale multiplication occurs at this consumption site. A following Column offset is relative to the prior segment origin, not its text end.",
+    "new_row": "RVA0x1771f2..0x17723f tests Line.mNewLine; only a new physical row resets X from box location/justification and advances row Y. Column and formatter segments do not add a row pitch.",
+    "justification": "CalcNextActualWidth RVA0x175b98..0x175bc7 scans until the next NewLine record and returns the maximum stored actual width; horizontal justification uses that physical-row value."
+  },
+  "portable": {
+    "data_model": "TextPiece retains TextControl{Column,Pad,FormatBreak,NewLine} and float argument alongside actual text/symbol/style. Control tokens never substitute glyph art.",
+    "layout": "Rows contain real-font horizontal segments; Column stays unscaled, formatter boundaries consume actual preceding segment width, Pad appends actual original-font spaces by current UTF8 segment byte count. Existing ordinary paragraph word wrapping and vertical block placement remain portable policies.",
+    "validation": "Nonfinite/out-of-domain control numbers and paragraphs over current byte/glyph/row bounds reject explicitly. The raw control parser and the strict original description route remain separate from typed layout diagnostic checks."
+  },
+  "limits": [
+    "Paragraph wrapping, whitespace normalization and mActualWidth/mActualHeight equivalence beyond the recorded control operations are not newly established.",
+    "Pad after an inline image rejects until the native encoded symbol representation and its UTF8 byte count are consumed.",
+    "Nonempty control-only/markup-only attached text area line-presence behavior remains an explicit rejection.",
+    "CPU real-font placement checks and static evidence do not establish shader, touchscreen or original-engine visual equivalence."
+  ],
+  "evidence": [
+    ".local/reports/hud-text-dis-ParseEscapeSequence.json",
+    ".local/reports/hud-text-dis-GetLines.json",
+    ".local/reports/textbox-v2/decomp-Parse.json",
+    ".local/reports/boon-interaction-2026-11-06/text-parse-formatting.json",
+    ".local/reports/boon-interaction-2026-11-06/text-calc-next-width.json",
+    ".local/reports/textbox-v2/disasm/draw.s"
+  ],
+  "lua_markup": {
+    "evidence": [
+      ".local/reports/takeover-text-parse-lua-retained.c",
+      ".local/reports/hud-text-dis-ParseLua.json",
+      ".local/reports/textbox-v2/decomp-ParseMarkup.json",
+      ".local/reports/textbox-v2/disasm/ParseMarkup.s",
+      ".local/reports/textbox-v2/decomp-ConvertAnyToString.json",
+      ".local/reports/hud-text-dis-ConvertAnyToInt.json",
+      ".local/reports/boon-interaction-2026-11-06/lua-getvalue-index.json",
+      ".local/reports/boon-interaction-2026-11-06/lua-getvalue-field.json"
+    ],
+    "lookup": "ParseLua17cf30 gets the first lexer token from globals; each following word/number token indexes the current LuaTable. Punctuation including dot/brackets separates fields. Field token strtof consuming all bytes selects signed32-truncated numeric index; otherwise case-sensitive string field. No eval or callback execution. Direct actual source slots are supported; missing metatable-dependent lookup fails explicitly.",
+    "format": "Colon switches to suffix tokens. Each suffix token updates percent flag from its first UTF32 character: P/p true; any other token false. Native has no F/N precision mode here. Ordinary conversion: integral double %d, nonintegral %g (six significant digits), bool true/false, exact string.",
+    "percent": "ParseMarkup17f39c..17f3de converts value to signed32 using truncation, prefixes - if negative or + otherwise, appends original converted string then %. No multiplication by 100 and no absolute value. Preserves native doubled-negative and negative-subunit plus-prefix quirks.",
+    "bounds": "Paths <=4096 bytes, <=64 fields, native signed32-convertible indices/numbers, substituted strings <=65536 bytes without embedded NUL; unsupported Lua value types fail."
+  }
+}

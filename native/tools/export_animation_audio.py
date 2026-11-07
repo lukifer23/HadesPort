@@ -21,7 +21,11 @@ def export(a):
   if manifest['schema']=='hades-action-effect-resources-v1':
    row=manifest['catalog'];catalog=Path(row['path'])
    if hashlib.sha256(catalog.read_bytes()).hexdigest()!=row['sha256']:raise ValueError('Animation definition catalog changed')
-   sources.append(identity(catalog));records=json.loads(catalog.read_text())['Definitions']
+   sources.append(identity(catalog));data=json.loads(catalog.read_text());records={}
+   for backend in ['Definitions','MovieDefinitions','EmbeddedMovieDefinitions']:
+    for name,record in data.get(backend,{}).items():
+     if name in records and records[name]!=record:raise ValueError('Conflicting selected animation definition identity: '+name)
+     records[name]=record
   elif manifest['schema']=='hades-original-actor-animations-v1':records={clip['name']:clip['definition']for clip in manifest['clips']}
   else:raise ValueError('Expected selected original action or actor animation manifest')
   counts[str(path)]=len(records)

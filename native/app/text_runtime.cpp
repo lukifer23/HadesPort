@@ -64,6 +64,12 @@ struct TextBody {
     std::string textKey,rawText;bool raw=false,useDescription=false;
     std::string font;int32_t fontSize=0;float textSymbolScale=1,width=0,height=0,offsetX=0,offsetY=0;
     int32_t lineSpacingTop=0,lineSpacingBottom=0;
+    // GetTextArea177ec7 uses ComponentDataDef+4dc, not runtime+b48.
+    // ComponentData.Defaults0a2e71 zeroes this numeric template region.
+    float dataLineSpacingBottom=0;
+    // GUIComponent ctor1681ee/1681f5 initializes mArea(+20) to zero.
+    // Empty text returns this stored area verbatim, not an owner/glyph AABB.
+    std::array<int32_t,4> componentArea{};
     hades::TextJustification horizontal=hades::TextJustification::Center,vertical=hades::TextJustification::Center;
     float outlineThickness=0,shadowBlur=50,shadowX=0,shadowY=0;Color outlineColor{-1,-1,-1,-1},shadowColor{0,0,0,0};
     std::string variableAutoFormat;bool opacityWithOwner=false,locationZWithOwner=true,graft=false,emphasized=false,blockEmphasized=false;
@@ -92,7 +98,67 @@ double numberAt(lua_State* state,int index) {
     if(!std::isfinite(value) || std::abs(value)>std::numeric_limits<float>::max()) throw std::runtime_error("Text format numeric value outside finite float range");
     return value;
 }
-const std::set<std::string> strings={"Name","Font","Justification","VerticalJustification"};
+// Complete compiled ComponentData reflection names, GetPropertyInfo0xaa0c0.
+// Native SetProperty27fca2 returns false for unknown names; CreateTextBox270930
+// ignores that result. Keep known-but-unrebuilt fields explicit rather than
+// treating every unsupported property as an ignored Lua helper argument.
+const std::set<std::string> componentReflectionFields{
+    "Acceleration","ActionSound","AddColor","AddTextArea","AllowTooltipWhenInvisible",
+    "AllowWrapping","Alpha","AlternateDisplayNameId","AlternateGraphic","AlternateHelpTextId",
+    "AlternateHighlightFormat","AlternateTooltipFormat","AlwaysLowerCase","AlwaysUpperCase","Ambient",
+    "Angle","AreaOffsetX","AreaOffsetY","AttachTo","AutoScrollDelay",
+    "AutoScrollSpeed","BackAlpha","BackBlue","BackGraphic","BackGreen",
+    "BackRed","BlockEmphasizedFont","Blue","BlueTarget","CauseCursorOcclusion",
+    "CharacterFadeBlue","CharacterFadeColorLag","CharacterFadeGreen","CharacterFadeInterval","CharacterFadeRed",
+    "CharacterFadeTime","CharacterIntervalMultiplier","ColonFadeInterval","ColorChangeSpeed","CommaFadeInterval",
+    "ContainerGraphic","Deceleration","DescriptionId","DeselectOnMouseOff","DimAlpha",
+    "DimBlue","DimGreen","DimRed","DisabledAnimation","DisabledFadeOutAnimation",
+    "DisabledPressSound","DisabledTextAlpha","DisabledTextBlue","DisabledTextGreen","DisabledTextRed",
+    "DisabledTopAnimation","DisplayNameId","DrawInFrontIndex","DynamicLineScaleWidth","ExclamationFadeInterval",
+    "FadeDelay","FadeDelayMax","FadeDelayMin","FadeInSound","FadeOpacity",
+    "FadeOutAnimation","FadeOutDelay","FadeOutSound","FadeSpeed","FadeTarget",
+    "FillGraphic","FirstLetterFormat","FlashBlue","FlashGreen","FlashMax",
+    "FlashMin","FlashRed","FlashSpeed","FlashText","FlipHorizontal",
+    "FlipOffsetXAxis","FlipVertical","Font","FontSize","ForceDeselectOnClick",
+    "ForceSelectOnClick","FreeFormSearchFromOffsetX","FreeFormSearchFromOffsetY","FreeFormSearchSuccessDistanceStep","FreeFormSelectable",
+    "FrontGraphic","GamepadSelectionStyle","Graft","Graphic","Green",
+    "GreenTarget","Height","HelpTextId","HighlightFormat","HighlightOffsetX",
+    "HighlightOffsetY","HoverEndBlue","HoverEndGreen","HoverEndRed","HoverInDuration",
+    "HoverOutDuration","HoverRadius","HoverShimmerBlue","HoverShimmerFrequency","HoverShimmerGreen",
+    "HoverShimmerInfluence","HoverShimmerRed","Justification","LangCnScaleModifier","LangDeScaleModifier",
+    "LangEsScaleModifier","LangFrScaleModifier","LangItScaleModifier","LangJaScaleModifier","LangKoScaleModifier",
+    "LangPlScaleModifier","LangPtBrScaleModifier","LangRuScaleModifier","LeftMargin","LineDrawOffsetY",
+    "LineSpacingBottom","LineSpacingLeft","LineSpacingRight","LineSpacingTop","MarqueeSpeed",
+    "MaxCursorRadius","MaxX","MaxY","MinX","MinY",
+    "MouseAlternateHelpTextId","MouseGraphicHover","MouseHelpTextId","MouseOverSound","MouseWheelScroll",
+    "MouseWheelScrollSpeed","MoveEaseIn","MoveEaseOut","MoveSpeed","Name",
+    "NonEnglishFont","NonEnglishScaleModifier","NumVisibleItems","OffsetX","OffsetY",
+    "OpacityWithOwner","OutlineThickness","PaneCursorScroll","PeriodFadeInterval","PressAnimation",
+    "PressSound","PressTopAnimation","PrintingSound","PulseMax","PulseMin",
+    "PulseSpeed","QuestionFadeInterval","Red","RedTarget","RemoveFormattingOnDisable",
+    "RepeatPeriodFadeInterval","RevealFxDuration","RevealFxEndBlue","RevealFxEndGreen","RevealFxEndRed",
+    "RevealFxLineIndexScalar","RevealFxMidBlue","RevealFxMidGreen","RevealFxMidRed","RevealFxPerCharScalar",
+    "RevealFxStartBlue","RevealFxStartGreen","RevealFxStartRed","Scale","ScaleSpeed",
+    "ScaleTarget","ScaleWithOwner","ScaleWithZoom","ScaleX","ScaleY",
+    "ScrollSpeed","ScrollWithSelection","SelectOnClick","SelectOnMouseOver","SelectedAlpha",
+    "SelectedAnimationIsOverlay","SelectedAnimationOnlyIfAnimFinished","SelectedBlue","SelectedGraphic","SelectedGreen",
+    "SelectedOffAnimation","SelectedOffTopAnimation","SelectedOnAnimation","SelectedOnTopAnimation","SelectedRed",
+    "SelectedScale","SelectedTextAlpha","SelectedTextBlue","SelectedTextGreen","SelectedTextRed",
+    "SelectedTextScale","SelectionFormat","SelectionSound","ShadowAlpha","ShadowBlue",
+    "ShadowBlur","ShadowGreen","ShadowOffsetX","ShadowOffsetY","ShadowRed",
+    "ShakeDistance","ShakeDuration","ShakeFalloffSpeed","ShakeSpeed","Spacing",
+    "SpacingX","SpacingY","StopSoundOnMouseOffDuration","SwallowClicks","TextAlpha",
+    "TextBlue","TextFadeTarget","TextGreen","TextJustification","TextOffsetX",
+    "TextOffsetY","TextOutlineBlue","TextOutlineGreen","TextOutlineRed","TextRed",
+    "TextScale","TextSymbolScale","ToggleOffSound","ToggleOnSound","TooltipAreaExtraHeight",
+    "TooltipAreaOffsetY","TooltipId","TooltipOffsetX","TooltipOffsetY","TopAnimation",
+    "TopFadeOutAnimation","TopMargin","UnderCursorOffAnimation","UnderCursorOnAnimation","UnselectedSound",
+    "UseArea","UseEmphasizedFont","UseHover","UseInteractCursor","UseLineFading",
+    "UseScissoring","UseTextArea","UseTooltipFlavor","UseTooltipHeader","UseableWhenFadedOut",
+    "VariableAutoFormat","VerticalJustification","Width","WidthChangeSpeed","X",
+    "Y"
+};
+const std::set<std::string> strings={"Name","Font","Justification","VerticalJustification","VariableAutoFormat"};
 const std::set<std::string> booleans={"Graft","UseEmphasizedFont","BlockEmphasizedFont","LocationZWithOwner"};
 // These are actual original UIData TextFormats fields, also present in native
 // ComponentDataDef reflection / CreateTextBox explicit property reads.
@@ -150,23 +216,8 @@ hades::TextJustification verticalJustification(const std::string&v){std::string 
 // SetLuaParam 0x175c80: key -> any (LuaValue), dirty.
 void setLuaParam(lua_State*L,TextBody&body,int t){const std::string key=argText(L,t,"LuaKey");if(key.empty())return;lua_getfield(L,t,"LuaValue");const int ref=luaL_ref(L,LUA_REGISTRYINDEX);if(auto i=body.luaParams.find(key);i!=body.luaParams.end()){luaL_unref(L,LUA_REGISTRYINDEX,i->second);i->second=ref;}else{if(body.luaParams.size()>=64){luaL_unref(L,LUA_REGISTRYINDEX,ref);throw std::runtime_error("Text Lua parameter bound");}body.luaParams.emplace(key,ref);}body.dirty=true;}
 void releaseBody(lua_State*L,TextBody&body){for(auto&[k,ref]:body.luaParams)luaL_unref(L,LUA_REGISTRYINDEX,ref);body.luaParams.clear();}
-// ParseLua: global then '.'-separated fields (numeric -> integer index);
-// ReflectionHelper::ConvertAnyToString: integral double "%d", else "%g".
-std::string luaMarkupValue(lua_State*L,const std::string&path){
-    if(path.empty()||path.find_first_of(":(){}[]<>,;#$%^&*+?@!\\' \t")!=std::string::npos)throw std::runtime_error("Original Lua markup form unreconstructed: "+path);
-    const int top=lua_gettop(L);size_t at=0;bool first=true;
-    while(at<=path.size()){const size_t dot=std::min(path.find('.',at),path.size());const std::string part=path.substr(at,dot-at);if(part.empty()){lua_settop(L,top);throw std::runtime_error("Original Lua markup empty field: "+path);}
-        if(first){lua_getglobal(L,part.c_str());first=false;}
-        else{if(!lua_istable(L,-1)){lua_settop(L,top);throw std::runtime_error("Original Lua text value unavailable: "+path);}char*end=nullptr;const float index=std::strtof(part.c_str(),&end);if(*end==0)lua_rawgeti(L,-1,int(index));else lua_getfield(L,-1,part.c_str());lua_remove(L,-2);}
-        at=dot+1;}
-    std::string out;
-    if(lua_type(L,-1)==LUA_TSTRING){size_t n=0;const char*b=lua_tolstring(L,-1,&n);out.assign(b,n);}
-    else if(lua_type(L,-1)==LUA_TNUMBER){const double v=lua_tonumber(L,-1);char b[64];if(std::abs(v-double(int32_t(v)))>0)std::snprintf(b,sizeof b,"%g",v);else std::snprintf(b,sizeof b,"%d",int32_t(v));out=b;}
-    else if(lua_isboolean(L,-1))out=lua_toboolean(L,-1)?"true":"false";
-    else{lua_settop(L,top);throw std::runtime_error("Original Lua text value unavailable: "+path);}
-    lua_settop(L,top);return out;}
 TextRunStyle runStyle(const TextBody&body){TextRunStyle out;out.font=body.font;out.size=float(body.fontSize);out.textSymbolScale=body.textSymbolScale;out.lineSpacingTop=body.lineSpacingTop;out.lineSpacingBottom=body.lineSpacingBottom;out.color=body.color;out.shadowColor=body.shadowColor;out.outlineColor=body.outlineColor;out.shadowX=body.shadowX;out.shadowY=body.shadowY;out.shadowBlur=body.shadowBlur;out.outlineThickness=body.outlineThickness;out.emphasized=body.emphasized;out.blockEmphasized=body.blockEmphasized;return out;}
-void appendText(std::vector<hades::TextPiece>&pieces,const std::string&text,uint32_t style){if(text.empty())return;if(pieces.empty()||pieces.back().symbol||pieces.back().style!=style)pieces.push_back({false,text,style});else pieces.back().text+=text;}
+void appendText(std::vector<hades::TextPiece>&pieces,const std::string&text,uint32_t style){if(text.empty())return;if(pieces.empty()||pieces.back().symbol||pieces.back().control!=hades::TextControl::None||pieces.back().style!=style)pieces.push_back({false,text,style});else pieces.back().text+=text;}
 // GetFormatter178980 resolves the actual Lua FormatContainerIds owner, then
 // selects the live TextComponent widget by ComponentData.Name. An unknown
 // format leaves the current line unchanged in ParseFormatting17c690.
@@ -213,29 +264,92 @@ size_t lexTokenEnd(const std::string&s,size_t at){
     if(c>='0'&&c<='9'){while(at<s.size()&&s[at]>='0'&&s[at]<='9')++at;if(at+1<s.size()&&s[at]=='.'&&s[at+1]>='0'&&s[at+1]<='9'){++at;while(at<s.size()&&s[at]>='0'&&s[at]<='9')++at;}return at;}
     while(at<s.size()){const auto b=uint8_t(s[at]);if(asciiSpace(b)||lexTokenChar(b))break;rejectUnicodeSpace(s,at);at+=b<0x80?1:b>=0xf0?4:b>=0xe0?3:2;}return at;}
 size_t skipLexSpace(const std::string&s,size_t at){while(at<s.size()&&asciiSpace(uint8_t(s[at])))++at;if(at<s.size())rejectUnicodeSpace(s,at);return at;}
-// GUIComponentTextBox::Parse 0x181a00 case 0x13 ('\\'): NextToken; at end of
-// text nothing happens. Otherwise ParseEscape 0x180180050 with that token:
-//  - '[' or ']' token: the character is appended to the current word.
-//  - token starting with '"': '"' appended, lexer resumes after the quote.
-//  - exact token "n" (wide literal 0x1805ea8e0): SkipWhitespace, current word
-//    flushed, a new Line row starts at x 0 -> newline in the paragraph.
-//  - "Pad" (0x1805ea8d0) / "Column" (0x1805ea910) + integer token: line-text
-//    padding / column-start segments. Not reconstructed in the portable
-//    layout: explicit failure.
-//  - any other token: consumed and dropped (returns the x unchanged).
-// Returns the index of the last consumed byte.
-size_t parseEscape(const std::string&s,size_t backslash,std::string&run){
+// ParseLua17cf30 consumes lexer word/number tokens as table fields. Dot and
+// bracket punctuation only delimit tokens; neither means expression evaluation.
+// Colon switches to a suffix: each token sets P/p decoration from its first
+// codepoint. Other suffixes use the ordinary ConvertAnyToString conversion.
+std::string luaMarkupValue(lua_State*L,const std::string&path){
+    if(path.empty()||path.size()>4096)throw std::runtime_error("Original Lua markup path bound");
+    const int top=lua_gettop(L);struct Restore{lua_State*state;int top;~Restore(){lua_settop(state,top);}}restore{L,top};
+    size_t at=0,fields=0;bool first=true,suffix=false,percent=false;
+    while(at<path.size()){
+        const size_t end=lexTokenEnd(path,at);const auto lead=uint8_t(path[at]);
+        if(suffix){percent=lead=='P'||lead=='p';at=end;continue;}
+        if(lead==':'){suffix=true;at=end;continue;}
+        const bool number=lead>='0'&&lead<='9';
+        const bool word=!lexTokenChar(lead)&&!asciiSpace(lead)&&!number;
+        if(first||word||number){
+            if(++fields>64)throw std::runtime_error("Original Lua markup field bound");
+            const std::string part=path.substr(at,end-at);
+            if(first){lua_rawgeti(L,LUA_REGISTRYINDEX,LUA_RIDX_GLOBALS);first=false;}
+            if(!lua_istable(L,-1))throw std::runtime_error("Original Lua text value unavailable: "+path);
+            const int table=lua_absindex(L,-1);
+            char*numberEnd=nullptr;const float index=std::strtof(part.c_str(),&numberEnd);
+            if(fields==1||numberEnd==part.c_str()||*numberEnd)lua_pushlstring(L,part.data(),part.size());
+            else{
+                // Native ParseLua17d8d6 strtof + cvttss2si also handles decimal
+                // numeric tokens as truncated integer indices.
+                if(!std::isfinite(index)||double(std::trunc(index))<INT32_MIN||double(std::trunc(index))>INT32_MAX)throw std::runtime_error("Native Lua text index outside signed32 conversion");
+                lua_pushinteger(L,int32_t(index));
+            }
+            lua_rawget(L,table);
+            // The supported source tables have direct fields. Do not execute
+            // an __index callback or silently claim its value was resolved.
+            if(lua_isnil(L,-1)&&lua_getmetatable(L,table))throw std::runtime_error("Original Lua text metatable lookup unreconstructed: "+path);
+            lua_remove(L,table);
+        }
+        at=end;
+    }
+    if(first)throw std::runtime_error("Original Lua markup empty field: "+path);
+    std::string out;int32_t signValue=0;
+    if(lua_type(L,-1)==LUA_TSTRING){size_t n=0;const char*b=lua_tolstring(L,-1,&n);if(n>65536||std::memchr(b,0,n))throw std::runtime_error("Original Lua text string bound");out.assign(b,n);}
+    else if(lua_type(L,-1)==LUA_TNUMBER){
+        const double value=lua_tonumber(L,-1),integer=std::trunc(value);
+        if(!std::isfinite(value)||integer<INT32_MIN||integer>INT32_MAX)throw std::runtime_error("Native Lua text number outside signed32 conversion");
+        signValue=int32_t(integer);char buffer[64];
+        if(value!=integer)std::snprintf(buffer,sizeof buffer,"%g",value);
+        else std::snprintf(buffer,sizeof buffer,"%d",int(signValue));out=buffer;
+    }
+    else if(lua_isboolean(L,-1))out=lua_toboolean(L,-1)?"true":"false";
+    else throw std::runtime_error("Original Lua text value unavailable: "+path);
+    // ParseMarkup17f39c..17f3de prefixes a sign selected by the truncated
+    // ConvertAnyToInt result, then appends '%'; it neither takes abs nor scales
+    // by 100. Preserve the native negative/sub-unit decoration quirks.
+    if(percent)out=std::string(1,signValue<0?'-':'+')+out+'%';
+    return out;
+}
+// ParseEscapeSequence180050: numeric token0x19 -> strtof. Column flushes
+// the current segment and starts a non-newline ROOT formatter segment. Pad
+// pads the current UTF8 line string to trunc(parameter) bytes with spaces.
+// Both consume surrounding lexer whitespace. Unknown escapes retain native
+// consume/drop semantics; no layout placeholder is emitted.
+size_t parseEscape(const std::string&s,size_t backslash,std::string&run,std::vector<hades::TextPiece>&pieces,uint32_t&current){
     const size_t at=backslash+1;if(at>=s.size())return backslash;
     if(s[at]=='['||s[at]==']'||s[at]=='"'){run.push_back(s[at]);return at;}
     const size_t end=lexTokenEnd(s,at);const std::string token=s.substr(at,end-at);
-    if(token=="n"){run.push_back('\n');return skipLexSpace(s,end)-1;}
-    if(token=="Pad"||token=="Column")throw std::runtime_error("Original text \\"+token+" line segment layout unreconstructed");
+    if(token=="n"){
+        appendText(pieces,run,current);run.clear();current=0;
+        pieces.push_back({false,"",current,hades::TextControl::NewLine});return skipLexSpace(s,end)-1;
+    }
+    if(token=="Pad"||token=="Column"){
+        const size_t number=skipLexSpace(s,end);if(number>=s.size())return s.size()-1;
+        const size_t numberEnd=lexTokenEnd(s,number),resume=skipLexSpace(s,numberEnd);
+        // TextTokenizer accepts its number token, not a signed/word token.
+        if(s[number]<'0'||s[number]>'9')return resume-1;
+        const float value=std::strtof(s.substr(number,numberEnd-number).c_str(),nullptr);
+        if(!std::isfinite(value)||value>100000)throw std::runtime_error("Native text column/padding numeric bound");
+        appendText(pieces,run,current);run.clear();
+        if(token=="Column"){current=0;pieces.push_back({false,"",current,hades::TextControl::Column,value});}
+        else{const float bytes=std::trunc(value);if(bytes>16384)throw std::runtime_error("Native text padding exceeds paragraph byte bound");pieces.push_back({false,"",current,hades::TextControl::Pad,bytes});}
+        return resume-1;
+    }
     return end-1;
 }
 // ParseMarkup17f1c0 / ParseFormatting17c690 preserve style changes through
 // recursive Lua localization. Format breaks retain horizontal continuation.
 void parseMarkup(lua_State*L,const hades::TextFontBank&fonts,TextBody&body,const std::string&s,std::vector<hades::TextPiece>&pieces,int depth,uint32_t&current,std::vector<uint32_t>&stack){
     if(depth>8)throw std::runtime_error("Original text markup recursion bound");std::string run;
+    const auto format=[&](const std::string&name){const auto previous=current;selectFormat(L,body,name,current,stack);if(current!=previous)pieces.push_back({false,"",current,hades::TextControl::FormatBreak});};
     for(size_t i=0;i<s.size();++i){const char c=s[i];
         if(c=='{'){const size_t end=s.find('}',i+1);if(end==std::string::npos)throw std::runtime_error("Unterminated original text markup");std::string inner=s.substr(i+1,end-i-1);
             const size_t lead=inner.find_first_not_of(" \t");inner=lead==std::string::npos?"":inner.substr(lead);
@@ -247,12 +361,12 @@ void parseMarkup(lua_State*L,const hades::TextFontBank&fonts,TextBody&body,const
             }
             if(inner.empty()||(inner[0]!='$'&&inner[0]!='!'&&inner[0]!='#'))throw std::runtime_error("Original text markup unreconstructed: {"+inner+"}");
             appendText(pieces,run,current);run.clear();
-            if(inner[0]=='#'){selectFormat(L,body,inner.substr(1),current,stack);i=end;continue;}
+            if(inner[0]=='#'){format(inner.substr(1));i=end;continue;}
             const std::string value=luaMarkupValue(L,inner.substr(1));
             if(inner[0]=='!'){if(value.empty())throw std::runtime_error("Original empty text symbol path");pieces.push_back({true,value,current});}
-            else{const bool autoFormat=!body.variableAutoFormat.empty();if(autoFormat)selectFormat(L,body,body.variableAutoFormat,current,stack);const std::string*display=fonts.displayName(value);parseMarkup(L,fonts,body,display?*display:value,pieces,depth+1,current,stack);if(autoFormat)selectFormat(L,body,"PreviousFormat",current,stack);}
+            else{const bool autoFormat=!body.variableAutoFormat.empty();if(autoFormat)format(body.variableAutoFormat);const std::string*display=fonts.displayName(value);parseMarkup(L,fonts,body,display?*display:value,pieces,depth+1,current,stack);if(autoFormat)format("PreviousFormat");}
             i=end;continue;}
-        if(c=='\\'){i=parseEscape(s,i,run);continue;}
+        if(c=='\\'){i=parseEscape(s,i,run,pieces,current);continue;}
         // Parse case 0xc '@' (ParseImage 0x180180710) and case 3 '[' remain
         // unreconstructed at paragraph level.
         if(c=='@'||c=='[')throw std::runtime_error(std::string("Original text token unreconstructed: ")+c);
@@ -280,12 +394,14 @@ const std::set<std::string> explicitCreateKeys={"Id","AutoSetDataProperties","Te
 void applyReflected(TextBody&body,const std::map<std::string,TextFormatProperty>&p){
     auto num=[&](const char*k,float&out){if(auto i=p.find(k);i!=p.end())out=float(i->second.number);};
     if(auto i=p.find("Font");i!=p.end())body.font=i->second.string;
+    if(auto i=p.find("VariableAutoFormat");i!=p.end())body.variableAutoFormat=i->second.string;
     if(auto i=p.find("FontSize");i!=p.end())body.fontSize=int32_t(std::trunc(i->second.number));
     if(auto i=p.find("LocationZWithOwner");i!=p.end())body.locationZWithOwner=i->second.boolean;
     if(auto i=p.find("Graft");i!=p.end())body.graft=i->second.boolean;
     if(auto i=p.find("UseEmphasizedFont");i!=p.end())body.emphasized=i->second.boolean;
     if(auto i=p.find("BlockEmphasizedFont");i!=p.end())body.blockEmphasized=i->second.boolean;
     num("TextSymbolScale",body.textSymbolScale);num("Width",body.width);num("Height",body.height);num("OffsetX",body.offsetX);num("OffsetY",body.offsetY);num("OutlineThickness",body.outlineThickness);num("ShadowBlur",body.shadowBlur);
+    num("LineSpacingBottom",body.dataLineSpacingBottom);
     if(auto i=p.find("Justification");i!=p.end())body.horizontal=horizontalJustification(i->second.string);
     if(auto i=p.find("VerticalJustification");i!=p.end())body.vertical=verticalJustification(i->second.string);
     if(auto i=p.find("ShadowColor");i!=p.end())body.shadowColor=hades::textSourceColor(i->second.array);
@@ -319,7 +435,11 @@ int create(lua_State* state) {
     body.autoSet=argBool(state,1,"AutoSetDataProperties",false);
     if(body.autoSet){
         lua_pushnil(state);
-        while(lua_next(state,1)){const std::string key=stringAt(state,-2);if(!explicitCreateKeys.contains(key))format.properties.emplace(key,propertyAt(state,key,-1));lua_pop(state,1);}
+        while(lua_next(state,1)){
+            const std::string key=stringAt(state,-2);
+            if(!explicitCreateKeys.contains(key)&&componentReflectionFields.contains(key))format.properties.emplace(key,propertyAt(state,key,-1));
+            lua_pop(state,1);
+        }
         applyReflected(body,format.properties);
         if(auto i=format.properties.find("Name");i!=format.properties.end())format.name=i->second.string;
     } else {
@@ -380,6 +500,7 @@ int modify(lua_State*state){
     const bool hasAutoFormat=hasArg(state,1,"VariableAutoFormat");const std::string autoFormat=argText(state,1,"VariableAutoFormat");const bool markDirty=argBool(state,1,"MarkDirty",false);
     for(auto&format:registry->formats){auto&body=registry->bodies.at(format.sequence);
         if(std::find(owners.begin(),owners.end(),format.ownerId)==owners.end()||body.destroyed)continue;const int32_t owner=format.ownerId;
+        const auto* currentOwner=findObjectSnapshot(state,owner);if(!currentOwner||currentOwner->entityHandle!=body.ownerLifetime)continue;
         if(!affect.empty()&&format.name!=affect&&body.textKey!=affect)continue;
         if(!exclude.empty()&&(format.name==exclude||body.textKey==exclude))continue;
         if(!text.empty()){if(!registry->fonts)throw std::runtime_error("ModifyTextBox text requires original font layout resources");const std::string next=resolveTextKey(*registry->fonts,text,useDescription);
@@ -500,6 +621,24 @@ std::vector<hades::TextVisual> snapshotTextVisuals(lua_State*state){std::vector<
             run.shadowColor[3]*=run.color[3];run.outlineColor[3]*=run.color[3];out.push_back(std::move(run));}}
 
     return out;}
+namespace {
+std::array<float,2> measureAttachedText(lua_State*state,TextState&registry,TextBody&body,int32_t ownerId){
+    if(body.dirty&&registry.fonts)reparse(state,*registry.fonts,body,ownerId);
+    if(body.resolved.empty())return {0,0};
+    if(!registry.fonts)throw std::runtime_error("Attached text dimensions require source fonts");
+    hades::TextLayoutRequest request;request.font=body.font;request.size=float(body.fontSize);request.width=body.width;request.scale=body.scale*body.scaleModifier;request.horizontal=body.horizontal;request.vertical=body.vertical;request.pieces=body.pieces;request.textSymbolScale=body.textSymbolScale;applyLayoutStyles(body,request);
+    // Measurement shares the real source layout used by draw. Its paragraph
+    // wrapping remains the existing portable policy, not native metric parity.
+    if(request.scale==0)return {0,0};
+    std::array<float,2>measured{};std::vector<hades::TextSymbolQuad>symbols;
+    registry.fonts->layout(request,&symbols,&measured);return measured;
+}
+int32_t textAreaInteger(float value){
+    const double truncated=std::trunc(double(value));
+    if(!std::isfinite(value)||truncated<INT32_MIN||truncated>INT32_MAX)throw std::runtime_error("Text interaction area outside native signed32 conversion");
+    return int32_t(truncated);
+}
+}
 bool attachedTextDimensions(lua_State*state,int32_t ownerId,std::array<float,2>&out,std::string&error){
     out={-1,-1};try{
         auto*registry=lookup(state);if(!registry){error.clear();return true;}
@@ -507,18 +646,51 @@ bool attachedTextDimensions(lua_State*state,int32_t ownerId,std::array<float,2>&
         if(component==registry->components.end()||!owner||owner->entityHandle!=component->second){error.clear();return true;}
         out={0,0};
         for(const auto&format:registry->formats){if(format.ownerId!=ownerId)continue;auto&body=registry->bodies.at(format.sequence);
-            if(body.destroyed||body.ownerLifetime!=owner->entityHandle||body.resolved.empty())continue;
-            if(!registry->fonts)throw std::runtime_error("Attached text dimensions require source fonts");
-            if(body.dirty)reparse(state,*registry->fonts,body,ownerId);
-            hades::TextLayoutRequest request;request.font=body.font;request.size=float(body.fontSize);request.width=body.width;request.scale=body.scale*body.scaleModifier;request.horizontal=body.horizontal;request.vertical=body.vertical;request.pieces=body.pieces;request.textSymbolScale=body.textSymbolScale;applyLayoutStyles(body,request);
-            // TextWidth/Height are measured regardless of fade, hide or owner alpha.
-            if(request.scale==0)continue;
-            std::array<float,2>measured{};std::vector<hades::TextSymbolQuad>symbols;
-            registry->fonts->layout(request,&symbols,&measured);
+            if(body.destroyed||body.ownerLifetime!=owner->entityHandle)continue;
+            const auto measured=measureAttachedText(state,*registry,body,ownerId);
             out[0]=std::max(out[0],measured[0]);out[1]=std::max(out[1],measured[1]);
         }
         error.clear();return true;
     }catch(const std::exception&e){error=e.what();return false;}
 }
+bool attachedTextAreas(lua_State*state,int32_t ownerId,std::vector<std::array<int32_t,4>>&out,std::string&error){
+#ifdef __clang__
+#pragma clang fp contract(off)
+#endif
+    out.clear();try{
+        auto*registry=lookup(state);if(!registry){error.clear();return true;}
+        const auto component=registry->components.find(ownerId);const auto*owner=findObjectSnapshot(state,ownerId);
+        if(component==registry->components.end()||!owner||!owner->entityHandle||owner->entityHandle!=component->second){error.clear();return true;}
+        std::vector<std::array<int32_t,4>> areas;
+        for(const auto&format:registry->formats){if(format.ownerId!=ownerId)continue;auto&body=registry->bodies.at(format.sequence);
+            if(body.destroyed||body.ownerLifetime!=owner->entityHandle)continue;
+            const auto measured=measureAttachedText(state,*registry,body,ownerId);
+            if(body.resolved.empty()){areas.push_back(body.componentArea);continue;}
+            if(std::none_of(body.pieces.begin(),body.pieces.end(),[](const auto&piece){return piece.symbol||!piece.text.empty();}))throw std::runtime_error("Native interaction text-area line presence for control-only text not reconstructed");
+            // GetTextArea177df2..177e26: convert actual dimensions separately,
+            // then adjust float origin using those integer dimensions. Source
+            // CreateTextBox writes OffsetX/Y to component+110/+114; default
+            // text offsets+188/+18c are zero. GUIComponent.GetLocation169a70
+            // does not subtract owner Z or filter opacity/Hide.
+            const int32_t width=textAreaInteger(measured[0]),height=textAreaInteger(measured[1]);
+            float x=owner->x+body.offsetX,y=owner->y+body.offsetY;
+            if(body.horizontal==hades::TextJustification::Center)x-=float(width)*.5f;
+            else if(body.horizontal==hades::TextJustification::End)x-=float(width);
+            const int32_t left=textAreaInteger(x);int32_t top=textAreaInteger(y);
+            // Native Bottom1 and Center2 both subtract HALF the integer height
+            // (177e7f..177e99); GetTextArea differs from paragraph draw origin.
+            if(body.vertical!=hades::TextJustification::Start)top=textAreaInteger(y-float(height)*.5f);
+            else{
+                const int32_t correction=textAreaInteger(-.5f*body.dataLineSpacingBottom);
+                const int64_t adjusted=int64_t(top)+correction;
+                if(adjusted<INT32_MIN||adjusted>INT32_MAX)throw std::runtime_error("Text interaction top offset outside signed32 range");
+                top=int32_t(adjusted);
+            }
+            areas.push_back({left,top,width,height});
+        }
+        out=std::move(areas);error.clear();return true;
+    }catch(const std::exception&e){error=e.what();return false;}
+}
+
 void disposeTextOwner(lua_State*state,int32_t ownerId){auto*registry=lookup(state);if(!registry)return;registry->components.erase(ownerId);std::erase_if(registry->formats,[&](const auto&format){if(format.ownerId!=ownerId)return false;releaseBody(state,registry->bodies.at(format.sequence));registry->bodies.erase(format.sequence);return true;});}
 bool textSuppressLyrics(lua_State*state){const auto*registry=lookup(state);return registry&&registry->suppressLyrics;}

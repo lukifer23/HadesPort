@@ -415,6 +415,13 @@ bool ScreenAnimationWorld::layerVisual(const ScreenThing&s,const ScreenLayer&l,A
  // ShouldAddColor 0x296760 -> Drawable shader 13 (AddColor.frag).
  out.addColor=flag(d,"AddColor");return true;
 }
+// Thing.IsPhysicallyVisible2e62d0 reads retained Body/primary components even
+// after markDead, until actual disposal. Presentation sampling has stricter gates.
+bool ScreenAnimationWorld::physicallyVisible(int32_t id,uint64_t lifetime,bool& result,std::string& error)const{try{
+ result=false;error.clear();const auto*s=thing(id);if(!s||!s->body||s->body->entityHandle!=lifetime||!lifetime||s->baseColor[3]<=0||s->body->scale<=0||!s->primary||s->layers.empty())return true;
+ if(!registry_->find(s->primary)){error="Retained physical-visibility primary lifetime unavailable";return false;}
+ ActorVisual visual;if(!layerVisual(*s,s->layers.front(),visual,error))return false;result=visual.scale>0&&visual.color[3]>0;error.clear();return true;
+ }catch(const std::exception& e){error=e.what();return false;}}
 bool ScreenAnimationWorld::visual(int32_t id,ActorVisual&out,std::string&e){try{auto*s=thing(id);if(!s||s->dead||!s->body->alive||!s->primary||s->layers.empty()||!registry_->find(s->primary)){e="Actual screen visual lifetime unavailable";return false;}return layerVisual(*s,s->layers.front(),out,e);}catch(const std::exception&x){e=x.what();return false;}}
 bool ScreenAnimationWorld::visual(int32_t id,uint64_t handle,ActorVisual&out,std::string&e){try{auto*s=thing(id);if(!s||s->dead||!s->body->alive||!s->primary){e="Actual screen visual lifetime unavailable";return false;}for(const auto&l:s->layers)if(l.handle==handle){if(!registry_->find(handle)){e="Actual screen layer lifetime unavailable";return false;}return layerVisual(*s,l,out,e);}e="Actual screen layer lifetime unavailable";return false;}catch(const std::exception&x){e=x.what();return false;}}
 }

@@ -1,0 +1,155 @@
+{
+  "schema": "hades-native-set-effect-property-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_identity": {
+    "guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+    "age": 1
+  },
+  "evidence_kind": "Matching shipped DLL/PDB static reconstruction; no original binary execution, device verification or effect-factory parity claimed.",
+  "native": {
+    "action": {
+      "rva": "0x2725a0",
+      "pdb_length": 957,
+      "selection": "ScriptArgs DestinationIDs/DestinationNames -> World.GetActiveMapThings -> native Unit cast mask0x221 -> owned WeaponName. Missing Units/weapons skip. Selector membership is not a separate Life/alive test.",
+      "arguments": {
+        "WeaponName": "String default empty",
+        "EffectName": "String default empty",
+        "Property": "String default empty",
+        "Value": "LuaTableExtensions.GetValue boxes Lua numbers as float32",
+        "ValueChangeType": "case-insensitive enum: Absolute0(default and unknown), Multiply1, MultiplyBase2, Add3, ReplaceIfNull4"
+      },
+      "null": "Exact lowercase string null becomes empty any before Weapon dispatch. No return values."
+    },
+    "weapon": {
+      "rva": "0x84890",
+      "length": 1598,
+      "matching": "Exact full case-sensitive EffectData.Name equality, all matching records, no insertion and no early break.",
+      "ordered_passes": [
+        "WeaponData copied effects vector +0x998..+0x9a0, independent of projectile validity.",
+        "If Weapon+0x120 valid, copied primary ProjectileData effects vector +0x720..+0x728.",
+        "If primary SpawnOnDetonate(+0x550) is nonempty and Weapon+0x121 valid, mutate copied spawned ProjectileData effects.",
+        "Independently, if primary SpawnOnImpact(+0x568) is nonempty and spawned valid, mutate that SAME spawned effects vector again."
+      ],
+      "spawned": "SpawnOnDeath does not select a pass. Relative changes can apply twice when both earlier strings are nonempty. Do not deduplicate or select distinct child objects.",
+      "callbacks": "No creation, application, reapplication, clearing, Lua callback, or audio playback in this native method.",
+      "return_handling": "Each reflection setter bool is ignored. Unknown properties and supported native type/change rejections leave fields unchanged and traversal continues.",
+      "identity_updates": "After each matching record call, requested RefreshOnExpireWithEffect/Alt recomputes native XXH3 from the resulting string into +0x58/+0x60 even if the field write was rejected. Name changes do not recompute cached +0x50 name ID."
+    },
+    "reflection": {
+      "info_rva": "0xb29d0",
+      "setter_rva": "0x8c6c0",
+      "field_count": 105,
+      "runtime_inventory": "native/app/weapon_effect_property.cpp::effectProperties",
+      "coverage": {
+        "bool": 33,
+        "float32": 38,
+        "int32": 6,
+        "string": 23,
+        "enum": 3,
+        "sound_cue": 2
+      },
+      "unknown": "GetPropertyInfo UNKNOWN0 causes SetProperty false before any mutation; Weapon ignores it. Native keys are case-sensitive. The complete inventory distinguishes real unknown keys from missing DTO coverage.",
+      "source_read_difference": "The source reader key ChangeType normalizes into DTO ChangeType, but runtime reflection key is m_changeType. FlashColor is source-read DTO data without a runtime reflection property. Neither source key is invented as writable.",
+      "postread_difference": "DurationFrames runtime mutation does not perform source Read/PostRead Duration=frames/60 normalization.",
+      "primitives": "Shared primitive_properties implements native float32 arithmetic, int absolute truncation, int Multiply roundf ties away from zero, wrapping int Add, bool/string conversions, and numeric ReplaceIfNull rejection. Wrong-type relative numeric inputs use native ConvertAnyToFloat/Int zero. Wrong-type Absolute input gives native rejection rather than replacement.",
+      "enums": {
+        "Type": "Case-insensitive SPEED0,GRIP1,DAMAGE_OUTPUT2,DAMAGE_TAKEN3,DAMAGE_OVER_TIME4,DAMAGE_OVER_DISTANCE5,DELAYED_KNOCKBACK6,CHARM7,WEAPON_FIRE8,PROJECTILE_DEFENSE9,TAG10,INVULNERABLE11,UNKNOWN12. Unknown spelling defaults0.",
+        "Trigger": "Case-insensitive Fire1,FireEnd2,Charging3; unknown spelling0.",
+        "m_changeType": "Case-insensitive MULTIPLY1; all other text gives ADD0. Stored normalized DTO ChangeType changes.",
+        "conversion": "All enum properties first ConvertAnyToString and ignore relative mode. Empty any ->empty, bool->true/false, Lua float32 integral->%d otherwise %g. Type/trigger DTO integer sidecars update with fields."
+      },
+      "MultiplyBase": "EffectData vtable+0x28 returns category0. Setter mode2 selects no base and invokes GetMultipliedBaseDataValue(null,...), which dereferences null. Portable implementation explicitly rejects this execution domain before any commit; it does not copy source effect values or apply Add0."
+    },
+    "sound_cues": {
+      "setter": "Native reflected Sound/ClearSound type8. Empty any (including literal null after action normalization) copies INVALID_CUE: null owner, name /EmptyCue, valid false. Empty string copies default SoundCue: null owner, empty name, valid false. Nonempty text calls actual GetSoundCue.",
+      "lookup": "Native545c0 normalizes leading slash unless / or { already leads, retains normalized requested name even when invalid, and returns null owner plus actual validity. The production adapter calls AudioWorld.resolveCue(...,applySwaps=false), without channel allocation, swaps, RNG or playback. Unavailable namespace/GUID provider errors remain explicit.",
+      "source": "INVALID_CUE initializer1d50 copies name initialized at1cf0 (/EmptyCue), valid false. Sound/ClearSound updates live cues sidecars; no synthetic fields scalar replaces a descriptor."
+    }
+  },
+  "portable": {
+    "api": "WeaponArsenal::setScriptEffectProperty(weapon,effect,property,optional<WeaponScalar>,WeaponValueChange,error,optional WeaponEffectCueResolver)",
+    "action": "Separate lua_effect_property.cpp member action and global registration. Uses actual Destination selectors, Actor backend, nonzero entity lifetime, matching actor.object and actor.entityHandle, native Unit class, real arsenal. Missing owned weapon skips; missing actual Unit class/arsenal explicitly errors.",
+    "transaction": "All selected copies stage before commit. Build replacement immutable projectile snapshots before changing mutable storage. Commit only touched effect records in place, preserving vector allocation/order/indices and unaffected records. Already-issued immutable projectile snapshots remain unchanged. This rollback behavior is a portable error-handling adaptation; no native byte-storage identity emulation is claimed.",
+    "consumers": "Self-effect admission/runtime, collisions and Lua callbacks read live fields, cues, enum sidecars and native IDs. Active effect dataHandle/sourceIndex bindings reacquire those same indexed records. sourceJson/effectiveFieldsJson/effectsJson remain immutable source provenance and are only parsed during catalog loading.",
+    "bounds": [
+      "Names/text <=65536 bytes without embedded NUL; Lua value domain bool, finite number, string, nil. Complex tables/functions require their own explicit typed handler.",
+      "Float32-convertible input and finite float DTO/arithmetic results; signed32 source DTO validation and shared native integer conversion/wrap semantics.",
+      "Known reflected keys require existing correctly typed projected storage; missing or mismatched DTO fields are fatal, never unknown-key no-ops.",
+      "Refresh hashes use existing exact bounded nativeEffectNameHash (at most128 UTF8 bytes). Other header-ID knowledge flags remain unchanged.",
+      "MultiplyBase rejects the native null-dereference domain.",
+      "Changing Type updates data only. Existing concrete effect factory/type restrictions remain explicit at their consumers; this setter does not rebuild active effects."
+    ],
+    "build_sources": [
+      "native/app/weapon_effect_property.cpp",
+      "native/app/lua_effect_property.cpp"
+    ],
+    "validation": "Implementation was reviewed and git diff --check passed. Builds, source-ASAN execution, real boon replay and device behavior are owned by the root milestone; no passing test result is claimed here."
+  },
+  "proofs": [
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/native-weapon-set-effect-property.json",
+      "bytes": 36103,
+      "sha256": "9cb79d20bf480942f1887294f73f048a6a21c9cbb3371e2e053475857f76b5e3"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/native-effect-property-setter.json",
+      "bytes": 57106,
+      "sha256": "0d7fcdaa2f733e6c5ee498f4e6b33ef511e6b750fc3686207c14875aba3fe017"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/native-effect-property-info.json",
+      "bytes": 146910,
+      "sha256": "e536fec46a6343c753aec8bb8f75434cbd3c57e99e4cab1978f5e3f2de102ee1"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/native-effect-trigger-enum.json",
+      "bytes": 6623,
+      "sha256": "978e191988f4179d0552783b28a5e2263812e9e8934e937e633e27ac17087675"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/native-effect-type-enum.json",
+      "bytes": 18764,
+      "sha256": "7c3ad78e9e3130ec69d92a3b5b39ea015a64414261cf25ed3e1a3db95ff0ce42"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/native-effect-property-category.json",
+      "bytes": 486,
+      "sha256": "177194ddda16f89fe5e75e820e356df1dcfcd6999180ec01147c2cb2771ec4bf"
+    },
+    {
+      "path": ".local/reports/boon-interaction-2026-11-06/effect-property-draft/reflection-inventory.json",
+      "bytes": 11775,
+      "sha256": "b33477dc578249a1b8b59208656beba86cea5ea7c6e9422c90c3d7ede34387e7"
+    },
+    {
+      "path": ".local/reports/native-player-action-set-effect-property.json",
+      "bytes": 28781,
+      "sha256": "b920f5b18fd784c7ce2a0fb93389483b3d54bf44a97ee056fdabc9d4579e8588"
+    },
+    {
+      "path": ".local/reports/native-property-multiply-base.json",
+      "bytes": 21298,
+      "sha256": "8c35ab658488598beb4f46831b79bb1681d519a349f887d8cc8a0bd06cfa1025"
+    },
+    {
+      "path": ".local/reports/native-rea-property-multiply-base.json",
+      "bytes": 3781500,
+      "sha256": "1493ba05fd85558ce31c026f61a74b189b527548d804a8b1b7876eb496839719"
+    },
+    {
+      "path": ".local/reports/native-rea-soundcue-get.json",
+      "bytes": 4905432,
+      "sha256": "b8d19756d5ba0e3436f2812171915c68c239ace1e6d09e3dc2b646720c1f1599"
+    },
+    {
+      "path": ".local/reports/native-rea-soundcue-invalid-init.json",
+      "bytes": 411965,
+      "sha256": "b420d2a2915c6c7f67d74fec82907c36fd49d01949ac64928499a782273fba2c"
+    },
+    {
+      "path": ".local/reports/native-rea-soundcue-empty-name-init.json",
+      "bytes": 214755,
+      "sha256": "61f410e9ac49f3eeb53982fb60289b90d018df5bc645ef64d0b7f39310affec4"
+    }
+  ]
+}

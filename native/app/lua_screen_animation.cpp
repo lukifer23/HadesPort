@@ -26,7 +26,7 @@ bool ScriptRuntime::loadScreenAnimationDefinitions(){try{
  graph.create=[this](int32_t id,const std::string&name,std::array<float,3>location,uint64_t&h,std::string&e){return actionEffects_.create(name,id,location,actionEffectProviders(),h,e);};
  graph.releaseChild=[this](uint64_t h,std::string&e){if(actionEffects_.state(h))return actionEffects_.destroy(h,e);if(!effects_.registry()->find(h))return true;e="Actual delegated screen child consumer unavailable";return false;};
  screenAnimations_.setGraphProvider(std::move(graph));
- screenAnimations_.setPreDisposeOwnerProvider([this](int32_t id,std::string&e){hades::EffectOwnerState owner;if(!effectOwner(id,owner,e))return false;return actionEffects_.preDisposeOwner(id,owner,e);});
+ screenAnimations_.setPreDisposeOwnerProvider([this](int32_t id,std::string&e){if(!removeInteraction(id,e))return false;hades::EffectOwnerState owner;if(!effectOwner(id,owner,e))return false;return actionEffects_.preDisposeOwner(id,owner,e);});
  // Animation.Attach CancelAllAttached needs actual attachment owners across
  // managers. Screen layers are handled locally; foreign domains must be
  // recognized before cancellation rather than silently dropping their work.
@@ -64,6 +64,8 @@ bool ScriptRuntime::spawnScreenObstacleImpl(lua_State*L,int32_t&created,std::str
  std::array<float,4>color{};size_t channel=0;for(const auto*k:{"Thing.Color.Red","Thing.Color.Green","Thing.Color.Blue","Thing.Color.Alpha"})color[channel++]=float(uint8_t(std::clamp(int(scalar(k)*255),0,255)))/255;
  bool groupFound=false;for(const auto&g:snapshotSceneGroups(L))if(g.name==b.group)groupFound=true;if(!groupFound){lua_getglobal(L,"CreateGroup");lua_newtable(L);lua_pushlstring(L,b.group.data(),b.group.size());lua_setfield(L,-2,"Name");if(lua_pcall(L,1,0,0)!=LUA_OK)throw std::runtime_error(lua_tostring(L,-1));}
  if(!insertActorSnapshot(L,std::move(b),error))return false;auto*body=findObjectSnapshot(L,created);if(!body||!screenAnimations_.create(*body,color,screenAnimationSound(),error))return false;
+ screenAnimations_.thing(created)->creationTime=worldTime_;
+ if(!screenAnimations_.setGeometryDefinition(created,def->properties,error)||!initializeScreenInteraction(created,def->properties,error))return false;
  lua_getfield(L,1,"TriggerOnSpawn");const bool trigger=lua_isnil(L,-1)||lua_toboolean(L,-1);lua_pop(L,1);const auto* sourceTrigger=def->properties.path("Thing.TriggerOnSpawn");if(trigger&&sourceTrigger&&sourceTrigger->boolean()&&!dispatchCallbacks("OnSpawn",name.c_str(),created))return false;return true;
  }catch(const std::exception&e){error=e.what();return false;}}
 bool ScriptRuntime::setScreenAnimation(int32_t id,const std::string&name,std::string&e){return screenAnimations_.setAnimation(id,name,screenAnimationSound(),e);}
