@@ -1,0 +1,43 @@
+{
+  "schema": "hades-native-menu-tooltip-runtime-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "evidence": [
+    {
+      "path": ".local/reports/boon-completion-2026-11-07/ingame-tooltip-rea.json",
+      "sha256": "1446dc39d2e64e53eb597459af9191433d479ce0a776c6e01dc007a181a87064",
+      "evidence_id": "ev_2913fbbcf1957eabcef1754ec18f310ad98fadb3e714a6fcea24547932505e36"
+    },
+    {
+      "path": ".local/reports/boon-completion-2026-11-07/queue-tooltip-rea.json",
+      "sha256": "0ca22d82f31938efd62f51db34b2ab68963331d15f986ed7682a6e679c9a2b46",
+      "evidence_id": "ev_ecf6e15453f9be31904a2fc08c248e72438f8df9b3d2a6b36e8d26cc5a256e11"
+    }
+  ],
+  "related": [
+    "screen-tooltip-contract.json",
+    "clear-use-target-contract.json",
+    "text-box-contract.json",
+    "config-file-contract.json"
+  ],
+  "native_state": {
+    "screen": "InGameUI.GetType1d7bb0 returns7; MenuScreen low class mask3 qualifies",
+    "slots": "MenuScreen.Load19d709 allocates six retained backing/header/body triples, separate from World Things",
+    "eligibility": "Player IsInputAllowed20f1e0; World.mRunning+0 and mFrame+c>=2. Early failed gate hides without decrementing countdowns. Camera fully faded or active InfoPanel prevents queueing after countdown decrement. The current engine reconstructs InGameUI; native InfoPanel creation is not implemented.",
+    "producers": "ParseLua17cf30 retains final field token; ParseMarkup17f2c1 inserts unique parsed field keys. InGameUI1d9ca0 iterates ordered actual owner TextComponent boxes, skips runtime BlockTooltip+a61, resolves each key through live Keywords and falls back to its original id. Real HelpText Description must be nonempty.",
+    "queue": "QueueTooltip19f7c0 hides a different owner, stores textbox/Thing id/source anchor, refreshes actual TooltipHideDelay; first matching key OR first empty slot wins. Full slots return false. Lifetime validation is the portable ownership adaptation.",
+    "hide": "HideTooltip19e0b0 clears active keys/source target/textbox/anchor; positive show countdown resets from actual TooltipShowDelay; hide countdown unchanged. FadeOut169340 sets targets0 and retains components/current opacity.",
+    "component_clear": "GUIComponent.Clear168e30 restores opacity/target1. Textbox.Clear1740d0 clears lines, Lua params, parsed keys/source parent and runtime lineSpacingTop/Bottom+b44/b48; compiled template data remains.",
+    "show": "InGameUI1da185 writes backing target1; header Clear when opacity0; body Clear when opacity0 or source pointer changed. ShowDisplayName174550/ShowDescription1745e0 delegate to ShowText174690 nonempty target1/visible; original body source Lua parameters remain available through guarded references.",
+    "placement": "Actual owner GetLocation2e0b70 plus Interact.TooltipOffsetXY. Backing raw anchor; text raw anchor plus authored OffsetXY once. Increment Y by actual backing.SpacingY; if finalY>1080 offset all active triples by1080-finalY. Min/Max/Flip fields are retained but not consumed on this ownerless branch.",
+    "image": "GUIComponentImage.Draw16f8b0 ownerless raw XY; GetOrigin16fa10 Center uses half source atlas untrimmed extent via TextureHandleManager.GetSize207d10. Apply actual trim and source scale; original backing pixels only.",
+    "text": "Native authored fonts/styles and original glyph layout parser shared with World text; source color conversion truncates normalized channels to packed bytes. Parsed layout geometry is cached by owning component and scale; placement/fade remain live."
+  },
+  "resource_contract": "NativeMenuTooltips source templates and original AutoTooltip symbol in fresh text13; all prior font/icon payloads retained",
+  "limits": [
+    "Native global manager/ECS phase parity remains separately unresolved; integration follows existing explicit portable screen phase.",
+    "World-space tooltip projection remains explicit unsupported.",
+    "Explicit TooltipKey/TooltipData branches and additional native MenuScreen/InfoPanel creators remain unsupported rather than empty success.",
+    "Existing paragraph wrapping/filtering adaptations retain their prior limits."
+  ],
+  "verification": "Actual original-input hover, queue, native visual triples, pointer-loss delay/fade, real Select/Interact/Notify, owner disposal and original close; final sanitizer/Android acceptance recorded separately."
+}

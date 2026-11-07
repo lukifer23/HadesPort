@@ -48,11 +48,10 @@ bool ScriptRuntime::beginRequestedMap(bool restoreAssetsOnly){try{
  // World::Reset(false) 0x315f60 clears actual Things, grids, pending native
  // events and animation/light managers. LuaInterface and the original Lua
  // scheduler survive; Main.LoadMap already queued its tagged-thread kills.
- for(const auto&[index,key]:useTargets_)if(key.id>=0&&findObjectSnapshot(state_,key.id)){
-  int32_t user=-1;for(const auto&p:snapshotInputPlayers(state_))if(p.playerIndex==index)user=p.activeUnitId;
-  hades::InteractionSnapshot interaction;const bool known=interactions_.snapshot(key,interaction,error_);bool automatic=false;if(known)if(const auto*p=interaction.definition.get("AutoActivate"))automatic=p->boolean();
-  if(!dispatchThingCallbacks("OnActiveUseTargetLost",key.id,[key,user,automatic](lua_State*L,std::string&){if(user>=0){lua_pushinteger(L,user);lua_setfield(L,-2,"UserId");}pushObjectLuaTable(L,key.id);lua_setfield(L,-2,"AttachedTable");lua_pushboolean(L,automatic);lua_setfield(L,-2,"AutoActivate");return true;}))return false;
- }
+ // World reset sends Lost without the Player.ClearUseTarget primary reset.
+ // Copy keys because original callbacks can mutate player target ownership.
+ const auto previousUseTargets=useTargets_;
+ for(const auto&[index,key]:previousUseTargets)if(!notifyPlayerUseTargetLost(index,key,error_))return false;
  if(!audio_.stopAllGameSounds(error_))return false;
  // World::Reset 0x31680c..814 clears Player's active Unit/entity and use
  // target while preserving the player slot, Lua and named input blocks.

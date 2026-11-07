@@ -323,6 +323,121 @@ bool ScriptRuntime::useInteraction(hades::InteractionKey owner,hades::Interactio
     error="Interact::Use did not finish";return false;
 }
 
+bool ScriptRuntime::notifyPlayerUseTargetLost(uint32_t playerIndex,hades::InteractionKey key,std::string& error){
+    // Player.ClearUseTarget211490 and UpdateUse20f6c0 both test the cached
+    // Entity handle, not Thing.IsAlive: a marked-dead Thing still owns its
+    // entity until actual deferred disposal. Never notify a reused public ID.
+    const auto* object=findObjectSnapshot(state_,key.id);
+    if(!object||object->queryProxy||!key.lifetime||object->entityHandle!=key.lifetime){error.clear();return true;}
+    if(object->backend==ObjectBackend::Screen){
+        const auto* screen=screenAnimations_.thing(key.id);
+        if(!screen||screen->body!=object){error.clear();return true;}
+    }else{
+        const auto* actor=actorWorld_.actor(key.id);
+        if(!actor||!actor->registered||actor->isDisposed||actor->entityHandle!=key.lifetime||actor->object!=object){error.clear();return true;}
+    }
+    int32_t user=-1;
+    for(const auto& player:snapshotInputPlayers(state_))if(player.playerIndex==playerIndex){
+        const auto* active=findObjectSnapshot(state_,player.activeUnitId);
+        if(active&&player.activeUnitLifetime&&active->entityHandle==player.activeUnitLifetime)user=player.activeUnitId;
+        break;
+    }
+    // ScriptManager.OnActiveUseTargetLost28c040 only supplies AutoActivate
+    // while the actual target still has Interact; it does not invent false
+    // when that component has already been removed by original callbacks.
+    std::optional<bool> autoActivate;
+    if(interactions_.contains(key)){
+        hades::InteractionSnapshot snapshot;if(!interactions_.snapshot(key,snapshot,error))return false;
+        autoActivate=interactBool(snapshot.definition,"AutoActivate");
+    }
+    if(!dispatchThingCallbacks("OnActiveUseTargetLost",key.id,[user,key,autoActivate](lua_State* L,std::string&){
+        if(user>=0){lua_pushinteger(L,user);lua_setfield(L,-2,"UserId");}
+        pushObjectLuaTable(L,key.id);lua_setfield(L,-2,"AttachedTable");
+        if(autoActivate){lua_pushboolean(L,*autoActivate);lua_setfield(L,-2,"AutoActivate");}
+        return true;
+    })){error=error_;return false;}
+    error.clear();return true;
+}
+
+bool ScriptRuntime::cancelUseTargetPrimary(hades::InteractionKey key,const std::string& name,std::string& error){
+    // Thing.CancelAnimation2df6c0 compares the actual primary AnimationData
+    // name, then SetAnimation(immutable ThingData.Graphic,false,true,false).
+    // It never manager-cancels attached effects with a matching name.
+    const auto* object=findObjectSnapshot(state_,key.id);
+    if(!object||object->queryProxy||!key.lifetime||object->entityHandle!=key.lifetime){error.clear();return true;}
+    uint64_t primary=0;const hades::ActorComponents* actor=nullptr;const hades::ScreenThing* screen=nullptr;
+    if(object->backend==ObjectBackend::Screen){
+        screen=screenAnimations_.thing(key.id);
+        if(!screen||screen->body!=object){error.clear();return true;}
+        primary=screen->primary;
+    }else{
+        actor=actorWorld_.actor(key.id);
+        if(!actor||!actor->registered||actor->isDisposed||actor->entityHandle!=key.lifetime||actor->object!=object){error.clear();return true;}
+        primary=actor->primaryAnimationLifetime?actor->primaryAnimationLifetime:actor->primaryEffectAnimation;
+    }
+    if(!primary){error.clear();return true;}
+    const auto* lifetime=effects_.registry()->find(primary);
+    if(!lifetime||lifetime->ownership!=hades::AnimationOwnership::ThingPrimary||lifetime->ownerId!=key.id||lifetime->ownerLifetime!=key.lifetime){error="ClearUseTarget actual primary ownership unavailable";return false;}
+    if(lifetime->name!=name){error.clear();return true;}
+    std::string graphic;
+    if(screen)graphic=screen->sourceGraphic;
+    else{
+        if(!actor->definition){error="ClearUseTarget immutable ThingData unavailable";return false;}
+        const auto* sourceGraphic=actor->definition->properties.path("Thing.Graphic");
+        if(!sourceGraphic){error="ClearUseTarget immutable ThingData.Graphic not represented";return false;}
+        graphic=sourceGraphic->text();
+    }
+    // Thing.SetAnimation2ded10 tests requested length and returns at2df10c
+    // before inspecting/mutating the primary when immutable Graphic is empty.
+    if(graphic.empty()){error.clear();return true;}
+    const bool ok=object->backend==ObjectBackend::Screen?setScreenAnimation(key.id,graphic,error):setActorAnimation(key.id,graphic,error);
+    if(ok){hades::log(hades::Severity::Info,tag,"NATIVE_USE_TARGET_PRIMARY_RESTORE owner=%d from=%s to=%s",key.id,name.c_str(),graphic.c_str());error.clear();}
+    return ok;
+}
+
+bool ScriptRuntime::clearPlayerUseTarget(uint32_t playerIndex,std::string& error){
+    // Player.ClearUseTarget211490: notify Lost while the cached pointer/entity
+    // remain visible; reload the current pointer and Interact afterwards;
+    // restore only its matching primary; finally zero the player cache. The
+    // cursor target, mouse callbacks and highlight manager are independent.
+    const auto current=useTargets_.find(playerIndex);
+    if(current==useTargets_.end()){error.clear();return true;}
+    const auto old=current->second;
+    if(!notifyPlayerUseTargetLost(playerIndex,old,error))return false;
+    if(const auto retained=useTargets_.find(playerIndex);retained!=useTargets_.end()&&interactions_.contains(retained->second)){
+        const auto key=retained->second;hades::InteractionSnapshot snapshot;
+        if(!interactions_.snapshot(key,snapshot,error))return false;
+        const auto animation=interactText(snapshot.definition,"CurrentUseTargetAnimation");
+        if(!animation.empty()&&!cancelUseTargetPrimary(key,animation,error))return false;
+    }
+    useTargets_.erase(playerIndex);
+    hades::log(hades::Severity::Info,tag,"NATIVE_USE_TARGET_CLEAR player=%u target=%d frame=%llu",playerIndex,old.id,(unsigned long long)worldFrame_);
+    error.clear();return true;
+}
+
+int ScriptRuntime::clearUseTarget(lua_State* L){
+    char message[2048]{};
+    try{
+        auto* self=runtime(L);
+        if(!self||!lua_istable(L,1))throw std::runtime_error("ClearUseTarget requires original argument table");
+        // Execute59 inline251a37 reads ScriptArgs.Int(PlayerIndex,1). The
+        // native vector access is unchecked; reject an unconfigured selector
+        // instead of reproducing out-of-bounds memory access.
+        lua_getfield(L,1,"PlayerIndex");double value=1;
+        if(!lua_isnil(L,-1)){
+            if(lua_type(L,-1)!=LUA_TNUMBER)throw std::runtime_error("ClearUseTarget PlayerIndex converting form not reconstructed");
+            value=lua_tonumber(L,-1);
+        }
+        lua_pop(L,1);
+        if(!std::isfinite(value)||value<INT32_MIN||value>INT32_MAX)throw std::runtime_error("ClearUseTarget PlayerIndex outside finite signed32 domain");
+        const int32_t index=int32_t(value);const auto players=snapshotInputPlayers(L);
+        if(index<1||std::none_of(players.begin(),players.end(),[index](const auto& p){return p.playerIndex==uint32_t(index);}))throw std::runtime_error("ClearUseTarget PlayerIndex has no configured local player");
+        std::string error;if(!self->clearPlayerUseTarget(uint32_t(index),error))throw std::runtime_error(error);
+        return 0;
+    }catch(const std::exception& error){std::snprintf(message,sizeof(message),"%s",error.what());}
+    return luaL_error(L,"%s",message);
+}
+
 bool ScriptRuntime::advancePlayerUse(std::string& error){
     if(!interactionGridReady_){interactions_.configureSparseGrid();interactionGridReady_=true;}
     const auto providers=interactionProviders();
@@ -333,18 +448,9 @@ bool ScriptRuntime::advancePlayerUse(std::string& error){
     for(const auto& p:snapshotInputPlayers(state_)){
         if(p.playerIndex!=1)continue;
         auto* a=actorWorld_.actor(p.activeUnitId);
-        hades::InteractionKey& current=useTargets_[p.playerIndex];
-        const auto lose=[&](std::string& e)->bool{
-            if(current.id>=0){const auto old=current;current={};
-                hades::InteractionSnapshot s;const bool known=interactions_.snapshot(old,s,e);
-                const bool autoActivate=known&&interactBool(s.definition,"AutoActivate");
-                const int32_t user=a?a->id:-1;
-                if(findObjectSnapshot(state_,old.id)&&!dispatchThingCallbacks("OnActiveUseTargetLost",old.id,[user,old,autoActivate](lua_State* L,std::string&){
-                    if(user>=0){lua_pushinteger(L,user);lua_setfield(L,-2,"UserId");}
-                    pushObjectLuaTable(L,old.id);lua_setfield(L,-2,"AttachedTable");lua_pushboolean(L,autoActivate);lua_setfield(L,-2,"AutoActivate");return true;})){e=error_;return false;}
-            }
-            e.clear();return true;};
-        if(!a||!a->registered||a->entityHandle!=p.activeUnitLifetime||!a->object){if(!lose(error))return false;continue;}
+        const auto current=useTargets_.find(p.playerIndex);
+        const hades::InteractionKey currentKey=current==useTargets_.end()?hades::InteractionKey{}:current->second;
+        if(!a||!a->registered||a->entityHandle!=p.activeUnitLifetime||!a->object){if(!clearPlayerUseTarget(p.playerIndex,error))return false;continue;}
         const hades::InteractionKey userKey{a->id,a->entityHandle};
         hades::InteractionUserFrame user;if(!interactionUserFrame(userKey,user,error))return false;
         const bool inputAllowed=p.inputAllowed&&a->allowInput;
@@ -352,14 +458,18 @@ bool ScriptRuntime::advancePlayerUse(std::string& error){
         if(!interactions_.selectNormal(user,clock,false,providers,selected,error))return false;
         if(selected.id>=0&&interactUserPrimaryUnknown_){error="Interact user primary DisableOwnerInteract not recovered (stage hero-properties HAP4)";return false;}
         hades::InteractionSnapshot snap;
-        if(selected.id<0||!interactions_.snapshot(selected,snap,error)){if(!lose(error))return false;continue;}
+        if(selected.id<0){if(!clearPlayerUseTarget(p.playerIndex,error))return false;continue;}
+        if(!interactions_.snapshot(selected,snap,error))return false;
         const auto& def=snap.definition;
-        if(!inputAllowed&&!interactBool(def,"UseableWhileInputDisabled")){if(!lose(error))return false;continue;}
+        if(!inputAllowed&&!interactBool(def,"UseableWhileInputDisabled")){if(!clearPlayerUseTarget(p.playerIndex,error))return false;continue;}
         hades::InteractionOwnerFrame owner;if(!interactionOwnerFrame(selected,owner,error))return false;
         bool useable=false;if(!interactions_.isUseableBy(selected,owner,user,clock,false,providers,useable,error))return false;
         const bool autoActivate=interactBool(def,"AutoActivate");
-        if(!(current==selected)){
-            if(!lose(error))return false;
+        if(!(currentKey==selected)){
+            // UpdateUse20f6c0 changes targets through Lost(old), Active(new),
+            // then assignment. A switch does not run ClearUseTarget's primary
+            // restoration or clear the old cache before either callback.
+            if(!notifyPlayerUseTargetLost(p.playerIndex,currentKey,error))return false;
             const int32_t uid=a->id;const int32_t sid=selected.id;
             hades::log(hades::Severity::Info,tag,"NATIVE_USE_TARGET user=%d target=%d name=%s useable=%d",uid,sid,owner.typeName.c_str(),int(useable));
             if(!dispatchThingCallbacks("OnActiveUseTarget",sid,[uid,sid,autoActivate](lua_State* L,std::string&){
@@ -370,20 +480,34 @@ bool ScriptRuntime::advancePlayerUse(std::string& error){
                 if(!dispatchThingCallbacks("OnAutoUseFailed",sid,[uid](lua_State* L,std::string&){lua_pushinteger(L,uid);lua_setfield(L,-2,"UserId");return true;})){error=error_;return false;}
             }
         }
-        current=selected;
+        useTargets_[p.playerIndex]=selected;
         if(!useable)continue;
+        const auto useSelected=[&]()->bool{
+            if(!useInteraction(selected,userKey,error))return false;
+            // Player.Use210d30 checks the used Thing's virtual IsAlive after
+            // Interact.Use and clears the player target when it died. Entity
+            // lifetime remains separate: Lost still runs before disposal.
+            const auto* used=findObjectSnapshot(state_,selected.id);
+            bool targetAlive=false;
+            if(used&&used->entityHandle==selected.lifetime){
+                if(used->backend==ObjectBackend::Screen){const auto* screen=screenAnimations_.thing(selected.id);targetAlive=screen&&screen->body==used&&!screen->dead;}
+                else{const auto* target=actorWorld_.actor(selected.id);targetAlive=target&&target->registered&&!target->isDisposed&&target->entityHandle==selected.lifetime&&target->lifeStatus==0;}
+            }
+            if(!targetAlive)return clearPlayerUseTarget(p.playerIndex,error);
+            return true;
+        };
         const bool automatic=autoActivate||interactBool(def,"AutoActivateWithGamepad"); // A5 useMouse=false
         if(automatic){
             const float autoDistance=interactNumber(def,"AutoUseDistance");bool inRange=true;
             if(autoDistance>0){float x=0,y=0;if(!interactions_.useLocation(selected,owner,x,y,error))return false;inRange=(user.x-x)*(user.x-x)+(user.y-y)*(user.y-y)<=autoDistance*autoDistance;}
-            if(inRange){if(!useInteraction(selected,userKey,error))return false;continue;}
+            if(inRange){if(!useSelected())return false;continue;}
         }
         const auto highlight=interactText(def,"CurrentUseTargetAnimation");
         if(!highlight.empty()&&!setActorAnimation(selected.id,highlight,error))return false;
         // PlayerUnitInput::HandleInput manual-Use branch (Control.Use pressed flag 0x4).
         if(usePressed&&inputAllowed){
             bool accepted=false;if(!interactions_.manualRequest(selected,user,false,4u,accepted,error))return false;
-            if(accepted&&!useInteraction(selected,userKey,error))return false;
+            if(accepted&&!useSelected())return false;
         }
     }
     error.clear();return true;

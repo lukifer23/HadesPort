@@ -60,7 +60,7 @@ struct TextRunStyle {
     bool emphasized=false,blockEmphasized=false;
 };
 struct TextBody {
-    uint64_t ownerLifetime=0;bool destroyed=false,autoSet=false,hide=false;
+    uint64_t ownerLifetime=0;bool destroyed=false,autoSet=false,hide=false,blockTooltip=false;
     std::string textKey,rawText;bool raw=false,useDescription=false;
     std::string font;int32_t fontSize=0;float textSymbolScale=1,width=0,height=0,offsetX=0,offsetY=0;
     int32_t lineSpacingTop=0,lineSpacingBottom=0;
@@ -77,10 +77,24 @@ struct TextBody {
     Color color{1,1,1,1},colorTarget{1,1,1,1};
     std::map<std::string,int> luaParams; // registry refs, GUIComponentTextBox+0xd08
     std::map<std::string,std::string> controlLabels;
-    bool dirty=true;std::string resolved;std::vector<hades::TextPiece> pieces;
+    std::vector<std::string> parsedLuaKeys;
+    float layoutScale=-1;std::vector<hades::TextGlyphQuad> layoutGlyphs;std::vector<hades::TextSymbolQuad> layoutSymbols;std::array<float,2> layoutDimensions{};
+    uint64_t parseRevision=0;bool dirty=true;std::string resolved;std::vector<hades::TextPiece> pieces;
     std::vector<TextRunStyle> styles;
 };
-struct TextState { bool suppressLyrics=false; // sgg::Subtitles::SUPPRESS_LYRICS byte 0x181908619 (static zero).
+// MenuScreen.Load19d709 retains six independent GUI component triples.
+struct TooltipSlot {
+    std::string key;bool allocated=false;TextBody header,body;
+    float x=0,y=0,imageOpacity=0,imageTarget=0;
+    uint64_t sourceSequence=0,sourceRevision=0;
+};
+struct MenuTooltipState {
+    bool initialized=false;std::array<TooltipSlot,6> slots;
+    int32_t targetId=-1;uint64_t targetLifetime=0,textSequence=0;
+    float showRemaining=0,hideRemaining=0;std::array<float,2> anchor{};
+    hades::SourceValue templates;
+};
+struct TextState { MenuTooltipState menu;bool suppressLyrics=false; // sgg::Subtitles::SUPPRESS_LYRICS byte 0x181908619 (static zero).
     std::vector<TextFormatSnapshot> formats;std::map<uint64_t,TextBody> bodies;std::map<int32_t,uint64_t> components;std::shared_ptr<const hades::TextFontBank> fonts;TextControlLabelProvider controlLabel; uint64_t nextSequence = 1; };
 TextState* lookup(lua_State* state) {
     lua_getfield(state,LUA_REGISTRYINDEX,registryKey);
@@ -268,7 +282,8 @@ size_t skipLexSpace(const std::string&s,size_t at){while(at<s.size()&&asciiSpace
 // bracket punctuation only delimit tokens; neither means expression evaluation.
 // Colon switches to a suffix: each token sets P/p decoration from its first
 // codepoint. Other suffixes use the ordinary ConvertAnyToString conversion.
-std::string luaMarkupValue(lua_State*L,const std::string&path){
+std::string luaMarkupValue(lua_State*L,const std::string&path,std::string* finalField=nullptr){
+    if(finalField)finalField->clear();
     if(path.empty()||path.size()>4096)throw std::runtime_error("Original Lua markup path bound");
     const int top=lua_gettop(L);struct Restore{lua_State*state;int top;~Restore(){lua_settop(state,top);}}restore{L,top};
     size_t at=0,fields=0;bool first=true,suffix=false,percent=false;
@@ -281,6 +296,7 @@ std::string luaMarkupValue(lua_State*L,const std::string&path){
         if(first||word||number){
             if(++fields>64)throw std::runtime_error("Original Lua markup field bound");
             const std::string part=path.substr(at,end-at);
+            if(fields>1&&finalField)*finalField=part;
             if(first){lua_rawgeti(L,LUA_REGISTRYINDEX,LUA_RIDX_GLOBALS);first=false;}
             if(!lua_istable(L,-1))throw std::runtime_error("Original Lua text value unavailable: "+path);
             const int table=lua_absindex(L,-1);
@@ -362,7 +378,10 @@ void parseMarkup(lua_State*L,const hades::TextFontBank&fonts,TextBody&body,const
             if(inner.empty()||(inner[0]!='$'&&inner[0]!='!'&&inner[0]!='#'))throw std::runtime_error("Original text markup unreconstructed: {"+inner+"}");
             appendText(pieces,run,current);run.clear();
             if(inner[0]=='#'){format(inner.substr(1));i=end;continue;}
-            const std::string value=luaMarkupValue(L,inner.substr(1));
+            // ParseLua17cf30 retains the final field token; ParseMarkup17f2c1
+            // inserts it into mParsedLuaKeys(+d38), independently of its value.
+            std::string parsedKey;const std::string value=luaMarkupValue(L,inner.substr(1),&parsedKey);
+            if(!parsedKey.empty()&&std::find(body.parsedLuaKeys.begin(),body.parsedLuaKeys.end(),parsedKey)==body.parsedLuaKeys.end()){if(body.parsedLuaKeys.size()>=4096)throw std::runtime_error("Native parsed Lua-key bound");body.parsedLuaKeys.push_back(parsedKey);}
             if(inner[0]=='!'){if(value.empty())throw std::runtime_error("Original empty text symbol path");pieces.push_back({true,value,current});}
             else{const bool autoFormat=!body.variableAutoFormat.empty();if(autoFormat)format(body.variableAutoFormat);const std::string*display=fonts.displayName(value);parseMarkup(L,fonts,body,display?*display:value,pieces,depth+1,current,stack);if(autoFormat)format("PreviousFormat");}
             i=end;continue;}
@@ -385,7 +404,7 @@ void reparse(lua_State*L,const hades::TextFontBank&fonts,TextBody&body,int32_t o
     const std::string before=body.resolved;std::string beforePieces;for(const auto&p:body.pieces)beforePieces+=(p.symbol?"@"+p.text+"@":p.text);
     body.resolved=body.raw?body.rawText:resolveTextKey(fonts,body.textKey,body.useDescription);
     for(const auto&[key,ref]:body.luaParams){lua_rawgeti(L,LUA_REGISTRYINDEX,ref);lua_setglobal(L,key.c_str());}
-    body.controlLabels.clear();body.styles={runStyle(body)};uint32_t current=0;std::vector<uint32_t> stack;std::vector<hades::TextPiece> pieces;parseMarkup(L,fonts,body,body.resolved,pieces,0,current,stack);body.pieces=std::move(pieces);body.dirty=false;
+    body.controlLabels.clear();body.parsedLuaKeys.clear();body.layoutScale=-1;body.styles={runStyle(body)};uint32_t current=0;std::vector<uint32_t> stack;std::vector<hades::TextPiece> pieces;parseMarkup(L,fonts,body,body.resolved,pieces,0,current,stack);body.pieces=std::move(pieces);body.dirty=false;++body.parseRevision;
     if(!body.resolved.empty()){if(body.font.empty())throw std::runtime_error("Original default text font unreconstructed");if(body.fontSize<=0)throw std::runtime_error("Original nonpositive FontSize text unreconstructed");
         hades::TextLayoutRequest request;request.font=body.font;request.size=float(body.fontSize);request.pieces=body.pieces;request.textSymbolScale=body.textSymbolScale;request.horizontal=body.horizontal;request.vertical=body.vertical;request.width=body.width;applyLayoutStyles(body,request);if(request.pieces.empty())request.text=" ";std::vector<hades::TextSymbolQuad> symbols;fonts.layout(request,&symbols);}
     std::string shown;for(const auto&p:body.pieces)shown+=(p.symbol?"@"+p.text+"@":p.text);if(shown!=beforePieces)hades::log(hades::Severity::Info,"HadesLua","TEXT_BOX_TEXT owner=%d font=%s size=%d text=%s",int(owner),body.font.c_str(),int(body.fontSize),shown.c_str());(void)before;}
@@ -486,7 +505,7 @@ int modify(lua_State*state){
     else{lua_getfield(state,1,"Ids");if(lua_istable(state,-1)){for(size_t i=1,n=lua_rawlen(state,-1);i<=n;++i){if(n>100000)throw std::runtime_error("TextBox target count bound");lua_rawgeti(state,-1,int(i));if(lua_isnumber(state,-1)){const double value=lua_tonumber(state,-1);if(!std::isfinite(value)||value<INT32_MIN||value>INT32_MAX)throw std::runtime_error("TextBox Ids outside native signed32 domain");owners.push_back(int32_t(value));}lua_pop(state,1);}}lua_pop(state,1);}
     if(owners.empty())return 0;
     if(argBool(state,1,"AutoSetDataProperties",false))throw std::runtime_error("Original ModifyTextBox AutoSetDataProperties reflection unreconstructed");
-    for(const char*k:{"ParamValue","ParamTarget","TooltipKey","TooltipData","BlockTooltip","ReReadImmedaitely"})if(hasArg(state,1,k))throw std::runtime_error(std::string("Original ModifyTextBox argument unreconstructed: ")+k);
+    for(const char*k:{"ParamValue","ParamTarget","TooltipKey","TooltipData","ReReadImmedaitely"})if(hasArg(state,1,k))throw std::runtime_error(std::string("Original ModifyTextBox argument unreconstructed: ")+k);
     // ModifyTextBox 0x1802be442..0x1802be5ee: Text (default "") then
     // Bool(UseDescription,false). Description path: GetDescription(Text) even
     // for an empty key; display path: TextData DisplayName, else the key. A
@@ -497,6 +516,7 @@ int modify(lua_State*state){
     Color color{},colorTarget{};const bool hasColor=argColor(state,1,"Color",color),hasColorTarget=argColor(state,1,"ColorTarget",colorTarget);
     const float fadeTarget=argFloat(state,1,"FadeTarget",-1),fadeDuration=argFloat(state,1,"FadeDuration",-1),scaleTarget=argFloat(state,1,"ScaleTarget",-1),scaleDuration=argFloat(state,1,"ScaleDuration",-1),colorDuration=argFloat(state,1,"ColorDuration",-1);
     if(fadeTarget>1||scaleTarget>32)throw std::runtime_error("Text transition target bound");
+    const bool hasBlockTooltip=hasArg(state,1,"BlockTooltip"),blockTooltip=argBool(state,1,"BlockTooltip",false);
     const bool hasAutoFormat=hasArg(state,1,"VariableAutoFormat");const std::string autoFormat=argText(state,1,"VariableAutoFormat");const bool markDirty=argBool(state,1,"MarkDirty",false);
     for(auto&format:registry->formats){auto&body=registry->bodies.at(format.sequence);
         if(std::find(owners.begin(),owners.end(),format.ownerId)==owners.end()||body.destroyed)continue;const int32_t owner=format.ownerId;
@@ -505,6 +525,8 @@ int modify(lua_State*state){
         if(!exclude.empty()&&(format.name==exclude||body.textKey==exclude))continue;
         if(!text.empty()){if(!registry->fonts)throw std::runtime_error("ModifyTextBox text requires original font layout resources");const std::string next=resolveTextKey(*registry->fonts,text,useDescription);
             if(!next.empty()&&next!=body.resolved){body.textKey=text;body.useDescription=useDescription;body.raw=false;body.rawText.clear();body.dirty=true;}}
+        // TextComponent.ModifyTextBox2beebf..2bef0d writes only present/non-nil.
+        if(hasBlockTooltip)body.blockTooltip=blockTooltip;
         if(hasColor)body.color=body.colorTarget=color;
         if(fadeTarget>=0)body.fadeTarget=fadeTarget;if(fadeDuration>=0)body.fadeSpeed=1/fadeDuration;
         if(scaleTarget>=0)body.scaleTarget=scaleTarget;if(scaleDuration>=0)body.scaleSpeed=1/scaleDuration;
@@ -550,7 +572,7 @@ int hasDisplayName(lua_State*state){
     const bool present=registry->fonts->hasTextData(argText(state,1,"Text"));lua_pushboolean(state,present);return 1;
 }
 int guardedHasDisplayName(lua_State*s){char m[1024]{};try{return hasDisplayName(s);}catch(const std::exception&e){std::snprintf(m,sizeof m,"%s",e.what());}return luaL_error(s,"%s",m);}
-int finalize(lua_State* state) {static_cast<TextState*>(lua_touserdata(state,1))->~TextState();return 0;}
+int finalize(lua_State* state) {auto*registry=static_cast<TextState*>(lua_touserdata(state,1));for(auto&[id,body]:registry->bodies)releaseBody(state,body);for(auto&slot:registry->menu.slots){releaseBody(state,slot.header);releaseBody(state,slot.body);}registry->~TextState();return 0;}
 }
 bool readScriptColorArgument(lua_State*state,int table,const char*key,std::array<float,4>&out){return argColor(state,table,key,out);}
 void registerTextRuntime(lua_State* state) {
@@ -588,7 +610,14 @@ std::string dumpTextRuntime(lua_State* state) {
     }
     return out.str();
 }
-void configureTextRuntime(lua_State*state,std::shared_ptr<const hades::TextFontBank>fonts){auto*registry=lookup(state);if(!registry||!fonts)throw std::runtime_error("Text runtime/resource ownership unavailable");registry->fonts=std::move(fonts);}
+void configureTextRuntime(lua_State*state,std::shared_ptr<const hades::TextFontBank>fonts){auto*registry=lookup(state);if(!registry||!fonts)throw std::runtime_error("Text runtime/resource ownership unavailable");registry->fonts=std::move(fonts);
+    const auto&templates=registry->fonts->nativeTooltipTemplates();
+    if(!std::holds_alternative<std::monostate>(templates.value)){
+        if(!templates.get("Schema")||templates.get("Schema")->text()!="HadesNativeMenuTooltips1"||!templates.get("SlotCount")||templates.get("SlotCount")->number()!=6||!templates.get("ScreenDataName")||templates.get("ScreenDataName")->text()!="InGameUI")throw std::runtime_error("Native InGameUI tooltip source schema mismatch");
+        for(const auto*key:{"MenuScreenDefaults","InGameUIOverrides","Backing","Header","Body"})if(!templates.get(key))throw std::runtime_error("Native tooltip complete source templates required");
+        registry->menu.templates=templates;registry->menu.initialized=true;
+    }
+}
 bool advanceTextRuntime(lua_State*state,float world,float screen,std::string&error){try{
     if(!std::isfinite(world)||!std::isfinite(screen)||world<0||world>1||screen<0||screen>1)throw std::runtime_error("Text clock bound");auto*registry=lookup(state);if(!registry)return true;
     for(const auto&format:registry->formats){auto&body=registry->bodies.at(format.sequence);const auto*owner=findObjectSnapshot(state,format.ownerId);if(body.destroyed)continue;if(!owner||!owner->alive||owner->entityHandle!=body.ownerLifetime){body.destroyed=true;continue;}
@@ -599,39 +628,170 @@ bool advanceTextRuntime(lua_State*state,float world,float screen,std::string&err
         if(body.scaleSpeed>0)step(body.scaleModifier,body.scaleTarget,dt*body.scaleSpeed);
         if(body.colorSpeed>0&&body.color!=body.colorTarget)for(size_t c=0;c<4;++c){float v=body.color[c];step(v,body.colorTarget[c],body.colorSpeed*dt);body.color[c]=float(int(std::clamp(v,0.f,1.f)*255))/255;}
     }
+    for(auto&slot:registry->menu.slots)if(slot.allocated){step(slot.imageOpacity,slot.imageTarget,4*screen);step(slot.header.fadeOpacity,slot.header.fadeTarget,slot.header.fadeSpeed*screen);step(slot.body.fadeOpacity,slot.body.fadeTarget,slot.body.fadeSpeed*screen);}
     eraseDestroyed(state,*registry);return true;}catch(const std::exception&e){error=e.what();return false;}}
+namespace {
+void ensureBodyLayout(TextBody& body,const hades::TextFontBank& fonts){
+    const float scale=body.scale*body.scaleModifier;
+    if(body.layoutScale==scale)return;
+    body.layoutGlyphs.clear();body.layoutSymbols.clear();body.layoutDimensions={};
+    if(scale>0&&!body.resolved.empty()){
+        hades::TextLayoutRequest request;request.font=body.font;request.size=float(body.fontSize);request.width=body.width;request.scale=scale;request.horizontal=body.horizontal;request.vertical=body.vertical;request.pieces=body.pieces;request.textSymbolScale=body.textSymbolScale;applyLayoutStyles(body,request);
+        body.layoutGlyphs=fonts.layout(request,&body.layoutSymbols,&body.layoutDimensions);
+        for(auto&q:body.layoutGlyphs){q.x+=body.offsetX;q.y+=body.offsetY;}
+        for(auto&q:body.layoutSymbols){q.x+=body.offsetX;q.y+=body.offsetY;}
+    }
+    body.layoutScale=scale;
+}
+// One geometry cache belongs to the parsed component. Fade/owner placement
+// changes do not require paragraph layout or copies of all glyphs per style.
+void appendBodyVisuals(TextBody&body,const hades::TextFontBank&fonts,const hades::TextVisual&base,float alpha,std::vector<hades::TextVisual>&out){
+    if(body.hide||body.resolved.empty()||body.fadeOpacity*alpha<=0||body.scale*body.scaleModifier<=0)return;
+    ensureBodyLayout(body,fonts);
+    for(size_t index=0;index<body.styles.size();++index){
+        const auto&style=body.styles[index];hades::TextVisual run=base;
+        run.font=hades::textFontName(style.font,style.emphasized,style.blockEmphasized);run.text=body.resolved;
+        for(const auto&q:body.layoutGlyphs)if(q.style==index)run.glyphs.push_back(q);
+        for(const auto&q:body.layoutSymbols)if(q.style==index)run.symbols.push_back(q);
+        if(run.glyphs.empty()&&run.symbols.empty())continue;
+        run.color=index?style.color:body.color;run.color[3]*=body.fadeOpacity*alpha;
+        run.shadowColor=style.shadowColor;run.shadowX=style.shadowX;run.shadowY=style.shadowY;run.shadowBlur=style.shadowBlur;run.outlineThickness=style.outlineThickness;
+        if(style.outlineThickness>0){for(size_t c=0;c<3;++c)run.outlineColor[c]=float(int(std::clamp(style.outlineColor[c],0.f,1.f)*255))/255;run.outlineColor[3]=1;}
+        for(auto&c:run.shadowColor)c=float(int(std::clamp(c,0.f,1.f)*255))/255;
+        run.shadowColor[3]*=run.color[3];run.outlineColor[3]*=run.color[3];out.push_back(std::move(run));
+    }
+}
+}
+namespace {
+const hades::SourceValue& tooltipField(const hades::SourceValue&value,const char*key){const auto*p=value.get(key);if(!p)throw std::runtime_error(std::string("Native tooltip source template missing: ")+key);return *p;}
+float guiNumber(const hades::SourceValue&d,const char*key,float fallback){const auto*p=d.get(key);if(!p)return fallback;const double n=p->number();if(!std::isfinite(n)||std::abs(n)>100000)throw std::runtime_error(std::string("Native GUI numeric bound: ")+key);return float(n);}
+std::string guiString(const hades::SourceValue&d,const char*key,const std::string&fallback={}){const auto*p=d.get(key);return p?p->text():fallback;}
+TextBody tooltipTextTemplate(const hades::SourceValue&d){
+    TextBody b;b.font=guiString(d,"Font");b.fontSize=int32_t(guiNumber(d,"FontSize",0));
+    b.width=guiNumber(d,"Width",0);b.height=guiNumber(d,"Height",0);b.textSymbolScale=guiNumber(d,"TextSymbolScale",1);
+    b.horizontal=horizontalJustification(guiString(d,"TextJustification",guiString(d,"Justification","Center")));
+    b.vertical=verticalJustification(guiString(d,"VerticalJustification","Center"));
+    b.lineSpacingTop=int32_t(guiNumber(d,"LineSpacingTop",0));b.lineSpacingBottom=int32_t(guiNumber(d,"LineSpacingBottom",0));
+    b.dataLineSpacingBottom=guiNumber(d,"LineSpacingBottom",0);b.scale=guiNumber(d,"Scale",1);
+    b.color=b.colorTarget=hades::textSourceColor({guiNumber(d,"TextRed",1),guiNumber(d,"TextGreen",1),guiNumber(d,"TextBlue",1),guiNumber(d,"TextAlpha",1)});
+    b.shadowColor={guiNumber(d,"ShadowRed",0),guiNumber(d,"ShadowGreen",0),guiNumber(d,"ShadowBlue",0),guiNumber(d,"ShadowAlpha",0)};
+    b.shadowX=guiNumber(d,"ShadowOffsetX",0);b.shadowY=guiNumber(d,"ShadowOffsetY",0);b.shadowBlur=guiNumber(d,"ShadowBlur",50);
+    b.outlineThickness=guiNumber(d,"OutlineThickness",0);b.outlineColor={guiNumber(d,"TextOutlineRed",0),guiNumber(d,"TextOutlineGreen",0),guiNumber(d,"TextOutlineBlue",0),1};
+    b.fadeOpacity=guiNumber(d,"FadeOpacity",1);b.fadeTarget=guiNumber(d,"FadeTarget",1);b.fadeSpeed=guiNumber(d,"FadeSpeed",4);
+    return b;
+}
+void hideTooltipState(MenuTooltipState&m,float showDelay){
+    // MenuScreen.HideTooltip19e0b0; FadeOut169340 changes target, not opacity.
+    for(auto&slot:m.slots){slot.key.clear();if(slot.allocated){slot.imageTarget=0;slot.header.fadeTarget=slot.body.fadeTarget=0;}}
+    m.anchor={};m.targetId=-1;m.targetLifetime=0;m.textSequence=0;
+    if(m.showRemaining>0)m.showRemaining=showDelay;
+}
+void copyTooltipParams(lua_State*L,TextBody&destination,const TextBody&source){
+    releaseBody(L,destination);
+    for(const auto&[key,ref]:source.luaParams){lua_rawgeti(L,LUA_REGISTRYINDEX,ref);destination.luaParams.emplace(key,luaL_ref(L,LUA_REGISTRYINDEX));}
+}
+void clearTooltipText(lua_State*L,TextBody&body){
+    // Clear1740d0 -> base Clear168e30 restores runtime opacity/target1,
+    // clears lines, params and source-parent; compiled template data remains.
+    releaseBody(L,body);body.lineSpacingTop=body.lineSpacingBottom=0;body.raw=false;body.textKey.clear();body.rawText.clear();body.resolved.clear();body.pieces.clear();body.styles.clear();body.parsedLuaKeys.clear();body.controlLabels.clear();body.fadeOpacity=body.fadeTarget=1;body.scaleModifier=body.scaleTarget=1;body.layoutScale=-1;body.dirty=true;
+}
+void showTooltipText(lua_State*L,const hades::TextFontBank&fonts,TextBody&body,const std::string&key,bool description){
+    // ShowDisplayName174550 / ShowDescription1745e0 -> ShowText174690.
+    // Its nonempty path sets FadeTarget1 and clears Hide; empty fades out.
+    const auto text=resolveTextKey(fonts,key,description);
+    const bool changed=body.textKey!=key||body.useDescription!=description||body.resolved!=text;
+    body.textKey=key;body.useDescription=description;body.raw=false;body.hide=false;
+    body.fadeTarget=text.empty()?0:1;
+    if(changed||body.dirty)reparse(L,fonts,body,0);
+}
+void appendMenuTooltipVisuals(TextState&registry,std::vector<hades::TextVisual>&out){
+    auto&m=registry.menu;if(!m.initialized||!registry.fonts)return;
+    const auto&backing=tooltipField(m.templates,"Backing");const auto graphic=guiString(backing,"Graphic");
+    for(size_t i=0;i<m.slots.size();++i){auto&slot=m.slots[i];if(!slot.allocated)continue;
+        hades::TextVisual v;v.ownerId=0;v.screenSpace=true;v.locationZWithOwner=false;v.ownerX=slot.x;v.ownerY=slot.y;v.sourceWidget="TooltipBacking";
+        if(slot.imageOpacity>0){
+            const auto at=registry.fonts->symbols().find(graphic);if(at==registry.fonts->symbols().end())throw std::runtime_error("Original native tooltip backing not loaded");
+            const auto&image=at->second;const float scale=guiNumber(backing,"Scale",1);
+            v.color[3]=slot.imageOpacity;
+            v.symbols.push_back({(float(image.trimX)-float(image.originalWidth)*.5f)*scale,(float(image.trimY)-float(image.originalHeight)*.5f)*scale,float(image.width)*scale,float(image.height)*scale,graphic});
+            out.push_back(std::move(v));
+        }
+        v={};v.ownerId=0;v.screenSpace=true;v.locationZWithOwner=false;v.ownerX=slot.x+guiNumber(tooltipField(m.templates,"Header"),"OffsetX",0);v.ownerY=slot.y+guiNumber(tooltipField(m.templates,"Header"),"OffsetY",0);v.sourceWidget="TooltipHeader";
+        appendBodyVisuals(slot.header,*registry.fonts,v,1,out);
+        v.ownerX=slot.x+guiNumber(tooltipField(m.templates,"Body"),"OffsetX",0);v.ownerY=slot.y+guiNumber(tooltipField(m.templates,"Body"),"OffsetY",0);v.sourceWidget="TooltipBody";
+        appendBodyVisuals(slot.body,*registry.fonts,v,1,out);
+    }
+}
+}
+bool hideMenuTooltips(lua_State*L,float showDelay,std::string&error){try{
+    auto*r=lookup(L);if(!r||!r->menu.initialized)throw std::runtime_error("HideTopMenuScreenTooltips requires actual native MenuScreen resources/lifetime");
+    hideTooltipState(r->menu,showDelay);error.clear();return true;
+}catch(const std::exception&e){error=e.what();return false;}}
+bool advanceMenuTooltips(lua_State*L,float elapsed,bool eligible,int32_t ownerId,uint64_t lifetime,const std::array<float,2>&anchor,float showDelay,float hideDelay,std::string&error){try{
+    auto*r=lookup(L);if(!r||!r->fonts)throw std::runtime_error("Native tooltip text resources unavailable");auto&m=r->menu;
+    if(!m.initialized)throw std::runtime_error("Native InGameUI/MenuScreen source resources unavailable");
+    if(!std::isfinite(elapsed)||elapsed<0||elapsed>1||!std::isfinite(showDelay)||!std::isfinite(hideDelay))throw std::runtime_error("Native tooltip clock/config bound");
+    if(!eligible){hideTooltipState(m,showDelay);error.clear();return true;}
+    m.showRemaining-=elapsed;m.hideRemaining-=elapsed;
+    bool queued=false;const auto*owner=findObjectSnapshot(L,ownerId);
+    if(owner&&owner->entityHandle==lifetime&&owner->alive&&owner->active&&owner->visible){
+        // InGameUI.UpdateTooltip1d9ca0 visits the actual ordered TextComponent
+        // boxes, retaining final parsed field tokens. Keywords is a direct Lua
+        // table; unmapped keys fall back to their own original HelpText id.
+        for(const auto&format:r->formats){if(format.ownerId!=ownerId)continue;auto&source=r->bodies.at(format.sequence);
+            if(source.destroyed||source.ownerLifetime!=lifetime||source.blockTooltip)continue;
+            for(const auto&parsed:source.parsedLuaKeys){
+                std::string key=parsed;const int top=lua_gettop(L);lua_getglobal(L,"Keywords");
+                if(lua_istable(L,-1)){lua_pushlstring(L,parsed.data(),parsed.size());lua_rawget(L,-2);if(lua_type(L,-1)==LUA_TSTRING)key=stringAt(L,-1);}
+                lua_settop(L,top);
+                const auto*description=r->fonts->description(key);if(!description||description->empty())continue;
+                // QueueTooltip19f7c0 hides a different Thing target, remembers
+                // the actual source textbox and refreshes the hide countdown.
+                if(m.targetId!=ownerId||m.targetLifetime!=lifetime)hideTooltipState(m,showDelay);
+                m.targetId=ownerId;m.targetLifetime=lifetime;m.textSequence=format.sequence;m.anchor=anchor;m.hideRemaining=hideDelay;
+                auto slot=std::find_if(m.slots.begin(),m.slots.end(),[&](const auto&s){return s.key.empty()||s.key==key;});
+                if(slot!=m.slots.end()){slot->key=key;queued=true;}
+            }
+        }
+    }
+    if(!queued)m.showRemaining=showDelay;
+    if(m.showRemaining<=0){float y=m.anchor[1];
+        for(auto&slot:m.slots)if(!slot.key.empty()){
+            if(!slot.allocated){
+                slot.header=tooltipTextTemplate(tooltipField(m.templates,"Header"));slot.body=tooltipTextTemplate(tooltipField(m.templates,"Body"));
+                // GUIComponent.Clear168e67 starts image opacity/target at1.
+                slot.imageOpacity=slot.imageTarget=1;slot.allocated=true;
+            }
+            slot.imageTarget=1;
+            if(slot.header.fadeOpacity==0)clearTooltipText(L,slot.header);
+            const auto source=r->bodies.find(m.textSequence);
+            const bool sourceChanged=slot.sourceSequence!=m.textSequence;
+            if(slot.body.fadeOpacity==0||sourceChanged)clearTooltipText(L,slot.body);
+            if(source!=r->bodies.end()&&(sourceChanged||slot.sourceRevision!=source->second.parseRevision||slot.body.dirty)){copyTooltipParams(L,slot.body,source->second);slot.body.dirty=true;slot.sourceRevision=source->second.parseRevision;}
+            slot.sourceSequence=m.textSequence;
+            showTooltipText(L,*r->fonts,slot.header,slot.key,false);showTooltipText(L,*r->fonts,slot.body,slot.key,true);
+            slot.x=m.anchor[0];slot.y=y;y+=guiNumber(tooltipField(m.templates,"Backing"),"SpacingY",0);
+        }
+        if(y>1080)for(auto&slot:m.slots)if(!slot.key.empty())slot.y+=1080-y;
+    }
+    if(m.hideRemaining<=0)hideTooltipState(m,showDelay);
+    error.clear();return true;
+}catch(const std::exception&e){error=e.what();return false;}}
+MenuTooltipSnapshot snapshotMenuTooltips(lua_State*L){MenuTooltipSnapshot out;auto*r=lookup(L);if(!r)return out;const auto&m=r->menu;out.initialized=m.initialized;out.targetId=m.targetId;out.ownerLifetime=m.targetLifetime;out.textSequence=m.textSequence;out.showRemaining=m.showRemaining;out.hideRemaining=m.hideRemaining;out.anchor=m.anchor;for(const auto&s:m.slots){if(!s.key.empty())out.activeKeys.push_back(s.key);if(s.allocated){out.retainedComponents+=3;out.visibleComponents+=(s.imageOpacity>0)+(s.header.fadeOpacity>0)+(s.body.fadeOpacity>0);}}return out;}
 std::vector<hades::TextVisual> snapshotTextVisuals(lua_State*state){std::vector<hades::TextVisual>out;auto*registry=lookup(state);if(!registry||!registry->fonts)return out;
-    for(const auto&format:registry->formats){const auto&body=registry->bodies.at(format.sequence);const auto*owner=findObjectSnapshot(state,format.ownerId);
-        if(body.destroyed||body.hide||body.resolved.empty()||!owner||!owner->alive||!owner->active||!owner->visible||owner->entityHandle!=body.ownerLifetime)continue;
-        hades::TextVisual v;v.sequence=format.sequence;v.ownerId=owner->id;v.group=owner->group;v.screenSpace=owner->screenSpace;v.ownerX=owner->x;v.ownerY=owner->y;v.locationZWithOwner=body.locationZWithOwner;v.ownerZ=body.locationZWithOwner?owner->z:0;v.font=body.font;v.text=body.resolved;
-        v.color=body.color;v.color[3]*=body.fadeOpacity*owner->alpha;
-        const float scale=body.scale*body.scaleModifier; // TextScale(): ScaleWithOwner (+0xc9) defaults false.
-        if(body.fadeOpacity*owner->alpha<=0||scale<=0)continue;
-        hades::TextLayoutRequest request;request.font=v.font;request.size=float(body.fontSize);request.width=body.width;request.scale=scale;request.horizontal=body.horizontal;request.vertical=body.vertical;request.pieces=body.pieces;request.textSymbolScale=body.textSymbolScale;applyLayoutStyles(body,request);
-        v.glyphs=registry->fonts->layout(request,&v.symbols);
-        for(auto&q:v.glyphs){q.x+=body.offsetX;q.y+=body.offsetY;}for(auto&q:v.symbols){q.x+=body.offsetX;q.y+=body.offsetY;}
-        // Draw175e00 selects each Line::mFormatter's font and FontOverride,
-        // while using the owning box's fade/owner alpha. Keep shared paragraph
-        // positioning; partition only the atlas/style submission.
-        for(size_t index=0;index<body.styles.size();++index){const auto&style=body.styles[index];hades::TextVisual run=v;run.font=hades::textFontName(style.font,style.emphasized,style.blockEmphasized);run.glyphs.clear();run.symbols.clear();for(const auto&q:v.glyphs)if(q.style==index)run.glyphs.push_back(q);for(const auto&q:v.symbols)if(q.style==index)run.symbols.push_back(q);if(run.glyphs.empty()&&run.symbols.empty())continue;
-            run.color=index?style.color:body.color;run.color[3]*=body.fadeOpacity*owner->alpha;
-            run.shadowColor=style.shadowColor;run.shadowX=style.shadowX;run.shadowY=style.shadowY;run.shadowBlur=style.shadowBlur;run.outlineThickness=style.outlineThickness;
-            if(style.outlineThickness>0){for(size_t c=0;c<3;++c)run.outlineColor[c]=float(int(std::clamp(style.outlineColor[c],0.f,1.f)*255))/255;run.outlineColor[3]=1;}
-            for(auto&c:run.shadowColor)c=float(int(std::clamp(c,0.f,1.f)*255))/255;
-            run.shadowColor[3]*=run.color[3];run.outlineColor[3]*=run.color[3];out.push_back(std::move(run));}}
-
-    return out;}
+    for(const auto&format:registry->formats){auto&body=registry->bodies.at(format.sequence);const auto*owner=findObjectSnapshot(state,format.ownerId);
+        if(body.destroyed||!owner||!owner->alive||!owner->active||!owner->visible||owner->entityHandle!=body.ownerLifetime)continue;
+        hades::TextVisual v;v.sequence=format.sequence;v.ownerId=owner->id;v.group=owner->group;v.screenSpace=owner->screenSpace;v.ownerX=owner->x;v.ownerY=owner->y;v.locationZWithOwner=body.locationZWithOwner;v.ownerZ=body.locationZWithOwner?owner->z:0;
+        appendBodyVisuals(body,*registry->fonts,v,owner->alpha,out);
+    }
+    appendMenuTooltipVisuals(*registry,out);return out;
+}
 namespace {
 std::array<float,2> measureAttachedText(lua_State*state,TextState&registry,TextBody&body,int32_t ownerId){
     if(body.dirty&&registry.fonts)reparse(state,*registry.fonts,body,ownerId);
     if(body.resolved.empty())return {0,0};
     if(!registry.fonts)throw std::runtime_error("Attached text dimensions require source fonts");
-    hades::TextLayoutRequest request;request.font=body.font;request.size=float(body.fontSize);request.width=body.width;request.scale=body.scale*body.scaleModifier;request.horizontal=body.horizontal;request.vertical=body.vertical;request.pieces=body.pieces;request.textSymbolScale=body.textSymbolScale;applyLayoutStyles(body,request);
-    // Measurement shares the real source layout used by draw. Its paragraph
-    // wrapping remains the existing portable policy, not native metric parity.
-    if(request.scale==0)return {0,0};
-    std::array<float,2>measured{};std::vector<hades::TextSymbolQuad>symbols;
-    registry.fonts->layout(request,&symbols,&measured);return measured;
+    ensureBodyLayout(body,*registry.fonts);return body.layoutDimensions;
 }
 int32_t textAreaInteger(float value){
     const double truncated=std::trunc(double(value));

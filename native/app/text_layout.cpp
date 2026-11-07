@@ -69,7 +69,7 @@ void TextFontBank::load(AssetStore&store,const SourceValue&catalog){
   if(uint64_t(y.trimX)+y.width>y.originalWidth||uint64_t(y.trimY)+y.height>y.originalHeight)throw std::runtime_error("Original symbol trim outside full extent: "+texture);
   for(const char*k:{"ScaleRatioX","ScaleRatioY"})if(d.get(k)->number()!=1)throw std::runtime_error("Scaled original text symbol unadmitted: "+texture);
   y.rgba.assign(image.b.begin()+image.p,image.b.end());symbols.emplace(texture,std::move(y));}
- fonts_=std::move(fonts);localized_=std::move(localized);descriptions_=std::move(descriptions);descriptionsExported_=descriptionTable!=nullptr;textDataIds_=std::move(textDataIds);textDataIdsExported_=idTable!=nullptr;symbols_=std::move(symbols);subtitleStyle_=*catalog.get("SubtitleStyle");
+ fonts_=std::move(fonts);localized_=std::move(localized);descriptions_=std::move(descriptions);descriptionsExported_=descriptionTable!=nullptr;textDataIds_=std::move(textDataIds);textDataIdsExported_=idTable!=nullptr;symbols_=std::move(symbols);subtitleStyle_=*catalog.get("SubtitleStyle");if(const auto*t=catalog.get("NativeMenuTooltips"))nativeTooltipTemplates_=*t;else nativeTooltipTemplates_={};
 }
 std::vector<TextGlyphQuad> TextFontBank::layout(const TextLayoutRequest&r,std::vector<TextSymbolQuad>*symbolsOut,std::array<float,2>*measured)const{
  if(!std::isfinite(r.scale)||r.scale<=0||r.scale>32||!std::isfinite(r.width)||r.width<0||r.width>100000)throw std::runtime_error("Text layout numeric bound");

@@ -92,6 +92,10 @@ class ScriptRuntime {
     bool initializeInteraction(int32_t,std::string&);
     bool removeInteraction(int32_t,std::string&);
     bool advancePlayerUse(std::string&);
+    static int clearUseTarget(lua_State*);
+    bool clearPlayerUseTarget(uint32_t,std::string&);
+    bool notifyPlayerUseTargetLost(uint32_t,hades::InteractionKey,std::string&);
+    bool cancelUseTargetPrimary(hades::InteractionKey,const std::string&,std::string&);
     bool useInteraction(hades::InteractionKey,hades::InteractionKey,std::string&);
     bool consumeInteractionOperation(const hades::InteractionUseOperation&,std::string&);
     bool interactionPrimaryFlags(int32_t,bool&,bool&,bool&,std::string&)const;
@@ -492,6 +496,9 @@ public:
     const std::string& currentMapName()const{return mapName_;}
     uint64_t mapRevision()const{return mapRevision_;}
     bool loadTextDefinitions();
+    static int hideTopMenuScreenTooltips(lua_State*);
+    bool menuTooltipDelays(float&,float&,std::string&);
+    bool advanceMenuScreenTooltips(float,std::string&);
     const std::shared_ptr<hades::TextFontBank>& textFonts()const{return textFonts_;}
     void setControlLabelProvider(std::function<bool(const std::string&,std::string&,std::string&)>);
     bool advanceText(float worldElapsed,float screenElapsed,std::string&);

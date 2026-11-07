@@ -5,6 +5,7 @@
 #include "../app/platform_log.hpp"
 #include "../app/input_runtime.hpp"
 #include "../app/object_runtime.hpp"
+#include "../app/text_runtime.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iterator>
@@ -32,7 +33,7 @@ struct ScriptRuntime::ScreenInputProbe {
  size_t at=0;unsigned phase=0,periodic=0,canceled=0,cleared=0,audioTerminal=0;
  double started=0,entered=0,left=0;uint64_t pressFrame=0;uint32_t spawnCount=0;
  std::array<float,2> point{},outside{};
- bool notifyConsumed=false,notifyResultSeen=false;
+ bool notifyConsumed=false,notifyResultSeen=false;unsigned tooltipShown=0,tooltipFaded=0;
  std::vector<std::string> notifyNames;
 };
 
@@ -130,7 +131,16 @@ bool ScriptRuntime::probeLiveScreenInput(std::vector<std::string>& controls,bool
  if(p.phase==2){
   checkCursor(screenCursor_.target==target.key,"Idle pointer lost its actual button target");const auto state=snapshot(target.key);checkCursor(!state.hasBeenUsed,"Idle pointer fabricated button activation");
   const auto* highlight=target.floating?actionEffects_.state(target.highlight):nullptr;if(target.floating)checkCursor(highlight&&cursorHighlights_.contains(target.key)&&cursorHighlights_.at(target.key)==target.highlight,"Idle pointer lost retained floating highlight lifetime");const bool periodic=highlight&&!cursorText(highlight->definition,"VisualFx").empty()&&cursorText(highlight->definition,"VisualFx")!="null";
-  if(screenTime_-p.entered<target.interval||(periodic&&highlight->totalSpawned<=p.spawnCount)){error.clear();return true;}if(periodic)++p.periodic;
+  if(screenTime_-p.entered<target.interval||(periodic&&highlight->totalSpawned<=p.spawnCount)){error.clear();return true;}
+  const auto menu=snapshotMenuTooltips(state_);
+  // At show time a retained backing can still have opacity0/target1;
+  // the next genuine GUI update supplies its first fade-in step.
+  if(!menu.activeKeys.empty()&&menu.showRemaining> -1.f/60){error.clear();return true;}
+  if(!menu.activeKeys.empty()){checkCursor(menu.targetId==target.key.id&&menu.ownerLifetime==target.key.lifetime&&menu.retainedComponents>=3&&menu.visibleComponents>=3,"Actual native tooltip producer/component ownership missing");
+   bool backing=false,header=false,body=false;for(const auto&v:textVisuals()){backing=backing||v.sourceWidget=="TooltipBacking";header=header||v.sourceWidget=="TooltipHeader";body=body||v.sourceWidget=="TooltipBody";}
+   checkCursor(backing&&header&&body,"Actual native tooltip authored visuals missing: backing="+std::to_string(backing)+" header="+std::to_string(header)+" body="+std::to_string(body)+" active="+std::to_string(menu.activeKeys.size())+" visible="+std::to_string(menu.visibleComponents));++p.tooltipShown;
+  }
+  if(periodic)++p.periodic;
   float right=-std::numeric_limits<float>::infinity(),bottom=right;
   for(const auto& live:interactions_.snapshots())if(cursorFlag(live.definition,"CursorOnly")){
    const auto* owner=screenAnimations_.thing(live.key.id);if(!owner||owner->dead||!owner->body||owner->body->entityHandle!=live.key.lifetime)continue;
@@ -146,7 +156,11 @@ bool ScriptRuntime::probeLiveScreenInput(std::vector<std::string>& controls,bool
  }
  if(p.phase==4){
   if(target.floating)checkCursor(!actionEffects_.state(target.highlight)&&!effects_.registry()->find(target.highlight),"Actual manager phase retained canceled floating highlight");
-  if(screenTime_-p.left<target.fade){error.clear();return true;}
+  float tooltipShow=0,tooltipHide=0;checkCursor(menuTooltipDelays(tooltipShow,tooltipHide,error),error);
+  // Remain genuinely outside through the original hide delay and the native
+  // component fade, rather than bypassing Hide or rewriting tooltip state.
+  if(screenTime_-p.left<std::max(target.fade,tooltipHide+.25f+2.f/60)){error.clear();return true;}
+  const auto menu=snapshotMenuTooltips(state_);checkCursor(menu.activeKeys.empty()&&menu.visibleComponents==0,"Actual native tooltip hide/fade retained visible state after pointer loss");++p.tooltipFaded;
   if(target.sound){hades::AudioChannelState cue;if(audio_.channelState(target.sound,cue))checkCursor(cue.finished||cue.stopped||cue.volume<=.0001f,"Actual highlight cue did not reach natural/faded terminal state");++p.audioTerminal;}
   ++p.cleared;hades::log(hades::Severity::Info,"HadesCursorProbe","CURSOR_AUDIT_VISIT owner=%d floating=%d periodic=%u manager_cleared=%u",target.key.id,int(target.floating),p.periodic,p.cleared);
   if(++p.at<p.targets.size()){move(p.targets[p.at].key);p.phase=1;}else{p.at=0;move(p.targets[0].key);p.phase=5;}error.clear();return true;
@@ -163,6 +177,7 @@ bool ScriptRuntime::probeLiveScreenInput(std::vector<std::string>& controls,bool
   if(!disposed||screenInputRequested()){error.clear();return true;}
   bool finiteMovieLive=false;unsigned detached=0,retired=0;for(const auto& movie:p.movies){detached+=movie.detachedSeen;retired+=movie.finished;if(const auto* live=actionEffects_.state(movie.handle))finiteMovieLive=finiteMovieLive||(!cursorFlag(live->definition,"Loop")&&!cursorFlag(live->definition,"HoldLastFrame"));}
   if(finiteMovieLive){error.clear();return true;}
+  checkCursor(p.tooltipShown>0&&p.tooltipFaded>0,"Screen audit did not prove actual native tooltip producer/draw/fade lifecycle");
   checkCursor(p.rewardMarkerCovered&&p.rewardMarkerSamples>=4,"Completed screen audit never covered actual original reward marker across live Book frame advances");
   cancelLocalCursor();p.phase=8;complete=true;
   hades::log(hades::Severity::Info,"HadesCursorProbe","CURSOR_AUDIT_OK targets=%zu periodic_highlights=%u canceled_highlights=%u cleared_visits=%u terminal_audio=%u pointer_select_frame=%llu notify_consumed=%d notify_result_seen=%d owner_movies=%zu detached_movies=%u retired_movies=%u source_context_disposed=1 script_callbacks_injected=0 device_claim=0",p.targets.size(),p.periodic,p.canceled,p.cleared,p.audioTerminal,(unsigned long long)p.pressFrame,int(p.notifyConsumed),int(p.notifyResultSeen),p.movies.size(),detached,retired);

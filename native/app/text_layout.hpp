@@ -64,12 +64,13 @@ class TextFontBank {
  std::map<std::string,std::string> descriptions_;bool descriptionsExported_=false;
  std::set<std::string> textDataIds_;bool textDataIdsExported_=false;
  std::map<std::string,TextSymbol> symbols_;
- SourceValue subtitleStyle_;
+ SourceValue subtitleStyle_,nativeTooltipTemplates_;
 public:
  void load(AssetStore&,const SourceValue&);
  const TextFont* font(const std::string&)const;
  const std::map<std::string,TextFont>& fonts()const{return fonts_;}
  const SourceValue& subtitleStyle()const{return subtitleStyle_;}
+ const SourceValue& nativeTooltipTemplates()const{return nativeTooltipTemplates_;}
  std::string resolve(const std::string&)const;
  // Exported DisplayName, including native empty defaults. With TextDataIds,
  // nullptr means no record; a known record with an unexported field fails.

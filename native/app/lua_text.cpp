@@ -1,5 +1,10 @@
 #include "lua_runtime.hpp"
 #include "text_runtime.hpp"
+#include "input_runtime.hpp"
+#include "platform_log.hpp"
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
 #include <stdexcept>
 extern "C" {
 #include <lua.h>
@@ -17,3 +22,40 @@ std::vector<hades::TextVisual> ScriptRuntime::textVisuals()const{auto out=snapsh
  // Draw176368..381 subtracts owner GetZLocation only with data+cb=true.
  for(auto& v:out)if(const auto* owner=findObjectSnapshot(state_,v.ownerId);owner&&owner->backend==ObjectBackend::Actor){const auto* a=actorWorld_.actor(v.ownerId);if(!a||!a->registered)continue;std::string error;if(!actorWorld_.location(v.ownerId,v.ownerX,v.ownerY,error))throw std::runtime_error(error);if(v.locationZWithOwner&&!actorWorld_.zLocation(v.ownerId,v.ownerZ,error))throw std::runtime_error(error);}
  auto captions=captionText_.visuals();out.insert(out.end(),captions.begin(),captions.end());return out;}
+
+bool ScriptRuntime::menuTooltipDelays(float&show,float&hide,std::string&error){
+ if(!configurationFloat("TooltipShowDelay",show,error)||!configurationFloat("TooltipHideDelay",hide,error))return false;
+ return true;
+}
+int ScriptRuntime::hideTopMenuScreenTooltips(lua_State*L){
+ char message[1024]{};bool ok=false;
+ {auto*self=runtime(L);std::string error;float show=0,hide=0;ok=self&&self->menuTooltipDelays(show,hide,error)&&hideMenuTooltips(L,show,error);if(!ok)std::snprintf(message,sizeof message,"%s",error.c_str());}
+ if(!ok)return luaL_error(L,"%s",message);return 0;
+}
+bool ScriptRuntime::advanceMenuScreenTooltips(float elapsed,std::string&error){
+ // InGameUI.UpdateTooltip1d99f0: the first configured Player's actual
+ // IsInputAllowed, World.mRunning/mFrame, and Camera fade alpha gate it.
+ const auto players=snapshotInputPlayers(state_);bool eligible=roomActivated_&&worldFrame_>=2&&!players.empty()&&players.front().inputAllowed;
+ const bool canQueue=eligible&&int(std::clamp(cameraFade_.color()[3],0.f,1.f)*255)<255;
+ float show=0,hide=0;if(!menuTooltipDelays(show,hide,error))return false;
+ auto key=canQueue?screenCursor_.target:hades::InteractionKey{};std::array<float,2>anchor{};
+ if(key.id>=0){
+  const auto*owner=findObjectSnapshot(state_,key.id);const auto*screen=screenAnimations_.thing(key.id);
+  bool visible=false;
+  if(!owner||owner->entityHandle!=key.lifetime||!screen||screen->dead)key={};
+  else{
+   if(!screenAnimations_.physicallyVisible(key.id,key.lifetime,visible,error))return false;
+   const auto group=owner->groups.empty()?owner->group:owner->groups.front();
+   bool groupVisible=false;for(const auto&g:snapshotSceneGroups(state_))if(g.name==group){groupVisible=g.visible;break;}
+   if(!visible||!groupVisible)key={};
+   else{hades::InteractionSnapshot interaction;if(!interactions_.snapshot(key,interaction,error))return false;
+    // Native currently proved screen-space branch: Thing.GetLocation + the
+    // original InteractData TooltipOffset; no invented world projection.
+    if(!owner->screenSpace){error="Native world tooltip camera projection not reconstructed";return false;}
+    anchor={owner->x,owner->y};
+    for(size_t i=0;i<2;++i)if(const auto*p=interaction.definition.get(i?"TooltipOffsetY":"TooltipOffsetX"))anchor[i]+=float(p->number());
+   }
+  }
+ }
+ return advanceMenuTooltips(state_,elapsed,eligible,key.id,key.lifetime,anchor,show,hide,error);
+}

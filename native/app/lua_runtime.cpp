@@ -326,6 +326,8 @@ void ScriptRuntime::initialize() {
     registerProjectileActions();
     registerSaveActions(); // luabins module + SaveCheckpoint/ValidateCheckpoint (lua_save.cpp)
     registerMapActions();
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,hideTopMenuScreenTooltips,1);lua_setglobal(state_,"HideTopMenuScreenTooltips");
+    lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,clearUseTarget,1);lua_setglobal(state_,"ClearUseTarget");
     registerFlashActions();
     lua_pushlightuserdata(state_,this);lua_pushcclosure(state_,simulationSpeedAction,1);lua_setglobal(state_,"AdjustSimulationSpeed");
     registerShakeAction();
@@ -671,6 +673,7 @@ bool ScriptRuntime::advanceWorld(float dt,double screenDt){
     // Portable cursor phase follows live Body/text updates and actual disposal,
     // before notification checks and the original script scheduler.
     if(!advanceScreenCursor(float(screenDt),error_)){if(!containStage("screen-cursor-update"))return false;}
+    if(!advanceMenuScreenTooltips(float(screenDt),error_)){if(!containStage("menu-tooltip-update"))return false;}
     if(!advanceNativeNotifies(dt,error_)){if(!containStage("native-notify-update"))return false;}
     if(!advanceCamera(dt,error_)){if(!containStage("camera-update"))return false;}
     // A package or delayed-action gap must never skip the script scheduler

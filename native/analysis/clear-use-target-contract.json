@@ -1,0 +1,68 @@
+{
+  "schema": "hades-clear-use-target-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+  "pdb_age": 1,
+  "evidence": [
+    {
+      "path": ".local/reports/clear-use-target-2026-11-07/action59-static.json",
+      "sha256": "589a9eb3cdc69788471cf1a9cd6ba4195cf3679e65bc92ba19d4254e52fff7c9"
+    },
+    {
+      "path": ".local/reports/clear-use-target-2026-11-07/player-clear-static.json",
+      "sha256": "df8a5813721e5b839f37a0a42af31e96984da9052cc729b797d6b22a0445eceb"
+    },
+    {
+      "path": ".local/reports/clear-use-target-2026-11-07/player-update-static.json",
+      "sha256": "49b89b5c499eef56bf369c27d9b821e60d50a54a3cc2e619c7359e3200d23714"
+    },
+    {
+      "path": ".local/reports/clear-use-target-2026-11-07/player-use-static.json",
+      "sha256": "1b9070c3353a254cb609c40a5efdab6cd7a424578502344418fe1dacfea9d347"
+    },
+    {
+      "path": ".local/reports/clear-use-target-2026-11-07/thing-cancel-static.json",
+      "sha256": "d2b8b10f843e5b09b3c766e37367eff4719ad7a201bc6a776ba36c2d4b55e504"
+    },
+    {
+      "path": ".local/reports/clear-use-target-2026-11-07/thing-is-alive-static.json",
+      "sha256": "2793fd98d9af2b5c14d9a9e8a03ee931bdbeb12aab766f09dcf1503cca1871fb"
+    }
+  ],
+  "action": {
+    "id": 59,
+    "name": "ClearUseTarget",
+    "Execute_rva": "0x251a37",
+    "selector": "ScriptArgs.Int(PlayerIndex,1) selects configured Player. Native unchecked vector access is not reproduced: unsupported conversion and unconfigured index reject explicitly."
+  },
+  "native_lifecycle": {
+    "Player_ClearUseTarget_rva": "0x211490",
+    "order": [
+      "Test cached target entity handle, separate from Thing.LifeStatus.",
+      "If entity valid, ScriptManager.OnActiveUseTargetLost(target,activeUnit). The cache is retained throughout callback dispatch.",
+      "Reload the cached pointer and Interact after callbacks. If CurrentUseTargetAnimation nonempty, call Thing.CancelAnimation(name).",
+      "Zero player target pointer and entity after the calls."
+    ],
+    "Thing_CancelAnimation_rva": "0x2df6c0",
+    "primary_restore": "Only a nonnull actual primary whose AnimationData.Name equals the requested name is restored through SetAnimation(immutable ThingData.Graphic,false,true,false). Attached manager FX with that name are untouched.",
+    "callbacks": "OnActiveUseTargetLost RVA0x28c040 supplies UserId when an active unit is present, AttachedTable from target actual Lua attachment, and AutoActivate only when target Interact still exists.",
+    "independent_state": [
+      "Cursor target cache",
+      "OnMouseOff",
+      "Cursor highlight manager",
+      "Force use-check state"
+    ]
+  },
+  "shared_consumers": {
+    "Player_UpdateUse_rva": "0x20f6c0",
+    "automatic_clear": "Missing/invalid active unit, no selected target or disabled input without UseableWhileInputDisabled invoke shared clear lifecycle.",
+    "target_switch": "Lost(old), Active(new), optional AutoUseFailedAnimation/OnAutoUseFailed, then assignment. Switch retains old cache during callbacks and does not restore old primary.",
+    "Player_UseThing_rva": "0x210d30",
+    "post_use": "After actual Interact.Use, virtual Thing.IsAlive false invokes ClearUseTarget.",
+    "Thing_IsAlive_rva": "0x02c720",
+    "alive_state": "LifeStatus byte+0x238==0. Object registry membership and entity generation remain independent until deferred disposal."
+  },
+  "portable_ownership": "Validate public ID plus lifetime and actual actor/screen ownership before native callback or primary access. Use copied keys across callbacks because genuine disposal can erase player cache entries.",
+  "implementation": "native/app/lua_interaction.cpp",
+  "verification_limits": "Static matching DLL/PDB facts recovered. Parent coordinates fast strict original-input replay, exact held combat, final ASan/UBSan and Android/device checks; no child build or device operations."
+}

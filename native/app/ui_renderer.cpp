@@ -124,12 +124,15 @@ void UiRenderer::renderText(const std::vector<TextVisual>& visuals,const TextFon
     glEnable(GL_BLEND);glBlendEquation(GL_FUNC_ADD);glBlendFunc(GL_ONE,GL_ONE_MINUS_SRC_ALPHA);glUseProgram(program_);glBindVertexArray(vao_);glBindBuffer(GL_ARRAY_BUFFER,buffer_);glActiveTexture(GL_TEXTURE0);glUniform1i(shapeLocation_,0);
     for(const auto& visual:visuals){
         if(visual.glyphs.empty()&&visual.symbols.empty())continue;if(visual.glyphs.size()>16384||visual.symbols.size()>1024)throw std::runtime_error("Actual text glyph draw bound");
+        auto cached=textures_.end();
+        if(!visual.glyphs.empty()){
         const auto font=fonts.fonts().find(visual.font);if(font==fonts.fonts().end())throw std::runtime_error("Actual source text atlas unavailable: "+visual.font);
-        const auto key="text-font:"+visual.font;auto cached=textures_.find(key);
+        const auto key="text-font:"+visual.font;cached=textures_.find(key);
         if(cached==textures_.end()){
             const auto& source=font->second;if(!source.width||!source.height||source.rgba.size()!=size_t(source.width)*source.height*4)throw std::runtime_error("Original source font atlas extent");
             unsigned texture=0;glGenTextures(1,&texture);glBindTexture(GL_TEXTURE_2D,texture);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,source.width,source.height,0,GL_RGBA,GL_UNSIGNED_BYTE,source.rgba.data());
             cached=textures_.emplace(key,Texture{texture,int(source.width),int(source.height)}).first;
+        }
         }
         // Screen-space text uses the same uniform fit of the original 1920x1080
         // reference as screen visuals (Android adaptation, no stretch).

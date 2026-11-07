@@ -51,3 +51,16 @@ std::vector<TextFormatSnapshot> snapshotTextFormats(lua_State*);
 std::string dumpTextRuntime(lua_State*);
 // Subtitles::SUPPRESS_LYRICS as last set by the original ModifySubtitles action.
 bool textSuppressLyrics(lua_State*);
+
+// Source-native InGameUI/MenuScreen components have their own lifetimes; they
+// are not World Things or synthetic CreateScreenObstacle objects.
+bool advanceMenuTooltips(lua_State*,float elapsed,bool eligible,int32_t cursorOwner,
+    uint64_t ownerLifetime,const std::array<float,2>& sourceAnchor,
+    float showDelay,float hideDelay,std::string&);
+bool hideMenuTooltips(lua_State*,float showDelay,std::string&);
+struct MenuTooltipSnapshot {
+    bool initialized=false;int32_t targetId=-1;uint64_t ownerLifetime=0,textSequence=0;
+    float showRemaining=0,hideRemaining=0;std::array<float,2> anchor{};
+    std::vector<std::string> activeKeys;size_t retainedComponents=0,visibleComponents=0;
+};
+MenuTooltipSnapshot snapshotMenuTooltips(lua_State*);
