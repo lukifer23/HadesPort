@@ -1,0 +1,60 @@
+{
+  "schema": "hades-nearby-danger-v1",
+  "dll_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+  "pdb_age": 1,
+  "evidence": [
+    {
+      "path": ".local/reports/native-combat4-weapon-get-nearby-danger-static.json",
+      "sha256": "2208952a5baf36d7672c93c02f85b84c3e93fcb34a697c6b296d676fa68d086f"
+    },
+    {
+      "path": ".local/reports/boon-completion-2026-11-07/danger-input-review/unit-manager-update-buffer.json",
+      "sha256": "b86a7fb3fa72d58b20ae826f31e19adc5ef4ea35c2c83fe4654d6d440c50b2e7"
+    },
+    {
+      "path": ".local/reports/boon-completion-2026-11-07/danger-input-review/unit-manager-switch-allegiance.json",
+      "sha256": "22f603af25e7011826dc5609df593b471ec23da1c9a3cba67ff80efc1dce3527"
+    },
+    {
+      "path": ".local/reports/native-player-fire-post-fire-pseudocode.c",
+      "sha256": "a5aeb4f239447f575a620f4cdc4bac816dd0337b89acb4d3d3bb761ea2857d29"
+    }
+  ],
+  "procedure": {
+    "name": "Weapon::GetNearbyDanger",
+    "rva": "0x877a0",
+    "length": 1315
+  },
+  "projectile_scan": {
+    "order": "ProjectileManager.PROJECTILES vector order; first matching geometry returns immediately.",
+    "prelude": "Projectile::AffectsUnit6b200(owner Unit) precedes ProjectileData.DangerDistance(+0x650)>0. No additional life, started, expired or distance sorting filter.",
+    "return": "Projectile.mOwnerId(+0x3b8), not projectile public Thing id. A matched owner id zero still ends the entire query.",
+    "expanding": "BlastSpeed(+0x3d0)>0 and (mBlastTimeRemaining(+0x3dc)>0 or mBlastRadius(+0x3d8)<DamageRadius(+0x30c)*mBlastRadiusModifier(+0x3e0)).",
+    "outer_ellipse": "Outer radius is DangerDistance + current blast radius, independently scaled by DamageRadiusScaleX(+0x310) and Y(+0x314). Sum(dy squared / scaledY squared, dx squared / scaledX squared) <=1.",
+    "hollow": "After outer pass: HollowBlastRadiusBand(+0x31c)<=0 or current radius<=band returns immediately. Otherwise exclude inner ellipse <=1 with current radius times scales, not radius minus band.",
+    "point": "When not expanding, strict squared Euclidean distance < DangerDistance squared.",
+    "locations": "Both projectile and owner use attachment-aware Thing.GetLocation2e0b70.",
+    "arithmetic": "Scalar float32 operation ordering; no FMA contraction. Generated NaN from zero ellipse denominators fails outer coverage and does not satisfy inner exclusion, following native unordered comparisons."
+  },
+  "enemy_scan": {
+    "source": "UnitManager.ENEMY_UNITS at VA0x181cd0b38, after projectile scan.",
+    "admission": "UpdateBuffer2f90d1..2f9268 places a Unit in PLAYER_UNITS only for nonnull pPlayer(+0x3b0) whose Player.mIndex(+8)==0, otherwise ENEMY_UNITS. InputPlayerSnapshot.playerIndex is one-based.",
+    "membership_change": "DoSwitchAllegiance2f9530 moves membership with stable erase and append. This runtime rejects reached traitor membership rather than synthesizing it.",
+    "geometry": "Nonnull actual primary AnimationData.DangerDistance(+0x2dc)>0 then strict squared attachment-aware distance < DangerDistance squared; first match returns Thing id(+0x6c). No owner-self exclusion.",
+    "primary": "Shared AnimationRegistry allocation of ThingPrimary supplies actual immutable source definition and verified owner/lifetime; authored slide DangerDistance does not replace top-level AnimationData.",
+    "ordering_boundary": "Portable ActorWorld registrationOrder preserves current engine manager admission order; exact Windows UNITS_TO_ADD hash traversal and resulting admission order are not established. Dynamic pPlayer reassignment and switched-allegiance vector history are not reconstructed."
+  },
+  "callback": {
+    "source": "Weapon.PostFire89500 CheckDanger gates GetNearbyDanger; local integer return is passed to OnWeaponFired.",
+    "ownership": "A typed optional int32 reply crosses actual consumer, Arsenal frame, trigger and PostFire continuation. A missing requested reply or unsolicited reply rejects. OnWeaponFired reads that operation result; no mutable per-actor danger cache.",
+    "disabled": "CheckDanger false passes native default zero."
+  },
+  "implementation": [
+    "native/app/projectile_collision.cpp",
+    "native/app/lua_combat.cpp",
+    "native/app/weapon_execution.cpp",
+    "native/app/lua_projectiles.cpp"
+  ],
+  "verification_boundary": "Matching binary static recovery and independent producer review. Runtime acceptance is recorded separately in STATUS.md and ignored run receipts. This contract alone does not establish positive host or Android execution. Ellipse, hollow and switched-allegiance execution are not claimed by a point-route regression."
+}

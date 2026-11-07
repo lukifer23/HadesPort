@@ -106,11 +106,11 @@ bool ScriptRuntime::weaponCallback(const hades::WeaponOutput& op,std::string& er
             lua_pushboolean(L,op.controllable);lua_setfield(L,-2,"Controllable");lua_pushboolean(L,op.freshInput);lua_setfield(L,-2,"FreshInput");
         }
         if(op.name=="OnWeaponFired"){
-            hades::log(hades::Severity::Info,"HadesLua","WEAPON_FIRED_DISPATCH frame=%llu weapon=%s fresh=%d",(unsigned long long)worldFrame_,op.weaponName.c_str(),int(op.freshInput));
+            hades::log(hades::Severity::Info,"HadesLua","WEAPON_FIRED_DISPATCH frame=%llu weapon=%s fresh=%d nearby_danger=%d",(unsigned long long)worldFrame_,op.weaponName.c_str(),int(op.freshInput),op.nearbyDangerId);
             std::string lookup;const bool perfect=actor->arsenal->isPerfectCharge(op.weaponName,lookup);if(!lookup.empty()){detail=lookup;return false;}
             if(perfect){lua_pushboolean(L,true);lua_setfield(L,-2,"IsPerfectCharge");}
             if(weapon->validProjectileData){lua_pushstring(L,weapon->projectileData.name.c_str());lua_setfield(L,-2,"ProjectileName");}
-            lua_pushinteger(L,weapon->volley);lua_setfield(L,-2,"Volley");lua_pushinteger(L,actor->nearbyDangerId);lua_setfield(L,-2,"NearbyDangerId");
+            lua_pushinteger(L,weapon->volley);lua_setfield(L,-2,"Volley");lua_pushinteger(L,op.nearbyDangerId);lua_setfield(L,-2,"NearbyDangerId");
             if(op.hasTargetLocation){lua_pushnumber(L,op.x);lua_setfield(L,-2,"TargetX");lua_pushnumber(L,op.y);lua_setfield(L,-2,"TargetY");}
         }
         return true;
@@ -370,24 +370,36 @@ bool ScriptRuntime::consumeWeaponOperation(const hades::WeaponOutput& op,hades::
     case K::BlinkTeleport:{bool next=false;if(!blinkTeleport(op,next,error))return false;reply.blinkFireContinues=next;return true;}
     case K::BlinkUpdate:return blinkUpdate(op,error);
     case K::QueryNearbyDanger:{
-        // Weapon::GetNearbyDanger877a0 (.local/reports/native-combat4-weapon-get-nearby-danger-static.json):
-        // ProjectileManager active list: AffectsUnit6b200(owner) && ProjectileData DangerDistance(+0x650)>0
-        // -> blast/range geometry; then UnitManager::ENEMY_UNITS with primary AnimationData
-        // DangerDistance(+0x2dc)>0 -> distance test; else 0. Only the zero-candidate result is reconstructed.
-        for(const auto h:projectileWorld_.active()){const auto* p=projectileWorld_.actor(h);if(!p||p->disposed)continue;
-            if(!p->firingArsenal){error="GetNearbyDanger projectile source data unavailable";return false;}
-            const auto* data=p->firingArsenal->projectileData(p->request.weaponName,p->spawnedDefinition,error);if(!data)return false;
-            const auto v=data->fields.find("DangerDistance");
-            if(v==data->fields.end()||!std::holds_alternative<double>(v->second)){error="GetNearbyDanger projectile DangerDistance unavailable";return false;}
-            if(std::get<double>(v->second)>0){error="Weapon::GetNearbyDanger projectile danger geometry not reconstructed";return false;}}
-        for(auto id:actorWorld_.registrationOrder()){if(id==op.ownerId)continue;const auto* u=actorWorld_.actor(id);if(!u||!u->registered||!u->definition||u->definition->kind!="Unit")continue;
-            if(u->animation.active()){const auto def=actorAnimationDefinitions_.find(u->animation.clip()->name);if(def==actorAnimationDefinitions_.end()){error="GetNearbyDanger unit primary definition unavailable";return false;}
-                const auto* d=def->second.get("definition");const auto* dd=d?d->get("DangerDistance"):nullptr;if(dd&&dd->number()>0){error="Weapon::GetNearbyDanger enemy-unit danger test not reconstructed";return false;}}
-            else if(const auto* a=actionEffects_.state(u->primaryAnimationLifetime);a&&a->primary){const auto* dd=a->definition.get("DangerDistance");if(dd&&dd->number()>0){error="Weapon::GetNearbyDanger enemy-unit danger test not reconstructed";return false;}}
-            else if(const auto* e=effects_.entity(u->primaryEffectAnimation)){const auto* dd=e->definition->source.get("DangerDistance");if(dd&&dd->number()>0){error="Weapon::GetNearbyDanger enemy-unit danger test not reconstructed";return false;}}
-            else if(const auto* s=scenePrimaries_.state(u->primaryAnimationLifetime)){const auto* dd=s->definition.get("DangerDistance");if(dd&&dd->number()>0){error="Weapon::GetNearbyDanger enemy-unit danger test not reconstructed";return false;}}
-            else if(u->primaryEffectAnimation||u->primaryAnimationLifetime){error="GetNearbyDanger primary AnimationData unavailable: unit "+std::to_string(id)+" "+u->object->name+" animation="+u->object->animation+" effect="+std::to_string(u->primaryEffectAnimation)+" lifetime="+std::to_string(u->primaryAnimationLifetime);return false;}}
-        error.clear();return true;}
+        // Weapon::GetNearbyDanger877a0: first matching active Projectile wins,
+        // returning its owner id (+3b8); only then scan ENEMY_UNITS primaries.
+        const auto teams=projectileTeamProviders();std::optional<int32_t> danger;
+        if(!projectileWorld_.nearbyProjectileDanger(actorWorld_,op.ownerId,worldTime_,teams,danger,error))return false;
+        if(danger){reply.nearbyDangerId=*danger;hades::log(hades::Severity::Info,"HadesLua","NATIVE_WEAPON_PROJECTILE_DANGER frame=%llu owner=%d danger_owner=%d",(unsigned long long)worldFrame_,op.ownerId,*danger);error.clear();return true;}
+        const auto players=snapshotInputPlayers(state_);
+        for(const auto id:actorWorld_.registrationOrder()){
+            const auto* u=actorWorld_.actor(id);if(!u||!u->registered||!u->definition||u->definition->kind!="Unit")continue;
+            // UpdateBuffer2f90d1..2f9268: PLAYER_UNITS iff pPlayer &&
+            // pPlayer.mIndex==0, else ENEMY_UNITS. Our selector is one-based.
+            // Portable registration order preserves this manager's admission
+            // order; Windows pending-hash traversal parity is not established.
+            if(u->status&&u->status->isTraitor){error="GetNearbyDanger requires actual UnitManager switched-allegiance membership";return false;}
+            bool firstPlayer=false;for(const auto& player:players)if(player.playerIndex==1&&player.activeUnitId==id&&player.activeUnitLifetime==u->entityHandle){firstPlayer=true;break;}
+            if(firstPlayer)continue;
+            const uint64_t primary=u->primaryAnimationLifetime?u->primaryAnimationLifetime:u->primaryEffectAnimation;
+            if(!primary)continue;
+            const auto* animation=effects_.registry()->find(primary);
+            if(!animation||animation->ownership!=hades::AnimationOwnership::ThingPrimary||animation->ownerId!=id||animation->ownerLifetime!=u->entityHandle){error="GetNearbyDanger actual enemy primary ownership unavailable";return false;}
+            // AnimationData.DangerDistance2dc defaults to zero; authored slide
+            // fields never override this top-level value (dynamic-resource contract).
+            const auto* dd=animation->sourceDefinition.get("DangerDistance");
+            if(!dd)continue;
+            if(!std::holds_alternative<double>(dd->value)||!std::isfinite(dd->number())||!std::isfinite(float(dd->number()))){error="GetNearbyDanger primary DangerDistance is not finite float32";return false;}
+            const float distance=float(dd->number());if(!(distance>0))continue;
+            float x=0,y=0,ux=0,uy=0;if(!actorWorld_.location(id,x,y,error)||!actorWorld_.location(op.ownerId,ux,uy,error))return false;
+            const float dx=ux-x,dy=uy-y;volatile float xx=dx*dx,yy=dy*dy;const float squared=xx+yy;
+            if(squared<distance*distance){reply.nearbyDangerId=id;error.clear();return true;}
+        }
+        reply.nearbyDangerId=0;error.clear();return true;}
     case K::CancelAttachedProjectiles:{
         const auto* owner=actorWorld_.actor(op.ownerId);if(!owner){error="PostFire attached scan owner lost";return false;}
         return projectileWorld_.cancelAttached(op.ownerId,owner->entityHandle,[](const hades::ProjectileActor& p,bool& live,std::string& e){
@@ -472,6 +484,7 @@ bool ScriptRuntime::advanceWeapons(float dt,std::string& error){
                 if(!step.expectsProjectileReply)reply.createdProjectile.reset();
                 if(!step.expectsAnimationReply)reply.createdAnimation.reset();
                 if(!step.expectsBlinkReply)reply.blinkFireContinues.reset();
+                if(!step.expectsDangerReply)reply.nearbyDangerId.reset();
             }
             if(!done){error="Native arsenal frame exceeded operation bound";return false;}
         }

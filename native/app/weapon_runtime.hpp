@@ -127,6 +127,7 @@ struct WeaponOutput {
     float x=0,y=0,z=0,angle=0,value=0;
     std::shared_ptr<const ProjectileDefinition> projectile;
     int32_t waveIndex=0,projectileIndex=0,volleyIndex=0;
+    int32_t nearbyDangerId=0; // PostFire stack result passed to OnWeaponFired, never float-converted.
     uint64_t projectileLifetimeHandle=0,animationLifetimeHandle=0;
     bool addCritBonus=false,setAdditiveDamageMultiplier=false;
     float critBonus=0,additiveDamageMultiplier=0,blastRadiusMultiplier=1;

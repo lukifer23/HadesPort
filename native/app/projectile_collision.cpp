@@ -64,6 +64,46 @@ bool projectileAffectsUnit(const ProjectileActor& projectile,int32_t victim,floa
         result=same?friends:enemies;error.clear();return true;
     }catch(const std::exception& e){error=e.what();return false;}
 }
+// Weapon::GetNearbyDanger877a0, matching DLL/PDB, native-combat4-weapon-get-nearby-danger-static.json.
+// Preserve manager order and SSE scalar rounding; this query has no IsAlive,
+// expired or HasStarted gate. AffectsUnit must precede all danger-data reads.
+bool ProjectileWorld::nearbyProjectileDanger(const ActorWorld& world,int32_t ownerId,float worldTime,
+        const ProjectileTeamProviders& teams,std::optional<int32_t>& dangerOwnerId,std::string& error)const{
+#if defined(__clang__)
+#pragma clang fp contract(off)
+#endif
+    try{
+        dangerOwnerId.reset();
+        if(!unit(world,ownerId))throw std::runtime_error("GetNearbyDanger requires actual owner Unit");
+        for(const auto handle:active_){
+            const auto* p=actor(handle);if(!p)throw std::runtime_error("GetNearbyDanger active Projectile storage unavailable");
+            bool affects=false;if(!projectileAffectsUnit(*p,ownerId,worldTime,teams,affects,error))throw std::runtime_error(error);
+            if(!affects)continue;
+            const auto& data=currentData(*p);const float distance=number(data,"DangerDistance");if(!(distance>0))continue;
+            const float speed=number(data,"BlastSpeed"),radius=p->state.blastRadius;
+            const bool expanding=speed>0&&(p->state.blastTimeRemaining>0||radius<number(data,"DamageRadius")*p->state.blastRadiusModifier);
+            float px=0,py=0,ux=0,uy=0;if(!thingLocation(*p,px,py,error)||!world.location(ownerId,ux,uy,error))throw std::runtime_error(error);
+            const float dx=ux-px,dy=uy-py;
+            bool danger=false;
+            if(expanding){
+                const float outer=distance+radius,sx=number(data,"DamageRadiusScaleX"),sy=number(data,"DamageRadiusScaleY");
+                const float rx=outer*sx,ry=outer*sy;
+                const float ellipse=(dy*dy)/(ry*ry)+(dx*dx)/(rx*rx);
+                if(!(ellipse<=1.f))continue;
+                const float band=number(data,"HollowBlastRadiusBand");
+                if(!(band>0)||radius<=band)danger=true;
+                else{
+                    // Source uses current radius here, NOT radius minus band.
+                    const float innerX=radius*sx,innerY=radius*sy;
+                    const float inner=(dy*dy)/(innerY*innerY)+(dx*dx)/(innerX*innerX);
+                    danger=!(inner<=1.f);
+                }
+            }else danger=dx*dx+dy*dy<distance*distance;
+            if(danger){dangerOwnerId=p->state.ownerId;error.clear();return true;}
+        }
+        error.clear();return true;
+    }catch(const std::exception& e){error=e.what();return false;}
+}
 bool ProjectileWorld::checkArcProjectileDefense(uint64_t handle,const ProjectileDefenseProviders& providers,std::string& error){return checkProjectileDefense(handle,providers,true,error);}
 // arc=false: base Projectile::CheckProjectileDefense72560 (.local/reports/native-weapons-check-
 // projectile-defense-pseudocode.c) with ProjectileManager::ProjectileDefenseApplies7b0b0

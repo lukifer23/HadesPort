@@ -56,7 +56,6 @@ struct ActorComponents {
     float damageOutputModifier=1; // Unit.Defaults +3ec.
     uint32_t ambientSoundId=0; // Thing.Defaults full+224; actual allocated channel, separate from descriptor.
     bool suppressSounds=false; // Live Thing Bool field+62, separate from ThingData.
-    int32_t nearbyDangerId=0; // Native source constructor default; danger system owns updates.
     int32_t spawnedById=0; // Unit.Defaults +3c8.
     float timeModifierFraction=1,timeMultiplier=1;
     float lastImpulsedAnimTime=0; // Thing.Defaults VA1802dbd3a, EBP=0.

@@ -34,7 +34,7 @@ int main(int argc,char** argv) {
         else if(arg=="--activate-room")activate=true;
         else if(arg=="--autoplay")autoplay=true; // diagnostic input source: fight/approach/Use via the touch input path
         else if(arg=="--survey-blockers")survey=true; // diagnostic: list all blockers in one run
-        else if(arg=="--contain-faults")contain=survey=true; // device durability mode: skip a failing stage, keep the frame running
+        else if(arg=="--contain-faults")contain=survey=true; // host diagnostic: skip a failing stage; never gameplay acceptance
         else if(arg=="--validate-live-presentation")validatePresentation=true;
         else if(arg=="--probe-load-callbacks")probe=true;
         else if(arg=="--probe-staged-weapons")weaponProbe=true;

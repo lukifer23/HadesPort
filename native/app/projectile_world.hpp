@@ -282,6 +282,9 @@ public:
     bool retainsWeapon(const WeaponArsenal*,const std::string&)const;
     // Attached-aware Thing::GetLocation2e0b70 of a live projectile.
     bool projectileLocation(const ProjectileActor& p,float& x,float& y,std::string& e)const{return thingLocation(p,x,y,e);}
+    // Projectile-first half of Weapon::GetNearbyDanger877a0; nullopt means no candidate.
+    bool nearbyProjectileDanger(const ActorWorld&,int32_t ownerId,float worldTime,const ProjectileTeamProviders&,
+        std::optional<int32_t>& dangerOwnerId,std::string& error)const;
     // Actual primary-animation combat flags (OwnerInvulnerable, OwnerNoInvulnerableCoverage) by Thing id.
     // Projectile::Detonate6d670 DetonateGraphic/DetonateGraphic2: AnimationManager::Create29e410
     // with this projectile as owner Thing at its GetLocation. primary=true for DetonateGraphic,

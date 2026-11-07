@@ -687,7 +687,7 @@ bool WeaponUpdateExecution::advance(const WeaponOwnerFrame& owner,std::optional<
 namespace hades {
 WeaponPostFire::WeaponPostFire(WeaponArsenal& arsenal,std::string name):arsenal_(&arsenal),name_(std::move(name)){}
 bool WeaponPostFire::advance(const WeaponOwnerFrame& owner,std::optional<double> randomReply,
-        const WeaponOutputSupport& support,WeaponPostFireStep& output,std::string& error){
+        const WeaponOutputSupport& support,WeaponPostFireStep& output,std::string& error,std::optional<int32_t> nearbyDangerReply){
     // Weapon::PostFire RVA89500, REA native-player-fire-rea-post-fire.json.
     // This is NOT a generic success stub: required real operations yield and
     // unsupported source branches fail at their actual continuation boundary.
@@ -713,6 +713,10 @@ bool WeaponPostFire::advance(const WeaponOwnerFrame& owner,std::optional<double>
         if(!randomReply||!std::isfinite(*randomReply)||*randomReply<0||*randomReply>=1){error="Native PostFire awaits one original RandomDouble result";return false;}
         pendingRandom_=static_cast<float>(*randomReply)*(randomMax_-randomMin_)+randomMin_;await_=Await::None;
     }else if(randomReply){error="Unrequested native PostFire random reply";return false;}
+    if(awaitingDanger_){
+        if(!nearbyDangerReply){error="Native PostFire awaits actual GetNearbyDanger result";return false;}
+        nearbyDangerId_=*nearbyDangerReply;awaitingDanger_=false;
+    }else if(nearbyDangerReply){error="Unrequested native PostFire danger reply";return false;}
     while(phase_<30){
         bool b=false;float f=0,g=0;std::string s;
         switch(phase_){
@@ -865,9 +869,9 @@ bool WeaponPostFire::advance(const WeaponOwnerFrame& owner,std::optional<double>
             // CheckDanger(+0x990) -> Weapon::GetNearbyDanger877a0; its id is OnWeaponFired's danger argument.
             if(b&&!dangerQueried_){dangerQueried_=true;WeaponOutput op;op.kind=WeaponOutputKind::QueryNearbyDanger;op.name="Weapon::GetNearbyDanger";op.ownerId=owner.ownerId;op.weaponName=name_;
                 if(!support||!support(op,error)){if(error.empty())error="PostFire danger query unsupported";return false;}
-                next.operation=std::move(op);output=std::move(next);return true;}
+                awaitingDanger_=true;next.operation=std::move(op);output=std::move(next);return true;}
             {WeaponOutput op;op.kind=WeaponOutputKind::ScriptCallback;op.name="OnWeaponFired";
-                op.hasTargetLocation=hasTarget_;op.x=targetX_;op.y=targetY_;op.value=0;
+                op.hasTargetLocation=hasTarget_;op.x=targetX_;op.y=targetY_;op.nearbyDangerId=nearbyDangerId_;
                 return emit(std::move(op));}
         case 16:
             if(!flag("OnlyChargeOnce",b))return false;
@@ -918,7 +922,7 @@ bool WeaponTriggerExecution::advance(const WeaponOwnerFrame& owner,const WeaponT
     if(finished_){error="Native trigger-down cursor already finished";return false;}
     if(!std::isfinite(dt_)||dt_<0){error="Invalid native trigger delta";return false;}
     if(!owner.exists){next.progress=WeaponTriggerProgress::OwnerMissing;output=next;finished_=true;return true;}
-    if((phase_!=2&&phase_!=3&&phase_!=5&&reply.randomDouble)||(phase_!=2&&phase_!=3&&reply.createdProjectile)||(phase_!=4&&reply.createdAnimation)||(phase_!=2&&reply.blinkFireContinues)){
+    if((phase_!=2&&phase_!=3&&phase_!=5&&reply.randomDouble)||(phase_!=2&&phase_!=3&&reply.createdProjectile)||(phase_!=4&&reply.createdAnimation)||(phase_!=2&&reply.blinkFireContinues)||(phase_!=5&&reply.nearbyDangerId)){
         error="Unexpected typed native trigger reply at phase "+std::to_string(phase_)+" random="+std::to_string(reply.randomDouble.has_value())+" projectile="+std::to_string(reply.createdProjectile.has_value())+" animation="+std::to_string(reply.createdAnimation.has_value());return false;
     }
     WeaponTriggerReply remaining=reply;
@@ -986,8 +990,8 @@ bool WeaponTriggerExecution::advance(const WeaponOwnerFrame& owner,const WeaponT
             post_=std::make_unique<WeaponPostFire>(*arsenal_,name_);++phase_;continue;
         }
         case 5:{
-            WeaponPostFireStep child;if(!post_->advance(owner,remaining.randomDouble,support,child,error))return false;remaining.randomDouble.reset();
-            if(child.progress==WeaponPostFireProgress::Yielded){next.expectsRandomReply=child.operation.kind==WeaponOutputKind::RequestRandomDouble;next.operation=std::move(child.operation);output=next;return true;}
+            WeaponPostFireStep child;if(!post_->advance(owner,remaining.randomDouble,support,child,error,remaining.nearbyDangerId))return false;remaining.randomDouble.reset();remaining.nearbyDangerId.reset();
+            if(child.progress==WeaponPostFireProgress::Yielded){next.expectsDangerReply=child.operation.kind==WeaponOutputKind::QueryNearbyDanger;next.expectsRandomReply=child.operation.kind==WeaponOutputKind::RequestRandomDouble;next.operation=std::move(child.operation);output=next;return true;}
             ++phase_;continue;
         }
         case 7:next.progress=WeaponTriggerProgress::Finished;output=next;finished_=true;return true;
@@ -1058,7 +1062,7 @@ bool WeaponArsenalFrameExecution::advance(const WeaponArsenalFrame& frame,const 
         const WeaponOutputSupport& support,WeaponArsenalFrameStep& output,std::string& error){
     error.clear();WeaponArsenalFrameStep next;
     if(finished_){error="Native Arsenal composed frame already finished";return false;}
-    if((phase_!=2&&phase_!=4&&reply.randomDouble)||(phase_!=2&&(reply.createdProjectile||reply.createdAnimation))){error="Unexpected reply outside actual native trigger child";return false;}
+    if((phase_!=2&&phase_!=4&&reply.randomDouble)||(phase_!=2&&(reply.createdProjectile||reply.createdAnimation||reply.blinkFireContinues||reply.nearbyDangerId))){error="Unexpected reply outside actual native trigger child";return false;}
     WeaponTriggerReply remaining=reply;
     for(unsigned transitions=0;transitions<100000;++transitions){
         switch(phase_){
@@ -1089,7 +1093,7 @@ bool WeaponArsenalFrameExecution::advance(const WeaponArsenalFrame& frame,const 
             WeaponTriggerStep child;
             if(!down_->advance(frame.owner,remaining,support,child,error))return false;remaining={};
             if(child.progress==WeaponTriggerProgress::OwnerMissing){next.progress=WeaponArsenalFrameProgress::OwnerMissing;output=next;finished_=true;return true;}
-            if(child.progress==WeaponTriggerProgress::Yielded){next.operation=std::move(child.operation);next.expectsRandomReply=child.expectsRandomReply;next.expectsProjectileReply=child.expectsProjectileReply;next.expectsAnimationReply=child.expectsAnimationReply;next.expectsBlinkReply=child.expectsBlinkReply;output=next;return true;}
+            if(child.progress==WeaponTriggerProgress::Yielded){next.operation=std::move(child.operation);next.expectsRandomReply=child.expectsRandomReply;next.expectsProjectileReply=child.expectsProjectileReply;next.expectsAnimationReply=child.expectsAnimationReply;next.expectsBlinkReply=child.expectsBlinkReply;next.expectsDangerReply=child.expectsDangerReply;output=next;return true;}
             childResult_=child.nativeResult;down_.reset();phase_=1;continue;
         }
         case 3:{

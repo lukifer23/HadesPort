@@ -167,10 +167,15 @@ bool ScriptRuntime::releaseProjectileFxOwner(uint64_t handle,std::string& error)
     const int32_t id=it->second;if(!audioOwnerDeath(id,error))return false;hades::EffectOwnerState owner;if(!projectileEffectOwner(id,owner,error)||!actionEffects_.preDisposeOwner(id,owner,error))return false;
     projectileFxOwners_.erase(id);projectileFxOwnerIds_.erase(it);error.clear();return true;
 }
+hades::ProjectileTeamProviders ScriptRuntime::projectileTeamProviders(){
+    hades::ProjectileTeamProviders teams;
+    const auto players=snapshotInputPlayers(state_);if(!players.empty())teams.firstPlayerIdentity=players.front().playerIndex;
+    teams.unitPlayerIdentity=[this](int32_t id,uint64_t& token,std::string& e){token=0;const auto* actor=actorWorld_.actor(id);if(actor&&actor->registered)for(const auto& player:snapshotInputPlayers(state_))if(player.activeUnitId==id&&player.activeUnitLifetime==actor->entityHandle){token=player.playerIndex;break;}e.clear();return true;};
+    return teams;
+}
 hades::ProjectileDefenseProviders ScriptRuntime::projectileDefenseProviders(){
     hades::ProjectileDefenseProviders defense;
-    const auto players=snapshotInputPlayers(state_);if(!players.empty())defense.teams.firstPlayerIdentity=players.front().playerIndex;
-    defense.teams.unitPlayerIdentity=[this](int32_t id,uint64_t& token,std::string& e){token=0;const auto* actor=actorWorld_.actor(id);if(actor&&actor->registered)for(const auto& player:snapshotInputPlayers(state_))if(player.activeUnitId==id&&player.activeUnitLifetime==actor->entityHandle){token=player.playerIndex;break;}e.clear();return true;};
+    defense.teams=projectileTeamProviders();
     defense.preflight=[](const hades::ProjectileDefenseAction& a,std::string& e){
         if(a.kind==hades::ProjectileDefenseActionKind::OnProjectileBlock)return true;
         e="Projectile defense Reflect (Projectile vslot0x190) not reconstructed";return false;};
@@ -231,8 +236,7 @@ void ScriptRuntime::installProjectileGraphicProvider(){
 }
 void ScriptRuntime::fillImpactProviders(hades::ProjectileImpactProviders& impact){
     impact.worldTime=worldTime_;
-            const auto players=snapshotInputPlayers(state_);if(!players.empty())impact.teams.firstPlayerIdentity=players.front().playerIndex;
-            impact.teams.unitPlayerIdentity=[this](int32_t id,uint64_t& token,std::string& e){token=0;const auto* actor=actorWorld_.actor(id);if(actor&&actor->registered)for(const auto& player:snapshotInputPlayers(state_))if(player.activeUnitId==id&&player.activeUnitLifetime==actor->entityHandle){token=player.playerIndex;break;}e.clear();return true;};
+            impact.teams=projectileTeamProviders();
             impact.random=[this](double& value,std::string& e){if(nextRecoveredEngineRandom(state_,value))return true;e="Projectile collision source RNG unavailable";return false;};
             impact.effectData=[this](uint64_t handle,const hades::WeaponEffectDefinition*& data,std::string& e){data=selfEffects_.effectData(handle,e);return data!=nullptr;};
             impact.effectStacks=[this](uint64_t handle,int32_t& count,std::string& e){const auto* instance=selfEffects_.instance(handle);if(!instance){e="Actual crit effect stack instance unavailable";return false;}count=instance->state.numStacks;e.clear();return true;};
@@ -308,8 +312,7 @@ bool ScriptRuntime::advanceProjectiles(float dt,std::string& error){
         if(operation.kind==K::Detonate||operation.kind==K::UpdateDetonation){
             hades::ProjectileImpactProviders impact;fillImpactProviders(impact);
             hades::ProjectileDetonationProviders blast;blast.worldTime=worldTime_;blast.applyImpact=impact.detonationImpact;blast.impact=&impact;
-            const auto players=snapshotInputPlayers(state_);if(!players.empty())blast.teams.firstPlayerIdentity=players.front().playerIndex;
-            blast.teams.unitPlayerIdentity=[this](int32_t id,uint64_t& token,std::string& e){token=0;const auto* actor=actorWorld_.actor(id);if(actor&&actor->registered)for(const auto& player:snapshotInputPlayers(state_))if(player.activeUnitId==id&&player.activeUnitLifetime==actor->entityHandle){token=player.playerIndex;break;}e.clear();return true;};
+            blast.teams=projectileTeamProviders();
             return operation.kind==K::Detonate?projectileWorld_.detonate(p.request.lifetimeHandle,blast,detail):projectileWorld_.updateDetonation(p.request.lifetimeHandle,operation.elapsed,blast,detail);
         }
         if(operation.kind==K::CreateStartFx)return projectileWorld_.createStartFx(p.request.lifetimeHandle,detail);

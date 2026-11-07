@@ -114,6 +114,7 @@ class ScriptRuntime {
     void installProjectileGraphicProvider();
     bool setProjectileAnimation(hades::ProjectileActor&,const std::string&,std::string&);
     bool projectileGraphicTransform(uint64_t,std::string&);
+    hades::ProjectileTeamProviders projectileTeamProviders();
     hades::ProjectileDefenseProviders projectileDefenseProviders();
     std::shared_ptr<hades::ActorAnimationBank> animationBank_;
     hades::AssetPackages packages_;

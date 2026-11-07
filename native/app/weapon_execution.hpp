@@ -204,15 +204,18 @@ struct WeaponPostFireStep {
 // Native base PostFire continuation after actual trigger FireFx. The bounded
 // first-sword/cast paths include real cooldown/clip/reload/control state and
 // original callbacks. Positive status durations and complex control-removal/
-// projectile-cancel/RAM/danger branches stay explicit until real consumers.
+// RAM branches stay explicit until real consumers. Danger replies retain the
+// actual GetNearbyDanger integer through the synchronous callback continuation.
 class WeaponPostFire {
 public:
     WeaponPostFire(WeaponArsenal&,std::string weaponName);
     bool advance(const WeaponOwnerFrame&,std::optional<double> randomReply,
-        const WeaponOutputSupport&,WeaponPostFireStep&,std::string& error);
+        const WeaponOutputSupport&,WeaponPostFireStep&,std::string& error,
+        std::optional<int32_t> nearbyDangerReply=std::nullopt);
 private:
     WeaponArsenal* arsenal_;std::string name_;unsigned phase_=0,controlKey_=0;
-    bool finished_=false,hasTarget_=false,clipEmpty_=false,cancelAttachedDone_=false,dangerQueried_=false;
+    bool finished_=false,hasTarget_=false,clipEmpty_=false,cancelAttachedDone_=false,dangerQueried_=false,awaitingDanger_=false;
+    int32_t nearbyDangerId_=0;
     float targetX_=0,targetY_=0,randomMin_=0,randomMax_=0,pendingRandom_=0;
     enum class Await { None,Cooldown,Reload } await_=Await::None;
     std::unique_ptr<WeaponCancelCharge> cancel_;
@@ -224,13 +227,14 @@ struct WeaponTriggerReply {
     std::optional<double> randomDouble;
     std::optional<uint64_t> createdProjectile,createdAnimation;
     std::optional<bool> blinkFireContinues; // BlinkTeleport consumer result
+    std::optional<int32_t> nearbyDangerId; // GetNearbyDanger consumer result, including native zero
 };
 enum class WeaponTriggerProgress { Yielded,Finished,OwnerMissing };
 struct WeaponTriggerStep {
     WeaponTriggerProgress progress=WeaponTriggerProgress::Yielded;
     WeaponOutput operation;
     bool nativeResult=false;
-    bool expectsRandomReply=false,expectsProjectileReply=false,expectsAnimationReply=false,expectsBlinkReply=false;
+    bool expectsRandomReply=false,expectsProjectileReply=false,expectsAnimationReply=false,expectsBlinkReply=false,expectsDangerReply=false;
 };
 // Complete bounded HandleTriggerDown: Charge -> actual virtual GUN fire ->
 // inline FX -> PostFire. Every yielded real operation must finish before resume.
@@ -287,7 +291,7 @@ enum class WeaponArsenalFrameProgress { Yielded,FrameFinished,OwnerMissing };
 struct WeaponArsenalFrameStep {
     WeaponArsenalFrameProgress progress=WeaponArsenalFrameProgress::Yielded;
     WeaponOutput operation;
-    bool expectsRandomReply=false,expectsProjectileReply=false,expectsAnimationReply=false,expectsBlinkReply=false;
+    bool expectsRandomReply=false,expectsProjectileReply=false,expectsAnimationReply=false,expectsBlinkReply=false,expectsDangerReply=false;
 };
 // Complete native outer Arsenal frame composition. The parent never fabricates
 // child-complete acknowledgments: this cursor owns WeaponUpdate/Trigger cursors.
