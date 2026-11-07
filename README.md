@@ -5,13 +5,14 @@ An unofficial, work-in-progress **native ARM64 Android engine** for **Hades (Sup
 purchased PC copy** — on a C++/OpenGL ES engine reconstructed from the PC engine binary.
 No emulation, Wine, CPU translation, ads, accounts or network access.
 
-> **Status: prototype; full gameplay remains incomplete** (2026-11-06). Iteration18
-> is installed and verified on the designated phone over wireless ADB. Three real
-> joystick release/repress cycles passed on the inner display; thermal status stayed
-> at 0 and no new crash or ANR was found in the scoped check. Fold/cover behavior and
-> sustained play remain unverified. Host progression clears the first encounter and
-> initializes the original boon menu; actual selection is under active implementation.
-> Death/House recovery and later-room progression remain incomplete.
+> **Status: prototype; full gameplay remains incomplete** (2026-11-06). Iteration19
+> is installed and verified over wireless ADB. The joystick now rests level with
+> Attack near the bottom; four alternating movement/release/repress cycles passed
+> on the inner display. The Athena reward marker failure is repaired and verified
+> against the actual source animation chain on the host, including ASan/UBSan.
+> Its phone replay remains open. Death currently fails because DeathArea is not
+> bundled; boon selection and later rooms remain incomplete. Cover/fold transitions
+> and sustained play still need validation.
 > See [`AUDIT.md`](AUDIT.md) for the plan and [`STATUS.md`](STATUS.md) for exact
 > build, runtime and device verification boundaries.
 

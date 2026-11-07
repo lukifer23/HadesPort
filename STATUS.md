@@ -3,6 +3,46 @@
 Updated 2026-11-06. Read `HANDOFF.md` for commands and `AUDIT.md` for the implementation
 plan. This is an incomplete native ARM64 Android engine driven by the original game.
 
+## Installed joystick/reward hotfix — iteration19 (2026-11-06)
+
+Clean source `5b54c0d`; actual installed SHA-256
+`2cf5659db7316a31bdf19cb9f6ef7ffb97595e458e0ce8ca1c042e188230796f`,
+2,610,176,113 bytes. Installation used non-incremental user0 over wireless ADB;
+USB transport was not enumerated. All four app files matched the fresh backup
+before launch. Real Continue loaded the original saved run.
+
+The owner correctly rejected iteration18's high layout despite its bounded input
+check. The stick still used a 45 mm bottom offset: about y=1224 on the inner panel,
+while ATTACK was y=1654. Iteration19 uses the same 19 mm bottom anchor as ATTACK,
+retains side/user offsets and visible-ring acquisition, and restores rest immediately
+on release/cancel. Actual captures verify the lower position. Four alternating
+left/right cycles each produced real movement; released traces show zero input and
+velocity. Cover/fold and longer play remain open.
+
+The reported “Unable to enter” screen was a live engine failure, not a process
+exit: AthenaUpgrade/weapon_2_TRACKING hit an unconditional non-HAA Book marker
+rejection. Native no-dataset lookup follows the actual child chain and falls back
+to animation location. The repair validates real owner/registry lifetimes and raw
+attachment offsets, and rejects unrepresented nonempty datasets. No marker samples
+or assets were invented. The actual original five-node reward chain passes across
+multiple world and animation frames. ASan/UBSan controls, strict5500 marker replay,
+held2950 (five exact historical hits) and component/input probes pass; leak detection
+disabled. The repaired files/function match the clean APK source.
+
+Phone reward verification remains open. During follow-up the character died, then
+original death requested `DeathArea/scene.bin`, which is absent. This is an existing
+content/transition gap, not closed by the marker repair. No new native process crash
+or ANR was found. Thermal status stayed 0; post-control MemAvailable was 4,334,316 kB
+(about 4.1 GiB), memory PSI avg10 some/full 0.00%. These are bounded observations.
+Hades was deliberately stopped afterward. The original primary saves remain intact;
+normal gameplay changed only Profile1.v.sav.bak. Before/after archives are retained.
+
+APK19 includes committed packages2/text12/screen16/action26/audio31/actor9/weapons25/
+properties14 and only RoomOpening/RoomSimple01. Unfinished boon-input work is excluded.
+Current APK and rollback18/17 are preserved, with unchanged signing identity.
+Receipts: `.local/reports/device-2026-11-06/joystick-bottom/`; immutable build receipt
+under `.local/reports/native-builds/` at the APK hash above.
+
 ## Offline boon-shell milestone (2026-11-06)
 
 This historical host milestone preceded device reconnection. Original boon-menu movies, symbol transforms,
@@ -119,13 +159,12 @@ Removed 900.2 MiB of owned build/probe scratch and redundant preliminary snapsho
 operations are part of this milestone; the signed joystick-only candidate remains
 preserved for hardware acceptance. Boon selection is still unproven.
 
-## Joystick and thermal repair — iteration18 installed (2026-11-06)
+## Historical iteration18 repair and bounded check (2026-11-06)
 
-**Iteration18 is installed and verified on the designated device over wireless ADB.**
+**Superseded by iteration19 above.** Iteration18 was installed over wireless ADB.
 USB ADB transport was not enumerated. The owner-reported acquisition/release defect
 passed three real press/move/release/repress cycles on the inner display. Captures
-show movement and the joystick remaining in its lower-screen position. This closes
-the bounded inner-display regression check; cover display, fold transitions,
+show movement and the joystick remaining in its lower-screen position. The owner subsequently rejected its high placement; cover display, fold transitions,
 controller behavior and sustained play remain unverified.
 
 Before launch, all four actual save files were backed up and verified byte-identical
@@ -188,11 +227,12 @@ controls acceptance failed; combat/Athena, physical controllers, lifecycle and
 sustained play remain unverified. Real foreground Android Continue input was used
 under the owner's full authorization; no progression/callback state was injected.
 
-Current candidate: `.local/build/native/hades-native-engine-preview.apk`.
+Current APK19: `.local/build/native/hades-native-engine-preview.apk`.
+Preserved APK18: `.local/build/native/baseline-iteration18-4265c2a5.apk`.
 Iteration17 rollback is ready; iteration16 is retained as a lossless archive
 (restore instructions in HANDOFF). The signing key, canonical assets and actual
 app-state backups are retained privately. The fresh install, identity, save-file
-preservation and short inner-display control checks have passed. Preserve iteration18
+preservation and short inner-display control checks have passed. Preserve the current APK
 before publishing another APK; keep future play bounded and stop on severe thermal
 status. The earlier host/build cleanup removed only rebuildable intermediates;
 the candidate, rollbacks, app backups, canonical assets and signing key remain.
@@ -261,8 +301,9 @@ No mocks, replacement game art, skipped dialogue or forced rewards were introduc
 Build defaults in `scripts/build_native.py` remain authoritative. Canonical assets
 use packages2/text12/screen16/action26/audio31/actor9/weapons25/properties14; only
 RoomOpening and RoomSimple01 are staged. Source/canonical packages2/screen16 are ahead
-of the preserved iteration18 candidate (packages1/screen15). Installed iteration18
-remains a separate recorded identity. Device gameplay acceptance is separate.
+of historical iteration18 (packages1/screen15). APK19 uses the committed default
+selection. The active local menu candidate has screen17/action27/audio32; its
+implementation and host staging remain separate from APK19. Device gameplay acceptance is separate.
 
 | Evidence | Local path |
 |---|---|
@@ -280,6 +321,7 @@ remains a separate recorded identity. Device gameplay acceptance is separate.
 | Iteration18 immutable build | `.local/reports/native-builds/4265c2a52f6014c114bfb35babc62005a2161a913ab915d5ce3549e8b1a53f0c.json` |
 | Joystick host verification | `.local/reports/joystick-2026-11-06/host-verification.json` |
 | Device health and fresh app backup | `.local/reports/device-2026-11-06/joystick-health/` |
+| Iteration19 hotfix verification | `.local/reports/device-2026-11-06/joystick-bottom/` |
 | Iteration18 installation/control/health | `.local/reports/device-2026-11-06/boon-interaction/` |
 | Iteration17 installation/launch | `.local/reports/device-2026-11-06/iteration17-installed.json` |
 | Immutable iteration17 build | `.local/reports/native-builds/b913b9681a4924203eeb5fb3f81d7aac1e24de8168e97b1d00c6807714be21fa.json` |
@@ -300,6 +342,6 @@ remains a separate recorded identity. Device gameplay acceptance is separate.
 Continue on the host with actual BoonSlot1 screen geometry and lifecycle providers,
 then individual text areas, cursor/highlights and original Interact
 callbacks. Death/DeathArea/House, save/restart/Continue and Android acceptance
-follow. Iteration18 inner-display controls passed a bounded physical check; cover/fold
+follow. Iteration19 lower placement and alternating controls passed on the phone; cover/fold
 and sustained play acceptance remain open. `AUDIT.md` records the
 concrete acceptance boundaries.

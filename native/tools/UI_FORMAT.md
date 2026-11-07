@@ -102,3 +102,13 @@ the activity. See Android's [configuration-change documentation](https://develop
 The engine cancels active contacts on resize and reconstructs GLES resources on
 surface loss; UI preferences are durable, while game progress saves remain
 unimplemented.
+
+
+## Bottom movement rest
+
+The Android movement rest shares ATTACK's 19 mm bottom anchor (scaled by the
+selected touch size), with a 25 mm side offset and existing user layout offsets.
+Its complete ring is bounded to the surface. The visible ring remains an input
+target; floating movement also accepts the lower movement side. Releasing or
+canceling restores the bottom rest immediately and clears the movement vector.
+Physical placement remains an Android control policy, separate from original Lua UI.

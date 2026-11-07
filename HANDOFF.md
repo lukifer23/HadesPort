@@ -7,17 +7,25 @@ session evidence under ignored `.local/`.
 
 ## Current continuation
 
-**Iteration18 is now installed and verified over wireless ADB.** USB debugging
-transport was not enumerated. Fresh app-file backup and installed APK verification
-passed; all four existing save files were unchanged before launch. Real Continue
-loaded RoomOpening. Three visible-stick press/move/release/repress cycles passed on
-the inner display at the observed 60 FPS; the control stayed in the lower screen.
-Thermal status stayed 0; no new crash/ANR was found in scoped logs/exit history.
-About 4.2 GiB memory was available; memory PSI avg10 was 0.11%, so this is a bounded
-health observation, not sustained stability. Hades was deliberately stopped after
-the check. Cover display, fold transitions, controllers and longer play remain open.
-See STATUS for installed identity and private receipts. Preserve the current APK,
-rollback17, saves and backups before any new gameplay APK publication.
+**Iteration19 is installed and verified over wireless ADB; no USB ADB transport
+was enumerated.** Clean source `5b54c0d` lowers the stick to ATTACK's 19 mm bottom
+anchor and restores it immediately on release/cancel. Actual inner-display captures
+show its center at about 84% of screen height, versus iteration18's 62%. Four real
+alternating left/right cycles produced movement and zero input after release.
+
+It also fixes the observed AthenaUpgrade/weapon_2_TRACKING marker failure by walking
+the actual live child graph and native no-dataset fallback. The source-bound host
+probe passes five live Book nodes across multiple frames; ASan/UBSan controls,
+5500-frame marker replay, held2950 and component diagnostics pass. During phone
+follow-up the character died before reward verification, exposing the existing
+missing DeathArea/scene.bin. Do not claim phone reward or death acceptance.
+
+Actual installed SHA/size and all four pre-launch app files were verified. Normal
+play changed one backup file; the three other save files remained byte-identical.
+Both before/after archives are retained. Thermal status stayed 0; post-control
+memory PSI avg10 was 0.00%, with about 4.1 GiB available. Hades was stopped after
+the checks. Cover/fold, controller and sustained play acceptance remain open.
+Preserve APK19, rollback18/17, saves, backups and signing key. STATUS indexes receipts.
 
 Strict host progression passes package/config setup and the original boon-shell
 movies, symbol graph and lighting. The current default 8,000-frame request completes
@@ -59,10 +67,10 @@ scratch/build intermediates after recording results.
 Build defaults select packages2/text12/screen16/action26/audio31/actor9/weapons25/properties14
 and RoomSimple01 in addition to root RoomOpening. `scripts/build_native.py` is the
 selection authority; selected source, staged assets and an installed APK are
-separate identities. Source/canonical assets use packages2/screen16; the preserved
-iteration18 joystick candidate uses packages1/screen15. Installed iteration18 remains
-a separate recorded identity. No new gameplay APK is published for this host milestone.
-Preserve iteration18 before any future APK publication. See STATUS for receipts.
+separate identities. Installed iteration19 uses packages2/screen16/action26/audio31.
+The active local boon-input work has candidate screen17/action27/audio32 exports and
+host staging, with defaults unchanged until its milestone passes. APK19 excludes
+that unfinished menu work. Preserve it before any future publication.
 
 ## Storage cleanup and restoration
 
@@ -71,7 +79,7 @@ preserving all 3,938 paths. Shared export/capture payloads are read-only. Do not
 edit them in place or make a shared inode writable; export a fresh version or use
 an independent copy for changes. Metadata before linking is retained privately.
 
-The installed iteration18 APK and rollback17 remain preserved locally.
+The installed iteration19 APK and rollback18/17 remain preserved locally.
 Older iteration16, 17 retired standalone probes, and historical bulk logs/raw
 renders are preserved in 108 SHA-verified lossless gzip archives. Original game/
 installer files, all versioned export paths, saves/backups, signing key, pinned
