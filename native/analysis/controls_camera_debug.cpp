@@ -20,6 +20,9 @@ int main(){try{
         hades::UiSettings layout;layout.leftHanded=left;layout.floatingStick=floating;layout.touchScale=scale;
         hades::TouchControls stick;stick.configure(panel[0],panel[1],layout,420);
         require(stick.y()>panel[1]*.45f,"Visible default stick is outside lower movement area");
+        const float restX=stick.x(),restY=stick.y();
+        require(std::abs(restY-stick.actionButtons()[0].y)<.001f,"Default movement and Attack bottom anchors disagree");
+        require(restY+stick.stickRadius()<=panel[1],"Default movement ring extends below the screen");
         for(int cycle=0;cycle<4;++cycle){
             const float x=stick.x(),y=stick.y(),direction=left?-1.f:1.f;
             require(stick.pointer(hades::UiPointer::Down,50,x,y)&&stick.active(),"Visible stick could not be acquired after release");
@@ -29,16 +32,28 @@ int main(){try{
             require(stick.active(),"Unrelated release cancelled reacquired stick");
             stick.pointer(hades::UiPointer::Up,50,x,y);
             require(!stick.active()&&stick.dx()==0&&stick.dy()==0,"Release retained movement");
+            require(std::abs(stick.x()-restX)<.001f&&std::abs(stick.y()-restY)<.001f,"Release did not immediately restore the bottom rest");
             stick.configure(panel[0],panel[1],layout,420);
             stick.pointer(hades::UiPointer::Move,50,x,y);
             require(!stick.active(),"Released pointer moved without a new press");
+        }
+        if(floating){
+            const float shiftedY=restY-stick.stickRadius();
+            require(stick.pointer(hades::UiPointer::Down,54,restX,shiftedY)&&stick.active(),"Floating off-rest contact did not acquire");
+            require(std::abs(stick.y()-shiftedY)<.001f,"Floating center lost actual touch position");
+            stick.pointer(hades::UiPointer::Up,54,restX,shiftedY);
+            require(std::abs(stick.y()-restY)<.001f,"Floating release retained shifted center");
+            stick.pointer(hades::UiPointer::Down,55,restX,shiftedY);stick.cancel();
+            require(std::abs(stick.y()-restY)<.001f,"Cancel retained shifted floating center");
         }
         // An explicitly edited rest must remain touchable above the general
         // floating zone; physical size and editor offsets do not define input.
         layout.touchLayout[15]=-45;
         stick.configure(panel[0],panel[1],layout,420);
         require(stick.pointer(hades::UiPointer::Down,52,stick.x(),stick.y())&&stick.active(),"Edited visible stick is unreachable");
-        stick.cancel();stick.configure(panel[0],panel[1],layout,420);
+        stick.cancel();
+        require(!stick.active()&&stick.dx()==0&&stick.dy()==0,"Cancel retained movement");
+        stick.configure(panel[0],panel[1],layout,420);
         require(stick.pointer(hades::UiPointer::Down,53,stick.x(),stick.y())&&stick.active(),"Cancelled stick cannot reacquire");
     }
     hades::UiSettings settings;hades::TouchControls controls;controls.configure(1800,1200,settings);

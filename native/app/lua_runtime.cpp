@@ -1439,32 +1439,67 @@ bool ScriptRuntime::effectMarker(int32_t id,const std::string& name,std::array<f
         if(!a->animation.active()){
             const auto primaryName=[&](){return " owner="+std::to_string(id)+" name="+a->object->name+" marker="+name;};
             if(a->primaryEffectAnimation)throw std::runtime_error("GetMarkerLocation on VFX-owned primary not reconstructed:"+primaryName());
-            std::array<float,2> xy{};
-            if(a->primaryAnimationLifetime){
-                hades::NativeAnimationType type;uint64_t child=0;const hades::SourceValue* data=nullptr;
-                if(const auto* scene=scenePrimaries_.state(a->primaryAnimationLifetime)){type=scene->type;child=scene->child;data=&scene->definition;}
-                else if(const auto* action=actionEffects_.state(a->primaryAnimationLifetime);action&&action->primary){type=action->type;child=action->child;data=&action->definition;}
-                else throw std::runtime_error("GetMarkerLocation primary class unavailable:"+primaryName());
-                if(type==hades::NativeAnimationType::Book||type==hades::NativeAnimationType::Slide)throw std::runtime_error("BookAnimation::GetMarkerLocation on non-HAA primary not reconstructed:"+primaryName());
-                // Base Animation::GetMarkerLocation299b70 ignores the name:
-                // VA299b76 child(+0xc8, AddChild293ae0) -> child vslot0xd8 with
-                // the same name; VA299b9b owner(+0xb8) -> GetLocation296c90;
-                // else own location +0x98.
-                if(child)throw std::runtime_error("Animation::GetMarkerLocation child delegation (+0xc8) not reconstructed:"+primaryName());
-                // GetLocation296c90 on the primary itself: its own marker
-                // strings (+0x3e8/+0x400) and UseAttachedTipLocation (+0x9c)
-                // precede LocationFromOwner (+0xc2, OwnerProperty enum
-                // parsed by 0x18008ee30: Maintain=0, Take=1, Ignore=2).
-                for(const char* k:{"UseAttachedMarkerLocation","UseAttachedFiredByMarkerLocation"}){const auto* v=data->get(k);if(v&&!v->text().empty())throw std::runtime_error(std::string("Primary Animation::GetLocation attached marker branch not reconstructed: ")+k+primaryName());}
-                if(const auto* v=data->get("UseAttachedTipLocation");v&&v->boolean())throw std::runtime_error("Primary Animation::GetLocation UseAttachedTipLocation branch not reconstructed:"+primaryName());
+            float x=0,y=0,z=0;
+            if(!actorWorld_.location(id,x,y,error)||!actorWorld_.zLocation(id,z,error))return false;
+            std::unordered_set<uint64_t> seen;
+            uint64_t handle=a->primaryAnimationLifetime;
+            while(handle){
+                if(!seen.insert(handle).second||seen.size()>256)throw std::runtime_error("GetMarkerLocation live child cycle/depth:"+primaryName());
+                hades::NativeAnimationType type;uint64_t child=0;
+                const hades::SourceValue* data=nullptr;
+                const auto* action=actionEffects_.state(handle);
+                const auto* scene=scenePrimaries_.state(handle);
+                if(scene){
+                    if(scene->ownerId!=id||scene->ownerLifetime!=a->entityHandle)throw std::runtime_error("GetMarkerLocation scene child owner lifetime mismatch:"+primaryName());
+                    type=scene->type;child=scene->child;data=&scene->definition;
+                }else if(action){
+                    if(action->ownerId!=id||(!action->detached&&action->ownerLifetime!=a->entityHandle))throw std::runtime_error("GetMarkerLocation action child owner lifetime mismatch:"+primaryName());
+                    type=action->type;child=action->child;data=&action->definition;
+                }else throw std::runtime_error("GetMarkerLocation primary/child class unavailable:"+primaryName());
+                const auto* life=effects_.registry()->find(handle);
+                if(!life||life->child!=child)throw std::runtime_error("GetMarkerLocation actual registry child link unavailable:"+primaryName());
+                const bool book=type==hades::NativeAnimationType::Book||type==hades::NativeAnimationType::Slide;
+                // Base299b76 delegates first. Book2b0d49 computes its base
+                // location before testing/delegating the absent dataset.
+                if(!book&&child){handle=child;continue;}
+                // Animation.GetLocation's raw
+                // attachment offset (+a0/+a4) is distinct from source draw
+                // OffsetX/Y (+90/+94), OffsetZ, shifts, and marker projection.
+                for(const char* key:{"UseAttachedMarkerLocation","UseAttachedFiredByMarkerLocation"}){
+                    const auto* value=data->get(key);
+                    if(value&&!value->text().empty())throw std::runtime_error(std::string("Primary/child Animation.GetLocation marker recursion requires ")+key+primaryName());
+                }
+                if(const auto* value=data->get("UseAttachedTipLocation");value&&value->boolean())throw std::runtime_error("Primary/child Animation.GetLocation attached tip not reconstructed:"+primaryName());
                 const auto* from=data->get("LocationFromOwner");const auto mode=from?from->text():std::string();
-                if(!mode.empty()&&mode!="Maintain")throw std::runtime_error("Primary Animation::GetLocation own-location (+0x98) branch not reconstructed: LocationFromOwner="+mode+primaryName());
-                // Maintain (VA296eb3..): owner location + anim offset
-                // (+0xa0/+0xa4), mAttachOffset, zero for a Thing primary.
+                if(action){
+                    if(action->detached||(!mode.empty()&&mode!="Maintain")){
+                        x=action->position[0];y=action->position[1];
+                    }else{
+                        if(!actorWorld_.location(id,x,y,error))return false;
+                        x+=action->attachOffset?(*action->attachOffset)[0]:action->randomX;
+                        y+=action->attachOffset?(*action->attachOffset)[1]:action->randomY;
+                    }
+                }else{
+                    if(!mode.empty()&&mode!="Maintain")throw std::runtime_error("Scene primary marker own-location policy unavailable:"+primaryName());
+                    // Scene primaries expose no initialized raw-offset state.
+                    // Their admitted source-zero branch has ctor-cleared a0/a4.
+                    for(const char* key:{"RandomOffsetX","RandomOffsetY","RadialOffsetMin","RadialOffsetMax"})if(const auto* value=data->get(key);value&&value->number()!=0)throw std::runtime_error(std::string("Scene primary marker initialized offset requires ")+key+primaryName());
+                    if(!actorWorld_.location(id,x,y,error))return false;
+                }
+                if(book){
+                    const auto* file=data->get("FrameDataFile");
+                    const auto path=file?file->text():std::string();
+                    // GameDataManager.GetAnimFrameDataSet b510a/b5157 ->
+                    // b5349: empty/literal null means no frame dataset.
+                    // Book2b0d95 then delegates actual child+0xc8, or returns
+                    // cached base XY at2b0fc6. This is not a zero track sample.
+                    if(!path.empty()&&path!="null")throw std::runtime_error("Book primary/child actual frame dataset not represented: "+path+primaryName());
+                }
+                if(!child){result={x,y,z};error.clear();return true;}
+                handle=child;
             }
-            if(!actorWorld_.location(id,xy[0],xy[1],error))return false;
-            float z=0;if(!actorWorld_.zLocation(id,z,error))return false;
-            result={xy[0],xy[1],z};error.clear();return true;
+            // Thing without a primary follows its actual attached/base location.
+            result={x,y,z};error.clear();return true;
         }
         // Book.GetMarkerLocation2b0d75..0dc4: absent frame dataset falls
         // through child delegation; absent marker in an existing dataset

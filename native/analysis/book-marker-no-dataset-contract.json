@@ -1,0 +1,110 @@
+{
+  "schema": "hades-book-marker-no-dataset-v1",
+  "target_sha256": "d98546ea54371910ea4499216453994d78e9b4e23b3381e457f8a1648a32e254",
+  "pdb_guid": "15f83bcc-e740-4d0b-bf67-6ac938c8bdfa",
+  "pdb_age": 1,
+  "evidence": [
+    {
+      "path": ".local/reports/takeover-enemy-book-marker-static.json",
+      "sha256": "e574b97e8a30a129cb5c4483682d4a242c57727a557afd689201ee317bbc8370",
+      "function": "sgg::BookAnimation::GetMarkerLocation",
+      "rva": "0x2b0d10"
+    },
+    {
+      "path": ".local/reports/takeover-animation-base-marker-static.json",
+      "sha256": "1818a0066dc719b27fcbd5d42dd196e75ac281184eedcf12643c1547462802cf",
+      "function": "sgg::Animation::GetMarkerLocation",
+      "rva": "0x299b70"
+    },
+    {
+      "path": ".local/reports/native-effect-marker-data-manager.json",
+      "sha256": "7e2f36707faaf24821f42a19967430a60e5628fd9c56598a45791e453c752090",
+      "function": "sgg::GameDataManager::GetAnimFrameDataSet",
+      "rva": "0xb50b0"
+    }
+  ],
+  "native": {
+    "book_function": "BookAnimation.GetMarkerLocation2b0d10",
+    "base_location": "Attached owner -> Animation.GetLocation296c90 at2b0d49, else own Animation+98/+9c at2b0d63. Cache before dataset lookup.",
+    "dataset": "AnimationData+628 checked at2b0d8d; absent -> actual child+0xc8 at2b0fa9.",
+    "dataset_loader": "GameDataManager.GetAnimFrameDataSet b510a(empty length) or b5157(literal null) -> b5349 no dataset.",
+    "no_dataset_child": "If actual child exists, delegate virtual GetMarkerLocation same name at2b0fbe; otherwise return cached base XY at2b0fc6.",
+    "missing_marker_in_existing_dataset": "GetDataForMarker9eef0 null ->2b0dc4 ->2b0fc6 cached base; no child delegation. That separate dataset-present path remains handled by existing HMR backend only.",
+    "base_animation": "Animation.GetMarkerLocation299b76 delegates actual child first; only child absent calls own Animation.GetLocation at299ba5 or own +98 at299bb3.",
+    "draw_vs_attachment": "OffsetX/Y are native draw fields+90/+94, not raw attachment+a0/+a4. OffsetZ and shifting visual Z do not alter fallback XY. Marker rotation/dimensions/owner-Z projection/shake only execute for a present marker track and are skipped for this fallback."
+  },
+  "observed_source_graph": {
+    "owner_definition": "AthenaUpgrade",
+    "primary": "BoonDropAthena",
+    "actual_selected_normalized_definitions": [
+      {
+        "name": "BoonDropAthena",
+        "native_type": "Book",
+        "native_frame_dataset": "absent: FrameDataFile empty/default",
+        "num_frames": 40,
+        "child": "BoonDropA-Athena",
+        "base_xy": "actual owner location + actual initialized raw attachment offset; source draw offsets and Z excluded"
+      },
+      {
+        "name": "BoonDropA-Athena",
+        "native_type": "Book",
+        "native_frame_dataset": "absent: FrameDataFile empty/default",
+        "num_frames": 40,
+        "child": "BoonDropB-Athena",
+        "base_xy": "actual owner location + actual initialized raw attachment offset; source draw offsets and Z excluded"
+      },
+      {
+        "name": "BoonDropB-Athena",
+        "native_type": "Book",
+        "native_frame_dataset": "absent: FrameDataFile empty/default",
+        "num_frames": 40,
+        "child": "BoonDropC-Athena",
+        "base_xy": "actual owner location + actual initialized raw attachment offset; source draw offsets and Z excluded"
+      },
+      {
+        "name": "BoonDropC-Athena",
+        "native_type": "Book",
+        "native_frame_dataset": "absent: FrameDataFile empty/default",
+        "num_frames": 40,
+        "child": "BoonDropAthenaIcon",
+        "base_xy": "actual owner location + actual initialized raw attachment offset; source draw offsets and Z excluded"
+      },
+      {
+        "name": "BoonDropAthenaIcon",
+        "native_type": "Book",
+        "native_frame_dataset": "absent: FrameDataFile empty/default",
+        "num_frames": 50,
+        "child": null,
+        "base_xy": "actual owner location + actual initialized raw attachment offset; source draw offsets and Z excluded"
+      }
+    ],
+    "source_file": "Content/Game/Animations/Fx.sjson",
+    "source_sha256": "e363b7552c96127cdce973160b39d2a9b818a8dcf12ae361cab7e9d628bb95e4",
+    "existing_resources_sufficient": true,
+    "new_images_or_marker_data_required": false
+  },
+  "implementation": {
+    "function": "ScriptRuntime::effectMarker",
+    "live_graph": "ScenePrimaryWorld and ActionEffectWorld actual state/child handles, validated against AnimationRegistry and current owner lifetime; no source-only child fabrication",
+    "action_base_xy": "Maintain -> fresh actual owner XY + current attachOffset when present, otherwise actual initialized randomX/randomY. Detached/Take/Ignore -> actual stored position XY.",
+    "scene_base_xy": "Existing admitted Maintain source-zero raw attachment branch only; unresolved initialized offsets/own location policies fail explicitly.",
+    "no_special_name_gate": true,
+    "readonly": true,
+    "no_random_draw": true,
+    "guards": [
+      "cycle/depth bounds",
+      "expired/mismatched owner or child lifetimes",
+      "missing real primary/child state",
+      "nonempty unrepresented FrameDataFile",
+      "attached-marker/tip recursion outside implemented subset"
+    ],
+    "preserved": "Existing HAA/HMR sampled marker branch and projectile-owned marker branch unchanged."
+  },
+  "regression_evidence_plan": [
+    "Reach actual source Athena reward in strict host world using existing autoplay.",
+    "Call repaired effectMarker on actual current reward and requested weapon_2_TRACKING via a host-only audit seam; compare returned XY/Z to actual actor location with this source-zero attachment graph.",
+    "Inspect all actual live child handles/definitions and assert no dataset at each node; repeat across real simulation Book frame advances.",
+    "Retain original HMR actor marker checks to ensure sampled marker transform unchanged.",
+    "Run clean Android build and on-device touch/real reward follow-up under root owner."
+  ]
+}

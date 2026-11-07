@@ -14,7 +14,7 @@ constexpr size_t useSlot=4;
 constexpr const char* continueControl="ContinueText";
 constexpr const char* continueLabel="NEXT";
 }
-void TouchControls::cancel(){owner_=editOwner_=-1;dx_=dy_=0;free_.clear();zoom_.reset();actionContacts_.clear();held_.fill(false);pressed_.fill(false);}
+void TouchControls::cancel(){owner_=editOwner_=-1;dx_=dy_=0;free_.clear();zoom_.reset();actionContacts_.clear();held_.fill(false);pressed_.fill(false);const auto rest=defaultStick();visualX_=rest[0];visualY_=rest[1];}
 void TouchControls::setContinueTextRequested(bool requested){
     if(requested==continueTextRequested_)return;
     // Never reinterpret a held Use/NEXT contact or a tap queued before the
@@ -46,13 +46,13 @@ bool TouchControls::controlLabel(const std::string& control,std::string& label)c
     return false;
 }
 std::array<float,2> TouchControls::defaultStick()const{
-    // Android adaptation: prefer the physical offset above the bottom HUD,
-    // but keep the default ring in the floating movement area on short panels.
-    // A fixed 45 mm offset put the cover-display rest above its input region.
-    const float rest=mm(25)*scale_,restY=mm(45)*scale_,offset=(leftHanded_?-1.f:1.f)*mm(layout_[2*ButtonCount]);
+    // Android adaptation: align the movement rest with ATTACK's 19 mm bottom
+    // anchor. A 45 mm offset left the stick near the middle of the inner panel;
+    // an acquisition-zone clamp alone did not repair the physical layout.
+    const float rest=mm(25)*scale_,restY=mm(19)*scale_,offset=(leftHanded_?-1.f:1.f)*mm(layout_[2*ButtonCount]);
     const float r=stickRadius();
     const float margin=std::min(r+mm(2),height_*.5f),bottom=height_-margin;
-    const float baseY=std::clamp(height_-restY,std::min(bottom,height_*.45f+margin),bottom);
+    const float baseY=std::clamp(height_-restY,margin,bottom);
     return {std::clamp((leftHanded_?width_-rest:rest)+offset,r,std::max(r,width_-r)),std::clamp(baseY+mm(layout_[2*ButtonCount+1]),r,std::max(r,height_-r))};
 }
 bool TouchControls::editPointer(UiPointer phase,int id,float x,float y){
@@ -136,7 +136,7 @@ bool TouchControls::pointer(UiPointer phase,int id,float x,float y){
         return true;
     }
     if(id==owner_){
-        if(phase==UiPointer::Up){owner_=-1;dx_=dy_=0;}
+        if(phase==UiPointer::Up){owner_=-1;dx_=dy_=0;const auto rest=defaultStick();visualX_=rest[0];visualY_=rest[1];}
         else{
             const float dx=x-anchorX_,dy=y-anchorY_,distance=std::hypot(dx,dy),raw=std::min(1.f,distance/radius);
             const float magnitude=std::max(0.f,(raw-.12f)/.88f);
