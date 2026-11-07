@@ -38,6 +38,8 @@
 #include "control_bindings.hpp"
 #include "hardware_input.hpp"
 #include "frame_pacing.hpp"
+#include "durable_file.hpp"
+#include "save_runtime.hpp"
 #include <set>
 
 #define INFO(...) __android_log_print(ANDROID_LOG_INFO, "HadesNative", __VA_ARGS__)
@@ -160,7 +162,7 @@ class Engine {
         if(!scripts_->applyConfigOptions({{"EasyMode",v[0]},{"ShowDamageNumbers",v[1]},{"ShowUIAnimations",v[2]},{"ShowSpeechBubble",v[3]},{"Subtitles",v[4]},{"DrawBloom",v[5]},{"CameraShake",v[6]}}))throw std::runtime_error(scripts_->error());
         appliedConfig_=v;configApplied_=true;
     }
-    bool saveExists()const{if(savesDir_.empty())return false;struct stat st{};for(const char* n:{"/Profile1.sav","/Profile1_Temp.sav"})if(::stat((savesDir_+n).c_str(),&st)==0&&S_ISREG(st.st_mode))return true;return false;}
+    bool saveExists()const{return hades::save::profileSaveExists(savesDir_,"Profile1");}
     bool appliedVsync_=true;
     float dpi_=0,fpsWindow_=0,fpsWorst_=0;unsigned fpsFrames_=0,heroTraceFrames_=0;std::string fpsLine_;bool fpsWarn_=false;
     void readDensity(){if(app_&&app_->config){const int density=AConfiguration_getDensity(app_->config);dpi_=density>0&&density<2000?float(density):0;}}
@@ -182,10 +184,9 @@ class Engine {
     std::chrono::steady_clock::time_point interval_ = std::chrono::steady_clock::now();
 public:
     explicit Engine(android_app* app) : app_(app), assets_(app->activity->assetManager) {
-        renderer_.setFaultContainment(true); // Android durability; host rendering stays strict.
         if(app->activity->internalDataPath){
             settingsPath_=std::string(app->activity->internalDataPath)+"/native-ui-settings.cfg";
-            savesDir_=std::string(app->activity->internalDataPath)+"/Saves";::mkdir(savesDir_.c_str(),0700);
+            savesDir_=std::string(app->activity->internalDataPath)+"/Saves"; // Durable publisher owns directory creation/synchronization.
             const bool restored=ui_.loadSettings(settingsPath_);profileDir_=std::string(app->activity->internalDataPath);loadProfile();
             INFO("UI_SETTINGS_RESTORED loaded=%d brightness=%.3f camera=%.1f controlScale=%.3f opacity=%.3f leftHanded=%d",restored,ui_.settings.brightness,ui_.settings.cameraHeight,ui_.settings.touchScale,ui_.settings.touchOpacity,ui_.settings.leftHanded);
         }
@@ -238,7 +239,6 @@ public:
     // Android-only settings stay in native-ui-settings.cfg.
     hades::config::ConfigFile profile_;std::string profileDir_;bool bindingsEdited_=false;
     static bool readFile(const std::string& path,std::string& out){FILE* f=std::fopen(path.c_str(),"rb");if(!f)return false;char buf[8192];size_t n;out.clear();while((n=std::fread(buf,1,sizeof(buf),f))>0)out.append(buf,n);std::fclose(f);return true;}
-    static bool writeFileAtomic(const std::string& path,const void* data,size_t size){const auto tmp=path+".tmp";FILE* f=std::fopen(tmp.c_str(),"wb");if(!f)return false;const bool ok=std::fwrite(data,1,size,f)==size;if(std::fclose(f)!=0||!ok)return false;return std::rename(tmp.c_str(),path.c_str())==0;}
     // PC Brightness is 0..1 (default .5); the native display exposure maps
     // .65..1.35 onto it so the defaults coincide (Android adaptation).
     void loadProfile(){
@@ -274,9 +274,10 @@ public:
         // (flag "not saved"); this port writes them because its menu edits them.
         hades::config::ConfigFile::WriteOptions options;options.includeNotSavedOptions=true;
         const auto text=profile_.serialize(options);
-        if(!writeFileAtomic(profileDir_+"/"+hades::config::profileConfigFileName(),text.data(),text.size()))ERROR("PROFILE_CONFIG_SAVE_FAILED");
+        std::string storageError;
+        if(!hades::storage::publishFile(profileDir_+"/"+hades::config::profileConfigFileName(),text.data(),text.size(),storageError))ERROR("PROFILE_CONFIG_SAVE_FAILED detail=%s",storageError.c_str());
         if(bindingsEdited_){const auto bytes=hades::config::writeControlsFile(hades::input::toControlRecords(bindings_));
-            if(!writeFileAtomic(profileDir_+"/"+hades::config::profileControlsFileName(),bytes.data(),bytes.size()))ERROR("PROFILE_CONTROLS_SAVE_FAILED");}
+            if(!hades::storage::publishFile(profileDir_+"/"+hades::config::profileControlsFileName(),bytes.data(),bytes.size(),storageError))ERROR("PROFILE_CONTROLS_SAVE_FAILED detail=%s",storageError.c_str());}
     }
     void syncBindings(){
         if(ui_.takeRemapReset()){bindings_.resetDefaults();bindingsEdited_=true;ui_.setBindings(bindings_.serialize());}
@@ -448,10 +449,10 @@ public:
                         error="Control prompt has no available input binding: "+name;return false;
                     });
                     scripts_->setSaveDirectory(savesDir_);scripts_->initialize();
-                    // Durability: contain unreconstructed behaviour (logged once as
-                    // CONTAINED_FAULT/SURVEY_BLOCKER, counted on screen) instead of
-                    // ending the room. Load failures still use the failure screen.
-                    scripts_->setFaultContainment(true);{std::string containError;if(!scripts_->enableBlockerSurvey(containError))ERROR("FAULT_CONTAINMENT_UNAVAILABLE %s",containError.c_str());}configApplied_=false;applyConfig();
+                    // Preserve source errors/assertions in normal gameplay.
+                    // Continuing a partially applied action corrupts world state;
+                    // containment remains an explicit host diagnostic only.
+                    configApplied_=false;applyConfig();
                     if(continueLoad_){if(!scripts_->loadSave())throw std::runtime_error("Continue: "+scripts_->lastSaveError());INFO("SAVE_LOADED path=%s",scripts_->loadedSavePath().c_str());}}
                 if(!scripts_->gameLoaded()||!scripts_->bootRoom()||!scripts_->activateRoom())throw std::runtime_error(scripts_->error());
                 if(scripts_->mapRevision()!=renderedMapRevision_){

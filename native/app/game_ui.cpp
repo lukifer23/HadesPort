@@ -1,4 +1,6 @@
 #include "game_ui.hpp"
+#include "durable_file.hpp"
+#include "platform_log.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -210,8 +212,7 @@ bool GameUi::loadSettings(const std::string& path){
     value.leftHanded=handed;settings=value;return true;
 }
 bool GameUi::saveSettings(const std::string& path)const{
-    const auto temporary=path+".tmp";
-    std::ofstream output(temporary,std::ios::trunc);
+    std::ostringstream output;
     output<<"HADES_UI_3\n"<<std::setprecision(9)<<settings.brightness<<' '<<settings.cameraHeight<<' '
           <<settings.touchScale<<' '<<settings.touchOpacity<<' '<<settings.leftHanded<<' '<<settings.floatingStick<<' '
           <<settings.renderScale<<' '<<settings.frameCap<<' '<<settings.showFps<<' '<<settings.vibration<<' '<<settings.masterVolume<<' '<<settings.musicVolume<<' '<<settings.effectsVolume<<' '<<settings.voiceVolume;
@@ -219,7 +220,9 @@ bool GameUi::saveSettings(const std::string& path)const{
     output<<' '<<settings.easyMode<<' '<<settings.damageNumbers<<' '<<settings.uiAnimations<<' '<<settings.speechBubbles<<' '<<settings.subtitles<<' '<<settings.bloom
           <<' '<<settings.touchMode<<' '<<settings.deadZone<<' '<<settings.controllerRumble
           <<' '<<settings.drawLights<<' '<<settings.vsync<<' '<<settings.letterbox<<'\n';
-    output.close();if(!output)return false;
-    return std::rename(temporary.c_str(),path.c_str())==0;
+    const auto bytes=output.str();std::string error;
+    if(storage::publishFile(path,bytes.data(),bytes.size(),error))return true;
+    hades::log(hades::Severity::Error,"HadesUi","UI_SETTINGS_SAVE_FAILED detail=%s",error.c_str());
+    return false;
 }
 }

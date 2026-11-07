@@ -81,7 +81,7 @@ target_compile_options(luabins03 PRIVATE -include ${CMAKE_CURRENT_SOURCE_DIR}/lu
 target_link_libraries(luabins03 PUBLIC lua52)
 add_library(lz4block STATIC ${LZ4_DIR}/lz4.c)
 target_include_directories(lz4block PUBLIC ${LZ4_DIR})
-target_sources(hades_native PRIVATE save_runtime.cpp lua_save.cpp)
+target_sources(hades_native PRIVATE save_runtime.cpp lua_save.cpp durable_file.cpp)
 target_link_libraries(hades_native PRIVATE luabins03 lz4block)
 
 # Original Profile<N>.sjson / .ctrls persistence (config file agent).

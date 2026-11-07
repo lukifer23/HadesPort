@@ -3,10 +3,9 @@
 // behaviour instead of stopping at the first. Each script-visible C function
 // is wrapped so a failure is recorded and returns nothing, and `assert` records
 // instead of raising, so the original Main.lua thread loop keeps running.
-// Results after the first entry may be cascades of earlier ones. The Android
-// engine enables it with setFaultContainment(true) so one missing behaviour
-// doesn't end the room; every contained fault is logged (CONTAINED_FAULT /
-// SURVEY_BLOCKER) and counted on screen.
+// Results after the first entry may be cascades of earlier ones. Only explicit
+// host diagnostics enable it. Normal Android gameplay preserves failures and
+// stops world advancement; diagnostic completion never proves acceptance.
 #include "lua_runtime.hpp"
 #include "platform_log.hpp"
 #include <algorithm>

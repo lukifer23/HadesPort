@@ -1,4 +1,5 @@
 #include "save_runtime.hpp"
+#include "durable_file.hpp"
 #include <lz4.h>
 #include <cerrno>
 #include <cstdio>
@@ -146,20 +147,48 @@ bool readSaveFile(const std::string& path,std::vector<uint8_t>& bytes,std::strin
 }
 
 bool writeSaveFile(const std::string& path,const std::vector<uint8_t>& bytes,bool backup,std::string& error){
-    std::error_code ec;
-    const auto parent=std::filesystem::path(path).parent_path();
-    if(!parent.empty()){std::filesystem::create_directories(parent,ec);if(ec){error="Cannot create save directory: "+ec.message();return false;}}
+    // Preserve the original SGB1 bytes and .bak naming (PCSaveDevice::Save
+    // 0x1803743d0), but replace its direct truncation with durable publication.
+    // A .v.sav is the separate nine-byte no-checksum checkpoint marker.
+    const bool validity=std::filesystem::path(path).filename().string().ends_with(kValidTempExtension);
+    const auto validate=[&](const std::vector<uint8_t>& data,std::string& detail){
+        if(validity){bool value=false;return data.size()==9&&decodeValidCheckpoint(data,value,detail);}
+        SaveFile file;std::string lua;return decodeSave(data,true,file,detail)&&luabinsState(file,lua,detail);
+    };
+    if(!validate(bytes,error)){if(error.empty())error="Invalid checkpoint validity file size";return false;}
     if(backup&&fileExists(path)){
-        std::filesystem::copy_file(path,path+kBackupSuffix,std::filesystem::copy_options::overwrite_existing,ec);
-        if(ec){error="Save backup copy failed: "+ec.message();return false;}
+        std::vector<uint8_t> previous;
+        // A read error must not silently destroy a potentially recoverable
+        // primary. A decodable-but-invalid file can be replaced while leaving
+        // the last valid backup intact.
+        if(!readSaveFile(path,previous,error))return false;
+        std::string invalid;
+        if(validate(previous,invalid)&&!storage::publishFile(path+kBackupSuffix,previous.data(),previous.size(),error))return false;
     }
-    std::FILE* f=std::fopen(path.c_str(),"wb");
-    if(!f){error=std::string("Failed to save: ")+std::strerror(errno);return false;}
-    const bool wrote=bytes.empty()||std::fwrite(bytes.data(),1,bytes.size(),f)==bytes.size();
-    const bool flushed=std::fflush(f)==0;
-    const bool closed=std::fclose(f)==0;
-    if(!wrote||!flushed||!closed){error="Save corrupt";return false;}
-    return true;
+    return storage::publishFile(path,bytes.data(),bytes.size(),error);
+}
+
+bool readRecoverableSave(const std::string& path,SaveFile& out,std::string& actualPath,std::string& error){
+    actualPath.clear();
+    std::string primaryError;
+    for(const auto& candidate:{path,path+kBackupSuffix}){
+        std::vector<uint8_t> bytes;SaveFile file;std::string lua,detail;
+        if(readSaveFile(candidate,bytes,detail)&&decodeSave(bytes,true,file,detail)&&luabinsState(file,lua,detail)){
+            out=std::move(file);actualPath=candidate;error.clear();return true;
+        }
+        if(candidate==path)primaryError=std::move(detail);
+        else error="Primary: "+primaryError+"; backup: "+detail;
+    }
+    return false;
+}
+
+bool profileSaveExists(const std::string& directory,const std::string& profile){
+    if(directory.empty())return false;
+    for(const auto& name:{profile,profile+"_Temp"}){
+        const auto path=(std::filesystem::path(directory)/(name+kSaveExtension)).string();
+        if(fileExists(path)||fileExists(path+kBackupSuffix))return true;
+    }
+    return false;
 }
 
 }

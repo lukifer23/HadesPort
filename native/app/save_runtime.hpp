@@ -58,10 +58,17 @@ bool luabinsState(const SaveFile&,std::string& out,std::string& error);
 std::vector<uint8_t> encodeValidCheckpoint(bool valid);
 bool decodeValidCheckpoint(const std::vector<uint8_t>&,bool& valid,std::string& error);
 
-// PCSaveDevice::Save default path (SaveToTempAndMove=false): copy an existing
-// file to "<name>.bak", then write the stream directly.
+// Android storage adaptation: publish a synchronized complete file atomically.
+// Before replacement, durably preserve a valid old file as "<name>.bak".
+// An invalid primary never replaces a previously valid backup.
 bool writeSaveFile(const std::string& path,const std::vector<uint8_t>& bytes,bool backup,std::string& error);
 bool readSaveFile(const std::string& path,std::vector<uint8_t>& bytes,std::string& error);
 bool fileExists(const std::string& path);
+// Android recovery policy: use a backup only when its corresponding primary
+// cannot pass container/checksum/LZ4 validation. The caller still applies the
+// original main/_Temp timestamp and .v.sav validity selection. Validity markers
+// themselves are never recovered from a stale backup.
+bool readRecoverableSave(const std::string& path,SaveFile& out,std::string& actualPath,std::string& error);
+bool profileSaveExists(const std::string& directory,const std::string& profile);
 
 }

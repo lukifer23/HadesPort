@@ -33,8 +33,16 @@
   "file_format": {
     "container": "sgg::BinarySaveData (ctor 0x180189c10: reserves 4 + 4*checksum header bytes; PrepareForWrite 0x1802043a0; toStream 0x180204300). All integers little-endian raw copies.",
     "header": [
-      {"offset": 0, "type": "u32", "value": "0x31424753 'SGB1' (cppCompatVersion magic)"},
-      {"offset": 4, "type": "u32", "value": "sgg::adler32 (0x1802f5eb0, standard Adler-32, a=1 b=0, NMAX 5552) over bytes [8, end)"}
+      {
+        "offset": 0,
+        "type": "u32",
+        "value": "0x31424753 'SGB1' (cppCompatVersion magic)"
+      },
+      {
+        "offset": 4,
+        "type": "u32",
+        "value": "sgg::adler32 (0x1802f5eb0, standard Adler-32, a=1 b=0, NMAX 5552) over bytes [8, end)"
+      }
     ],
     "payload_v16": [
       "i32 version = 16 (GatherSaveData 0x18021c3c0)",
@@ -69,15 +77,30 @@
     "lua_after_load": "Inferred from scripts: OnPreThingCreation (RoomManager.lua:141; GameState non-nil so StartNewGame is skipped; DoPatches/SetupMap run), then OnAnyLoad (RoomManager.lua:219): RestoreUnlockRoomExits if CurrentRun.CurrentRoom.ExitsUnlocked else StartRoom; then OnLoad."
   },
   "native": {
-    "files": ["native/app/save_runtime.hpp", "native/app/save_runtime.cpp", "native/app/lua_save.cpp", "native/app/luabins_lua52_compat.h", "native/host/save_probe.cpp", "native/host/save_probe.hpp"],
+    "files": [
+      "native/app/save_runtime.hpp",
+      "native/app/save_runtime.cpp",
+      "native/app/lua_save.cpp",
+      "native/app/luabins_lua52_compat.h",
+      "native/host/save_probe.cpp",
+      "native/host/save_probe.hpp"
+    ],
     "approximations": [
       "MIN_TIME_BETWEEN_SAVES throttle not reconstructed (TimeSpan unit unproven).",
       "Lua Save() errors or a missing _saveData fail the save; the original ignores the call error and could write a stale or Lua-less save.",
       "Saves are written synchronously; the original uses SaveToDeviceAsync and a remote (cloud) device.",
       "Checksums are always verified on load (the Load caller's verify flag was not recovered); legacy saves without the SGB1 magic are rejected.",
       "Save files that exist but cannot be decoded are treated as absent when choosing between Profile1.sav and Profile1_Temp.sav.",
-      "Only the currently loadable map (RoomOpening) can be restored; other targets fail before Lua Load runs.",
+      "Only staged actual maps can be restored; missing room resources fail before Lua Load runs.",
       "The SaveParams platform metadata and save-spinner UI are not reproduced."
-    ]
+    ],
+    "storage_adaptation": {
+      "scope": "Android/macOS storage durability and recovery policy; not recovered PC behavior. Original SGB1/Luabins/LZ4 wire formats and main/_Temp timestamp/validity selection remain unchanged.",
+      "publication": "A unique same-directory temporary file is completely written, file-synchronized, closed, renamed, then its directory is synchronized. Parent directory creation is synchronized. Failure after rename reports complete data visible with unconfirmed directory durability.",
+      "backup": "Before primary replacement, an existing checksum/container/LZ4-valid save or valid nine-byte checkpoint marker is durably published as .bak. An invalid readable primary cannot overwrite an existing valid backup. Unreadable primary aborts publication.",
+      "recovery": "Each primary profile save uses its own .bak only when primary read/container/checksum/LZ4 validation fails. This fallback is explicitly logged. Original main/_Temp selection applies afterward. Validity markers never recover from a potentially stale .v.sav.bak. Recovery selects existing bytes without rewriting the primary or manufacturing state.",
+      "shared_owner": "native/app/durable_file.cpp supplies publication for saves, Profile config/control files and Android UI settings. Callers serialize same-destination writes. Orphan temporary files from process death are never selected as save candidates.",
+      "verification": "native/analysis/save_durability_probe.cpp uses two distinct actual save files, kernel RLIMIT_FSIZE write failures and SIGKILL of a real publishing process. Host filesystem checks do not establish Android power-loss or original-script checkpoint/relaunch acceptance."
+    }
   }
 }

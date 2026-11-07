@@ -227,9 +227,7 @@ bool ScriptRuntime::invokeSaveCheckpoint(const std::string& saveName,const std::
 }
 
 bool ScriptRuntime::hasSave()const{
-    if(saveDirectory_.empty())return false;
-    return hades::save::fileExists(savePath(activeProfile_,hades::save::kSaveExtension))||
-           hades::save::fileExists(savePath(activeProfile_+"_Temp",hades::save::kSaveExtension));
+    return hades::save::profileSaveExists(saveDirectory_,activeProfile_);
 }
 
 bool ScriptRuntime::loadSave(){
@@ -243,11 +241,12 @@ bool ScriptRuntime::loadSave(){
     struct Candidate {std::string path;hades::save::SaveFile file;bool ok=false;};
     Candidate main{mainPath,{},false},temp{tempPath,{},false};
     for(auto* c:{&main,&temp}){
-        std::vector<uint8_t> bytes;std::string detail;
-        if(!hades::save::fileExists(c->path))continue;
-        if(!hades::save::readSaveFile(c->path,bytes,detail)||!hades::save::decodeSave(bytes,true,c->file,detail)){
+        std::string detail,actual;
+        if(!hades::save::fileExists(c->path)&&!hades::save::fileExists(c->path+hades::save::kBackupSuffix))continue;
+        if(!hades::save::readRecoverableSave(c->path,c->file,actual,detail)){
             hades::log(hades::Severity::Error,tag,"SAVE_UNREADABLE path=%s detail=%s",c->path.c_str(),detail.c_str());continue;
         }
+        if(actual!=c->path){hades::log(hades::Severity::Error,tag,"SAVE_BACKUP_RECOVERED primary=%s backup=%s policy=primary_missing_or_invalid",c->path.c_str(),actual.c_str());c->path=std::move(actual);}
         c->ok=true;
     }
     // GetPreferredSave (0x1801ce750): main wins when the temp save is strictly
