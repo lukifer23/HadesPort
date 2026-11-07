@@ -1,54 +1,141 @@
 # Hades native port — current state
 
-Updated 2026-11-06. Read `HANDOFF.md` for commands and `AUDIT.md` for the implementation
-plan. This is an incomplete native ARM64 Android engine driven by the original game.
+Updated 2026-11-07. Read `HANDOFF.md` for commands and `AUDIT.md` for the remaining
+implementation plan. This remains an incomplete native ARM64 Android engine.
 
-## Paused boon-input checkpoint (2026-11-06)
+## Iteration21: native danger and missing-object selection (2026-11-07)
 
-Work stopped at the owner's request. The checkpoint adds source-derived screen
-polygons and individual text areas, actual pointer ownership/selection, retained
-floating highlights/audio fades, and the original Interact/Notify callback path.
-It also adds native text Column/Pad/format breaks, bracket/dotted tooltip-value
-lookup, current projectile-property queries, effect-property mutation and
-UseableOn/Off. Unsupported paths continue to fail explicitly.
+Source `1028a6b` is installed over USB as iteration21. Actual installed SHA-256
+`ff502b78fcf20b2ab17980ee1b9b58f4d6cf82a286a78ad09ca1c9f11c16f870`,
+2,613,850,469 bytes. Signing identity is unchanged. All four app files were archived
+and verified unchanged after installation, before launch. APK20/19 and rollback18/17
+remain protected; no save was reset or restored.
 
-The last strict input audit requested 6,000 frames and completed 5,578 with zero
-contained faults and every completed frame's presentation validated. It hovered
-all three original choices, checked real highlight lifetimes and fades, then sent
-a genuine quick pointer press/release. Original Interact.Use/Notify executed the
-trait callback and created the real BoonGet movie. Close then stopped at:
+The real iteration20 dash failure exposed two underlying defects: positive danger
+radii were rejected before native allegiance/geometry filtering, and OnWeaponFired
+received a fixed zero. Native projectile point/expanding-ellipse/hollow tests,
+attachment-aware locations, first-owner return and enemy-primary scan now execute.
+A typed integer result crosses the actual weapon continuations into original Lua.
+The unused actor cache is removed; existing team providers share one implementation.
+Native pending-hash ordering, changed player associations and switched-allegiance
+history remain explicit boundaries; ellipse/hollow execution is not claimed by the
+point regression.
+
+The extended real-input replay then exposed optional rubble spawns returning an
+absent selector. Object and motion selectors now parse signed32 separately from
+allocation identity and resolve actual membership. Missing AddToGroup owners follow
+the recovered native policy while named-group creation retains its original order.
+Screen and world motion share validated parsing, plural precedence and empty-table
+handling; unsupported retained states still reject.
+
+Final same-source ASan/UBSan gates pass with zero contained faults and every frame's
+live presentation validated: actual-save combat/danger3600, complete boon/tooltip
+input6220, and held combat2950. The first returns projectile owner1000003 into real
+OnWeaponFired at native frame1093, passes the optional-rubble boundary and reaches
+natural ranged spawns. The boon route's world samples all equal the prior accepted
+route; the held route retains all five exact historical hits. Leak detection was
+disabled. No encounter outcome, callback or reward was injected.
+
+Real phone Continue restored the existing version16 Temp checkpoint. Genuine
+movement, special attacks and dash defeated six enemies naturally. Dash returned
+zero danger; no positive projectile-owner query was observed on hardware. The
+final encounter wave then stopped at original RoomEvents.lua:620:
 
 ```
-Original notify: Scripts/Main.lua:419: Scripts/UIScripts.lua:2650: Native engine action not reconstructed yet: HideTopMenuScreenTooltips
+SpawnUnit ForceToValidLocation relocation search not reconstructed: LightRanged
 ```
 
-Boon close/teardown and full selection acceptance remain incomplete. Recovery
-proved that native InGameUI is an actual MenuScreen with six tooltip slots; real
-Attack/Deflect keyword producers can populate them. An empty hide replacement is
-not valid. Next: parsed text keyword/BlockTooltip state, actual MenuScreen source
-templates and original AutoTooltip image, native queue/update/render/fade/hide,
-then ClearUseTarget's recovered callback/cancel/cache lifecycle. Interrupted,
-unwired interfaces were removed; their exact patch and source research are private.
+The actual Unit hull overlaps a registered StopsUnits obstacle. Native spawning
+calls Thing::ForceToValidLocation (RVA0x2e1440); that search still needs recovery.
+The Unit/OnSpawn already exist before this strict failure. The obstacle search
+uses a different point predicate and RNG policy and cannot substitute for it.
+Hades was deliberately stopped at25HP; all four actual app files stayed unchanged
+through play and final thermal status was0. Positive danger-query hardware and
+physical boon acceptance remain open. Sustained performance/audio/lifecycle
+acceptance also remains open.
 
-Build defaults and canonical host assets now select packages2/text12/screen17/
-action27/audio32/actor9/weapons25/properties14, with the same two rooms. Screen17's
-845 clips and 2,028 bank frames are byte-identical to screen16; its action binding
-changed. Action27 preserves prior banks and adds a separate 26-frame authored
-BoonGet movie window from the original carrier. Audio32 preserves all 2,199 event
-semantics, 3,642 samples and mixing values; two named parameter arrays changed
-order only. Old exports remain immutable. No text13/tooltip resource export exists.
+Receipts: `.local/reports/boon-completion-2026-11-07/danger-input-review/final-verification.json`
+and `.local/reports/device-2026-11-07/iteration21/`. Source/resource and architecture
+boundaries below remain applicable. `AUDIT.md` gives the ordered continuation.
 
-The hotfix ASan/UBSan suite below covers the input/text/marker work through the
-5,500-frame pre-selection route and exact held combat. It preceded the later
-SetEffectProperty/Useable additions. Those additions have fast build/replay evidence;
-final full-checkpoint sanitizer and Android validation remain pending. A final
-syntax check passes after removing interrupted interfaces. No new APK includes
-this checkpoint: iteration19 remains installed. Owned temporary builds were removed;
-no project build/replay/analysis/device-test workers remain running.
+## Iteration20 checkpoint (historical, 2026-11-07)
 
-Receipts: `.local/reports/boon-interaction-2026-11-06/`; paused source/cleanup and
-process receipts are recorded there. Private restart notes retain the exact next
-steps and interrupted patch. Earlier host milestones below are historical.
+Source `03e5770` was built and installed as iteration20 over USB ADB. Actual installed
+SHA-256 `d3cd23b91177dd6003f57cda93288e13f24c6063ff65a5ff16e6452f348c954e`,
+2,613,858,661 bytes. The signing certificate matches APK19. All four actual app files
+were archived and verified unchanged after installation, before launch. APK19 and
+rollback18/17 remain protected. Both USB and wireless transports are available.
+
+Normal Android execution now preserves original errors/assertions and stops failed
+world/render work. Survey and containment remain explicit host diagnostics only.
+Real Continue restored the original version16 Temp save into RoomSimple01, completed
+native map begin and accepted genuine movement, attack and special input. Six
+original enemies died naturally. Dash with a live ranged projectile then stopped
+at the unreconstructed GetNearbyDanger query. Hades was deliberately stopped; all
+four actual app files remained unchanged after play and thermal status was0.
+Physical reward/boon acceptance was not completed on that build.
+
+The strict original-input host route now completes all 6,220 requested frames with
+zero contained faults and every successful frame's live presentation validated.
+It hovers all three real choices, observes original tooltip backing/header/body
+visuals, waits through native hide/fade, and selects through actual pointer input.
+Original Interact/Notify, trait mutation, BoonGet creation, source-owner disposal,
+movie detachment/retirement and menu close execute. The held 2,950-frame route
+retains all five exact historical combat hits. Both routes and the actual-save
+publication probe pass ASan/UBSan; leak detection was disabled.
+
+An extended strict request6500 completes6220, then stops before the next map begins:
+
+```
+Actual room asset unavailable: A_Combat04/scene.bin
+```
+
+This is the actual room chosen by original scripts, after the recovered Gaussian
+selection executes. No room, reward, encounter result or callback was injected.
+DeathArea remains absent, as reproduced by the preceding phone build.
+
+Native InGameUI/MenuScreen now owns six retained tooltip slots separately from World
+Things. Source parsed-key identities, live Keywords, BlockTooltip, actual source
+text parameters, queue ordering, show/hide countdowns, GUI Clear, authored component
+styles and fade lifetimes are implemented. ClearUseTarget preserves the cached
+entity through original Lost callbacks and restores immutable Graphic only for a
+matching primary; cursor/highlight state remains independent. Text components own
+cached glyph geometry; placement and fades remain live.
+
+The Lua config API now uses the shared recovered registered-field specification
+instead of a second whitelist. Non-scalar/enum conversion still rejects explicitly.
+Native Gaussian streams are separate from ordinary RNG streams, retain cached
+spares across randomseed, and use recovered rejection/operation order. Native
+math.random dispatch is restored. Registered API checks cover type/float bounds,
+source Gaussian vectors, cached spares, stream isolation and dispatcher behavior.
+Windows CRT versus platform log/sqrt last-bit equivalence is not established.
+
+Saves, profile config/controls and UI settings share a durable same-filesystem
+publisher: complete temporary write, file synchronization, atomic replacement and
+directory synchronization. A validated previous save is backed up before primary
+replacement; unreadable/corrupt primaries can recover their corresponding valid
+backup. Original main/Temp timestamp/validity selection is retained; stale validity
+marker backups are never restored. Eleven real-save/file/subprocess checks include
+kernel write limits, truncation and SIGKILL. Physical power-loss and complete
+script-reached checkpoint/restart acceptance remain separate.
+
+Defaults, canonical host assets and APK20 select packages2/text13/screen17/action27/
+audio32/actor9/weapons25/properties14, with RoomOpening/RoomSimple01 only. Text13
+retains all 177 previous font/icon payloads and adds the actual AutoTooltip crop and
+complete authored templates. Independent BC7 pixels, source identities, preservation,
+16 damaged-input/publication cases and six publication/ownership cases pass. Text
+staging verifies unique temporary copies and publishes the catalog last without
+truncating shared source inodes. Prior export versions remain immutable.
+
+Remaining implementation limits include actual next-room/death/House closure,
+APK-only content delivery, synchronous package reads/residency, visible Shroud,
+explicit presentation approximations and global native phase parity. Cover/fold,
+controller/lifecycle, sustained frame/audio/thermal behavior and full runs remain
+hardware acceptance work.
+
+Receipts: `.local/reports/boon-completion-2026-11-07/host-verification.json`,
+`.local/reports/native-tooltip-2026-11-07/`, `.local/reports/device-2026-11-07/`,
+and the immutable APK build receipt under `.local/reports/native-builds/`.
 
 ## Installed joystick/reward hotfix — iteration19 (2026-11-06)
 
@@ -346,20 +433,29 @@ No mocks, replacement game art, skipped dialogue or forced rewards were introduc
 ## Selected assets and evidence
 
 Build defaults in `scripts/build_native.py` remain authoritative. Current source and
-canonical host assets use packages2/text12/screen17/action27/audio32/actor9/weapons25/
-properties14. Only RoomOpening/RoomSimple01 are staged. Installed APK19 is the
-separate verified source5b54c0d identity with screen16/action26/audio31. No checkpoint
-APK was built or installed. Tooltip resources are the next required fresh export.
+canonical host assets use packages2/text13/screen17/action27/audio32/actor9/weapons25/
+properties14. Installed iteration21 uses source `1028a6b` and those same packs.
+Only RoomOpening/RoomSimple01 are staged; the extended strict host route stops at
+the original script-selected `A_Combat04/scene.bin`. The full 6,220-frame boon route
+and exact held-combat baseline pass ASan/UBSan. APK19 remains a protected rollback
+with its historical source5b54c0d and screen16/action26/audio31 selection.
 
 | Evidence | Local path |
 |---|---|
+| Current same-source sanitizer gates | `.local/reports/boon-completion-2026-11-07/danger-input-review/final-verification.json` |
+| Iteration21 installation and physical checks | `.local/reports/device-2026-11-07/iteration21/` |
+| Iteration21 immutable build | `.local/reports/native-builds/ff502b78fcf20b2ab17980ee1b9b58f4d6cf82a286a78ad09ca1c9f11c16f870.json` |
+| Earlier strict/sanitized boon checkpoint | `.local/reports/boon-completion-2026-11-07/host-verification.json` |
+| Text13 pixels, preservation and publication | `.local/reports/native-tooltip-2026-11-07/` |
+| Iteration20 installation and physical checks | `.local/reports/device-2026-11-07/` |
+| Iteration20 immutable build | `.local/reports/native-builds/d3cd23b91177dd6003f57cda93288e13f24c6063ff65a5ff16e6452f348c954e.json` |
 | Boon shell final verification | `.local/reports/boon-shell-2026-11-06/final-verification.json` |
 | Boon shell tested source | `.local/reports/boon-shell-2026-11-06/tested-source.json` |
 | Screen16 preservation | `.local/reports/package-loader-2026-11-06/screen16-preservation.json` |
 | Package final verification | `.local/reports/package-loader-2026-11-06/final-verification.json` |
 | Package sanitizer checks | `.local/reports/package-loader-2026-11-06/sanitizer-verification.json` |
 | Android ARM64 identity | `.local/reports/package-loader-2026-11-06/android-native.json` |
-| Current storage audit | `.local/maintenance/storage-audit-20261106/summary.json` |
+| Recorded storage audit (2026-11-06) | `.local/maintenance/storage-audit-20261106/summary.json` |
 | Package-build scratch cleanup | `.local/reports/package-loader-2026-11-06/cleanup.json` |
 | Package source identity | `.local/reports/package-loader-2026-11-06/tested-source.json` |
 | Package export preservation | `.local/reports/package-loader-2026-11-06/export-v2-verification.json` |
@@ -375,7 +471,7 @@ APK was built or installed. Tooltip resources are the next required fresh export
 | Screen/action resource preservation | `.local/reports/screen-slide-2026-11-06/` |
 | Audio preservation and alias checks | `.local/reports/screen-action-child-2026-11-06/` |
 | Prior review verification | `.local/reports/review-2026-11-06/final-verification.json` |
-| Current review/build/replays | `.local/reports/review-2026-11-06/` |
+| Earlier review/build/replays | `.local/reports/review-2026-11-06/` |
 | Dependency integrity | `.local/reports/dependency-integrity-2026-11-06.json` |
 | Generated-file cleanup | `.local/private/cleanup/generated-probes-20261106.json` |
 | Prior rollback retirement | `.local/maintenance/storage-cleanup-pass2-20261106-123724.json` |
@@ -385,10 +481,14 @@ APK was built or installed. Tooltip resources are the next required fresh export
 
 ## Next work
 
-Resume native tooltip production and lifecycle at the explicit close-screen blocker,
-then complete actual boon teardown and repeat strict/sanitized/Android checks.
-Keep APK19 and fresh backups protected. Actual phone reward replay, cover/fold,
-controllers and longer play remain open. DeathArea content/runtime delivery is
-required before death/House recovery; the phone reproduced its missing asset.
-`AUDIT.md` records the acceptance boundaries. Do not force progression or substitute
-rooms, callbacks, fonts or tooltip art.
+Recover native blocked-Unit ForceToValidLocation relocation, then repeat bounded
+physical iteration21 danger and reward/boon acceptance. Deliver the actual
+A_Combat04 and death/House resource/runtime closures next. Host tooltip selection
+and teardown are implemented and pass strict/sanitized checks; physical acceptance
+remains separate. Protect APK21, APK20/19, rollback18/17 and fresh app backups. Verify
+script-reached checkpoint/restart across actual transitions, implement offline
+content delivery and bounded package I/O/residency before broad room expansion,
+then close reached rendering/phase gaps. Cover/fold, controller/lifecycle and
+sustained frame/audio/thermal behavior remain open. `AUDIT.md` records the ordered
+plan and acceptance boundaries. Do not force progression or substitute rooms,
+callbacks, fonts or tooltip art.

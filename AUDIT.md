@@ -1,189 +1,178 @@
 # Hades port review and implementation plan
 
-Reviewed 2026-11-06; the initial review baseline was `faee143`, followed by the
-verified pipeline batch `86b0344`, Athena graph, package/config and current boon-shell milestone.
-The scope is HadesPort: native engine, host drivers, exporters/stagers,
-build/dependencies, recovered contracts, delivery evidence and storage hygiene.
-The sibling REA checkout is supporting tooling; its existing bridge edit is
-preserved. The designated device now runs the verified iteration19 joystick/reward-marker repair
-over wireless ADB; USB transport was not enumerated.
-This is a bounded source, host-runtime and launch review,
-not evidence that every original-engine branch has been executed.
+Updated 2026-11-07 for source `1028a6b` and installed iteration21. The goal is a
+complete offline native ARM64 Android engine running the original Hades scripts
+and owned assets. This remains an incomplete two-room prototype. The review covers
+source, recovered contracts, resource pipelines, host replay and bounded device
+observations; it does not establish execution of every original-engine branch.
+The sibling REA checkout supplies analysis tooling and retains its existing bridge
+edit. `STATUS.md` records live evidence; `HANDOFF.md` gives continuation commands.
 
 ## Current result
 
-The repository implements a substantial two-room native prototype. Original Lua
-scripts control progression; reconstructed C++ components supply engine behavior;
-original assets are exported locally. Unsupported behavior fails explicitly in
-strict host mode. Device containment records gaps and skips failed work; it does
-not implement that work and cannot count as acceptance.
+Iteration21, source `1028a6b8296543239c54f9ce900c035216bc847c`, is installed over USB
+with actual SHA-256
+`ff502b78fcf20b2ab17980ee1b9b58f4d6cf82a286a78ad09ca1c9f11c16f870`,
+2,613,850,469 bytes and the unchanged signing certificate. All four actual app files
+were verified unchanged after installation, before launch. APK20/19 and rollback18/17
+remain preserved.
 
-The paused input checkpoint passes original Athena dialogue and boon construction,
-then hovers all three real choices and selects through actual pointer/Interact/
-Notify. Effect changes and UseableOff execute; the original callback creates the
-real BoonGet movie. The strict request6000 completes5578 at missing native
-HideTopMenuScreenTooltips (UIScripts2650). Full close/teardown is still open.
+Iteration21's real Continue and genuine controls defeated six enemies naturally.
+Dash with live ranged enemies returned zero danger. The logs do not establish a
+live projectile candidate at the query; positive projectile geometry and the owner
+callback are host-verified and remain a separate hardware acceptance gate.
+At the final wave, original `Scripts/RoomEvents.lua:620` stopped strict execution at
+`SpawnUnit ForceToValidLocation relocation search not reconstructed: LightRanged`.
+The player had 25 HP. Hades was deliberately stopped; all four actual app files
+remained byte-identical before installation versus after play, and final thermal
+status was 0. No callbacks/progression were injected and fault containment was off.
+Physical reward/boon completion remains open behind native blocked-spawn relocation.
+The receipt is `.local/reports/device-2026-11-07/iteration21/acceptance.json`.
 
-Native InGameUI owns six MenuScreen tooltip slots. Parsed Attack/Deflect keys are
-real producers, so an empty/no-op hide is invalid. Reconstruct actual queue/update,
-source-template GUI components, original backing/glyph resources and fade/hide.
-ModifyTextBox BlockTooltip and ClearUseTarget follow. The latter dispatches target
-loss, restores immutable Graphic only on the native matching primary, then clears
-the player target; it does not clear the separate cursor target.
+On iteration20, original Continue restored the version16 Temp save into RoomSimple01
+and genuine movement/attack/special/dash input defeated six enemies naturally.
+A real dash with a live ranged enemy then stopped strict execution at
+`Weapon::GetNearbyDanger projectile danger geometry not reconstructed`. The player
+had 20 HP. Hades was deliberately stopped; all four app files remained byte-identical
+before installation versus after play, and final thermal status was 0. Iteration21
+includes the source-derived repair and its bounded device evidence is recorded above.
+These bounded observations do not establish sustained performance or later-room
+acceptance.
 
-Source/default/canonical assets select screen17/action27/audio32. All prior pixels,
-clips, audio samples and semantic values are preserved; the new action companion
-contains 26 actual BoonGet frames. Fast build/replay covers the later effect/useable
-classes. Hotfix ASan/UBSan input/marker5500, exact held2950 and component checks pass,
-but final sanitizer/Android verification for the entire checkpoint remains pending.
-No new gameplay APK was published for that checkpoint. The user requested a stop;
-workers and temporary builds were closed, with exact research/restart notes retained.
+The strict host input route completes all 6,220 requested frames with zero
+contained faults and live presentation validated for every completed frame. It
+hovers the three actual boon choices, observes native tooltip creation and fade,
+and selects through real pointer input and original Interact/Notify. Trait changes,
+BoonGet creation, source-owner disposal, movie detachment/retirement and menu
+teardown execute. Final same-source ASan/UBSan checks pass this route, a 3,600-frame
+danger/input route and the held 2,950-frame combat replay. The danger route passes
+the actual projectile owner 1000003 into original OnWeaponFired, has no optional
+rubble-selector blocker and reaches a later natural ranged wave. All three runs
+validate every completed frame with zero contained faults. Boon world samples match
+the prior accepted route; held combat retains its five exact historical hits.
+Leak detection was disabled.
 
-Iteration19 (`5b54c0d`) is installed with actual APK identity and four pre-launch
-save files verified. The owner rejected iteration18's still-high stick placement.
-The new rest shares ATTACK's 19 mm bottom anchor and resets immediately on release/
-cancel. Four genuine alternating movement/repress cycles passed on the inner display.
+The recorded extended strict request for 6,500 frames completes 6,220, then stops at:
 
-The AthenaUpgrade marker failure now follows native no-dataset child traversal.
-Actual-source host and ASan/UBSan checks pass across five live Book nodes; held2950
-retains its exact five historical hits. Phone reward replay remains unverified:
-the character died during follow-up and hit the existing missing DeathArea asset.
-Thermal status stayed 0; about 4.1 GiB was available and PSI avg10 was 0.00% after
-controls. No new process crash/ANR was found. Hades was stopped after the checks.
-Cover/fold behavior, throttling response and sustained play remain unproven.
+```
+Actual room asset unavailable: A_Combat04/scene.bin
+```
 
-## Architecture and gaps
+Original Gaussian room selection now executes and selects that actual next room.
+Only RoomOpening and RoomSimple01 are bundled. DeathArea is also absent and was
+reproduced as a transition failure on an earlier device build. Passing the
+boon checkpoint therefore establishes neither a complete run nor death/House recovery.
 
-| Area | Current boundary and implication |
+## Implemented foundations
+
+**Strict execution:** Android preserves original action errors and assertions and
+stops failed world/render work. Survey and fault containment are explicit host
+diagnostics. They must never be counted as gameplay acceptance or used to bypass
+a missing action. The previous unconditional Android suppression is removed.
+
+**Native tooltip and target lifecycle:** InGameUI/MenuScreen owns six retained
+slots separately from World Things. Parsed text keys, actual Keywords, BlockTooltip,
+source text parameters, native queue/show/hide timing, authored GUI styles, Clear
+and fade behavior have real consumers. ClearUseTarget retains the cached entity
+through original Lost callbacks and restores immutable Graphic only when its
+primary matches; cursor/highlight ownership remains separate. Text components own
+cached glyph geometry while placement and fades remain live.
+
+**Original resources and safe publication:** defaults, canonical host assets and
+APK21 select packages2/text13/screen17/action27/audio32/actor9/weapons25/properties14.
+Text13 preserves all 177 previous font/icon payloads and adds the actual AutoTooltip
+crop and complete authored templates. Independent BC7 pixel comparison, source and
+semantic preservation, 16 damaged-input/publication cases and six ownership cases
+pass. Text staging verifies unique temporary copies, preserves identical existing
+inodes and publishes the catalog last. Old exports remain immutable.
+
+**Shared config and recovered RNG:** the Lua config API consumes the same recovered
+registered-field specification as native configuration, replacing its second
+whitelist. Unsupported non-scalar/enum conversions still reject explicitly. Native
+Gaussian streams have independent PCG state and cached spares, follow recovered
+rejection/operation order and retain spares across randomseed. Native math.random
+dispatch is restored. Source vector, type/float-bound, cached-spare, stream-isolation,
+config and dispatch checks pass. Last-bit equivalence between Windows CRT and the
+host/Android log/sqrt implementations is not established.
+
+**Native danger and signed selection:** source `1028a6b` reconstructs the actual
+projectile allegiance, attachment-aware point/ellipse/hollow tests, first-owner
+return and enemy primary-animation scan. The result passes as an integer through
+the weapon continuations into original OnWeaponFired; a mutable actor cache is
+removed and existing team-provider copies are consolidated. Source signed object
+selectors are separated from allocation identity and actual membership lookup.
+Missing optional rubble targets follow recovered AddToGroup/motion selection,
+including native group creation order. Screen and world motion share one validated
+decoder with plural precedence and empty-table handling. Native pending-hash
+ordering, switched allegiance and unexecuted geometry cases retain explicit limits.
+Recovered facts and boundaries are recorded in
+`native/analysis/nearby-danger-contract.json` and
+`native/analysis/object-id-selection-contract.json`.
+
+**Durable persistence:** saves, profile configuration/controls and UI settings share
+same-filesystem temporary writes, file synchronization, atomic replacement and
+directory synchronization. A validated previous save is backed up before primary
+replacement; corresponding valid backups can recover corrupt/unreadable primaries.
+Original main/Temp timestamp and validity selection is retained; stale validity
+marker backups are not restored. Eleven actual-save/file/subprocess checks pass
+ASan/UBSan, including kernel write limits, truncation and SIGKILL. Device Continue
+loads the real existing save. Physical power loss and complete script-reached
+checkpoint/restart acceptance remain separate gates.
+
+Dependency preparation already verifies hash-pinned extraction completeness before
+publication. Room builders/stagers share the native 26-file declaration, validate
+complete manifests and source identities, and publish fresh directories. These
+foundations should be extended through their existing owners rather than duplicated.
+
+## Remaining architecture boundaries
+
+| Area | Confirmed boundary and required work |
 |---|---|
-| Original script execution | `lua_runtime`, scheduler, notifications and Lua action units share the native world between host and Android. Control notification advancement is working on the verified route; unsupported script calls must remain explicit. |
-| World/combat | Actor lifecycle, movement/pathing, effects, weapons, projectiles, collision and audio support the initial encounter. Beam/Lob/Sky and specialized delayed/live-target branches remain incomplete. Keep shared and projectile hit consumers aligned. |
-| Animation ownership | `animation_registry` owns allocation/lifecycle; screen and action-effect worlds supply different owner state. Screen layers now initialize actual local/delegated children and independent created manager roots. Reached Athena FX/emitter ownership and disposal execute. External-child ChainTo/TransferChildren still reject explicitly. |
-| Boon UI | Actual geometry/text areas, three-choice cursor/highlights, pointer Interact/Notify and original trait changes execute. Close stops at native tooltip production/lifecycle. Complete native six-slot tooltips, BlockTooltip and ClearUseTarget, then verify teardown; phone/controller acceptance remains open. |
-| Maps/resources | Native transitions check 26 room-bound files before retiring the current map. Only RoomOpening/RoomSimple01 are staged. Original boon package admission now implements source-derived exact-case unit mapping, all-manifest preflight, real CPU reads and deferred OnPackageLoaded. GPU readiness remains separate. DeathArea is absent. Generic room staging still assumes `HeroEnd` and a unique `CameraIntroEnd`; inspect actual House geometry before exporting. |
-| Rendering | Actor/scene/UI pipelines and camera/blur state exist. Visible Shroud still throws in `fullscreen_blur_renderer.cpp`; radial sampling, text layout and some material/sort behavior retain documented approximations. |
-| Persistence | Original SGB1/Luabins/LZ4 and profile formats exist. `save_runtime.cpp` backs up then directly truncates/writes the primary. A direct host round trip does not establish script-reached saves, interrupted-write recovery or Android Continue. |
-| Content delivery | APK publication has identity/permission checks and an immutable receipt. ZIP32 and the already large APK cannot be the full-game packaging strategy. Content expansion needs a real local-content delivery implementation. |
-| Platform/performance | Iteration19 is installed; lower placement and four alternating movement cycles passed. Fresh thermal status stayed 0; no new scoped crash/ANR. Cover/fold and actual throttling response remain open. Physical controls, controller loss/remap, pause/resume, surface changes, audio routes and sustained thermal/frame-time/memory behavior require hardware. The 384 MiB actor GPU cache is a measurement target, not a measured defect. |
+| Maps and original progression | A_Combat04 and DeathArea are absent. Derive each requested map's actual scripts, geometry, groups, anchors and complete resource closure. Existing generic staging assumes HeroEnd and a unique CameraIntroEnd; validate House geometry before reuse. |
+| Combat and animation | The physical final-wave Unit spawn needs Thing::ForceToValidLocation (RVA0x2e1440) after actual hull/StopsUnits overlap. Recover its search; the obstacle point-search/RNG policy cannot substitute. Initial encounter systems execute. Specialized weapon/projectile branches, external child transfers and unreconstructed ownership paths remain explicit gaps. Keep shared hit and projectile consumers aligned; reached tests do not prove all weapons/enemies. |
+| Package I/O and residency | Original package admission and deferred callbacks exist, but the provider performs atlas reads synchronously from pump. One texture per service call is not a byte/time budget. CPU atlases remain retained without an aggregate eviction budget. GPU readiness is a separate owner and acceptance boundary. |
+| Rendering | Visible Shroud still fails explicitly. Material/Ambient/SortMode and other admitted presentation fields retain documented approximations. Exact native ECS command-buffer flush and cross-consumer phase parity remain unresolved. Zero faults on a supported route does not establish visual parity. |
+| Content delivery | Original payloads are still bundled into a roughly 2.61 GB APK using the current ZIP32 publication path. Full-game expansion requires a verified offline local-content store/import path independent of single-APK size limits. |
+| Save acceptance | Durable publication and real-file recovery work; verify original script-reached checkpoints across actual map transitions and device process death/relaunch without resetting saves. |
+| Platform and performance | Physical boon acceptance, cover/fold transitions, pause/resume, surface recreation, controller connection/remap/loss, audio routes and sustained frame/audio/thermal/memory behavior remain open. Cache capacities are measurement targets, not measured defects. |
 
-Source consumers and specialized recovered contracts take precedence over broad
-historical contract summaries. Some older summaries still describe subsequently
-implemented behavior; do not reconstruct a feature twice based on stale prose.
+## Ordered next work
 
-## Repairs completed now
-
-**Dependency integrity:** directory existence previously counted as completed
-extraction. A cancelled or modified source tree could silently enter builds. The
-preparer now checks actual files against the hash-pinned archive, rejects missing,
-modified, unexpected and symlinked entries, and publishes verified new extraction
-with one rename. Valid existing sources remain untouched. Real cached archives
-exercise fresh/idempotent preparation and damaged-input rejection without mocks.
-
-**Room-pack admission and publication:** staging previously accepted arbitrary
-file lists and unbounded names, wrote files before later validation, and merged
-duplicate selections. Builders/revisions/staging now share admission and the native
-26-file declaration, validate identities, and publish complete directories from
-scratch. Copied catalog bytes are checked against source identities. Boot-map
-resources remain at the root. Original-game output protection now resolves the
-actual `.local` symlink target before comparing paths. Real RoomSimple01 staging
-and actor revision exercise both valid publication and malformed manifests.
-
-**Hygiene:** 584 tracked files total about 5.22 MB, with no exact duplicates, files
-over 1 MiB or game payloads. Earlier owned scratch cleanup removed review probes,
-hotfix and package builds. The dedicated storage audit then consolidated 1,327
-exact binary/capture groups, preserving all 3,938 paths as read-only shared data;
-all export versions remain available. It archived iteration16, 17 legacy probes
-and older bulk logs/raw renders losslessly (108 files), with SHA-checked restore
-and original mode/mtime. Candidate18/rollback17 stay ready; iteration16 needs restore.
-
-The private directory's accounted usage fell from 44.2 to 35.5 GiB. Physical APFS free-space
-gain is unverified; do not report directory accounting as reclaimed volume space.
-Original game/installers, saves/backups, key, pinned dependencies, unique device
-media and supporting REA checkout remain protected. Python bytecode was removed;
-Rust analysis caches remain because offline dependency coverage was incomplete.
-All 90 build-manifest checks, 23 package checks and 49 room checks pass after cleanup.
-The restore tool was exercised on an actual render and executable. No Codex
-transcripts were found. HANDOFF documents shared-file and restoration rules;
-`.local/maintenance/storage-audit-20261106/summary.json` indexes exact evidence.
-
-## Athena runtime milestone
-
-The earlier Athena batch reconstructs initialization order and real cross-consumer child
-ownership, per-slide original image/random-duration/Loop playback, VFX offsets,
-actual screen-owner state, sound eligibility, clock links and pending disposal.
-Matching DLL/PDB evidence proves that CreateScreenObstacle calls World SpawnObstacle
-then applies a coordinate flag. Its primaries and nested effects remain World0;
-actual GameUI manager ownership must not be inferred from the portable screen bank.
-Body helpers, Move helpers and per-animation modified time have different equations.
-Script SetAnimation does not invoke PreferUnmodifiedTime; Script CreateAnimation's
-Setup does, along the self/Child chain only. These facts are recorded in
-`native/analysis/screen-thing-fx-owner-contract.json` and cited at the consumers.
-
-The earlier Athena resource closure used screen15/action26/audio31. Independent checks
-preserve every previous screen frame/clip, action definition/movie/frame payload/
-clip image binding and prior audio semantics/samples/mixing values. Audio export
-now accepts only proven same-file aliases for otherwise identical compressed sample
-records, retaining historical rows and incoming provenance. Cache identity includes
-ctime, preventing same-size edits with restored mtime from reusing old validation.
-No original game bytes or derived evidence were added to git.
-
-That earlier milestone exposed the original boon package request. The current
-offline batch completes its source-derived admission/CPU completion and reached
-config storage. The new shell batch implements movie resources, helper transforms,
-loop RNG and original color conversion; BoonSlot1 geometry is the next explicit gap.
-The current milestone does not prove boon selection, later rooms, full visual
-parity or device play. Existing material/sort/ambient and nonspatial audio adaptations
-remain documented; additional unrelated audio playlist branches remain unsupported.
-
-## Ordered implementation plan
-
-| Order | Concrete implementation | Acceptance before moving on |
+| Order | Concrete deliverable | Required acceptance |
 |---|---|---|
-| 0 | Iteration19 delivered over wireless ADB; lower joystick placement and four alternating cycles passed. | Preserve verified APK/saves. Next check cover/fold transitions and bounded longer play, monitoring actual faults/thermal/memory. Stop on severe throttling. |
-| 1 | Athena portrait graph — implemented and host-verified. | Strict default route passes the former 4,748 boundary through 4,837; slower real input reaches 5,437 after repeated blink loops. Preserve held-combat and final sanitizer/platform checks. Physical rendering/audio acceptance remains pending. |
-| 2 | Original LoadPackages admission and reached config storage — implemented and host-verified. Source-derived mappings, manifest-first admission, actual worker reads and deferred callbacks replace the former Interactables.lua:826 stop. | Native Lua5.2/worker tests, preserved original atlas bytes, strict progression to BoonSelectIn, held combat and final sanitizer/platform checks. GPU residency and actual boon selection remain separate. |
-| 3 | Resume the paused boon close path: native InGameUI keyword tooltip producers, source GUI components and fade/hide; BlockTooltip; recovered ClearUseTarget. Existing input reaches the original trait callback. | Complete original callback/teardown through genuine input; sanitizer and Android gates; actual phone touch/controller acceptance. No fixed bounds, forced rewards or direct callbacks. |
-| 4 | Restore death/House and the script-selected next room. Reconstruct low-health FX, AllowAnyFire/Graphic side effects, camera clamp clearing and Stop/Halt/death voice resources. Implement the proven disabled analytics/email branch. Review actual DeathArea MapGroups/anchors before export. | Strict original death reaches actual House/DeathArea and normal control. Normal progression loads the map selected by scripts. No invented room, injected damage or forced encounter clear. |
-| 5 | Implement save durability while retaining original wire formats. Document Android atomic publication/recovery and complete script-reached checkpoint/restart/Continue across actual maps. | Compatibility, interrupted/truncated writes and recovery verified using copies of actual saves. Device process death/relaunch resumes without resetting saves. |
-| 6 | Implement full-game local content delivery before broad room expansion. Retain immutable payload identity and offline import while removing single-APK size limits. | Complete identity checks, bounded reads and explicit missing-content errors. No network permission or uploaded game files. |
-| 7 | Validate Android behavior, then expand full runs. Preserve current APK/app files, install a milestone candidate non-incrementally, verify actual hash/size, then exercise controls/lifecycle/audio/thermal and frame-time behavior. Expand from original script/resource requirements. | Source/pack/APK/device identities and real manual play per milestone. Host-only evidence never closes a device gate. |
+| 1 | Reconstruct native blocked-Unit spawn relocation, then repeat bounded physical reward/boon acceptance. | Recover Thing::ForceToValidLocation RVA0x2e1440 and its actual hull predicate/RNG order; reuse existing Unit validity/location owners. Record an actual blocked candidate and real relocation before original RoomEvents final-wave creation completes. The obstacle point search cannot substitute. Preserve APK/app files, use genuine input with strict execution, then observe the original trait change, menu teardown and resumed control. Physical boon acceptance remains open; record results separately from host proof. |
+| 2 | Export and integrate the actual A_Combat04 closure, then reconstruct death/House and subsequent script-selected transitions. | Strict original progression enters the selected map with correct resources and normal control. Actual death reaches the real House/DeathArea. Recover reached engine gaps from matching DLL/PDB evidence; never substitute rooms or force encounter results. |
+| 3 | Complete script-reached checkpoint/restart acceptance across those transitions. | Actual checkpoint publication, process death/relaunch and Continue preserve original run state. Keep real saves/backups protected; exercise destructive failures on independent copies. |
+| 4 | Implement full-game offline content delivery before broad room expansion. | Verified owned-file import, complete identity checks, bounded reads, atomic publication and explicit missing-content errors. Preserve immutable payload identity and offline operation. |
+| 5 | Move package reads off the frame thread and implement bounded residency through the existing package owner. | Preserve original request/completion order and ownership, cancellation and error propagation. Measure real cold/warm load latency, frame time and memory; verify CPU/GPU readiness independently and avoid duplicate caches. |
+| 6 | Close rendering and native scheduling gaps required by expanded play. | Reconstruct visible Shroud and reached material/sort/attachment/phase semantics from provenance. Validate actual pixels, owner lifetimes and device rendering; keep any remaining approximation explicit. |
+| 7 | Qualify Android lifecycle and sustained play, then expand original encounters/maps toward complete runs. | Physical fold/cover, controls/controller loss, pause/resume, surface/audio route changes and sustained frame-time/thermal/memory evidence. Stop on severe throttling; successful short input cycles do not establish sustained acceptance. |
 
-The next device gates are actual reward replay, cover/fold behavior and lifecycle.
-DeathArea delivery is required before death/House acceptance; the phone reproduced
-that missing asset. Keep later play bounded and pause before unattended work.
-The owner authorized independent offline progress; the next host deliverable is
-native tooltip production/lifecycle and actual boon close/teardown.
-The held historical screen patch remains reference
-material; the integrated implementation was independently reviewed and verified.
-STATUS indexes resource preservation, source evidence and exact input routes.
+Platform checks can proceed alongside the next bounded milestone. Map delivery and
+package performance become prerequisites before large-scale content expansion.
+Source consumers and specialized contracts take precedence over older broad
+summaries; do not reconstruct completed behavior again because historical prose
+still lists it as missing.
 
-The boon-shell batch retains source-derived coverage rather than a name whitelist:
-37 added clips, seven actual GUI images and three qualifying original movies (54
-frames). Screen and action helpers share proven scale/angle math. Original duration
-initialization and loop rerandomization use the real engine RNG, including child-first
-local graph ordering and cached helper fractions. Book completion preserves native
-cancellation, ChainTo and immutable ThingData.Graphic fallback. Shared color parsing
-uses native RGB-selected normalized/byte conversion, not a byte-only approximation.
+## Evidence and verification discipline
 
-Next derive transformed screen polygons from actual sprite/Thing geometry, keep
-individual text-box bounds and owner lifetimes, then implement cursor ordering,
-highlights and Interact.Use/NotifyOnInteract. No fixed bounds, skipped callbacks or
-forced rewards. Existing Material/Ambient/SortMode hints and nonspatial audio remain
-adaptations. Exact native ECS command-buffer flush and cross-consumer child-update
-phases remain unresolved; the local graph tests do not establish global phase parity.
+Current host receipts are under `.local/reports/boon-completion-2026-11-07/`;
+the final same-source danger/boon/combat acceptance is indexed by its
+`danger-input-review/final-verification.json`.
+Resource/pixel/publication receipts are under
+`.local/reports/native-tooltip-2026-11-07/`; device receipts are under
+`.local/reports/device-2026-11-07/`. Immutable APK receipts remain under
+`.local/reports/native-builds/`. `STATUS.md` separates current acceptance from history.
 
-## Verification discipline
+Use the shortest real route that reaches a change, retain the held-combat baseline,
+and run one final ASan/UBSan gate after runtime changes. Run one build/export/replay
+per worker under `nice -n 15` and builds with `-j 2`. Strict runs establish reached
+coverage; surveys discover gaps. Use original assets and callback/input paths, with
+no mocks, stubs, forced progression, substitute art or silent field dropping.
 
-Use one build/export/replay process at a time per worker, `nice -n 15`, `-j 2`,
-RelWithDebInfo without sanitizers while iterating. Use the shortest real route that
-reaches the change, then preserve the held-combat baseline and one final sanitized
-run. Surveys discover gaps; zero-fault strict runs establish only reached coverage.
-No new game-specific switches, substitute assets, mocks or silent field dropping.
-
-Keep private evidence under `.local/`; commit source and recovered facts only.
-Delete owned scratch builds after recording results. Existing exports can share
-hardlinked storage; logical duplicate paths do not establish wasted physical bytes.
-
-Previous detailed audit/checkpoint history is preserved at git commit `faee143`.
-Current STATUS and this acceptance plan replace its stale connected-device and
-rollback-retention claims.
+Keep original/derived game data and session evidence under ignored `.local/`; commit
+only implementation and recovered facts. Preserve current/rollback APKs, saves,
+backups, signing identity and pinned tools. Existing exports can share read-only
+hardlinks: replace destination directory entries rather than changing shared
+inodes. Remove only owned scratch work after recording results. Directory accounting
+and file deduplication do not establish reclaimed physical APFS space.

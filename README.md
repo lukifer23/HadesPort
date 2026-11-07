@@ -5,17 +5,16 @@ An unofficial, work-in-progress **native ARM64 Android engine** for **Hades (Sup
 purchased PC copy** — on a C++/OpenGL ES engine reconstructed from the PC engine binary.
 No emulation, Wine, CPU translation, ads, accounts or network access.
 
-> **Status: prototype; full gameplay remains incomplete** (2026-11-06). Iteration19
-> is installed and verified over wireless ADB. The joystick now rests level with
-> Attack near the bottom; four alternating movement/release/repress cycles passed
-> on the inner display. The Athena reward marker failure is repaired and verified
-> against the actual source animation chain on the host, including ASan/UBSan.
-> Its phone replay remains open. Death currently fails because DeathArea is not
-> bundled; boon selection and later rooms remain incomplete. Cover/fold transitions
-> and sustained play still need validation. The paused host checkpoint reaches real
-> boon selection; closing it remains blocked on native tooltip implementation.
-> See [`AUDIT.md`](AUDIT.md) for the plan and [`STATUS.md`](STATUS.md) for exact
-> build, runtime and device verification boundaries.
+> **Status: prototype; full gameplay remains incomplete** (2026-11-07).
+> Iteration21 is installed and verified over USB ADB. Normal Android gameplay now
+> stops on real engine failures. Host strict/ASan/UBSan input completes original
+> boon selection, native tooltips and full teardown through 6,220 frames; original
+> scripts then request an unbundled A_Combat04 room. Real phone Continue and
+> bounded movement/combat and dash execute. Native danger results and missing-object
+> selection are repaired. A blocked Unit spawn needs native relocation; physical
+> boon, death/House and sustained play remain open. Saves/settings now use durable
+> atomic publication.
+> See [`AUDIT.md`](AUDIT.md) and [`STATUS.md`](STATUS.md) for exact boundaries.
 
 **This repository contains no game files.** You must own Hades (e.g. on Steam or the Epic
 Games Store) and supply its files yourself. Read [`DISCLAIMER.md`](DISCLAIMER.md).
